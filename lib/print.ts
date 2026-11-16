@@ -14,8 +14,10 @@ export type PrintSpec = {
   hub?: number; // mm — đường kính vùng giữa đĩa không in được
 };
 
-// Độ rộng mỗi dải gáy ở 2 mép bìa sau (mm) — đổi ở đây
-export const BACK_SPINE_MM = 6.5;
+import { BACK_SPINE_CM } from "./cdSpecs";
+
+// Độ rộng mỗi dải gáy ở 2 mép bìa sau (mm) — đổi trong lib/cdSpecs.ts
+export const BACK_SPINE_MM = BACK_SPINE_CM * 10;
 
 export const SPECS: Record<PrintKind, PrintSpec> = {
   front: { kind: "front", label: "Bìa trước", w: 120, h: 120, shape: "rect", cut: 2, safe: 4 },

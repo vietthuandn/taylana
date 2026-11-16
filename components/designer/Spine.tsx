@@ -16,9 +16,11 @@ export type SpineText = {
   y: number; // vị trí theo bề ngang gáy (px bản in)
 };
 export type SpineSide = { bg: string | null; texts: SpineText[] };
-export type SpineData = { left: SpineSide; right: SpineSide };
-export const emptySpine = (): SpineData => ({ left: { bg: null, texts: [] }, right: { bg: null, texts: [] } });
-export const hasSpineContent = (d: SpineData) => [d.left, d.right].some((s) => s.bg || s.texts.length);
+export const emptySide = (): SpineSide => ({ bg: null, texts: [] });
+export const sideHasContent = (s: SpineSide | null | undefined) => !!s && (!!s.bg || s.texts.length > 0);
+
+// Vùng dải dọc trên bìa (gáy, Spine). side = nội dung chữ/màu (null = chỉ vẽ đường, không sửa)
+export type Zone = { id: string; label: string; x: number; w: number; side: SpineSide | null };
 
 // Nội dung 1 dải gáy (len = chiều dài gáy, thick = độ rộng gáy, đơn vị px bản in)
 export function SpineContent({ side, len, thick, editable, selectedId, onSelect, onMoveText }: {

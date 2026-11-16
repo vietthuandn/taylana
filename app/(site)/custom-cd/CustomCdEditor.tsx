@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { BACK_SPINE_MM, SPECS, mmToPx, sizeText } from "@/lib/print";
+import { INNER_SPINE_FROM_CM, INNER_SPINE_TO_CM, TRAY_DISC_DIAMETER_CM, TRAY_DISC_HOLE_CM } from "@/lib/cdSpecs";
 import { targetLabels, type DesignTemplate } from "@/lib/templates";
 import type { Package } from "@/lib/types";
 import { Designer, FONTS, type DesignerHandle } from "@/components/designer/Designer";
-import { SpineEditor, emptySpine, type SpineData, type SpineText } from "@/components/designer/Spine";
+import { SpineEditor, emptySide, type SpineSide, type SpineText, type Zone } from "@/components/designer/Spine";
 import { TemplateThumb } from "@/components/designer/TemplateThumb";
 import { OrderDialog, downloadBlob, type DesignFile } from "@/components/designer/OrderDialog";
 import { useSize } from "@/components/designer/useSize";
@@ -32,9 +33,19 @@ function pagesOf(frontN: number, backN: number): PageDef[] {
   return [...front, ...back, { key: "d1", part: "disc", label: "Mặt Đĩa", kind: "disc", page: null }];
 }
 
-// Gáy bìa sau (px bản in)
+// Bìa sau: số đo (px bản in) lấy từ lib/cdSpecs.ts
+const BW = mmToPx(SPECS.back.w);
 const SPINE_LEN = mmToPx(SPECS.back.h);
-const SPINE_THICK = mmToPx(BACK_SPINE_MM);
+const GAY = mmToPx(BACK_SPINE_MM);
+const IN_FROM = mmToPx(INNER_SPINE_FROM_CM * 10);
+const IN_TO = mmToPx(INNER_SPINE_TO_CM * 10);
+const TRAY = { cx: (IN_TO + (BW - GAY)) / 2, cy: SPINE_LEN / 2, r: mmToPx(TRAY_DISC_DIAMETER_CM * 5), hole: mmToPx(TRAY_DISC_HOLE_CM * 5) };
+type ZoneId = "b1-left" | "b1-right" | "b2-spine";
+const ZONE_INFO: Record<ZoneId, { title: string; w: number; cm: number }> = {
+  "b1-left": { title: "gáy trái", w: GAY, cm: BACK_SPINE_MM / 10 },
+  "b1-right": { title: "gáy phải", w: GAY, cm: BACK_SPINE_MM / 10 },
+  "b2-spine": { title: "Spine", w: IN_TO - IN_FROM, cm: INNER_SPINE_TO_CM - INNER_SPINE_FROM_CM },
+};
 const SPINE_COLORS = ["#141414", "#ffffff", "#c8e03c", "#7b68ee", "#ff5fa2", "#3b1510", "#ffcf5c"];
 
 export function CustomCdEditor({ templates, packages }: { templates: DesignTemplate[]; packages: Package[] }) {
@@ -45,8 +56,19 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
   const [mounted, setMounted] = useState<string[]>(["f1", "b1", "d1"]);
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const [guides, setGuides] = useState(true);
-  const [spine, setSpine] = useState<SpineData>(emptySpine);
-  const [spineMode, setSpineMode] = useState<"left" | "right" | null>(null);
+  const [zoneData, setZoneData] = useState<Record<ZoneId, SpineSide>>({ "b1-left": emptySide(), "b1-right": emptySide(), "b2-spine": emptySide() });
+  const [spineMode, setSpineMode] = useState<ZoneId | null>(null);
+  const [trayOn, setTrayOn] = useState(true);
+  // vùng dải dọc của 2 trang bìa sau (giữ nguyên đối tượng khi không đổi)
+  const zonesB1 = useMemo<Zone[]>(() => [
+    { id: "b1-left", label: "Gáy", x: 0, w: GAY, side: zoneData["b1-left"] },
+    { id: "b1-right", label: "Gáy", x: BW - GAY, w: GAY, side: zoneData["b1-right"] },
+  ], [zoneData]);
+  const zonesB2 = useMemo<Zone[]>(() => [
+    { id: "b2-gay-l", label: "", x: 0, w: GAY, side: null },
+    { id: "b2-gay-r", label: "", x: BW - GAY, w: GAY, side: null },
+    { id: "b2-spine", label: "Spine", x: IN_FROM, w: IN_TO - IN_FROM, side: zoneData["b2-spine"] },
+  ], [zoneData]);
   const [spineSel, setSpineSel] = useState<string | null>(null);
   const [flipKey, setFlipKey] = useState(0);
   const [areaRef, area] = useSize<HTMLDivElement>();
@@ -118,13 +140,14 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
   }
 
   // ---------- Gáy ----------
-  const side = spineMode ? spine[spineMode] : null;
+  const side = spineMode ? zoneData[spineMode] : null;
+  const THICK = spineMode ? ZONE_INFO[spineMode].w : GAY;
   const selText = side?.texts.find((t) => t.id === spineSel);
-  const updSide = (fn: (s: SpineData["left"]) => SpineData["left"]) => spineMode && setSpine((d) => ({ ...d, [spineMode]: fn(d[spineMode]) }));
+  const updSide = (fn: (s: SpineSide) => SpineSide) => spineMode && setZoneData((d) => ({ ...d, [spineMode]: fn(d[spineMode]) }));
   const updText = (p: Partial<SpineText>) => updSide((s) => ({ ...s, texts: s.texts.map((t) => (t.id === spineSel ? { ...t, ...p } : t)) }));
   function addSpineText() {
-    const fontSize = Math.round(SPINE_THICK * 0.5);
-    const t: SpineText = { id: Math.random().toString(36).slice(2, 9), text: "Tên album", fontFamily: "Be Vietnam Pro", fontSize, fill: "#141414", align: "center", y: Math.round((SPINE_THICK - fontSize) / 2) };
+    const fontSize = Math.round(THICK * 0.5);
+    const t: SpineText = { id: Math.random().toString(36).slice(2, 9), text: "Tên album", fontFamily: "Be Vietnam Pro", fontSize, fill: "#141414", align: "center", y: Math.round((THICK - fontSize) / 2) };
     updSide((s) => ({ ...s, texts: [...s.texts, t] }));
     setSpineSel(t.id);
   }
@@ -137,11 +160,11 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
         <div className="flex h-full items-center justify-center p-4">
           {spineMode && (
             <div key={`spine-${spineMode}`} className="w-full animate-[flipIn_.3s_ease]">
-              <SpineEditor side={spine[spineMode]} len={SPINE_LEN} thick={SPINE_THICK} width={Math.max(200, area.w - 32)}
+              <SpineEditor side={zoneData[spineMode]} len={SPINE_LEN} thick={THICK} width={Math.max(200, area.w - 32)}
                 selectedId={spineSel} onSelect={setSpineSel}
-                onMoveText={(id, y) => updSide((s) => ({ ...s, texts: s.texts.map((t) => (t.id === id ? { ...t, y: Math.max(0, Math.min(SPINE_THICK - t.fontSize, y)) } : t)) }))} />
+                onMoveText={(id, y) => updSide((s) => ({ ...s, texts: s.texts.map((t) => (t.id === id ? { ...t, y: Math.max(0, Math.min(THICK - t.fontSize, y)) } : t)) }))} />
               <p className="mt-2 text-center text-xs font-semibold text-ink-600">
-                Gáy {spineMode === "left" ? "trái" : "phải"} · {BACK_SPINE_MM / 10} x {SPECS.back.h / 10} cm
+                {ZONE_INFO[spineMode].title[0].toUpperCase() + ZONE_INFO[spineMode].title.slice(1)} · {ZONE_INFO[spineMode].cm.toFixed(1)} x {SPECS.back.h / 10} cm
               </p>
             </div>
           )}
@@ -152,11 +175,12 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
             const tpl = templates.find((t) => t.target === pt && t.id === chosen[k]) ?? null;
             const show = k === active.key && !spineMode;
             return (
-              <div key={k} className={show ? (k === "b1" ? "animate-[flipIn_.3s_ease]" : "") : "hidden"} data-flip={k === "b1" ? flipKey : undefined}>
+              <div key={k} className={show ? (k === "b1" || k === "b2" ? "animate-[flipIn_.3s_ease]" : "") : "hidden"} data-flip={flipKey}>
                 <Designer ref={(h) => { handles.current[k] = h; }} spec={spec} width={widthFor(pt)} template={tpl} active={show}
                   toolbarTarget={hosts[k]} guides={guides}
-                  spine={k === "b1" ? spine : undefined}
-                  onSpineClick={k === "b1" ? (s) => { setSpineMode(s); setSpineSel(null); } : undefined}
+                  zones={k === "b1" ? zonesB1 : k === "b2" ? zonesB2 : undefined}
+                  onZoneClick={(id) => { if (id in ZONE_INFO) { setSpineMode(id as ZoneId); setSpineSel(null); } }}
+                  tray={k === "b2" && trayOn ? TRAY : undefined}
                   onSnapshot={(url) => setThumbs((t) => (t[k] === url ? t : { ...t, [k]: url }))}
                   caption={<p className="mt-2 text-center text-xs font-semibold text-ink-600">{p?.label ?? ""} · {sizeText(spec)}</p>} />
               </div>
@@ -214,7 +238,7 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
           /* ---------- Chế độ sửa gáy: chỉ chữ + màu nền gáy ---------- */
           <div className="space-y-4 rounded-[24px] border-[1.5px] border-ink-900 bg-white p-4">
             <button className="btn btn-sm w-full" onClick={closeSpine}>← Xong, quay lại bìa</button>
-            <p className="text-xs font-bold uppercase tracking-widest text-ink-900">Sửa gáy {spineMode === "left" ? "trái" : "phải"}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-ink-900">Sửa {ZONE_INFO[spineMode].title}</p>
             <button className="chip" onClick={addSpineText}>＋ Chữ</button>
             {selText ? (
               <div className="space-y-3 rounded-[18px] bg-lime-100 p-4">
@@ -230,8 +254,8 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
                   <input type="color" value={selText.fill} onChange={(e) => updText({ fill: e.target.value })} className="h-8 w-10" aria-label="Màu khác" />
                 </div>
                 <label className="block text-sm font-semibold text-ink-900">Cỡ chữ
-                  <input type="range" min={Math.round(SPINE_THICK * 0.2)} max={Math.round(SPINE_THICK * 0.95)} value={selText.fontSize}
-                    onChange={(e) => { const fontSize = Number(e.target.value); updText({ fontSize, y: Math.min(selText.y, SPINE_THICK - fontSize) }); }} className="w-full accent-violet-500" />
+                  <input type="range" min={Math.round(THICK * 0.2)} max={Math.round(THICK * 0.95)} value={selText.fontSize}
+                    onChange={(e) => { const fontSize = Number(e.target.value); updText({ fontSize, y: Math.min(selText.y, THICK - fontSize) }); }} className="w-full accent-violet-500" />
                 </label>
                 <div className="flex gap-2">
                   {(["left", "center", "right"] as const).map((a) => (
@@ -247,7 +271,7 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
               side && side.texts.length > 0 && <p className="text-xs text-ink-500">Bấm vào chữ trên gáy để sửa, kéo lên/xuống để đổi vị trí.</p>
             )}
             <div className="border-t border-ink-100 pt-4">
-              <span className="mb-2 block text-sm font-semibold text-ink-900">Màu nền gáy</span>
+              <span className="mb-2 block text-sm font-semibold text-ink-900">Màu nền {ZONE_INFO[spineMode].title}</span>
               <div className="flex flex-wrap items-center gap-2">
                 <button onClick={() => updSide((s) => ({ ...s, bg: null }))} className={`chip !min-h-8 !text-xs ${!side?.bg ? "is-active" : ""}`}>Không màu</button>
                 {SPINE_COLORS.map((c) => (
@@ -294,6 +318,15 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
               </span>
             </button>
           </div>
+          {active.key === "b2" && (
+            <button type="button" role="switch" aria-checked={trayOn} onClick={() => setTrayOn(!trayOn)}
+              className={`mb-3 inline-flex items-center gap-2 text-sm font-semibold text-ink-900 ${guides ? "" : "opacity-50"}`}>
+              <span className={`relative h-6 w-11 rounded-full border-2 border-ink-900 transition ${trayOn ? "bg-lime-500" : "bg-ink-100"}`}>
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full border-2 border-ink-900 bg-white transition-all ${trayOn ? "left-5" : "left-0.5"}`} />
+              </span>
+              Ướm khay đĩa {!guides && <span className="text-xs font-normal">(bật guideline để xem)</span>}
+            </button>
+          )}
           {keys.map((k) => (
             <div key={k} className={k === active.key ? "" : "hidden"}
               ref={(el) => { if (el && hosts[k] !== el) setHosts((h) => ({ ...h, [k]: el })); }} />
