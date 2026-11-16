@@ -1,10 +1,11 @@
 "use client";
 
-/* Gáy bìa sau: 2 dải ở mép trái & phải. Nội dung vẽ trong hệ toạ độ "nằm ngang"
-   (dài = chiều cao bìa, rộng = độ rộng gáy). Trên bìa thì xoay 90° → chữ chạy dọc theo gáy. */
-import { useEffect, useRef } from "react";
-import { Group, Rect, Text, Stage, Layer, Line } from "react-konva";
-import type Konva from "konva";
+/* Dải dọc trên bìa sau (gáy, Spine). Nội dung vẽ trong hệ toạ độ "nằm ngang"
+   (dài = chiều cao bìa, rộng = độ rộng dải). Trên bìa:
+   - dir "cw"  (gáy trái, Spine): xoay 90° theo chiều kim đồng hồ → đọc từ trên xuống, đầu chữ hướng sang phải
+   - dir "ccw" (gáy phải): xoay 90° ngược chiều kim đồng hồ → đọc từ dưới lên, đầu chữ hướng sang trái
+   Bìa, file xuất và chế độ sửa dùng chung đúng 1 phép xoay này. */
+import { Group, Rect, Text, Stage, Layer, Line, Image as KImage } from "react-konva";
 
 export type SpineText = {
   id: string;
@@ -13,16 +14,20 @@ export type SpineText = {
   fontSize: number; // px bản in
   fill: string;
   align: "left" | "center" | "right";
-  y: number; // vị trí theo bề ngang gáy (px bản in)
+  y: number; // vị trí theo bề ngang dải (px bản in)
 };
 export type SpineSide = { bg: string | null; texts: SpineText[] };
 export const emptySide = (): SpineSide => ({ bg: null, texts: [] });
 export const sideHasContent = (s: SpineSide | null | undefined) => !!s && (!!s.bg || s.texts.length > 0);
 
-// Vùng dải dọc trên bìa (gáy, Spine). side = nội dung chữ/màu (null = chỉ vẽ đường, không sửa)
-export type Zone = { id: string; label: string; x: number; w: number; side: SpineSide | null };
+// side = nội dung chữ/màu (null = chỉ vẽ đường, không sửa)
+export type Zone = { id: string; label: string; x: number; w: number; dir: "cw" | "ccw"; side: SpineSide | null };
 
-// Nội dung 1 dải gáy (len = chiều dài gáy, thick = độ rộng gáy, đơn vị px bản in)
+// Phép đặt nội dung dải lên bìa (toạ độ bản in)
+export const zonePlacement = (z: { x: number; w: number; dir: "cw" | "ccw" }, H: number) =>
+  z.dir === "cw" ? { x: z.x + z.w, y: 0, rotation: 90 } : { x: z.x, y: H, rotation: -90 };
+
+// Nội dung 1 dải (len = chiều dài, thick = độ rộng, đơn vị px bản in)
 export function SpineContent({ side, len, thick, editable, selectedId, onSelect, onMoveText }: {
   side: SpineSide; len: number; thick: number; editable?: boolean;
   selectedId?: string | null; onSelect?: (id: string | null) => void; onMoveText?: (id: string, y: number) => void;
@@ -45,21 +50,28 @@ export function SpineContent({ side, len, thick, editable, selectedId, onSelect,
   );
 }
 
-// Canvas sửa gáy: dải gáy nằm ngang, phóng to vừa chiều rộng vùng làm việc
-export function SpineEditor({ side, len, thick, width, selectedId, onSelect, onMoveText }: {
-  side: SpineSide; len: number; thick: number; width: number;
+// Canvas sửa dải: nằm ngang, phóng to vừa chiều rộng vùng làm việc.
+// bg = ảnh phần thiết kế đang nằm dưới dải (cắt từ trang), xoay về cùng chiều để thấy bối cảnh — chỉ xem.
+export function SpineEditor({ side, len, thick, width, dir, bg, selectedId, onSelect, onMoveText }: {
+  side: SpineSide; len: number; thick: number; width: number; dir: "cw" | "ccw";
+  bg?: HTMLCanvasElement | null;
   selectedId: string | null; onSelect: (id: string | null) => void; onMoveText: (id: string, y: number) => void;
 }) {
   const k = width / len;
-  const stageRef = useRef<Konva.Stage>(null);
   const sel = side.texts.find((t) => t.id === selectedId);
-  useEffect(() => { stageRef.current?.batchDraw(); }, [side]);
+  // ảnh vùng (rộng thick × cao len, toạ độ bìa) → hệ toạ độ dải: ngược với phép đặt lên bìa
+  const bgPlace = dir === "cw" ? { x: 0, y: thick, rotation: -90 } : { x: len, y: 0, rotation: 90 };
   return (
-    <Stage ref={stageRef} width={width} height={thick * k} scaleX={k} scaleY={k}
-      onMouseDown={(e) => { if (e.target === e.target.getStage() || e.target.name() === "spine-bg") onSelect(null); }}
-      onTouchStart={(e) => { if (e.target === e.target.getStage() || e.target.name() === "spine-bg") onSelect(null); }}
+    <Stage width={width} height={thick * k} scaleX={k} scaleY={k}
+      onMouseDown={(e) => { if (e.target === e.target.getStage() || e.target.name() === "spine-bg" || e.target.name() === "ctx") onSelect(null); }}
+      onTouchStart={(e) => { if (e.target === e.target.getStage() || e.target.name() === "spine-bg" || e.target.name() === "ctx") onSelect(null); }}
       style={{ background: "#fff" }}>
       <Layer>
+        {bg && (
+          <Group {...bgPlace} listening={false}>
+            <KImage image={bg} width={thick} height={len} name="ctx" />
+          </Group>
+        )}
         <SpineContent side={side} len={len} thick={thick} editable selectedId={selectedId} onSelect={onSelect} onMoveText={onMoveText} />
         {sel && <Rect x={0} y={sel.y} width={len} height={sel.fontSize * 1.1} stroke="#7b68ee" strokeWidth={2 / k} dash={[6 / k, 4 / k]} listening={false} />}
         <Line points={[0, 0, len, 0, len, thick, 0, thick, 0, 0]} stroke="#141414" strokeWidth={1.5 / k} dash={[8 / k, 6 / k]} listening={false} />
