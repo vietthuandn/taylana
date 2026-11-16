@@ -1,0 +1,231 @@
+@import "tailwindcss";
+
+/* ============================================================
+   TAYLANA — "DOPAMINE / PLAYFUL BOLD"
+   Bảng màu & font: muốn đổi chỉ cần sửa trong khối @theme này.
+   Dùng trong code: bg-lime-500, text-hot-500, bg-violet-500, text-ink-900...
+   ============================================================ */
+@theme {
+  /* Nền kem ấm */
+  --color-cream-50: #fbf7f1;
+  --color-cream-100: #f7f0e6; /* nền chính */
+  --color-cream-200: #ece1d0;
+
+  /* Xanh chanh — màu nhấn chính */
+  --color-lime-100: #f1f8c8;
+  --color-lime-300: #dcec84;
+  --color-lime-500: #c8e03c;
+  --color-lime-700: #8fa61a;
+
+  /* Tím */
+  --color-violet-100: #e9e5ff;
+  --color-violet-300: #b2a7f6;
+  --color-violet-500: #7b68ee;
+  --color-violet-700: #5a47cf;
+
+  /* Hồng đậm */
+  --color-hot-100: #ffe3ef;
+  --color-hot-300: #ff9fc8;
+  --color-hot-500: #ff5fa2;
+  --color-hot-700: #e0337e;
+
+  /* Đen / xám cho chữ */
+  --color-ink-100: #e8e4de;
+  --color-ink-300: #b9b4ac;
+  --color-ink-500: #77726b;
+  --color-ink-600: #4d4a46; /* chữ thân bài */
+  --color-ink-700: #33312e;
+  --color-ink-900: #141414; /* tiêu đề, nút chính */
+
+  /* Font: tiêu đề in hoa nét dày + thân bài dễ đọc (đều đủ dấu tiếng Việt) */
+  --font-display: "Anton", "Oswald", "Be Vietnam Pro", system-ui, sans-serif;
+  --font-sans: "Be Vietnam Pro", system-ui, sans-serif;
+
+  --radius-card: 20px;
+
+  --animate-spin-slow: spin 16s linear infinite;
+  --animate-twinkle: twinkle 2.6s ease-in-out infinite;
+  --animate-float: float 5s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(0.7) rotate(20deg); opacity: 0.6; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-cream-100 font-sans text-[15px] text-ink-600 antialiased sm:text-base;
+  }
+  /* font tiêu đề luôn VIẾT HOA */
+  .font-display {
+    text-transform: uppercase;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-ink-900 uppercase;
+    letter-spacing: 0.01em;
+    line-height: 1.05; /* đủ chỗ cho dấu tiếng Việt chồng (Ấ, Ữ...) */
+  }
+}
+
+/* ---------- Component dùng chung ---------- */
+
+/* Nút chính: viên thuốc đen, hover chuyển xanh chanh */
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.6rem 1.5rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  background: var(--color-ink-900);
+  color: #fff;
+  border: 2px solid var(--color-ink-900);
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+  cursor: pointer;
+  &:hover {
+    background: var(--color-lime-500);
+    color: var(--color-ink-900);
+  }
+  &:active {
+    transform: scale(0.97);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+/* Nút phụ: viền đen, nền trong suốt */
+@utility btn-ghost {
+  background: transparent;
+  color: var(--color-ink-900);
+  &:hover {
+    background: var(--color-ink-900);
+    color: #fff;
+  }
+}
+/* Nút nổi bật trên nền tối */
+@utility btn-lime {
+  background: var(--color-lime-500);
+  color: var(--color-ink-900);
+  border-color: var(--color-lime-500);
+  &:hover {
+    background: #fff;
+    border-color: #fff;
+  }
+}
+@utility btn-sm {
+  min-height: 40px;
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
+}
+
+/* Nút công cụ dạng viên thuốc (trình chỉnh ảnh, bộ lọc) */
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 40px;
+  padding: 0.35rem 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--color-ink-900);
+  background: #fff;
+  border: 1.5px solid var(--color-ink-900);
+  transition: background 0.15s;
+  cursor: pointer;
+  &:hover {
+    background: var(--color-lime-100);
+  }
+  &[aria-pressed="true"], &.is-active {
+    background: var(--color-lime-500);
+  }
+}
+
+/* Thẻ trắng bo 20px, viền xanh chanh mảnh */
+@utility card {
+  background: #fff;
+  border-radius: var(--radius-card);
+  border: 2px solid var(--color-lime-500);
+}
+/* Thẻ viền đen mảnh (dùng cho khối thông tin, admin) */
+@utility panel {
+  background: #fff;
+  border-radius: var(--radius-card);
+  border: 1.5px solid var(--color-ink-900);
+}
+
+/* Ô nhập liệu */
+@utility field {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.65rem 1.1rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1.5px solid var(--color-ink-900);
+  color: var(--color-ink-900);
+  font-size: 1rem; /* >=16px để iPhone không tự phóng to */
+  &:is(textarea) {
+    border-radius: 20px;
+  }
+  &:is(select) {
+    appearance: auto;
+  }
+  &:focus {
+    outline: none;
+    border-color: var(--color-violet-500);
+    box-shadow: 0 0 0 3px var(--color-violet-100);
+  }
+}
+
+/* Nhãn nhỏ phía trên tiêu đề */
+@utility eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* --- Tương thích với code cũ (admin) --- */
+@utility pop {
+  border: 1.5px solid var(--color-ink-900);
+}
+@utility pop-sm {
+  border: 1.5px solid var(--color-ink-900);
+}
+@utility sticker {
+  border: 3px solid var(--color-lime-500);
+}
+
+/* Ẩn thanh cuộn ngang ở các dải cuộn */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
