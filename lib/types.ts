@@ -77,3 +77,15 @@ export type Review = {
   is_approved: boolean;
   created_at: string;
 };
+
+export type GuideImage = { url: string; caption: string };
+export type GuideLink = { label: string; url: string };
+export type GuideSection = {
+  id: string;
+  title: string;
+  body: string;
+  images: GuideImage[];
+  links: GuideLink[];
+  is_active: boolean;
+  sort_order: number;
+};

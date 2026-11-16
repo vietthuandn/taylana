@@ -15,8 +15,16 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const { supabase } = await requireAdmin();
   const { data: order } = await supabase.from("orders").select("*").eq("id", id).maybeSingle<Order>();
   if (!order) notFound();
-  const { data: filesData } = await supabase.from("order_files").select("*").eq("order_id", id).order("kind").order("page");
+  const { data: filesData } = await supabase.from("order_files").select("*").eq("order_id", id).order("kind").order("page").order("created_at", { ascending: false });
   const files = (filesData ?? []) as OrderFile[];
+  // Khách nộp lại cùng một ô → file mới nhất là bản dùng, các file trước đánh dấu "bản cũ"
+  const seen = new Set<string>();
+  const outdated = new Set<string>();
+  for (const f of files) {
+    const k = `${f.kind}-${f.page ?? ""}`;
+    if (seen.has(k) && f.kind !== "design") outdated.add(f.id);
+    seen.add(k);
+  }
 
   // Link tải tạm thời (hết hạn sau 1 giờ) cho file trong bucket riêng tư
   const signed = new Map<string, string>();
@@ -78,7 +86,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
               const url = signed.get(f.storage_path);
               const isImg = f.mime_type.startsWith("image/");
               return (
-                <li key={f.id} className="pop-sm overflow-hidden rounded-2xl bg-white">
+                <li key={f.id} className={`pop-sm overflow-hidden rounded-2xl bg-white ${outdated.has(f.id) ? "opacity-50" : ""}`}>
                   <div className="grid aspect-square place-items-center bg-cream-200">
                     {isImg && url ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -88,7 +96,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                     )}
                   </div>
                   <div className="p-2 text-xs">
-                    <p className="font-bold">{kindLabels[f.kind] ?? f.kind}{f.page ? ` · trang ${f.page}` : ""}</p>
+                    <p className="font-bold">{kindLabels[f.kind] ?? f.kind}{f.page ? ` · trang ${f.page}` : ""}{outdated.has(f.id) ? " · bản cũ" : ""}</p>
                     <p className="truncate">{f.file_name}</p>
                     <p className="text-cocoa-400">
                       {formatBytes(f.size_bytes)}{f.width_px ? ` · ${f.width_px}×${f.height_px}px` : ""}
