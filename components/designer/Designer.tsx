@@ -7,6 +7,7 @@ import "@fontsource/pangolin/400.css";
 import "@fontsource/patrick-hand/400.css";
 import "@fontsource/dancing-script/600.css";
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Stage, Layer, Group, Rect, Ellipse, Circle, Ring, Line, Text, Image as KImage, Transformer } from "react-konva";
 import type Konva from "konva";
 import { mmToPx, type PrintSpec } from "@/lib/print";
@@ -196,13 +197,15 @@ function Guides({ spec, W, H, s }: { spec: PrintSpec; W: number; H: number; s: n
 }
 
 // ================================================================
-export function Designer({ ref, spec, width, template, extraTools, active = true }: {
+export function Designer({ ref, spec, width, template, extraTools, active = true, toolbarTarget, caption }: {
   ref?: React.Ref<DesignerHandle>;
   spec: PrintSpec;
   width: number; // chiều rộng hiển thị (px)
   template: DesignBase | null;
   extraTools?: (api: { addText: (t: string) => void }) => React.ReactNode;
   active?: boolean;
+  toolbarTarget?: HTMLElement | null; // có → thanh công cụ hiển thị ở chỗ khác (panel bên phải)
+  caption?: React.ReactNode; // dòng nhỏ ngay dưới canvas
 }) {
   const W = mmToPx(spec.w), H = mmToPx(spec.h);
   const s = width / W;
@@ -235,7 +238,7 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
       const next: Record<number, SlotData> = {};
       for (const [k, d] of Object.entries(prev)) {
         const i = Number(k);
-        if (slots[i]) next[i] = centered(d.src, d.nw, d.nh, slots[i], W, H);
+        next[i] = slots[i] ? centered(d.src, d.nw, d.nh, slots[i], W, H) : d; // ô không còn → ảnh tạm ẩn, chưa xoá
       }
       return next;
     });
@@ -333,7 +336,7 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
   }, [W, H, spec.kind]);
 
   useImperativeHandle(ref, () => ({
-    isEmpty: () => !Object.keys(slotData).length && !els.length && !template?.overlay_url && !template?.background_url,
+    isEmpty: () => !Object.keys(slotData).some((k) => slots[Number(k)]) && !els.length && !template?.overlay_url && !template?.background_url,
     exportBlob: async () => {
       const stage = stageRef.current!;
       const tr = trRef.current;
@@ -359,7 +362,7 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
         setSel(null);
       }
     },
-  }), [slotData, els, template, W, width]);
+  }), [slotData, els, template, W, width, slots]);
 
   const deselect = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (e.target === e.target.getStage() || e.target.name() === "bg") setSel(null);
@@ -375,76 +378,19 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
 
   const selSlot = sel?.type === "slot" ? sel.index : -1;
 
-  return (
-    <div>
-      <div className={`mx-auto ${isDisc ? "" : "pop-sm"} bg-[repeating-conic-gradient(#ece1d0_0_25%,#fbf7f1_0_50%)] bg-[length:16px_16px]`}
-        style={{ width, height: width * (H / W), borderRadius: isDisc ? "50%" : 4 }}>
-        <Stage ref={stageRef} width={width} height={width * (H / W)} scaleX={s} scaleY={s}
-          onMouseDown={deselect} onTouchStart={deselect}>
-          <Layer>
-            <Group clipFunc={isDisc ? discClip : (ctx) => ctx.rect(0, 0, W, H)}>
-              <Rect name="bg" width={W} height={H} fill={bgColor} preventDefault={false} />
-              {bgImg && bgView && (() => {
-                const k = Math.max(W / bgImg.naturalWidth, H / bgImg.naturalHeight);
-                return <KImage name="bg" preventDefault={false} image={bgView} fullImage={bgImg} width={bgImg.naturalWidth * k} height={bgImg.naturalHeight * k}
-                  x={(W - bgImg.naturalWidth * k) / 2} y={(H - bgImg.naturalHeight * k) / 2} />;
-              })()}
-              {slots.map((slot, i) =>
-                slotData[i] ? (
-                  <SlotImage key={slot.id + i} slot={slot} W={W} H={H} s={s} data={slotData[i]} selected={selSlot === i}
-                    onSelect={() => setSel({ type: "slot", index: i })}
-                    onChange={(d) => setSlotData((cur) => ({ ...cur, [i]: d }))} />
-                ) : null,
-              )}
-              {overlay && overlayView && <KImage image={overlayView} fullImage={overlay} width={W} height={H} listening={false} />}
-              {els.map((el) => (
-                <FreeNode key={el.id} el={el} fontTick={fontTick} s={s} onSelect={() => setSel({ type: "el", id: el.id })} onChange={(p) => updateEl(el.id, p)} />
-              ))}
-            </Group>
-            <Transformer ref={trRef} rotateAnchorOffset={24} anchorSize={14} borderStroke="#7b68ee" anchorStroke="#7b68ee"
-              anchorCornerRadius={7} keepRatio enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]}
-              ignoreStroke flipEnabled={false} />
-          </Layer>
-
-          {/* Lớp hướng dẫn: ô trống, viền chọn, đường cắt — KHÔNG có trong file xuất */}
-          <Layer ref={guidesRef}>
-            {guides && <Guides spec={spec} W={W} H={H} s={s} />}
-            {slots.map((slot, i) => {
-              const w = slot.w * W, h = slot.h * H;
-              const empty = !slotData[i];
-              if (!empty && selSlot !== i) return null;
-              const Shape = slot.shape === "circle" ? Ellipse : Rect;
-              const shapeProps = slot.shape === "circle" ? { x: w / 2, y: h / 2, radiusX: w / 2, radiusY: h / 2 } : { width: w, height: h };
-              return (
-                <Group key={slot.id + i} x={slot.x * W} y={slot.y * H} rotation={slot.rotation ?? 0} listening={empty}
-                  onMouseDown={(e) => { if (e.evt.button === 0) pickSlot(i); }} onTap={() => pickSlot(i)}>
-                  <Shape {...shapeProps} fill={empty ? "rgba(255,255,255,0.55)" : undefined}
-                    stroke="#7b68ee" strokeWidth={3 / s} dash={[10 / s, 7 / s]} />
-                  {empty && (
-                    <Text text={"＋\nThêm ảnh"} width={w} height={h} align="center" verticalAlign="middle"
-                      fontFamily="Be Vietnam Pro" fontStyle="bold" fontSize={Math.max(14 / s, Math.min(w, h) * 0.12)} fill="#4d4a46" lineHeight={1.2} />
-                  )}
-                </Group>
-              );
-            })}
-          </Layer>
-        </Stage>
-      </div>
-
-      <input ref={slotInput} type="file" accept="image/*" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onSlotFile(f); }} />
-      <input ref={freeInput} type="file" accept="image/*" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) addImage(URL.createObjectURL(f), "image", 0.5); }} />
-
-      {err && <p className="mx-auto mt-3 max-w-md rounded-xl bg-hot-100 px-3 py-2 text-center text-sm text-hot-500">{err}</p>}
-
-      {/* ---------- Thanh công cụ (thẻ trắng bo tròn, nút dạng pill) ---------- */}
-      <div className="mx-auto mt-5 max-w-xl space-y-4 rounded-[24px] border-[1.5px] border-ink-900 bg-white p-4">
+  // ---------- Thanh công cụ (thẻ trắng bo tròn, nút dạng pill) ----------
+  const toolbar = (
+      <div className={`space-y-4 rounded-[24px] border-[1.5px] border-ink-900 bg-white p-4 ${toolbarTarget ? "" : "mx-auto mt-5 max-w-xl"}`}>
         <div className="flex flex-wrap justify-center gap-2">
           <button className="chip" aria-pressed={selectedEl?.kind === "image"} onClick={() => freeInput.current?.click()}>＋ Ảnh</button>
           <button className="chip" aria-pressed={selectedEl?.kind === "text"} onClick={() => addText("Chữ của bạn")}>＋ Chữ</button>
           <button className="chip" aria-pressed={showStickers || selectedEl?.kind === "sticker"} onClick={() => setShowStickers(!showStickers)}>＋ Sticker</button>
           {extraTools?.({ addText })}
+          {toolbarTarget && (
+            <button className="chip !border-hot-500 !text-hot-700 disabled:opacity-40" disabled={!sel || (sel.type === "slot" && !slotData[sel.index])} onClick={removeSelected}>
+              Xoá mục đang chọn
+            </button>
+          )}
         </div>
 
         {showStickers && (
@@ -519,6 +465,73 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
           Hiện đường cắt & vùng an toàn <span className="text-xs text-ink-500">(không in ra)</span>
         </label>
       </div>
+  );
+
+  return (
+    <div>
+      <div className={`mx-auto ${isDisc ? "" : "pop-sm"} bg-[repeating-conic-gradient(#ece1d0_0_25%,#fbf7f1_0_50%)] bg-[length:16px_16px]`}
+        style={{ width, height: width * (H / W), borderRadius: isDisc ? "50%" : 4 }}>
+        <Stage ref={stageRef} width={width} height={width * (H / W)} scaleX={s} scaleY={s}
+          onMouseDown={deselect} onTouchStart={deselect}>
+          <Layer>
+            <Group clipFunc={isDisc ? discClip : (ctx) => ctx.rect(0, 0, W, H)}>
+              <Rect name="bg" width={W} height={H} fill={bgColor} preventDefault={false} />
+              {bgImg && bgView && (() => {
+                const k = Math.max(W / bgImg.naturalWidth, H / bgImg.naturalHeight);
+                return <KImage name="bg" preventDefault={false} image={bgView} fullImage={bgImg} width={bgImg.naturalWidth * k} height={bgImg.naturalHeight * k}
+                  x={(W - bgImg.naturalWidth * k) / 2} y={(H - bgImg.naturalHeight * k) / 2} />;
+              })()}
+              {slots.map((slot, i) =>
+                slotData[i] ? (
+                  <SlotImage key={slot.id + i} slot={slot} W={W} H={H} s={s} data={slotData[i]} selected={selSlot === i}
+                    onSelect={() => setSel({ type: "slot", index: i })}
+                    onChange={(d) => setSlotData((cur) => ({ ...cur, [i]: d }))} />
+                ) : null,
+              )}
+              {overlay && overlayView && <KImage image={overlayView} fullImage={overlay} width={W} height={H} listening={false} />}
+              {els.map((el) => (
+                <FreeNode key={el.id} el={el} fontTick={fontTick} s={s} onSelect={() => setSel({ type: "el", id: el.id })} onChange={(p) => updateEl(el.id, p)} />
+              ))}
+            </Group>
+            <Transformer ref={trRef} rotateAnchorOffset={24} anchorSize={14} borderStroke="#7b68ee" anchorStroke="#7b68ee"
+              anchorCornerRadius={7} keepRatio enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]}
+              ignoreStroke flipEnabled={false} />
+          </Layer>
+
+          {/* Lớp hướng dẫn: ô trống, viền chọn, đường cắt — KHÔNG có trong file xuất */}
+          <Layer ref={guidesRef}>
+            {guides && <Guides spec={spec} W={W} H={H} s={s} />}
+            {slots.map((slot, i) => {
+              const w = slot.w * W, h = slot.h * H;
+              const empty = !slotData[i];
+              if (!empty && selSlot !== i) return null;
+              const Shape = slot.shape === "circle" ? Ellipse : Rect;
+              const shapeProps = slot.shape === "circle" ? { x: w / 2, y: h / 2, radiusX: w / 2, radiusY: h / 2 } : { width: w, height: h };
+              return (
+                <Group key={slot.id + i} x={slot.x * W} y={slot.y * H} rotation={slot.rotation ?? 0} listening={empty}
+                  onMouseDown={(e) => { if (e.evt.button === 0) pickSlot(i); }} onTap={() => pickSlot(i)}>
+                  <Shape {...shapeProps} fill={empty ? "rgba(255,255,255,0.55)" : undefined}
+                    stroke="#7b68ee" strokeWidth={3 / s} dash={[10 / s, 7 / s]} />
+                  {empty && (
+                    <Text text={"＋\nThêm ảnh"} width={w} height={h} align="center" verticalAlign="middle"
+                      fontFamily="Be Vietnam Pro" fontStyle="bold" fontSize={Math.max(14 / s, Math.min(w, h) * 0.12)} fill="#4d4a46" lineHeight={1.2} />
+                  )}
+                </Group>
+              );
+            })}
+          </Layer>
+        </Stage>
+      </div>
+      {caption}
+
+      <input ref={slotInput} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onSlotFile(f); }} />
+      <input ref={freeInput} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) addImage(URL.createObjectURL(f), "image", 0.5); }} />
+
+      {err && <p className="mx-auto mt-3 max-w-md rounded-xl bg-hot-100 px-3 py-2 text-center text-sm text-hot-500">{err}</p>}
+
+      {toolbarTarget ? createPortal(toolbar, toolbarTarget) : toolbar}
     </div>
   );
 }

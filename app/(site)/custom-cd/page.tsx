@@ -1,7 +1,6 @@
 import { publicClient } from "@/lib/supabase/public";
 import type { DesignTemplate } from "@/lib/templates";
 import type { Package } from "@/lib/types";
-import { PageHeader } from "@/components/ui/SectionTitle";
 import { CustomCdLoader } from "./CustomCdLoader";
 
 export const metadata = { title: "Custom CD" };
@@ -20,9 +19,8 @@ export default async function CustomCdPage() {
     packages = p.data ?? [];
   }
   return (
-    <>
-      <PageHeader eyebrow="Tự thiết kế" title="Custom CD" subtitle="Thiết kế bìa trước, bìa sau và mặt đĩa — chọn mẫu, thả ảnh, thêm chữ & sticker. Xuất file 300 DPI." />
+    <div data-fit-screen className="flex flex-1 flex-col md:min-h-0">
       <CustomCdLoader templates={templates} packages={packages} />
-    </>
+    </div>
   );
 }
