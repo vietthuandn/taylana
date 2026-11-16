@@ -5,8 +5,8 @@ export const adminLinks = [
   { href: "/admin/goi-san-pham", label: "Gói & phụ kiện" },
   { href: "/admin/san-pham", label: "Sản phẩm & đánh giá" },
   { href: "/admin/huong-dan", label: "Hướng dẫn" },
-  { href: "/admin/mau-cd", label: "Mẫu Custom CD", soon: true },
-  { href: "/admin/photostrip", label: "Khung Photostrip", soon: true },
+  { href: "/admin/mau-cd", label: "Mẫu Custom CD" },
+  { href: "/admin/photostrip", label: "Khung Photostrip" },
   { href: "/admin/don-file", label: "Dọn file" },
   { href: "/admin/cai-dat", label: "Trang chủ & liên hệ" },
 ] as { href: string; label: string; soon?: boolean }[];
