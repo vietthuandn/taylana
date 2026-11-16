@@ -6,6 +6,7 @@ import { Stage, Layer, Rect, Ellipse, Text, Image as KImage, Transformer, Group,
 import type Konva from "konva";
 import type { PrintSpec } from "@/lib/print";
 import type { Slot } from "@/lib/templates";
+import { useView } from "@/components/designer/smoothImage";
 
 function useImg(src?: string | null) {
   const [img, setImg] = useState<HTMLImageElement>();
@@ -24,8 +25,13 @@ export function TemplateCanvas({ spec, width, overlay, background, bgColor, slot
   slots: Slot[]; onChange: (s: Slot[]) => void; selectedId: string | null; onSelect: (id: string | null) => void; overlayOpacity: number;
 }) {
   const W = width, H = width * (spec.h / spec.w);
-  const ov = useImg(overlay);
-  const bg = useImg(background);
+  const ovFull = useImg(overlay);
+  const bgFull = useImg(background);
+  // bản thu nhỏ mịn để hiển thị (tránh răng cưa khi ảnh gốc rất lớn)
+  const ovView = useView(ovFull, Math.max(W, H));
+  const bgView = useView(bgFull, Math.max(W, H));
+  const ov = ovFull && ovView ? { img: ovView } : undefined;
+  const bg = bgFull && bgView ? { img: bgView, w: bgFull.naturalWidth, h: bgFull.naturalHeight } : undefined;
   const trRef = useRef<Konva.Transformer>(null);
   const stageRef = useRef<Konva.Stage>(null);
 
@@ -46,10 +52,10 @@ export function TemplateCanvas({ spec, width, overlay, background, bgColor, slot
       <Layer>
         <Rect name="bg" width={W} height={H} fill={bgColor || "#ffffff"} />
         {bg && (() => {
-          const k = Math.max(W / bg.naturalWidth, H / bg.naturalHeight);
-          return <KImage name="bg" image={bg} width={bg.naturalWidth * k} height={bg.naturalHeight * k} x={(W - bg.naturalWidth * k) / 2} y={(H - bg.naturalHeight * k) / 2} />;
+          const k = Math.max(W / bg.w, H / bg.h);
+          return <KImage name="bg" image={bg.img} width={bg.w * k} height={bg.h * k} x={(W - bg.w * k) / 2} y={(H - bg.h * k) / 2} />;
         })()}
-        {ov && <KImage image={ov} width={W} height={H} opacity={overlayOpacity} listening={false} />}
+        {ov && <KImage image={ov.img} width={W} height={H} opacity={overlayOpacity} listening={false} />}
         {isDisc && (
           <Group listening={false}>
             <Circle x={W / 2} y={W / 2} radius={W / 2} stroke="#141414" strokeWidth={1.5} />

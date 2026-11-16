@@ -18,6 +18,7 @@ export type PhotostripFrame = {
   name: string;
   slot_count: 3 | 4;
   overlay_url: string | null;
+  background_url: string | null; // ảnh nền phía sau (tuỳ chọn)
   background_color: string;
   thumbnail_url: string | null;
   slots: Slot[];
@@ -49,7 +50,7 @@ export function stripSlots(count: number): Slot[] {
 
 // Khung mặc định khi admin chưa tạo khung nào
 export const defaultFrames: PhotostripFrame[] = [3, 4].map((n, i) => ({
-  id: `default-${n}`, name: `Khung ${n} ảnh (trắng)`, slot_count: n as 3 | 4, overlay_url: null,
+  id: `default-${n}`, name: `Khung ${n} ảnh (trắng)`, slot_count: n as 3 | 4, overlay_url: null, background_url: null,
   background_color: i ? "#fff8ec" : "#ffffff", thumbnail_url: null, slots: stripSlots(n), is_active: true, sort_order: 0,
 }));
 

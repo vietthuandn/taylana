@@ -59,7 +59,7 @@ export function PhotostripEditor({ frames: dbFrames }: { frames: PhotostripFrame
               <button key={f.id} onClick={() => setFrameId(f.id)}
                 className={`w-20 shrink-0 rounded-[16px] border-2 bg-white p-2 text-center text-xs font-semibold text-ink-900 ${frame?.id === f.id ? "border-ink-900 bg-lime-500" : "border-ink-100"}`}>
                 <div className="mx-auto mb-1 w-10">
-                  <TemplateThumb ratio={spec.w / spec.h} slots={f.slots} overlay={f.overlay_url} bgColor={f.background_color} />
+                  <TemplateThumb ratio={spec.w / spec.h} slots={f.slots} overlay={f.overlay_url} background={f.background_url} bgColor={f.background_color} />
                 </div>
                 <span className="line-clamp-2">{f.name}</span>
               </button>

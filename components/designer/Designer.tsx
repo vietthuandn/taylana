@@ -13,6 +13,7 @@ import { mmToPx, type PrintSpec } from "@/lib/print";
 import type { DesignBase, Slot } from "@/lib/templates";
 import { stickers } from "@/lib/stickers";
 import { setPngDpi } from "@/lib/png";
+import { useView } from "./smoothImage";
 
 export type DesignerHandle = {
   exportBlob: () => Promise<Blob>;
@@ -83,18 +84,19 @@ function clipShape(ctx: Konva.Context, shape: Slot["shape"], w: number, h: numbe
 }
 
 // ---------- Ảnh trong ô ----------
-function SlotImage({ slot, W, H, data, selected, onSelect, onChange }: {
-  slot: Slot; W: number; H: number; data: SlotData; selected: boolean;
+function SlotImage({ slot, W, H, s, data, selected, onSelect, onChange }: {
+  slot: Slot; W: number; H: number; s: number; data: SlotData; selected: boolean;
   onSelect: () => void; onChange: (d: SlotData) => void;
 }) {
   const img = useHtmlImage(data.src);
   const w = slot.w * W, h = slot.h * H;
   const { dw, dh } = coverSlot(data.nw, data.nh, w, h, data.zoom);
+  const view = useView(img, Math.max(dw, dh) * s);
   return (
     <Group x={slot.x * W} y={slot.y * H} rotation={slot.rotation ?? 0} clipFunc={(ctx) => clipShape(ctx, slot.shape, w, h)}>
-      {img && (
+      {img && view && (
         <KImage
-          image={img} x={data.ox} y={data.oy} width={dw} height={dh} draggable
+          image={view} fullImage={img} x={data.ox} y={data.oy} width={dw} height={dh} draggable
           onMouseDown={onSelect} onTouchStart={onSelect}
           onDragMove={(e) => {
             const n = e.target;
@@ -133,8 +135,9 @@ function centered(src: string, nw: number, nh: number, slot: Slot, W: number, H:
 }
 
 // ---------- Phần tử tự do: ảnh, sticker, chữ ----------
-function FreeNode({ el, fontTick, onSelect, onChange }: { el: FreeEl; fontTick: number; onSelect: () => void; onChange: (e: Partial<FreeEl>) => void }) {
+function FreeNode({ el, fontTick, s, onSelect, onChange }: { el: FreeEl; fontTick: number; s: number; onSelect: () => void; onChange: (e: Partial<FreeEl>) => void }) {
   const img = useHtmlImage(el.kind === "text" ? null : el.src);
+  const view = useView(img, Math.max(el.width ?? 0, el.height ?? 0) * Math.max(el.scaleX, el.scaleY) * s);
   const common = {
     id: el.id, x: el.x, y: el.y, rotation: el.rotation, scaleX: el.scaleX, scaleY: el.scaleY, draggable: true,
     onMouseDown: onSelect, onTouchStart: onSelect,
@@ -151,7 +154,7 @@ function FreeNode({ el, fontTick, onSelect, onChange }: { el: FreeEl; fontTick: 
         stroke={el.outline ? "#ffffff" : undefined} strokeWidth={el.outline ? (el.fontSize ?? 60) * 0.12 : 0} fillAfterStrokeEnabled />
     );
   }
-  return img ? <KImage {...common} image={img} width={el.width} height={el.height} /> : null;
+  return img && view ? <KImage {...common} image={view} fullImage={img} width={el.width} height={el.height} /> : null;
 }
 
 // ---------- Đường cắt & vùng an toàn (không xuất ra file) ----------
@@ -223,6 +226,8 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
 
   const overlay = useHtmlImage(template?.overlay_url);
   const bgImg = useHtmlImage(template?.background_url);
+  const overlayView = useView(overlay, Math.max(W, H) * s);
+  const bgView = useView(bgImg, Math.max(W, H) * s);
 
   // Đổi mẫu: giữ ảnh đã chọn theo thứ tự ô, căn lại cho vừa ô mới
   useEffect(() => {
@@ -334,6 +339,13 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
       const tr = trRef.current;
       tr?.nodes([]);
       guidesRef.current?.visible(false);
+      // đổi sang ảnh gốc độ phân giải đầy đủ để file in sắc nét
+      const swapped: [Konva.Image, CanvasImageSource][] = [];
+      stage.find("Image").forEach((n) => {
+        const k = n as Konva.Image;
+        const full = k.getAttr("fullImage") as HTMLImageElement | undefined;
+        if (full && full !== k.image()) { swapped.push([k, k.image()!]); k.image(full); }
+      });
       try {
         const canvas = stage.toCanvas({ pixelRatio: W / width });
         const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/png"));
@@ -342,6 +354,7 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
       } catch (e) {
         throw new Error(e instanceof Error && e.name === "SecurityError" ? "Ảnh khung mẫu chặn xuất file (CORS). Báo tiệm giúp nhé!" : e instanceof Error ? e.message : "Lỗi xuất ảnh");
       } finally {
+        swapped.forEach(([k, v]) => k.image(v));
         guidesRef.current?.visible(true);
         setSel(null);
       }
@@ -371,21 +384,21 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
           <Layer>
             <Group clipFunc={isDisc ? discClip : (ctx) => ctx.rect(0, 0, W, H)}>
               <Rect name="bg" width={W} height={H} fill={bgColor} preventDefault={false} />
-              {bgImg && (() => {
+              {bgImg && bgView && (() => {
                 const k = Math.max(W / bgImg.naturalWidth, H / bgImg.naturalHeight);
-                return <KImage name="bg" preventDefault={false} image={bgImg} width={bgImg.naturalWidth * k} height={bgImg.naturalHeight * k}
+                return <KImage name="bg" preventDefault={false} image={bgView} fullImage={bgImg} width={bgImg.naturalWidth * k} height={bgImg.naturalHeight * k}
                   x={(W - bgImg.naturalWidth * k) / 2} y={(H - bgImg.naturalHeight * k) / 2} />;
               })()}
               {slots.map((slot, i) =>
                 slotData[i] ? (
-                  <SlotImage key={slot.id + i} slot={slot} W={W} H={H} data={slotData[i]} selected={selSlot === i}
+                  <SlotImage key={slot.id + i} slot={slot} W={W} H={H} s={s} data={slotData[i]} selected={selSlot === i}
                     onSelect={() => setSel({ type: "slot", index: i })}
                     onChange={(d) => setSlotData((cur) => ({ ...cur, [i]: d }))} />
                 ) : null,
               )}
-              {overlay && <KImage image={overlay} width={W} height={H} listening={false} />}
+              {overlay && overlayView && <KImage image={overlayView} fullImage={overlay} width={W} height={H} listening={false} />}
               {els.map((el) => (
-                <FreeNode key={el.id} el={el} fontTick={fontTick} onSelect={() => setSel({ type: "el", id: el.id })} onChange={(p) => updateEl(el.id, p)} />
+                <FreeNode key={el.id} el={el} fontTick={fontTick} s={s} onSelect={() => setSel({ type: "el", id: el.id })} onChange={(p) => updateEl(el.id, p)} />
               ))}
             </Group>
             <Transformer ref={trRef} rotateAnchorOffset={24} anchorSize={14} borderStroke="#7b68ee" anchorStroke="#7b68ee"

@@ -179,6 +179,7 @@ create table if not exists public.photostrip_frames (
   slot_count       integer not null default 4 check (slot_count in (3, 4)),
   overlay_url      text,
   background_color text not null default '#ffffff',
+  background_url   text,                                       -- ảnh nền phía sau (tuỳ chọn)
   thumbnail_url    text,
   slots            jsonb not null default '[]'::jsonb,
   is_active        boolean not null default true,
@@ -189,6 +190,9 @@ create table if not exists public.photostrip_frames (
 -- ---------------------------------------------------------------------
 -- 7. SẢN PHẨM SHOWCASE & ĐÁNH GIÁ
 -- ---------------------------------------------------------------------
+-- (bản cũ chưa có cột ảnh nền photostrip)
+alter table public.photostrip_frames add column if not exists background_url text;
+
 create table if not exists public.showcase_items (
   id          uuid primary key default gen_random_uuid(),
   title       text not null default '',

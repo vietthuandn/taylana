@@ -49,14 +49,14 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
   function blank(): Row {
     return mode === "cd"
       ? { name: "", target: "front", overlay_url: null, background_url: null, slots: [], is_active: true, sort_order: 0 }
-      : { name: "", slot_count: 4, overlay_url: null, background_color: "#ffffff", slots: stripSlots(4), is_active: true, sort_order: 0 };
+      : { name: "", slot_count: 4, overlay_url: null, background_url: null, background_color: "#ffffff", slots: stripSlots(4), is_active: true, sort_order: 0 };
   }
 
   async function save(r: Row) {
     if (!r.name.trim()) return setMsg({ type: "err", text: "Cần đặt tên mẫu" });
     const payload: Record<string, unknown> = { name: r.name.trim(), overlay_url: r.overlay_url, slots: r.slots, is_active: r.is_active };
     if (mode === "cd") Object.assign(payload, { target: r.target, background_url: r.background_url ?? null });
-    else Object.assign(payload, { slot_count: r.slot_count, background_color: r.background_color || "#ffffff" });
+    else Object.assign(payload, { slot_count: r.slot_count, background_color: r.background_color || "#ffffff", background_url: r.background_url ?? null });
     const sb = createClient();
     const res = r.id ? await sb.from(table).update(payload).eq("id", r.id)
       : await sb.from(table).insert({ ...payload, sort_order: (rows.at(-1)?.sort_order ?? 0) + 1 });
@@ -207,7 +207,11 @@ function Editor({ mode, folder, row, onCancel, onSave }: { mode: Mode; folder: s
           {mode === "cd" ? (
             <ImageInput value={r.background_url ?? null} onChange={(u) => setR({ ...r, background_url: u })} folder={folder} label="Ảnh nền phía sau (không bắt buộc)" />
           ) : (
-            <Field label="Màu nền">
+            <ImageInput value={r.background_url ?? null} onChange={(u) => setR({ ...r, background_url: u })} folder={folder}
+              label="Ảnh nền phía sau (không bắt buộc, nên 600 x 1800 px)" removeLabel="Bỏ ảnh — dùng màu nền" />
+          )}
+          {mode === "strip" && (
+            <Field label="Màu nền (khi không có ảnh nền)">
               <input type="color" className="h-10 w-16" value={r.background_color} onChange={(e) => setR({ ...r, background_color: e.target.value })} />
             </Field>
           )}
