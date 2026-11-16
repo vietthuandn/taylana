@@ -48,8 +48,10 @@ export default async function HomePage() {
       )}
 
       {/* ---------- 6 NÚT LỚN (lưới bento) ---------- */}
-      <section className={`flex flex-1 flex-col ${home.banner_enabled ? "md:mt-6 md:flex-none" : ""}`}>
-        <HomeTiles options={options} fill={!home.banner_enabled} />
+      <section className={`flex flex-1 items-center justify-center ${home.banner_enabled ? "md:mt-6 md:flex-none" : ""}`}>
+        <div className={`w-full ${home.banner_enabled ? "" : "max-w-[920px]"}`}>
+          <HomeTiles options={options} />
+        </div>
       </section>
     </div>
   );

@@ -1,55 +1,60 @@
+import Image from "next/image";
 import Link from "next/link";
-import { isDark, optionIcons, type HomeOption } from "@/lib/settings";
+import { optionIcons, TEXT_COLORS, type HomeOption } from "@/lib/settings";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
-import { FlowerBadge, StampBadge } from "@/components/ui/Shapes";
 
-const PRESET = { lime: "#c8e03c", violet: "#7b68ee", hot: "#ff5fa2" } as const;
+const V = { top: "justify-start", middle: "justify-center", bottom: "justify-end" } as const;
+const H = { left: "items-start text-left", center: "items-center text-center", right: "items-end text-right" } as const;
 
-// Bento: ô 1 và ô 6 rộng gấp đôi → 2 hàng x 4 cột trên máy tính, ô rộng trên điện thoại
-const SPAN = ["col-span-2", "", "", "", "", "col-span-2"];
-
-// 6 nút lớn trên trang chủ
-export function HomeTiles({ options, fill }: { options: HomeOption[]; fill: boolean }) {
+// Tên menu: phần trong [ngoặc vuông] được tô tím nhạt (giống mẫu "[Sips]")
+export function TileTitle({ text, color }: { text: string; color: string }) {
+  const parts = text.split(/(\[[^\]]+\])/g).filter(Boolean);
   return (
-    <ul className={`grid w-full flex-1 auto-rows-fr grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 ${fill ? "md:min-h-[460px]" : "md:flex-none md:auto-rows-[250px]"}`}>
-      {options.map((o, i) => {
-        const bg = o.color === "custom" ? o.bg_custom : PRESET[o.color];
-        const dark = isDark(bg);
-        const fg = dark ? "#ffffff" : "#141414"; // màu chữ
-        const badgeFill = dark ? "#ffffff" : "#141414"; // bông hoa / con dấu chứa icon
-        const iconColor = o.icon_color || bg; // icon lấy màu ô
-        const Badge = i % 2 === 0 ? FlowerBadge : StampBadge;
-        const wide = SPAN[i] !== "";
-        return (
-          <li key={i} className={`${SPAN[i]} min-h-[150px] animate-[rise_.6s_cubic-bezier(.2,.8,.2,1)_both]`} style={{ animationDelay: `${i * 70}ms` }}>
-            <Link href={o.href || "/"} style={{ background: bg, color: fg }}
-              className="group relative flex h-full flex-col justify-between overflow-hidden rounded-[28px] border-2 border-ink-900 p-4 transition duration-300 hover:-translate-x-1 hover:-translate-y-1 hover:shadow-[8px_8px_0_#141414] focus-visible:-translate-y-1 focus-visible:shadow-[8px_8px_0_#141414] focus-visible:outline-none sm:p-6">
-              {/* hình khổng lồ trang trí ở góc */}
-              <Badge fillColor={fg} className={`pointer-events-none absolute -bottom-10 -right-10 opacity-[0.13] transition duration-700 group-hover:scale-110 ${wide ? "h-56 w-56 sm:h-72 sm:w-72" : "h-40 w-40 sm:h-52 sm:w-52"}`} />
+    <span style={{ color }}>
+      {parts.map((p, i) => (p.startsWith("[") ? <span key={i} style={{ color: color === TEXT_COLORS.lilac ? TEXT_COLORS.brown : TEXT_COLORS.lilac }}>{p}</span> : p))}
+    </span>
+  );
+}
 
-              <div className="relative flex items-start justify-between">
-                <span className="font-display text-lg leading-none opacity-70 sm:text-2xl">{String(i + 1).padStart(2, "0")}</span>
-                <span className="grid h-10 w-10 place-items-center rounded-full text-lg transition duration-300 group-hover:rotate-45 sm:h-12 sm:w-12 sm:text-xl"
-                  style={{ background: fg, color: bg }} aria-hidden>↗</span>
-              </div>
+// 1 ô menu: màu phẳng hoặc ảnh phủ kín, chữ đặt theo vị trí admin chọn
+export function Tile({ o, index, preview = false }: { o: HomeOption; index: number; preview?: boolean }) {
+  const color = TEXT_COLORS[o.text_color];
+  // icon mặc định nằm phía đối diện với chữ
+  const iconPos = `${o.text_v === "bottom" ? "top-[12%]" : "bottom-[12%]"} ${o.text_h === "left" ? "right-[12%]" : o.text_h === "right" ? "left-[12%]" : "left-1/2 -translate-x-1/2"}`;
+  const body = (
+    <>
+      {o.image_url ? (
+        <Image src={o.image_url} alt="" fill unoptimized={o.image_url.endsWith(".svg")} sizes="(min-width:768px) 33vw, 50vw" className="object-cover transition duration-700 group-hover:scale-105" />
+      ) : (
+        <span className={`pointer-events-none absolute w-[34%] transition duration-500 group-hover:-rotate-6 group-hover:scale-110 ${iconPos}`} style={{ color }} aria-hidden>
+          <ServiceIcon name={optionIcons[index]} className="h-full w-full" />
+        </span>
+      )}
+      <span className={`absolute inset-0 flex flex-col p-[9%] ${V[o.text_v]} ${H[o.text_h]}`}>
+        <span className={`font-tile font-bold leading-[1.05] tracking-[-0.02em] ${preview ? "text-[17px]" : "text-[22px] sm:text-3xl lg:text-[38px]"}`}>
+          <TileTitle text={o.title} color={color} />
+        </span>
+      </span>
+    </>
+  );
+  const cls = "group relative block aspect-[4/5] overflow-hidden rounded-[10px] transition duration-300";
+  if (preview) return <div className={cls} style={{ background: o.bg }}>{body}</div>;
+  return (
+    <Link href={o.href || "/"} className={`${cls} hover:-translate-y-1 hover:shadow-[0_14px_30px_rgba(59,21,16,.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3b1510]`}
+      style={{ background: o.bg }}>
+      {body}
+    </Link>
+  );
+}
 
-              <div className={`relative flex gap-3 ${wide ? "items-end justify-between" : "flex-col"}`}>
-                <h2 className={`font-display leading-[0.95] !text-[inherit] ${wide ? "text-4xl sm:text-5xl lg:text-6xl" : "text-[26px] sm:text-[34px]"}`}>{o.title}</h2>
-                <Badge fillColor={badgeFill} className={`shrink-0 transition duration-500 group-hover:rotate-12 ${wide ? "order-last h-20 w-20 sm:h-28 sm:w-28" : "order-first h-14 w-14 sm:h-16 sm:w-16"}`}>
-                  {o.icon_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={o.icon_url} alt="" className={`object-contain ${wide ? "h-10 w-10 sm:h-14 sm:w-14" : "h-7 w-7 sm:h-8 sm:w-8"}`} />
-                  ) : (
-                    <span style={{ color: iconColor }}>
-                      <ServiceIcon name={optionIcons[i]} className={wide ? "h-10 w-10 sm:h-14 sm:w-14" : "h-7 w-7 sm:h-8 sm:w-8"} />
-                    </span>
-                  )}
-                </Badge>
-              </div>
-            </Link>
-          </li>
-        );
-      })}
+export function HomeTiles({ options }: { options: HomeOption[] }) {
+  return (
+    <ul className="grid w-full grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5">
+      {options.map((o, i) => (
+        <li key={i} className="animate-[rise_.6s_cubic-bezier(.2,.8,.2,1)_both]" style={{ animationDelay: `${i * 60}ms` }}>
+          <Tile o={o} index={i} />
+        </li>
+      ))}
     </ul>
   );
 }

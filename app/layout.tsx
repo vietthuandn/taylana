@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource/anton/400.css";
+import "@fontsource/bricolage-grotesque/700.css";
 import "@fontsource/be-vietnam-pro/400.css";
 import "@fontsource/be-vietnam-pro/600.css";
 import "@fontsource/be-vietnam-pro/700.css";

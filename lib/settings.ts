@@ -33,21 +33,40 @@ export const defaultHome: HomeSettings = {
   banner_bg: "#c8e03c",
 };
 
-// ---------- 6 lựa chọn trên trang chủ (key "home_options") ----------
-export type OptionColor = "lime" | "violet" | "hot" | "custom";
-// color = màu nền có sẵn hoặc "custom" (dùng bg_custom); icon_color rỗng = tự động đen/trắng
-export type HomeOption = { title: string; href: string; icon_url: string | null; color: OptionColor; bg_custom: string; icon_color: string };
+// ---------- 6 ô trên trang chủ (key "home_options") ----------
+export type TextV = "top" | "middle" | "bottom";
+export type TextH = "left" | "center" | "right";
+export type TextColor = "brown" | "white" | "lilac";
+export type HomeOption = {
+  title: string; // viết [chữ] trong ngoặc vuông để tô màu tím nhạt
+  href: string;
+  image_url: string | null; // ảnh phủ kín ô (không có thì dùng màu nền)
+  bg: string; // màu nền
+  text_v: TextV;
+  text_h: TextH;
+  text_color: TextColor;
+};
 
-// icon mặc định theo thứ tự (vector có sẵn)
+// Bảng màu theo mẫu
+export const TILE_COLORS = [
+  { label: "Xanh chanh", value: "#d4dd3f" },
+  { label: "Xanh trời", value: "#a9c6e8" },
+  { label: "Kem", value: "#fbf3e7" },
+  { label: "Tím nhạt", value: "#c3b5f7" },
+  { label: "Nâu", value: "#3b1510" },
+];
+export const TEXT_COLORS: Record<TextColor, string> = { brown: "#3b1510", white: "#ffffff", lilac: "#a593f0" };
+
+// icon mặc định khi ô chưa có ảnh (vector có sẵn)
 export const optionIcons = ["bag", "book", "brush", "upload", "gallery", "chat"] as const;
 
 export const defaultOptions: HomeOption[] = [
-  { title: "Đặt đơn", href: "/dat-don", icon_url: null, color: "lime", bg_custom: "#ffcf5c", icon_color: "" },
-  { title: "Hướng dẫn làm file", href: "/huong-dan", icon_url: null, color: "violet", bg_custom: "#ffcf5c", icon_color: "" },
-  { title: "Tự Tay Thiết Kế", href: "/tu-thiet-ke", icon_url: null, color: "hot", bg_custom: "#ffcf5c", icon_color: "" },
-  { title: "Nộp file", href: "/nop-file", icon_url: null, color: "lime", bg_custom: "#ffcf5c", icon_color: "" },
-  { title: "Sản phẩm & Đánh giá", href: "/san-pham", icon_url: null, color: "violet", bg_custom: "#ffcf5c", icon_color: "" },
-  { title: "Liên Hệ", href: "/lien-he", icon_url: null, color: "hot", bg_custom: "#ffcf5c", icon_color: "" },
+  { title: "Đặt đơn ngay", href: "/dat-don", image_url: null, bg: "#d4dd3f", text_v: "middle", text_h: "left", text_color: "brown" },
+  { title: "Hướng dẫn làm file", href: "/huong-dan", image_url: null, bg: "#a9c6e8", text_v: "top", text_h: "center", text_color: "white" },
+  { title: "Tự tay thiết kế", href: "/tu-thiet-ke", image_url: null, bg: "#fbf3e7", text_v: "top", text_h: "left", text_color: "brown" },
+  { title: "Nộp file", href: "/nop-file", image_url: null, bg: "#c3b5f7", text_v: "middle", text_h: "center", text_color: "brown" },
+  { title: "Sản phẩm & [đánh giá]", href: "/san-pham", image_url: null, bg: "#fbf3e7", text_v: "top", text_h: "center", text_color: "brown" },
+  { title: "Liên hệ", href: "/lien-he", image_url: null, bg: "#d4dd3f", text_v: "bottom", text_h: "right", text_color: "brown" },
 ];
 
 // ---------- Liên hệ (key "contact") ----------
@@ -72,8 +91,21 @@ export const defaultContact: ContactSettings = {
 };
 
 export function mergeOptions(value: unknown): HomeOption[] {
-  const saved = Array.isArray(value) ? (value as Partial<HomeOption>[]) : [];
-  return defaultOptions.map((d, i) => ({ ...d, ...(saved[i] ?? {}) }));
+  const saved = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
+  return defaultOptions.map((d, i) => {
+    const v = saved[i] ?? {};
+    const pick = <K extends keyof HomeOption>(k: K, ok: (x: unknown) => boolean) => (ok(v[k]) ? (v[k] as HomeOption[K]) : d[k]);
+    const str = (x: unknown) => typeof x === "string" && x !== "";
+    return {
+      title: pick("title", str),
+      href: pick("href", str),
+      image_url: typeof v.image_url === "string" && v.image_url ? v.image_url : null,
+      bg: pick("bg", (x) => typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x)),
+      text_v: pick("text_v", (x) => x === "top" || x === "middle" || x === "bottom"),
+      text_h: pick("text_h", (x) => x === "left" || x === "center" || x === "right"),
+      text_color: pick("text_color", (x) => x === "brown" || x === "white" || x === "lilac"),
+    };
+  });
 }
 
 export async function getSettings() {

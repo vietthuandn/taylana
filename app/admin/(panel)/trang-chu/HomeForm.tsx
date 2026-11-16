@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { removePublicImage } from "@/lib/upload";
-import { defaultHome, defaultOptions, type HomeOption, type HomeSettings, type OptionColor } from "@/lib/settings";
+import { defaultHome, defaultOptions, TEXT_COLORS, TILE_COLORS, type HomeOption, type HomeSettings, type TextColor } from "@/lib/settings";
+import { Tile } from "@/components/site/HomeTiles";
 import { revalidatePublic } from "../../actions";
 import { Field, ImageInput, Message, Toggle } from "@/components/admin/ui";
 
@@ -13,11 +14,6 @@ const BG_PRESETS = [
   { label: "Hồng đậm", value: "#ff5fa2" },
   { label: "Kem", value: "#f7f0e6" },
   { label: "Đen", value: "#141414" },
-];
-const COLORS: { value: Exclude<OptionColor, "custom">; label: string; cls: string }[] = [
-  { value: "lime", label: "Xanh chanh", cls: "bg-lime-500" },
-  { value: "violet", label: "Tím", cls: "bg-violet-500" },
-  { value: "hot", label: "Hồng", cls: "bg-hot-500" },
 ];
 
 export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSettings; initialOptions: HomeOption[] }) {
@@ -44,8 +40,8 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
     setSaving(false);
     if (error) return setMsg({ type: "err", text: error.message });
     // xoá ảnh/icon cũ đã bị thay
-    const before = [initialHome.banner_image, ...initialOptions.map((o) => o.icon_url)];
-    const now2 = new Set([home.banner_image, ...options.map((o) => o.icon_url)]);
+    const before = [initialHome.banner_image, ...initialOptions.map((o) => o.image_url)];
+    const now2 = new Set([home.banner_image, ...options.map((o) => o.image_url)]);
     await Promise.all(before.filter((u) => u && !now2.has(u)).map(removePublicImage));
     await revalidatePublic(["/"]);
     setMsg({ type: "ok", text: "✓ Đã lưu — trang chủ đã cập nhật." });
@@ -96,48 +92,66 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
         </div>
       </fieldset>
 
-      {/* ---------- 6 lựa chọn ---------- */}
+      {/* ---------- 6 ô menu ---------- */}
       <fieldset className="panel space-y-4 p-5">
-        <legend className="eyebrow bg-violet-500 text-white">6 lựa chọn</legend>
+        <legend className="eyebrow bg-violet-500 text-white">6 ô menu</legend>
+        <p className="text-xs text-ink-500">Mẹo: viết chữ trong [ngoặc vuông] để tô màu tím nhạt, ví dụ “Sản phẩm & [đánh giá]”.</p>
         {options.map((o, i) => (
-          <div key={i} className="rounded-[18px] bg-cream-100 p-4">
-            <p className="mb-3 font-display text-xl text-ink-900">Lựa chọn {i + 1} · {i % 2 === 0 ? "bông hoa" : "vuông 8 cánh"}</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Tên hiển thị"><input className="field" value={o.title} onChange={(e) => setOpt(i, { title: e.target.value })} /></Field>
-              <Field label="Link"><input className="field" value={o.href} onChange={(e) => setOpt(i, { href: e.target.value })} /></Field>
+          <div key={i} className="grid gap-4 rounded-[18px] bg-cream-100 p-4 sm:grid-cols-[150px_1fr]">
+            <div>
+              <p className="mb-2 text-sm font-bold text-ink-900">Ô {i + 1}</p>
+              <Tile o={o} index={i} preview />
             </div>
-            <div className="mt-3 flex flex-wrap items-end gap-6">
-              <ImageInput value={o.icon_url} onChange={(u) => setOpt(i, { icon_url: u })} folder="icons" allowSvg
-                label="Icon riêng (PNG/SVG)" removeLabel="Dùng icon mặc định" />
-              <div>
-                <span className="mb-1 block text-sm font-medium">Màu nền</span>
-                <div className="flex items-center gap-2">
-                  {COLORS.map((c) => (
-                    <button key={c.value} type="button" title={c.label} aria-label={c.label} onClick={() => setOpt(i, { color: c.value })}
-                      className={`h-9 w-9 rounded-full border-2 border-ink-900 ${c.cls} ${o.color === c.value ? "ring-4 ring-violet-300" : ""}`} />
-                  ))}
-                  <label title="Màu riêng" className={`flex items-center gap-1 rounded-full border-2 border-ink-900 bg-white py-0.5 pl-0.5 pr-2 text-xs ${o.color === "custom" ? "ring-4 ring-violet-300" : ""}`}>
-                    <input type="color" value={o.bg_custom} onChange={(e) => setOpt(i, { color: "custom", bg_custom: e.target.value })}
-                      onClick={() => setOpt(i, { color: "custom" })} className="h-7 w-7 cursor-pointer rounded-full" aria-label="Màu nền riêng" />
-                    Màu riêng
-                  </label>
+            <div className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Chữ menu"><input className="field" value={o.title} onChange={(e) => setOpt(i, { title: e.target.value })} /></Field>
+                <Field label="Link"><input className="field" value={o.href} onChange={(e) => setOpt(i, { href: e.target.value })} /></Field>
+              </div>
+              <ImageInput value={o.image_url} onChange={(u) => setOpt(i, { image_url: u })} folder="tiles" allowSvg
+                label="Ảnh (phủ kín ô, nên ảnh dọc 4:5)" removeLabel="Bỏ ảnh — dùng màu nền" />
+              <div className="flex flex-wrap gap-6">
+                <div>
+                  <span className="mb-1 block text-sm font-medium">Vị trí chữ</span>
+                  <div className="grid w-fit grid-cols-3 gap-1 rounded-[12px] border-[1.5px] border-ink-900 bg-white p-1">
+                    {(["top", "middle", "bottom"] as const).map((v) =>
+                      (["left", "center", "right"] as const).map((hh) => {
+                        const on = o.text_v === v && o.text_h === hh;
+                        return (
+                          <button key={v + hh} type="button" onClick={() => setOpt(i, { text_v: v, text_h: hh })}
+                            title={`${{ top: "Trên", middle: "Giữa", bottom: "Dưới" }[v]} · ${{ left: "trái", center: "giữa", right: "phải" }[hh]}`}
+                            className={`grid h-8 w-8 place-items-center rounded-[8px] ${on ? "bg-ink-900" : "hover:bg-lime-100"}`}>
+                            <span className={`block h-1.5 w-4 rounded-full ${on ? "bg-lime-500" : "bg-ink-300"}`} />
+                          </button>
+                        );
+                      }),
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <span className="mb-1 block text-sm font-medium">Màu nền</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {TILE_COLORS.map((c) => (
+                      <button key={c.value} type="button" title={c.label} aria-label={c.label} onClick={() => setOpt(i, { bg: c.value })}
+                        className={`h-8 w-8 rounded-full border-2 border-ink-900 ${o.bg === c.value ? "ring-4 ring-violet-300" : ""}`} style={{ background: c.value }} />
+                    ))}
+                    <input type="color" value={o.bg} onChange={(e) => setOpt(i, { bg: e.target.value })} className="h-8 w-10" aria-label="Màu khác" />
+                  </div>
+                </div>
+                <div>
+                  <span className="mb-1 block text-sm font-medium">Màu chữ</span>
+                  <div className="flex gap-2">
+                    {(Object.keys(TEXT_COLORS) as TextColor[]).map((k) => (
+                      <button key={k} type="button" onClick={() => setOpt(i, { text_color: k })}
+                        className={`rounded-full border-2 border-ink-900 px-3 py-1 text-xs font-bold ${o.text_color === k ? "ring-4 ring-violet-300" : ""}`}
+                        style={{ background: k === "white" ? "#3b1510" : "#fff", color: TEXT_COLORS[k] }}>
+                        {{ brown: "Nâu", white: "Trắng", lilac: "Tím" }[k]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div>
-                <span className="mb-1 block text-sm font-medium">Màu icon</span>
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setOpt(i, { icon_color: "" })}
-                    className={`rounded-full border-2 border-ink-900 bg-white px-3 py-1.5 text-xs ${!o.icon_color ? "ring-4 ring-violet-300" : ""}`}>Tự động</button>
-                  <label className={`flex items-center gap-1 rounded-full border-2 border-ink-900 bg-white py-0.5 pl-0.5 pr-2 text-xs ${o.icon_color ? "ring-4 ring-violet-300" : ""}`}>
-                    <input type="color" value={o.icon_color || "#141414"} onChange={(e) => setOpt(i, { icon_color: e.target.value })}
-                      className="h-7 w-7 cursor-pointer rounded-full" aria-label="Màu icon riêng" />
-                    Chọn màu
-                  </label>
-                </div>
-                <span className="mt-1 block text-xs text-ink-500">Chỉ áp dụng cho icon mặc định</span>
-              </div>
-              <button type="button" className="text-xs underline" onClick={() => setOpt(i, { ...defaultOptions[i], icon_url: o.icon_url })}>
-                Đặt lại tên, link, màu mặc định
+              <button type="button" className="text-xs underline" onClick={() => setOpt(i, { ...defaultOptions[i], image_url: o.image_url })}>
+                Đặt lại mặc định (giữ ảnh)
               </button>
             </div>
           </div>

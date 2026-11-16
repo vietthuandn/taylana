@@ -40,6 +40,8 @@
   /* Font: tiêu đề in hoa nét dày + thân bài dễ đọc (đều đủ dấu tiếng Việt) */
   --font-display: "Anton", "Oswald", "Be Vietnam Pro", system-ui, sans-serif;
   --font-sans: "Be Vietnam Pro", system-ui, sans-serif;
+  /* chữ trên 6 ô trang chủ (đủ dấu tiếng Việt) */
+  --font-tile: "Bricolage Grotesque", "Be Vietnam Pro", system-ui, sans-serif;
 
   --radius-card: 20px;
 
