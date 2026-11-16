@@ -4,6 +4,12 @@
    - Dữ liệu nằm ở trang cha (theo TỪNG TRANG, toạ độ px bản in của trang). Component chỉ vẽ & báo thay đổi.
    - pages = 1 trang, hoặc 2 trang cạnh nhau (trải đôi). Phần tử thuộc trang nào thì nằm trong nhóm của trang đó.
    - Stage phủ cả vùng làm việc; nội dung được zoom/pan; khung chọn giữ kích thước cố định trên màn hình. */
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/400-italic.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/inter/700-italic.css";
+import "@fontsource/be-vietnam-pro/400.css";
+import "@fontsource/be-vietnam-pro/700.css";
 import "@fontsource/itim/400.css";
 import "@fontsource/pangolin/400.css";
 import "@fontsource/patrick-hand/400.css";
@@ -32,6 +38,7 @@ export type PageInput = { doc: PageDoc; tpl: TemplateDoc | null };
 
 export const ACCENT = "#ff5fa2";
 export const FONTS = [
+  { name: "Inter", label: "Inter" },
   { name: "Be Vietnam Pro", label: "Be Vietnam Pro" },
   { name: "Anton", label: "Anton" },
   { name: "Bricolage Grotesque", label: "Bricolage Grotesque" },
@@ -131,7 +138,8 @@ function ElNode({ el, page, s, fontTick, text, editable, selectable, templateMod
   if (el.kind === "text") {
     return (
       <Text key={`${el.id}-${fontTick}-${el.fontFamily}`} {...common} text={text ?? el.text} fontFamily={el.fontFamily} fontSize={el.fontSize}
-        fill={el.fill} align={el.align ?? "left"} lineHeight={el.lineHeight ?? 1.2} width={el.width} wrap={el.width ? "word" : "none"} />
+        fill={el.fill} align={el.align ?? "left"} lineHeight={el.lineHeight ?? 1.2} width={el.width} wrap={el.width ? "word" : "none"}
+        fontStyle={[el.italic && "italic", el.bold && "bold"].filter(Boolean).join(" ") || "normal"} textDecoration={el.underline ? "underline" : ""} />
     );
   }
   if (el.kind === "frame") {
@@ -482,7 +490,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
     setBusy(false);
   }
   function addText() {
-    const el: El = { id: uid(), kind: "text", text: "Chữ của bạn", fontFamily: "Be Vietnam Pro", fontSize: Math.round(24 * PX_UNIT), fill: "#050505",
+    const el: El = { id: uid(), kind: "text", text: "Chữ của bạn", fontFamily: "Inter", fontSize: Math.round(24 * PX_UNIT), fill: "#050505",
       align: "left", lineHeight: 1.2, ...(focusPage === -1 ? placeAt(W1 * 0.5, 24 * PX_UNIT) : { x: W1 * 0.12, y: H * 0.45 }), rotation: 0, scaleX: 1, scaleY: 1 };
     upd(focusPage, (d) => ({ ...d, els: [...d.els, el] }));
     setSel({ page: focusPage, id: el.id, type: "el" });
@@ -788,6 +796,13 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
                     </button>
                   ))}
                 </div>
+              </div>
+              <div className="flex">
+                {([["bold", "B", "Đậm", "font-bold"], ["italic", "I", "Nghiêng", "italic"], ["underline", "U", "Gạch chân", "underline"]] as const).map(([k, t, tip, cls], i) => (
+                  <button key={k} title={tip} aria-label={tip} aria-pressed={!!selEl[k]}
+                    className={`tool-btn tool-icon !text-[14px] ${cls} ${i === 0 ? "rounded-r-none" : i === 2 ? "-ml-px rounded-l-none" : "-ml-px rounded-none"}`}
+                    onClick={() => updEl(sel.page, selEl.id, { [k]: !selEl[k] })}>{t}</button>
+                ))}
               </div>
               <p className="text-[11px] text-[#8a857e]">Kéo nút cạnh trái/phải để đổi độ rộng khung chữ (tự xuống dòng).</p>
             </>

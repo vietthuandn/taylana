@@ -9,6 +9,7 @@ export type El = {
   width?: number; height?: number;
   src?: string; nw?: number; nh?: number; // ảnh/sticker
   text?: string; fontFamily?: string; fontSize?: number; fill?: string; align?: "left" | "center" | "right"; lineHeight?: number;
+  bold?: boolean; italic?: boolean; underline?: boolean;
   shape?: FrameShape; // khung ảnh (mẫu)
   layer?: "above" | "below"; // ảnh trang trí của mẫu: trên/dưới ảnh khách
 };

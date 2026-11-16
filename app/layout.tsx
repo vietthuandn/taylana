@@ -1,11 +1,18 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "@fontsource/anton/400.css";
 import "@fontsource/bricolage-grotesque/700.css";
-import "@fontsource/be-vietnam-pro/400.css";
-import "@fontsource/be-vietnam-pro/600.css";
-import "@fontsource/be-vietnam-pro/700.css";
 import "./globals.css";
 import { ClipDefs } from "@/components/ui/Shapes";
+
+// Font thân bài toàn web
+const inter = Inter({
+  subsets: ["latin", "vietnamese"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: { default: "Taylana — Thiết kế & thi công CD theo yêu cầu", template: "%s · Taylana" },
@@ -20,7 +27,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="vi">
+    <html lang="vi" className={inter.variable}>
       <body className="min-h-dvh">
         <ClipDefs />
         {children}

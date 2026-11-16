@@ -39,7 +39,7 @@
 
   /* Font: tiêu đề in hoa nét dày + thân bài dễ đọc (đều đủ dấu tiếng Việt) */
   --font-display: "Anton", "Oswald", "Be Vietnam Pro", system-ui, sans-serif;
-  --font-sans: "Be Vietnam Pro", system-ui, sans-serif;
+  --font-sans: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   /* chữ trên 6 ô trang chủ (đủ dấu tiếng Việt) */
   --font-tile: "Bricolage Grotesque", "Be Vietnam Pro", system-ui, sans-serif;
 
@@ -67,12 +67,27 @@
   50% { transform: translateY(-8px); }
 }
 
+/* Thiết bị Apple: ưu tiên font hệ thống SF (giống chữ iPhone) */
+@supports (font: -apple-system-body) and (-webkit-appearance: none) {
+  :root {
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", var(--font-inter), Inter, "Segoe UI", Roboto, sans-serif;
+  }
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply bg-cream-100 font-sans text-[15px] text-ink-600 antialiased sm:text-base;
+    @apply bg-cream-100 font-sans text-ink-600 antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    font-feature-settings: "cv11", "ss01";
+  }
+  button, label, select, input, textarea {
+    font-family: inherit;
+    letter-spacing: inherit;
   }
   /* font tiêu đề luôn VIẾT HOA */
   .font-display {
@@ -96,7 +111,7 @@
   min-height: 48px;
   padding: 0.6rem 1.5rem;
   border-radius: 999px;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 0.95rem;
   letter-spacing: 0.02em;
   background: var(--color-ink-900);
