@@ -1,0 +1,180 @@
+@import "tailwindcss";
+
+/* ============================================================
+   BẢNG MÀU & FONT CỦA TIỆM — muốn đổi màu chỉ cần sửa ở đây.
+   Dùng trong code: bg-cream-100, text-cocoa-700, bg-pink-200...
+   ============================================================ */
+@theme {
+  /* Kem — nền chính */
+  --color-cream-50: #fffdf8;
+  --color-cream-100: #fff8ec;
+  --color-cream-200: #fbefd9;
+  --color-cream-300: #f3e2c3;
+
+  /* Hồng phấn — điểm nhấn */
+  --color-pink-100: #ffeef2;
+  --color-pink-200: #ffd9e3;
+  --color-pink-300: #fbbccd;
+  --color-pink-400: #f39bb4;
+  --color-pink-500: #e2789b;
+
+  /* Xanh matcha nhạt */
+  --color-matcha-100: #f0f5e4;
+  --color-matcha-200: #dfeac8;
+  --color-matcha-300: #c6daa6;
+  --color-matcha-400: #a6c37f;
+  --color-matcha-500: #7e9f5a;
+
+  /* Vàng bơ — dùng rất ít */
+  --color-butter-100: #fff6d6;
+  --color-butter-200: #ffeaa6;
+
+  /* Nâu cacao — chữ */
+  --color-cocoa-300: #c2a693;
+  --color-cocoa-400: #a08068;
+  --color-cocoa-500: #7d5c48;
+  --color-cocoa-600: #634636;
+  --color-cocoa-700: #4b3329;
+
+  /* Font: tiêu đề vẽ tay + thân bài dễ đọc (đều đủ dấu tiếng Việt) */
+  --font-display: "Itim", "Be Vietnam Pro", system-ui, sans-serif;
+  --font-sans: "Be Vietnam Pro", system-ui, sans-serif;
+
+  --animate-spin-slow: spin 14s linear infinite;
+  --animate-wiggle: wiggle 3s ease-in-out infinite;
+  --animate-float: float 5s ease-in-out infinite;
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-6deg); }
+  50% { transform: rotate(6deg); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-cream-100 text-cocoa-700 font-sans antialiased;
+    /* chấm bi li ti như giấy kraft */
+    background-image: radial-gradient(var(--color-cream-300) 1px, transparent 1.4px);
+    background-size: 22px 22px;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-cocoa-700;
+    line-height: 1.2;
+  }
+}
+
+/* ---------- Tiện ích phong cách handmade ---------- */
+
+/* Đường chỉ khâu nét đứt bên trong khung */
+@utility stitch {
+  outline: 2px dashed color-mix(in srgb, var(--color-cocoa-700) 35%, transparent);
+  outline-offset: -8px;
+}
+
+/* Viền nâu + bóng đổ lệch như sticker cắt dán */
+@utility pop {
+  border: 2px solid var(--color-cocoa-700);
+  box-shadow: 4px 4px 0 var(--color-cocoa-700);
+}
+@utility pop-sm {
+  border: 2px solid var(--color-cocoa-700);
+  box-shadow: 2px 2px 0 var(--color-cocoa-700);
+}
+
+/* Khung ảnh dán sticker: viền trắng dày + bóng nhẹ */
+@utility sticker {
+  border: 6px solid #fff;
+  box-shadow: 0 2px 0 rgb(75 51 41 / 0.08), 0 8px 18px rgb(75 51 41 / 0.15);
+}
+
+/* Băng keo giấy dán ở góc trên */
+@utility tape {
+  position: relative;
+  &::before {
+    content: "";
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    width: 72px;
+    height: 22px;
+    transform: translateX(-50%) rotate(-4deg);
+    background: color-mix(in srgb, var(--color-butter-200) 80%, transparent);
+    border-left: 2px dotted rgb(255 255 255 / 0.7);
+    border-right: 2px dotted rgb(255 255 255 / 0.7);
+    z-index: 2;
+  }
+}
+
+/* Nút bo tròn */
+@utility btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  border: 2px solid var(--color-cocoa-700);
+  box-shadow: 3px 3px 0 var(--color-cocoa-700);
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+  &:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--color-cocoa-700);
+  }
+  &:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 var(--color-cocoa-700);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+/* Ô nhập liệu */
+@utility field {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.65rem 1rem;
+  border-radius: 1rem;
+  background: #fff;
+  border: 2px solid var(--color-cream-300);
+  color: var(--color-cocoa-700);
+  font-size: 1rem; /* >=16px để iPhone không tự phóng to */
+  &:focus {
+    outline: none;
+    border-color: var(--color-pink-400);
+    box-shadow: 0 0 0 4px var(--color-pink-100);
+  }
+}
+
+/* Viền ren lượn sóng (dùng qua component <Scallop />) */
+.scallop {
+  --scallop-color: var(--color-pink-200);
+  --scallop-hole: var(--color-cream-100);
+  height: 14px;
+  width: 100%;
+  background:
+    radial-gradient(circle at 50% 4px, var(--scallop-hole) 2.2px, transparent 2.8px) 0 0 / 28px 14px repeat-x,
+    radial-gradient(circle at 50% 0, var(--scallop-color) 13.5px, transparent 14px) 0 0 / 28px 14px repeat-x;
+}
+.scallop-up {
+  transform: scaleY(-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
