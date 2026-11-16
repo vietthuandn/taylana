@@ -1,9 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getSettings, isDark, optionIcons } from "@/lib/settings";
-import { ServiceIcon } from "@/components/site/ServiceIcon";
+import { getSettings, isDark } from "@/lib/settings";
+import { HomeTiles } from "@/components/site/HomeTiles";
 import { Button } from "@/components/ui/Button";
-import { CdDisc, FlowerBadge, PetalFrame, StampBadge } from "@/components/ui/Shapes";
+import { CdDisc, PetalFrame } from "@/components/ui/Shapes";
 
 // Lấy lại nội dung mới nhất từ database tối đa mỗi 60 giây.
 export const revalidate = 60;
@@ -47,30 +47,9 @@ export default async function HomePage() {
       </section>
       )}
 
-      {/* ---------- 6 LỰA CHỌN ---------- */}
-      <section className={`flex flex-1 items-center justify-center ${home.banner_enabled ? "md:mt-10 md:flex-none" : ""}`}>
-        <ul className={`grid w-full max-w-md grid-cols-2 gap-x-4 gap-y-8 ${home.banner_enabled ? "md:max-w-none md:grid-cols-6" : "md:max-w-3xl md:grid-cols-3 md:gap-y-12"}`}>
-          {options.map((o, i) => {
-            const Badge = i % 2 === 0 ? FlowerBadge : StampBadge;
-            const custom = o.color === "custom";
-            const autoIcon = custom ? (isDark(o.bg_custom) ? "#ffffff" : "#141414") : o.color === "lime" ? "#141414" : "#ffffff";
-            return (
-              <li key={i}>
-                <Link href={o.href || "/"} className="group flex flex-col items-center text-center">
-                  <Badge color={o.color === "custom" ? "lime" : o.color} fillColor={custom ? o.bg_custom : undefined} className="h-32 w-32 md:h-28 md:w-28">
-                    {o.icon_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={o.icon_url} alt="" className="h-14 w-14 object-contain md:h-12 md:w-12" />
-                    ) : (
-                      <span style={{ color: o.icon_color || autoIcon }}><ServiceIcon name={optionIcons[i]} className="h-14 w-14 md:h-12 md:w-12" /></span>
-                    )}
-                  </Badge>
-                  <span className="mt-3 text-sm font-bold uppercase leading-tight tracking-wide text-ink-900 sm:text-base">{o.title}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      {/* ---------- 6 NÚT LỚN (lưới bento) ---------- */}
+      <section className={`flex flex-1 flex-col ${home.banner_enabled ? "md:mt-6 md:flex-none" : ""}`}>
+        <HomeTiles options={options} fill={!home.banner_enabled} />
       </section>
     </div>
   );
