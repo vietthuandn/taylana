@@ -49,7 +49,7 @@ export default async function HomePage() {
 
       {/* ---------- 6 NÚT LỚN (lưới bento) ---------- */}
       <section className={`flex flex-1 items-center justify-center ${home.banner_enabled ? "md:mt-6 md:flex-none" : ""}`}>
-        <div className={`w-full ${home.banner_enabled ? "" : "max-w-[920px]"}`}>
+        <div className="w-full">
           <HomeTiles options={options} />
         </div>
       </section>

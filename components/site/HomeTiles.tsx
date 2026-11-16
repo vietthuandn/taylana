@@ -1,10 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { optionIcons, TEXT_COLORS, type HomeOption } from "@/lib/settings";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
 
-const V = { top: "justify-start", middle: "justify-center", bottom: "justify-end" } as const;
-const H = { left: "items-start text-left", center: "items-center text-center", right: "items-end text-right" } as const;
 
 // Tên menu: phần trong [ngoặc vuông] được tô tím nhạt (giống mẫu "[Sips]")
 export function TileTitle({ text, color }: { text: string; color: string }) {
@@ -16,31 +13,29 @@ export function TileTitle({ text, color }: { text: string; color: string }) {
   );
 }
 
-// 1 ô menu: màu phẳng hoặc ảnh phủ kín, chữ đặt theo vị trí admin chọn
+// 1 ô menu: vuông, icon chính giữa (~40% chiều rộng), tên ngay dưới icon
 export function Tile({ o, index, preview = false }: { o: HomeOption; index: number; preview?: boolean }) {
   const color = TEXT_COLORS[o.text_color];
-  // icon mặc định nằm phía đối diện với chữ
-  const iconPos = `${o.text_v === "bottom" ? "top-[12%]" : "bottom-[12%]"} ${o.text_h === "left" ? "right-[12%]" : o.text_h === "right" ? "left-[12%]" : "left-1/2 -translate-x-1/2"}`;
   const body = (
-    <>
-      {o.image_url ? (
-        <Image src={o.image_url} alt="" fill unoptimized={o.image_url.endsWith(".svg")} sizes="(min-width:768px) 33vw, 50vw" className="object-cover transition duration-700 group-hover:scale-105" />
-      ) : (
-        <span className={`pointer-events-none absolute w-[34%] transition duration-500 group-hover:-rotate-6 group-hover:scale-110 ${iconPos}`} style={{ color }} aria-hidden>
+    <span className="absolute inset-0 flex flex-col items-center justify-center gap-[7%] p-[8%] text-center">
+      <span className="relative block aspect-square w-[40%] shrink-0" style={{ color }}>
+        {o.image_url ? (
+          // icon riêng admin upload: giữ đúng tỉ lệ, không cắt
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={o.image_url} alt="" className="h-full w-full object-contain" />
+        ) : (
           <ServiceIcon name={optionIcons[index]} className="h-full w-full" />
-        </span>
-      )}
-      <span className={`absolute inset-0 flex flex-col p-[9%] ${V[o.text_v]} ${H[o.text_h]}`}>
-        <span className={`font-tile font-bold leading-[1.05] tracking-[-0.02em] ${preview ? "text-[17px]" : "text-[22px] sm:text-3xl lg:text-[38px]"}`}>
-          <TileTitle text={o.title} color={color} />
-        </span>
+        )}
       </span>
-    </>
+      <span className={`font-tile font-bold leading-[1.1] tracking-[-0.02em] ${preview ? "text-[13px]" : "text-base sm:text-xl lg:text-2xl"}`}>
+        <TileTitle text={o.title} color={color} />
+      </span>
+    </span>
   );
-  const cls = "group relative block aspect-[4/5] overflow-hidden rounded-[10px] transition duration-300";
+  const cls = "relative block aspect-square overflow-hidden rounded-[16px] transition duration-300";
   if (preview) return <div className={cls} style={{ background: o.bg }}>{body}</div>;
   return (
-    <Link href={o.href || "/"} className={`${cls} hover:-translate-y-1 hover:shadow-[0_14px_30px_rgba(59,21,16,.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3b1510]`}
+    <Link href={o.href || "/"} className={`${cls} md:hover:-translate-y-1 md:hover:shadow-[0_14px_30px_rgba(59,21,16,.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3b1510]`}
       style={{ background: o.bg }}>
       {body}
     </Link>
@@ -49,7 +44,7 @@ export function Tile({ o, index, preview = false }: { o: HomeOption; index: numb
 
 export function HomeTiles({ options }: { options: HomeOption[] }) {
   return (
-    <ul className="grid w-full grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 md:gap-5">
+    <ul className="mx-auto grid w-full max-w-[900px] grid-cols-2 gap-3 md:grid-cols-3 md:gap-5">
       {options.map((o, i) => (
         <li key={i} className="animate-[rise_.6s_cubic-bezier(.2,.8,.2,1)_both]" style={{ animationDelay: `${i * 60}ms` }}>
           <Tile o={o} index={i} />

@@ -97,7 +97,7 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
         <legend className="eyebrow bg-violet-500 text-white">6 ô menu</legend>
         <p className="text-xs text-ink-500">Mẹo: viết chữ trong [ngoặc vuông] để tô màu tím nhạt, ví dụ “Sản phẩm & [đánh giá]”.</p>
         {options.map((o, i) => (
-          <div key={i} className="grid gap-4 rounded-[18px] bg-cream-100 p-4 sm:grid-cols-[150px_1fr]">
+          <div key={i} className="grid gap-4 rounded-[18px] bg-cream-100 p-4 sm:grid-cols-[140px_1fr]">
             <div>
               <p className="mb-2 text-sm font-bold text-ink-900">Ô {i + 1}</p>
               <Tile o={o} index={i} preview />
@@ -107,26 +107,9 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
                 <Field label="Chữ menu"><input className="field" value={o.title} onChange={(e) => setOpt(i, { title: e.target.value })} /></Field>
                 <Field label="Link"><input className="field" value={o.href} onChange={(e) => setOpt(i, { href: e.target.value })} /></Field>
               </div>
-              <ImageInput value={o.image_url} onChange={(u) => setOpt(i, { image_url: u })} folder="tiles" allowSvg
-                label="Ảnh (phủ kín ô, nên ảnh dọc 4:5)" removeLabel="Bỏ ảnh — dùng màu nền" />
+              <ImageInput value={o.image_url} onChange={(u) => setOpt(i, { image_url: u })} folder="icons" allowSvg
+                label="Icon riêng (PNG/SVG, nên nền trong suốt)" removeLabel="Xoá — dùng icon mặc định" />
               <div className="flex flex-wrap gap-6">
-                <div>
-                  <span className="mb-1 block text-sm font-medium">Vị trí chữ</span>
-                  <div className="grid w-fit grid-cols-3 gap-1 rounded-[12px] border-[1.5px] border-ink-900 bg-white p-1">
-                    {(["top", "middle", "bottom"] as const).map((v) =>
-                      (["left", "center", "right"] as const).map((hh) => {
-                        const on = o.text_v === v && o.text_h === hh;
-                        return (
-                          <button key={v + hh} type="button" onClick={() => setOpt(i, { text_v: v, text_h: hh })}
-                            title={`${{ top: "Trên", middle: "Giữa", bottom: "Dưới" }[v]} · ${{ left: "trái", center: "giữa", right: "phải" }[hh]}`}
-                            className={`grid h-8 w-8 place-items-center rounded-[8px] ${on ? "bg-ink-900" : "hover:bg-lime-100"}`}>
-                            <span className={`block h-1.5 w-4 rounded-full ${on ? "bg-lime-500" : "bg-ink-300"}`} />
-                          </button>
-                        );
-                      }),
-                    )}
-                  </div>
-                </div>
                 <div>
                   <span className="mb-1 block text-sm font-medium">Màu nền</span>
                   <div className="flex flex-wrap items-center gap-2">
@@ -151,7 +134,7 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
                 </div>
               </div>
               <button type="button" className="text-xs underline" onClick={() => setOpt(i, { ...defaultOptions[i], image_url: o.image_url })}>
-                Đặt lại mặc định (giữ ảnh)
+                Đặt lại tên, link, màu mặc định (giữ icon)
               </button>
             </div>
           </div>
