@@ -14,9 +14,12 @@ export type PrintSpec = {
   hub?: number; // mm — đường kính vùng giữa đĩa không in được
 };
 
+// Độ rộng mỗi dải gáy ở 2 mép bìa sau (mm) — đổi ở đây
+export const BACK_SPINE_MM = 6.5;
+
 export const SPECS: Record<PrintKind, PrintSpec> = {
   front: { kind: "front", label: "Bìa trước", w: 120, h: 120, shape: "rect", cut: 2, safe: 4 },
-  back: { kind: "back", label: "Bìa sau", w: 150, h: 117, shape: "rect", cut: 2, safe: 4, spine: 6.5 },
+  back: { kind: "back", label: "Bìa sau", w: 150, h: 117, shape: "rect", cut: 2, safe: 4, spine: BACK_SPINE_MM },
   disc: { kind: "disc", label: "Mặt CD", w: 120, h: 120, shape: "disc", cut: 1.5, safe: 4, hole: 15, hub: 22 },
   booklet: { kind: "booklet", label: "Trang booklet", w: 120, h: 120, shape: "rect", cut: 2, safe: 4 },
   photostrip: { kind: "photostrip", label: "Photostrip 2x6 inch", w: 50.8, h: 152.4, shape: "rect", cut: 1.5, safe: 3 },

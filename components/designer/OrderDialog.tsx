@@ -7,7 +7,7 @@ import { hasSupabase } from "@/lib/supabase/env";
 import { formatVND } from "@/lib/format";
 import type { Package } from "@/lib/types";
 
-export type DesignFile = { kind: string; blob: Blob; name: string };
+export type DesignFile = { kind: string; blob: Blob; name: string; page?: number | null };
 
 // Hộp thoại gửi đơn kèm file thiết kế (Custom CD / Photostrip)
 export function OrderDialog({ orderType, title, packages = [], quantityLabel, getFiles, onClose }: {
@@ -56,7 +56,7 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
         const bmp = await createImageBitmap(f.blob);
         const reg = await sb.rpc("register_order_file", {
           p_order_id: order_id, p_kind: f.kind, p_storage_path: path, p_file_name: f.name,
-          p_mime_type: "image/png", p_size_bytes: f.blob.size, p_page: null, p_width_px: bmp.width, p_height_px: bmp.height,
+          p_mime_type: "image/png", p_size_bytes: f.blob.size, p_page: f.page ?? null, p_width_px: bmp.width, p_height_px: bmp.height,
         });
         bmp.close();
         if (reg.error) throw new Error(reg.error.message);

@@ -15,6 +15,7 @@ import type { DesignBase, Slot } from "@/lib/templates";
 import { stickers } from "@/lib/stickers";
 import { setPngDpi } from "@/lib/png";
 import { useView } from "./smoothImage";
+import { SpineContent, hasSpineContent, type SpineData } from "./Spine";
 
 export type DesignerHandle = {
   exportBlob: () => Promise<Blob>;
@@ -184,20 +185,12 @@ function Guides({ spec, W, H, s }: { spec: PrintSpec; W: number; H: number; s: n
       <Rect x={0} y={cut} width={cut} height={H - cut * 2} fill={band} />
       <Rect x={W - cut} y={cut} width={cut} height={H - cut * 2} fill={band} />
       <Rect x={safe} y={safe} width={W - safe * 2} height={H - safe * 2} stroke="#ffffff" strokeWidth={thin * 1.5} dash={[8 / s, 6 / s]} shadowColor="#000" shadowOpacity={0.3} shadowBlur={2 / s} />
-      {spec.spine && (
-        <>
-          <Rect x={0} y={0} width={px(spec.spine)} height={H} fill="rgba(20,20,20,0.2)" />
-          <Rect x={W - px(spec.spine)} y={0} width={px(spec.spine)} height={H} fill="rgba(20,20,20,0.2)" />
-          <Line points={[px(spec.spine), 0, px(spec.spine), H]} stroke="#fff" strokeWidth={thin} dash={[6 / s, 4 / s]} />
-          <Line points={[W - px(spec.spine), 0, W - px(spec.spine), H]} stroke="#fff" strokeWidth={thin} dash={[6 / s, 4 / s]} />
-        </>
-      )}
     </Group>
   );
 }
 
 // ================================================================
-export function Designer({ ref, spec, width, template, extraTools, active = true, toolbarTarget, caption }: {
+export function Designer({ ref, spec, width, template, extraTools, active = true, toolbarTarget, caption, guides: guidesProp, spine, onSpineClick, onSnapshot }: {
   ref?: React.Ref<DesignerHandle>;
   spec: PrintSpec;
   width: number; // chiều rộng hiển thị (px)
@@ -206,6 +199,10 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
   active?: boolean;
   toolbarTarget?: HTMLElement | null; // có → thanh công cụ hiển thị ở chỗ khác (panel bên phải)
   caption?: React.ReactNode; // dòng nhỏ ngay dưới canvas
+  guides?: boolean; // có → bật/tắt guideline từ bên ngoài (ẩn ô tick bên trong)
+  spine?: SpineData; // có → trang có 2 dải gáy (bìa sau - mặt ngoài)
+  onSpineClick?: (side: "left" | "right") => void;
+  onSnapshot?: (dataUrl: string) => void; // ảnh thu nhỏ để hiện trong danh sách trang
 }) {
   const W = mmToPx(spec.w), H = mmToPx(spec.h);
   const s = width / W;
@@ -222,7 +219,12 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
   const [slotData, setSlotData] = useState<Record<number, SlotData>>({});
   const [els, setEls] = useState<FreeEl[]>([]);
   const [sel, setSel] = useState<Sel>(null);
-  const [guides, setGuides] = useState(true);
+  const [guidesState, setGuides] = useState(true);
+  const guides = guidesProp ?? guidesState;
+  const [hoverSpine, setHoverSpine] = useState<"left" | "right" | null>(null);
+  const sp = (spec.spine ?? 0) / spec.w * W; // độ rộng gáy (px bản in)
+  const snapRef = useRef(onSnapshot);
+  snapRef.current = onSnapshot;
   const [showStickers, setShowStickers] = useState(false);
   const [fontTick, setFontTick] = useState(0);
   const [err, setErr] = useState("");
@@ -336,7 +338,7 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
   }, [W, H, spec.kind]);
 
   useImperativeHandle(ref, () => ({
-    isEmpty: () => !Object.keys(slotData).some((k) => slots[Number(k)]) && !els.length && !template?.overlay_url && !template?.background_url,
+    isEmpty: () => !Object.keys(slotData).some((k) => slots[Number(k)]) && !els.length && !template?.overlay_url && !template?.background_url && !(spine && hasSpineContent(spine)),
     exportBlob: async () => {
       const stage = stageRef.current!;
       const tr = trRef.current;
@@ -362,7 +364,27 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
         setSel(null);
       }
     },
-  }), [slotData, els, template, W, width, slots]);
+  }), [slotData, els, template, W, width, slots, spine]);
+
+  // Ảnh thu nhỏ (không có guideline) sau mỗi thay đổi
+  useEffect(() => {
+    if (!snapRef.current) return;
+    const t = setTimeout(() => {
+      const st = stageRef.current;
+      if (!st) return;
+      const tr = trRef.current;
+      guidesRef.current?.visible(false);
+      tr?.visible(false);
+      try {
+        snapRef.current?.(st.toDataURL({ pixelRatio: 120 / width }));
+      } catch {
+        /* ảnh mẫu chặn CORS: bỏ qua ảnh thu nhỏ */
+      }
+      guidesRef.current?.visible(true);
+      tr?.visible(true);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [slotData, els, bgColor, template, spine, overlay, bgImg, fontTick, width]);
 
   const deselect = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (e.target === e.target.getStage() || e.target.name() === "bg") setSel(null);
@@ -460,10 +482,12 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
           ))}
           <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="h-7 w-9" aria-label="Màu nền khác" />
         </div>
-        <label className="flex items-center justify-center gap-2 text-sm">
-          <input type="checkbox" className="h-5 w-5 accent-violet-500" checked={guides} onChange={(e) => setGuides(e.target.checked)} />
-          Hiện đường cắt & vùng an toàn <span className="text-xs text-ink-500">(không in ra)</span>
-        </label>
+        {guidesProp === undefined && (
+          <label className="flex items-center justify-center gap-2 text-sm">
+            <input type="checkbox" className="h-5 w-5 accent-violet-500" checked={guides} onChange={(e) => setGuides(e.target.checked)} />
+            Hiện đường cắt & vùng an toàn <span className="text-xs text-ink-500">(không in ra)</span>
+          </label>
+        )}
       </div>
   );
 
@@ -492,6 +516,12 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
               {els.map((el) => (
                 <FreeNode key={el.id} el={el} fontTick={fontTick} s={s} onSelect={() => setSel({ type: "el", id: el.id })} onChange={(p) => updateEl(el.id, p)} />
               ))}
+              {/* Gáy: nội dung xoay 90° → chữ chạy dọc theo gáy (có trong file xuất) */}
+              {spine && sp > 0 && (["left", "right"] as const).map((side) => (
+                <Group key={side} x={(side === "left" ? 0 : W - sp) + sp} y={0} rotation={90} listening={false}>
+                  <SpineContent side={spine[side]} len={H} thick={sp} />
+                </Group>
+              ))}
             </Group>
             <Transformer ref={trRef} rotateAnchorOffset={24} anchorSize={14} borderStroke="#7b68ee" anchorStroke="#7b68ee"
               anchorCornerRadius={7} keepRatio enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]}
@@ -501,6 +531,25 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
           {/* Lớp hướng dẫn: ô trống, viền chọn, đường cắt — KHÔNG có trong file xuất */}
           <Layer ref={guidesRef}>
             {guides && <Guides spec={spec} W={W} H={H} s={s} />}
+            {/* Đường chia gáy: luôn hiện (không phụ thuộc guideline), hover/bấm để sửa gáy */}
+            {spine && sp > 0 && (["left", "right"] as const).map((side) => {
+              const x0 = side === "left" ? 0 : W - sp;
+              const lineX = side === "left" ? sp : W - sp;
+              const hov = hoverSpine === side;
+              const fs = Math.min(sp * 0.55, 13 / s);
+              const setCursor = (c: string) => { const el = stageRef.current?.container(); if (el) el.style.cursor = c; };
+              return (
+                <Group key={side}
+                  onMouseEnter={() => { setHoverSpine(side); setCursor("pointer"); }}
+                  onMouseLeave={() => { setHoverSpine(null); setCursor("default"); }}
+                  onClick={() => onSpineClick?.(side)} onTap={() => onSpineClick?.(side)}>
+                  <Rect x={x0} y={0} width={sp} height={H} fill={hov ? "rgba(200,224,60,0.55)" : "rgba(20,20,20,0.06)"} />
+                  <Line points={[lineX, 0, lineX, H]} stroke="#141414" strokeWidth={1.5 / s} dash={[7 / s, 5 / s]} listening={false} />
+                  <Text listening={false} text={hov ? "Bấm để sửa gáy" : "Gáy"} rotation={90} x={x0 + (sp + fs) / 2} y={0} width={H}
+                    align={hov ? "center" : "left"} padding={hov ? 0 : 8 / s} fontFamily="Be Vietnam Pro" fontStyle="bold" fontSize={fs} fill="#141414" />
+                </Group>
+              );
+            })}
             {slots.map((slot, i) => {
               const w = slot.w * W, h = slot.h * H;
               const empty = !slotData[i];

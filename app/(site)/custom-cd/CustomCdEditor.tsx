@@ -1,53 +1,80 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { SPECS, sizeText } from "@/lib/print";
-import { targetLabels, type DesignBase, type DesignTemplate, type Slot } from "@/lib/templates";
+import { useRef, useState } from "react";
+import { BACK_SPINE_MM, SPECS, mmToPx, sizeText } from "@/lib/print";
+import { targetLabels, type DesignTemplate } from "@/lib/templates";
 import type { Package } from "@/lib/types";
-import { Designer, type DesignerHandle } from "@/components/designer/Designer";
+import { Designer, FONTS, type DesignerHandle } from "@/components/designer/Designer";
+import { SpineEditor, emptySpine, type SpineData, type SpineText } from "@/components/designer/Spine";
 import { TemplateThumb } from "@/components/designer/TemplateThumb";
 import { OrderDialog, downloadBlob, type DesignFile } from "@/components/designer/OrderDialog";
 import { useSize } from "@/components/designer/useSize";
 
 type Part = "front" | "back" | "disc";
 const PARTS: Part[] = ["front", "back", "disc"];
-const fileNames: Record<Part, string> = { front: "bia-truoc", back: "bia-sau", disc: "mat-cd" };
+type PageDef = { key: string; part: Part; label: string; kind: string; page: number | null };
 
-// ---------- Bìa trước: lưới 1 / 2 / 4 / 8 ảnh ----------
-const COUNTS = [1, 2, 4, 8] as const;
-type Count = (typeof COUNTS)[number];
-const GRID: Record<Count, [number, number]> = { 1: [1, 1], 2: [2, 1], 4: [2, 2], 8: [4, 2] }; // [cột, hàng]
+const FRONT_COUNTS = [1, 2, 4, 8] as const;
+const BACK_COUNTS = [1, 2] as const;
+const ALL_KEYS = ["f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "b1", "b2", "d1"];
+const partOf = (key: string): Part => (key[0] === "f" ? "front" : key[0] === "b" ? "back" : "disc");
 
-function gridTemplate(count: Count): DesignBase {
-  const spec = SPECS.front;
-  if (count === 1) return { slots: [{ id: "g1-0", shape: "rect", x: 0, y: 0, w: 1, h: 1 }] }; // phủ kín cả bìa
-  const [cols, rows] = GRID[count];
-  const mx = spec.safe / spec.w, my = spec.safe / spec.h; // lề ngoài = vùng an toàn
-  const gx = 2 / spec.w, gy = 2 / spec.h; // khoảng cách giữa ô ≈ 2mm
-  const w = (1 - 2 * mx - (cols - 1) * gx) / cols;
-  const h = (1 - 2 * my - (rows - 1) * gy) / rows;
-  const slots: Slot[] = [];
-  for (let r = 0; r < rows; r++)
-    for (let c = 0; c < cols; c++)
-      slots.push({ id: `g${count}-${r * cols + c}`, shape: "rect", x: mx + c * (w + gx), y: my + r * (h + gy), w, h });
-  return { slots };
+// Danh sách trang theo số trang đã chọn. Khoá (f1, f2, ...) cố định → đổi số trang vẫn giữ thiết kế.
+function pagesOf(frontN: number, backN: number): PageDef[] {
+  const front: PageDef[] = frontN <= 2
+    ? [{ key: "f1", part: "front", label: "Bìa Trước - Mặt Ngoài", kind: "front", page: 1 },
+       ...(frontN === 2 ? [{ key: "f2", part: "front" as Part, label: "Bìa Trước - Mặt Trong", kind: "front", page: 2 }] : [])]
+    : Array.from({ length: frontN }, (_, i) => ({ key: `f${i + 1}`, part: "front" as Part, label: String(i + 1), kind: "booklet", page: i + 1 }));
+  const back: PageDef[] = [
+    { key: "b1", part: "back", label: "Bìa Sau - Mặt Ngoài", kind: "back", page: 1 },
+    ...(backN === 2 ? [{ key: "b2", part: "back" as Part, label: "Bìa Sau - Mặt Trong", kind: "back", page: 2 }] : []),
+  ];
+  return [...front, ...back, { key: "d1", part: "disc", label: "Mặt Đĩa", kind: "disc", page: null }];
 }
 
+// Gáy bìa sau (px bản in)
+const SPINE_LEN = mmToPx(SPECS.back.h);
+const SPINE_THICK = mmToPx(BACK_SPINE_MM);
+const SPINE_COLORS = ["#141414", "#ffffff", "#c8e03c", "#7b68ee", "#ff5fa2", "#3b1510", "#ffcf5c"];
+
 export function CustomCdEditor({ templates, packages }: { templates: DesignTemplate[]; packages: Package[] }) {
-  const [part, setPart] = useState<Part>("front");
-  const [chosen, setChosen] = useState<Record<Part, string>>({ front: "", back: "", disc: "" });
-  const [count, setCount] = useState<Count>(1);
+  const [frontN, setFrontN] = useState(1);
+  const [backN, setBackN] = useState(1);
+  const [activeKey, setActiveKey] = useState("f1");
+  const [chosen, setChosen] = useState<Record<string, string>>({});
+  const [mounted, setMounted] = useState<string[]>(["f1", "b1", "d1"]);
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const [guides, setGuides] = useState(true);
+  const [spine, setSpine] = useState<SpineData>(emptySpine);
+  const [spineMode, setSpineMode] = useState<"left" | "right" | null>(null);
+  const [spineSel, setSpineSel] = useState<string | null>(null);
+  const [flipKey, setFlipKey] = useState(0);
   const [areaRef, area] = useSize<HTMLDivElement>();
-  const refs = { front: useRef<DesignerHandle>(null), back: useRef<DesignerHandle>(null), disc: useRef<DesignerHandle>(null) };
-  const [hosts, setHosts] = useState<Record<Part, HTMLDivElement | null>>({ front: null, back: null, disc: null });
+  const handles = useRef<Record<string, DesignerHandle | null>>({});
+  const [hosts, setHosts] = useState<Record<string, HTMLDivElement | null>>({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [ordering, setOrdering] = useState(false);
 
-  // mỗi số ảnh 1 mẫu lưới cố định (giữ nguyên đối tượng → không reset ảnh)
-  const grids = useMemo(() => Object.fromEntries(COUNTS.map((n) => [n, gridTemplate(n)])) as Record<Count, DesignBase>, []);
+  const pages = pagesOf(frontN, backN);
+  const active = pages.find((p) => p.key === activeKey) ?? pages[0];
+  const part = active.part;
+  const partPages = pages.filter((p) => p.part === part);
+  const keys = ALL_KEYS.filter((k) => mounted.includes(k) || pages.some((p) => p.key === k));
 
-  // Canvas co giãn vừa khít vùng làm việc (trừ chỗ cho dòng chú thích), giữ đúng tỉ lệ
+  function openPage(key: string) {
+    setActiveKey(key);
+    setSpineMode(null);
+    setMounted((m) => (m.includes(key) ? m : [...m, key]));
+  }
+  function setCount(p: Part, n: number) {
+    const next = p === "front" ? pagesOf(n, backN) : pagesOf(frontN, n);
+    if (p === "front") setFrontN(n); else setBackN(n);
+    setMounted((m) => Array.from(new Set([...m, ...next.map((x) => x.key)])));
+    if (!next.some((x) => x.key === activeKey)) openPage(next.find((x) => x.part === p)!.key);
+  }
+
+  // Canvas co giãn vừa khít vùng làm việc, giữ đúng tỉ lệ
   const widthFor = (p: Part) => {
     const spec = SPECS[p];
     const pad = 32, captionH = 32;
@@ -58,44 +85,80 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
     return Math.floor(Math.min(maxW, maxH * (spec.w / spec.h)));
   };
 
-  async function exportPart(p: Part): Promise<DesignFile | null> {
-    const h = refs[p].current;
+  async function exportPage(p: PageDef): Promise<DesignFile | null> {
+    const h = handles.current[p.key];
     if (!h || h.isEmpty()) return null;
-    return { kind: p, blob: await h.exportBlob(), name: `${fileNames[p]}-300dpi.png` };
+    return { kind: p.kind, page: p.page, blob: await h.exportBlob(), name: `${p.label}.png` };
   }
 
-  async function download(which: Part[]) {
-    setBusy(true);
-    setMsg("");
+  async function downloadThis() {
+    setBusy(true); setMsg("");
     try {
-      let n = 0;
-      for (const p of which) {
-        const f = await exportPart(p);
-        if (f) { downloadBlob(f.blob, f.name); n++; }
-      }
-      setMsg(n ? `✓ Đã tải ${n} file PNG 300 DPI` : "Phần này chưa có gì để tải.");
-    } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Lỗi xuất file");
-    }
+      const f = await exportPage(active);
+      if (f) { downloadBlob(f.blob, f.name); setMsg(`✓ Đã tải “${f.name}”`); } else setMsg("Trang này chưa có gì để tải.");
+    } catch (e) { setMsg(e instanceof Error ? e.message : "Lỗi xuất file"); }
     setBusy(false);
   }
 
-  const usingAdminFront = chosen.front !== "";
+  async function downloadAll() {
+    setBusy(true); setMsg("Đang đóng gói...");
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      let n = 0;
+      for (const p of pages) {
+        const f = await exportPage(p);
+        if (f) { zip.file(f.name, f.blob); n++; }
+      }
+      if (!n) { setMsg("Chưa có trang nào để tải."); setBusy(false); return; }
+      downloadBlob(await zip.generateAsync({ type: "blob" }), "Taylana-Custom-CD.zip");
+      setMsg(`✓ Đã tải ${n} trang (Taylana-Custom-CD.zip)`);
+    } catch (e) { setMsg(e instanceof Error ? e.message : "Lỗi xuất file"); }
+    setBusy(false);
+  }
+
+  // ---------- Gáy ----------
+  const side = spineMode ? spine[spineMode] : null;
+  const selText = side?.texts.find((t) => t.id === spineSel);
+  const updSide = (fn: (s: SpineData["left"]) => SpineData["left"]) => spineMode && setSpine((d) => ({ ...d, [spineMode]: fn(d[spineMode]) }));
+  const updText = (p: Partial<SpineText>) => updSide((s) => ({ ...s, texts: s.texts.map((t) => (t.id === spineSel ? { ...t, ...p } : t)) }));
+  function addSpineText() {
+    const fontSize = Math.round(SPINE_THICK * 0.5);
+    const t: SpineText = { id: Math.random().toString(36).slice(2, 9), text: "Tên album", fontFamily: "Be Vietnam Pro", fontSize, fill: "#141414", align: "center", y: Math.round((SPINE_THICK - fontSize) / 2) };
+    updSide((s) => ({ ...s, texts: [...s.texts, t] }));
+    setSpineSel(t.id);
+  }
+  function closeSpine() { setSpineMode(null); setSpineSel(null); setFlipKey((k) => k + 1); }
 
   return (
     <div className="flex flex-1 flex-col md:min-h-0 md:flex-row">
-      {/* ---------- BÊN TRÁI: vùng làm việc (chỉ canvas) ---------- */}
+      {/* ---------- BÊN TRÁI: vùng làm việc ---------- */}
       <div ref={areaRef} className="relative min-h-[320px] bg-cream-200 md:min-h-0 md:w-[62%]">
         <div className="flex h-full items-center justify-center p-4">
-          {area.w > 0 && PARTS.map((p) => {
-            const spec = SPECS[p];
-            const tpl = templates.find((t) => t.target === p && t.id === chosen[p]) ?? null;
-            const template = p === "front" && !tpl ? grids[count] : tpl;
+          {spineMode && (
+            <div key={`spine-${spineMode}`} className="w-full animate-[flipIn_.3s_ease]">
+              <SpineEditor side={spine[spineMode]} len={SPINE_LEN} thick={SPINE_THICK} width={Math.max(200, area.w - 32)}
+                selectedId={spineSel} onSelect={setSpineSel}
+                onMoveText={(id, y) => updSide((s) => ({ ...s, texts: s.texts.map((t) => (t.id === id ? { ...t, y: Math.max(0, Math.min(SPINE_THICK - t.fontSize, y)) } : t)) }))} />
+              <p className="mt-2 text-center text-xs font-semibold text-ink-600">
+                Gáy {spineMode === "left" ? "trái" : "phải"} · {BACK_SPINE_MM / 10} x {SPECS.back.h / 10} cm
+              </p>
+            </div>
+          )}
+          {area.w > 0 && keys.map((k) => {
+            const p = pages.find((x) => x.key === k);
+            const pt = partOf(k);
+            const spec = SPECS[pt];
+            const tpl = templates.find((t) => t.target === pt && t.id === chosen[k]) ?? null;
+            const show = k === active.key && !spineMode;
             return (
-              <div key={p} className={p === part ? "" : "hidden"}>
-                <Designer ref={refs[p]} spec={spec} width={widthFor(p)} template={template} active={p === part}
-                  toolbarTarget={hosts[p]}
-                  caption={<p className="mt-2 text-center text-xs font-semibold text-ink-600">{spec.label} · {sizeText(spec)}</p>} />
+              <div key={k} className={show ? (k === "b1" ? "animate-[flipIn_.3s_ease]" : "") : "hidden"} data-flip={k === "b1" ? flipKey : undefined}>
+                <Designer ref={(h) => { handles.current[k] = h; }} spec={spec} width={widthFor(pt)} template={tpl} active={show}
+                  toolbarTarget={hosts[k]} guides={guides}
+                  spine={k === "b1" ? spine : undefined}
+                  onSpineClick={k === "b1" ? (s) => { setSpineMode(s); setSpineSel(null); } : undefined}
+                  onSnapshot={(url) => setThumbs((t) => (t[k] === url ? t : { ...t, [k]: url }))}
+                  caption={<p className="mt-2 text-center text-xs font-semibold text-ink-600">{p?.label ?? ""} · {sizeText(spec)}</p>} />
               </div>
             );
           })}
@@ -107,80 +170,151 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
         {/* 1. Chọn phần */}
         <div className="flex gap-2">
           {PARTS.map((p) => (
-            <button key={p} onClick={() => setPart(p)} aria-pressed={part === p} className="chip flex-1 !px-2">
+            <button key={p} aria-pressed={part === p} className="chip flex-1 !px-2"
+              onClick={() => openPage(pages.find((x) => x.part === p)!.key)}>
               {targetLabels[p]}
             </button>
           ))}
         </div>
 
-        {/* 2. Số ảnh (chỉ bìa trước) */}
-        {part === "front" && (
-          <div className={usingAdminFront ? "opacity-45" : ""}>
-            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-900">Số ảnh</p>
+        {/* 2. Số trang + danh sách trang */}
+        {part !== "disc" && (
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-900">Số trang</p>
             <div className="flex gap-2">
-              {COUNTS.map((n) => (
-                <button key={n} aria-pressed={!usingAdminFront && count === n} className="chip flex-1"
-                  onClick={() => { setCount(n); setChosen({ ...chosen, front: "" }); }}>
-                  {n}
-                </button>
+              {(part === "front" ? FRONT_COUNTS : BACK_COUNTS).map((n) => (
+                <button key={n} aria-pressed={(part === "front" ? frontN : backN) === n} className="chip flex-1" onClick={() => setCount(part, n)}>{n}</button>
               ))}
             </div>
           </div>
         )}
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-900">Trang</p>
+          <div className="grid grid-cols-2 gap-2">
+            {partPages.map((p) => {
+              const spec = SPECS[p.part];
+              const on = p.key === active.key;
+              return (
+                <button key={p.key} onClick={() => openPage(p.key)}
+                  className={`flex items-center gap-2 rounded-[14px] border-2 p-1.5 text-left text-xs font-semibold text-ink-900 ${on ? "border-ink-900 bg-lime-500" : "border-ink-100 bg-white hover:border-ink-300"}`}>
+                  <span className={`block w-11 shrink-0 overflow-hidden bg-cream-100 ${p.part === "disc" ? "rounded-full" : "rounded-[6px]"}`} style={{ aspectRatio: `${spec.w} / ${spec.h}` }}>
+                    {thumbs[p.key] && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={thumbs[p.key]} alt="" className="h-full w-full object-cover" />
+                    )}
+                  </span>
+                  <span className="min-w-0 leading-tight">{p.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        {/* 3. Chọn mẫu */}
-        {PARTS.map((p) => {
-          if (p !== part) return null;
-          const spec = SPECS[p];
-          const list = templates.filter((t) => t.target === p);
-          const free = chosen[p] === "";
-          return (
-            <div key={p}>
+        {spineMode ? (
+          /* ---------- Chế độ sửa gáy: chỉ chữ + màu nền gáy ---------- */
+          <div className="space-y-4 rounded-[24px] border-[1.5px] border-ink-900 bg-white p-4">
+            <button className="btn btn-sm w-full" onClick={closeSpine}>← Xong, quay lại bìa</button>
+            <p className="text-xs font-bold uppercase tracking-widest text-ink-900">Sửa gáy {spineMode === "left" ? "trái" : "phải"}</p>
+            <button className="chip" onClick={addSpineText}>＋ Chữ</button>
+            {selText ? (
+              <div className="space-y-3 rounded-[18px] bg-lime-100 p-4">
+                <input className="field" value={selText.text} onChange={(e) => updText({ text: e.target.value })} />
+                <select className="field" value={selText.fontFamily} style={{ fontFamily: selText.fontFamily }} onChange={(e) => updText({ fontFamily: e.target.value })}>
+                  {FONTS.map((f) => <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>)}
+                </select>
+                <div className="flex flex-wrap items-center gap-2">
+                  {SPINE_COLORS.map((c) => (
+                    <button key={c} aria-label={c} onClick={() => updText({ fill: c })}
+                      className={`h-8 w-8 rounded-full border-2 border-ink-900 ${selText.fill === c ? "ring-4 ring-violet-500" : ""}`} style={{ background: c }} />
+                  ))}
+                  <input type="color" value={selText.fill} onChange={(e) => updText({ fill: e.target.value })} className="h-8 w-10" aria-label="Màu khác" />
+                </div>
+                <label className="block text-sm font-semibold text-ink-900">Cỡ chữ
+                  <input type="range" min={Math.round(SPINE_THICK * 0.2)} max={Math.round(SPINE_THICK * 0.95)} value={selText.fontSize}
+                    onChange={(e) => { const fontSize = Number(e.target.value); updText({ fontSize, y: Math.min(selText.y, SPINE_THICK - fontSize) }); }} className="w-full accent-violet-500" />
+                </label>
+                <div className="flex gap-2">
+                  {(["left", "center", "right"] as const).map((a) => (
+                    <button key={a} aria-pressed={selText.align === a} className="chip flex-1" onClick={() => updText({ align: a })}>
+                      {{ left: "Trái", center: "Giữa", right: "Phải" }[a]}
+                    </button>
+                  ))}
+                </div>
+                <button className="chip !border-hot-500 !text-hot-700"
+                  onClick={() => { updSide((s) => ({ ...s, texts: s.texts.filter((t) => t.id !== spineSel) })); setSpineSel(null); }}>Xoá chữ</button>
+              </div>
+            ) : (
+              side && side.texts.length > 0 && <p className="text-xs text-ink-500">Bấm vào chữ trên gáy để sửa, kéo lên/xuống để đổi vị trí.</p>
+            )}
+            <div className="border-t border-ink-100 pt-4">
+              <span className="mb-2 block text-sm font-semibold text-ink-900">Màu nền gáy</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={() => updSide((s) => ({ ...s, bg: null }))} className={`chip !min-h-8 !text-xs ${!side?.bg ? "is-active" : ""}`}>Không màu</button>
+                {SPINE_COLORS.map((c) => (
+                  <button key={c} aria-label={`Nền ${c}`} onClick={() => updSide((s) => ({ ...s, bg: c }))}
+                    className={`h-7 w-7 rounded-full border-2 border-ink-900 ${side?.bg === c ? "ring-4 ring-violet-500" : ""}`} style={{ background: c }} />
+                ))}
+                <input type="color" value={side?.bg ?? "#ffffff"} onChange={(e) => updSide((s) => ({ ...s, bg: e.target.value }))} className="h-7 w-9" aria-label="Màu nền khác" />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 3. Chọn mẫu (riêng cho trang đang mở) */}
+            <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-900">Chọn mẫu</p>
               <div className="no-scrollbar flex gap-2 overflow-x-auto pb-1">
-                <button onClick={() => setChosen({ ...chosen, [p]: "" })}
-                  className={`w-20 shrink-0 rounded-[14px] border-2 bg-white p-1.5 text-center text-[11px] font-semibold text-ink-900 ${free ? "border-ink-900 bg-lime-500" : "border-ink-100"}`}>
-                  <div className={`mb-1 grid aspect-square place-items-center bg-cream-100 text-xl ${p === "disc" ? "rounded-full" : "rounded-md"}`}>✎</div>
+                <button onClick={() => setChosen({ ...chosen, [active.key]: "" })}
+                  className={`w-20 shrink-0 rounded-[14px] border-2 bg-white p-1.5 text-center text-[11px] font-semibold text-ink-900 ${!chosen[active.key] ? "border-ink-900 bg-lime-500" : "border-ink-100"}`}>
+                  <div className={`mb-1 grid aspect-square place-items-center bg-cream-100 text-xl ${part === "disc" ? "rounded-full" : "rounded-md"}`}>✎</div>
                   Tự do
                 </button>
-                {list.map((t) => (
-                  <button key={t.id} onClick={() => setChosen({ ...chosen, [p]: t.id })}
-                    className={`w-20 shrink-0 rounded-[14px] border-2 bg-white p-1.5 text-center text-[11px] font-semibold text-ink-900 ${chosen[p] === t.id ? "border-ink-900 bg-lime-500" : "border-ink-100"}`}>
+                {templates.filter((t) => t.target === part).map((t) => (
+                  <button key={t.id} onClick={() => setChosen({ ...chosen, [active.key]: t.id })}
+                    className={`w-20 shrink-0 rounded-[14px] border-2 bg-white p-1.5 text-center text-[11px] font-semibold text-ink-900 ${chosen[active.key] === t.id ? "border-ink-900 bg-lime-500" : "border-ink-100"}`}>
                     <div className="mb-1">
-                      <TemplateThumb ratio={spec.w / spec.h} slots={t.slots} overlay={t.overlay_url} background={t.background_url} disc={p === "disc"} />
+                      <TemplateThumb ratio={SPECS[part].w / SPECS[part].h} slots={t.slots} overlay={t.overlay_url} background={t.background_url} disc={part === "disc"} />
                     </div>
                     <span className="line-clamp-2">{t.name}</span>
                   </button>
                 ))}
               </div>
             </div>
-          );
-        })}
+          </>
+        )}
 
-        {/* 4. Công cụ (thanh công cụ của từng phần được gắn vào đây) */}
-        <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-900">Công cụ</p>
-          {PARTS.map((p) => (
-            <div key={p} className={p === part ? "" : "hidden"}
-              ref={(el) => { if (el && hosts[p] !== el) setHosts((h) => ({ ...h, [p]: el })); }} />
+        {/* 4. Công cụ: công tắc guideline + thanh công cụ của trang đang mở */}
+        <div className={spineMode ? "hidden" : ""}>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-ink-900">Công cụ</p>
+            <button type="button" role="switch" aria-checked={guides} onClick={() => setGuides(!guides)} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-900">
+              Hiển thị guideline
+              <span className={`relative h-6 w-11 rounded-full border-2 border-ink-900 transition ${guides ? "bg-lime-500" : "bg-ink-100"}`}>
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full border-2 border-ink-900 bg-white transition-all ${guides ? "left-5" : "left-0.5"}`} />
+              </span>
+            </button>
+          </div>
+          {keys.map((k) => (
+            <div key={k} className={k === active.key ? "" : "hidden"}
+              ref={(el) => { if (el && hosts[k] !== el) setHosts((h) => ({ ...h, [k]: el })); }} />
           ))}
         </div>
 
         {/* 5. Hành động */}
         <div className="mt-auto space-y-2 border-t-[1.5px] border-ink-100 pt-4">
           <div className="grid grid-cols-2 gap-2">
-            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => download([part])}>Tải {targetLabels[part].toLowerCase()}</button>
-            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={() => download(PARTS)}>Tải cả 3 phần</button>
+            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={downloadThis}>Tải trang này</button>
+            <button className="btn btn-ghost btn-sm" disabled={busy} onClick={downloadAll}>Tải tất cả (.zip)</button>
           </div>
           <button className="btn w-full" disabled={busy} onClick={() => setOrdering(true)}>Gửi đơn / Lưu thiết kế →</button>
           {msg && <p className="text-center text-sm">{msg}</p>}
-          <p className="text-center text-xs text-ink-500">File xuất PNG 300 DPI đúng khổ in, không có đường cắt.</p>
+          <p className="text-center text-xs text-ink-500">File xuất PNG 300 DPI đúng khổ in, không có guideline.</p>
         </div>
       </aside>
 
       {ordering && (
         <OrderDialog orderType="custom_cd" title="Gửi đơn Custom CD" packages={packages} onClose={() => setOrdering(false)}
-          getFiles={async () => (await Promise.all(PARTS.map(exportPart))).filter((f): f is DesignFile => !!f)} />
+          getFiles={async () => (await Promise.all(pages.map(exportPage))).filter((f): f is DesignFile => !!f)} />
       )}
     </div>
   );
