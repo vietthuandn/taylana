@@ -56,6 +56,8 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
       {/* ---------- Banner ---------- */}
       <fieldset className="panel space-y-4 p-5">
         <legend className="eyebrow bg-lime-500 text-ink-900">Banner (máy tính)</legend>
+        <Toggle checked={home.banner_enabled} onChange={(v) => setHome({ ...home, banner_enabled: v })}
+          label={home.banner_enabled ? "Đang hiện banner" : "Đang tắt banner — 6 lựa chọn ra giữa màn hình, 3 mỗi hàng"} />
         <Field label="Tiêu đề (tự in hoa)"><input className="field" {...h("banner_title")} /></Field>
         <Field label="Nội dung (1–2 dòng)"><textarea rows={2} className="field" {...h("banner_subtitle")} /></Field>
 

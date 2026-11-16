@@ -2,6 +2,7 @@ import { publicClient } from "./supabase/public";
 
 // ---------- Banner trang chủ (key "home" trong bảng site_settings) ----------
 export type HomeSettings = {
+  banner_enabled: boolean; // tắt = không hiện banner, 6 lựa chọn ra giữa màn hình (3 mỗi hàng)
   banner_title: string;
   banner_subtitle: string;
   banner_note: string;
@@ -17,6 +18,7 @@ export type HomeSettings = {
 };
 
 export const defaultHome: HomeSettings = {
+  banner_enabled: true,
   banner_title: "CD của bạn, theo cách của bạn",
   banner_subtitle: "Thiết kế & thi công CD theo yêu cầu — bìa hộp, mặt đĩa, booklet. Tiệm in sắc nét 300 DPI.",
   banner_note: "",

@@ -15,6 +15,7 @@ export default async function HomePage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 md:py-8">
       {/* ---------- BANNER (chỉ máy tính, từ 768px) ---------- */}
+      {home.banner_enabled && (
       <section className="hidden md:block">
         <div className={`grid items-center gap-8 overflow-hidden rounded-[32px] px-10 py-10 lg:px-14 ${home.banner_image_enabled ? "grid-cols-[1.2fr_1fr]" : "grid-cols-1"}`}
           style={{ background: home.banner_bg }}>
@@ -44,10 +45,11 @@ export default async function HomePage() {
           })()}
         </div>
       </section>
+      )}
 
       {/* ---------- 6 LỰA CHỌN ---------- */}
-      <section className="flex flex-1 items-center justify-center md:mt-10 md:flex-none">
-        <ul className="grid w-full max-w-md grid-cols-2 gap-x-4 gap-y-8 md:max-w-none md:grid-cols-6">
+      <section className={`flex flex-1 items-center justify-center ${home.banner_enabled ? "md:mt-10 md:flex-none" : ""}`}>
+        <ul className={`grid w-full max-w-md grid-cols-2 gap-x-4 gap-y-8 ${home.banner_enabled ? "md:max-w-none md:grid-cols-6" : "md:max-w-3xl md:grid-cols-3 md:gap-y-12"}`}>
           {options.map((o, i) => {
             const Badge = i % 2 === 0 ? FlowerBadge : StampBadge;
             const custom = o.color === "custom";
