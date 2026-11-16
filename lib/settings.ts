@@ -64,7 +64,7 @@ export const defaultOptions: HomeOption[] = [
   { title: "Đặt đơn ngay", href: "/dat-don", image_url: null, bg: "#d4dd3f", text_v: "middle", text_h: "left", text_color: "brown" },
   { title: "Hướng dẫn làm file", href: "/huong-dan", image_url: null, bg: "#a9c6e8", text_v: "top", text_h: "center", text_color: "white" },
   { title: "Tự tay thiết kế", href: "/tu-thiet-ke", image_url: null, bg: "#fbf3e7", text_v: "top", text_h: "left", text_color: "brown" },
-  { title: "Nộp file", href: "/nop-file", image_url: null, bg: "#c3b5f7", text_v: "middle", text_h: "center", text_color: "brown" },
+  { title: "Gửi file in", href: "/gui-file-in", image_url: null, bg: "#c3b5f7", text_v: "middle", text_h: "center", text_color: "brown" },
   { title: "Sản phẩm & [đánh giá]", href: "/san-pham", image_url: null, bg: "#fbf3e7", text_v: "top", text_h: "center", text_color: "brown" },
   { title: "Liên hệ", href: "/lien-he", image_url: null, bg: "#d4dd3f", text_v: "bottom", text_h: "right", text_color: "brown" },
 ];
@@ -96,9 +96,11 @@ export function mergeOptions(value: unknown): HomeOption[] {
     const v = saved[i] ?? {};
     const pick = <K extends keyof HomeOption>(k: K, ok: (x: unknown) => boolean) => (ok(v[k]) ? (v[k] as HomeOption[K]) : d[k]);
     const str = (x: unknown) => typeof x === "string" && x !== "";
+    // ô cũ "Nộp file" (đã lưu trong database) → đổi thành "Gửi file in"
+    const old = v.href === "/nop-file";
     return {
-      title: pick("title", str),
-      href: pick("href", str),
+      title: old && (!v.title || v.title === "Nộp file") ? "Gửi file in" : pick("title", str),
+      href: old ? "/gui-file-in" : pick("href", str),
       image_url: typeof v.image_url === "string" && v.image_url ? v.image_url : null,
       bg: pick("bg", (x) => typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x)),
       text_v: pick("text_v", (x) => x === "top" || x === "middle" || x === "bottom"),

@@ -108,7 +108,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             })}
           </ul>
         ) : (
-          <p className="text-sm text-ink-500">Khách chưa nộp file nào.</p>
+          <p className="text-sm text-ink-500">Khách chưa gửi file in nào.</p>
         )}
       </section>
     </div>

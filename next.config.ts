@@ -11,6 +11,10 @@ const supabase = (() => {
 const isLocal = supabase?.hostname === "localhost" || supabase?.hostname === "127.0.0.1";
 
 const nextConfig: NextConfig = {
+  // đường dẫn cũ /nop-file → /gui-file-in (giữ nguyên ?ma=...)
+  async redirects() {
+    return [{ source: "/nop-file", destination: "/gui-file-in", permanent: true }];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.supabase.co" },

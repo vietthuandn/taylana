@@ -1,4 +1,4 @@
-// Thông số khổ in (đơn vị mm). Dùng chung cho Nộp file, Custom CD, Photostrip.
+// Thông số khổ in (đơn vị mm). Dùng chung cho Gửi file in, Custom CD, Photostrip.
 export type PrintKind = "front" | "back" | "disc" | "booklet" | "photostrip";
 
 export type PrintSpec = {

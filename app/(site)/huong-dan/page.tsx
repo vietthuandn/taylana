@@ -19,19 +19,20 @@ export default async function GuidePage() {
     sections = data ?? [];
   }
 
+  const audioIdx = sections.findIndex((s) => /audio|nhạc/i.test(s.title));
   return (
     <>
-      <PageHeader eyebrow="Trước khi nộp file" title="Hướng dẫn làm file" subtitle="Chuẩn bị file đúng chuẩn để CD in ra thật sắc nét." />
+      <PageHeader eyebrow="Trước khi gửi file in" title="Hướng dẫn làm file" subtitle="Chuẩn bị file đúng chuẩn để CD in ra thật sắc nét." />
 
       {sections.length > 1 && (
         <nav className="no-scrollbar mx-auto mb-8 flex max-w-6xl gap-2 overflow-x-auto px-4">
-          {sections.map((s) => <a key={s.id} href={`#muc-${s.id}`} className="chip shrink-0">{s.title}</a>)}
+          {sections.map((s, i) => <a key={s.id} href={i === audioIdx ? "#audio" : `#muc-${s.id}`} className="chip shrink-0">{s.title}</a>)}
         </nav>
       )}
 
       <div className="mx-auto max-w-4xl space-y-6 px-4">
         {sections.map((s, i) => (
-          <section key={s.id} id={`muc-${s.id}`} className="card scroll-mt-24 p-5 sm:p-8">
+          <section key={s.id} id={i === audioIdx ? "audio" : `muc-${s.id}`} className="card scroll-mt-24 p-5 sm:p-8">
             <div className="flex items-start gap-4">
               <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-full font-display text-2xl ${numberBg[i % 3]}`}>{i + 1}</span>
               <h2 className="pt-1 text-3xl sm:text-4xl">{s.title.replace(/^\d+\.\s*/, "")}</h2>

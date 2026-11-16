@@ -225,10 +225,10 @@ function Success({ result }: { result: Result }) {
         </div>
         <p className="mt-4 text-ink-900">Tạm tính: <b className="font-display text-2xl">{formatVND(result.total)}</b></p>
         <p className="mx-auto mt-3 max-w-sm text-sm text-ink-700">
-          Lưu lại mã đơn để nộp file nhé. Tiệm sẽ liên hệ qua Zalo/SĐT để xác nhận và báo phí ship.
+          Lưu lại mã đơn để gửi file in nhé. Tiệm sẽ liên hệ qua Zalo/SĐT để xác nhận và báo phí ship.
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Button href={`/nop-file?ma=${encodeURIComponent(result.code)}`}>Nộp file ngay →</Button>
+          <Button href={`/gui-file-in?ma=${encodeURIComponent(result.code)}`}>Gửi file in ngay →</Button>
           <Button href="/huong-dan" variant="ghost">Hướng dẫn làm file</Button>
         </div>
       </div>
