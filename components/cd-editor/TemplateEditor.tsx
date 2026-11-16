@@ -1,0 +1,136 @@
+"use client";
+
+/* Trình tạo mẫu Custom CD cho admin — dùng chung CdDesigner (chế độ "template"):
+   ảnh trang trí (trên/dưới ảnh khách), khung ảnh, chữ, màu nền, ảnh nền; cùng zoom/guideline/gáy/Spine/ướm khay. */
+import { useMemo, useRef, useState } from "react";
+import { BACK_SPINE_MM, SPECS, mmToPx, sizeText } from "@/lib/print";
+import { INNER_SPINE_FROM_CM, INNER_SPINE_TO_CM, TRAY_DISC_DIAMETER_CM, TRAY_DISC_HOLE_CM } from "@/lib/cdSpecs";
+import { emptyDoc, templateDoc, type PageDoc, type TemplateDoc } from "@/lib/cdDoc";
+import type { DesignTemplate } from "@/lib/templates";
+import { uploadPublicImage } from "@/lib/upload";
+import { useSize } from "@/components/designer/useSize";
+import type { Zone } from "@/components/designer/Spine";
+import { CdDesigner, type CdDesignerHandle } from "./CdDesigner";
+import { Icon } from "./icons";
+
+export type TplTarget = "front" | "back_outer" | "back_inner" | "disc";
+export const TPL_TARGETS: { value: TplTarget; label: string }[] = [
+  { value: "front", label: "Bìa trước (12 × 12 cm)" },
+  { value: "back_outer", label: "Bìa sau - Mặt Ngoài (15 × 11.7 cm, có gáy)" },
+  { value: "back_inner", label: "Bìa sau - Mặt Trong (15 × 11.7 cm, gáy + Spine)" },
+  { value: "disc", label: "Mặt đĩa (tròn 12 cm)" },
+];
+const specFor = (t: TplTarget) => (t === "disc" ? SPECS.disc : t === "front" ? SPECS.front : SPECS.back);
+
+export type TemplateRow = DesignTemplate & { doc?: TemplateDoc | null; target: string };
+
+const BW = mmToPx(SPECS.back.w), BH = mmToPx(SPECS.back.h), GAY = mmToPx(BACK_SPINE_MM);
+const IN_FROM = mmToPx(INNER_SPINE_FROM_CM * 10), IN_TO = mmToPx(INNER_SPINE_TO_CM * 10);
+const TRAY = { cx: (IN_TO + (BW - GAY)) / 2, cy: BH / 2, r: mmToPx(TRAY_DISC_DIAMETER_CM * 5), hole: mmToPx(TRAY_DISC_HOLE_CM * 5) };
+
+async function dataUrlToBlob(url: string) { return (await fetch(url)).blob(); }
+
+export function CdTemplateEditor({ row, onSave, onCancel }: {
+  row: Partial<TemplateRow> & { name: string; is_active: boolean };
+  onSave: (r: { name: string; target: TplTarget; is_active: boolean; doc: TemplateDoc; thumbnail_url: string | null }) => Promise<unknown>;
+  onCancel: () => void;
+}) {
+  const initTarget: TplTarget = row.target === "back" ? "back_outer" : ((row.target as TplTarget) ?? "front");
+  const [target, setTarget] = useState<TplTarget>(initTarget);
+  const [name, setName] = useState(row.name);
+  const [active, setActive] = useState(row.is_active);
+  const [guides, setGuides] = useState(true);
+  const [trayOn, setTrayOn] = useState(true);
+  const [doc, setDoc] = useState<PageDoc>(() => {
+    const sp = specFor(initTarget);
+    const t = row.id ? templateDoc(row as TemplateRow, mmToPx(sp.w), mmToPx(sp.h)) : null;
+    return { ...emptyDoc(), ...(t ? { bg: t.bg, bgImage: t.bgImage, els: t.els } : {}) };
+  });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState("");
+  const [areaRef, area] = useSize<HTMLDivElement>();
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
+  const handle = useRef<CdDesignerHandle | null>(null);
+  const spec = specFor(target);
+
+  const zones = useMemo<Zone[] | undefined>(() => target === "back_outer" ? [
+    { id: "gl", label: "", x: 0, w: GAY, dir: "cw", side: null },
+    { id: "gr", label: "", x: BW - GAY, w: GAY, dir: "ccw", side: null },
+  ] : target === "back_inner" ? [
+    { id: "gl", label: "", x: 0, w: GAY, dir: "cw", side: null },
+    { id: "gr", label: "", x: BW - GAY, w: GAY, dir: "ccw", side: null },
+    { id: "sp", label: "", x: IN_FROM, w: IN_TO - IN_FROM, dir: "cw", side: null },
+  ] : undefined, [target]);
+  const pages = useMemo(() => [{ doc, tpl: null }], [doc]);
+
+  async function save() {
+    if (!name.trim()) return setErr("Cần đặt tên mẫu");
+    setSaving(true); setErr("");
+    try {
+      // ảnh thumbnail tự tạo từ canvas
+      let thumbnail_url: string | null = row.thumbnail_url ?? null;
+      const shot = handle.current?.snapshot(320);
+      if (shot) {
+        const blob = await dataUrlToBlob(shot);
+        thumbnail_url = await uploadPublicImage(new File([blob], "thumb.png", { type: "image/png" }), "templates/thumbs");
+      }
+      await onSave({ name: name.trim(), target, is_active: active, doc: { bg: doc.bg, bgImage: doc.bgImage, els: doc.els }, thumbnail_url });
+    } catch (e) { setErr(e instanceof Error ? e.message : "Lưu thất bại"); }
+    setSaving(false);
+  }
+
+  const Switch = ({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) => (
+    <button type="button" role="switch" aria-checked={on} onClick={onClick} className="inline-flex items-center gap-2 text-[13px] text-[#141414]">
+      <span className={`relative h-[18px] w-8 rounded-full transition ${on ? "bg-[#ff5fa2]" : "bg-[#d6d2cb]"}`}>
+        <span className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${on ? "left-[16px]" : "left-[2px]"}`} />
+      </span>
+      {label}
+    </button>
+  );
+
+  return (
+    <div className="overflow-hidden rounded-[14px] border border-[#dedad3] bg-white font-sans text-[13px] text-[#141414]">
+      <div className="flex items-center justify-between border-b border-[#ecebe7] px-4 py-2.5">
+        <p className="text-[15px] font-semibold">{row.id ? "Sửa mẫu" : "Mẫu mới"}</p>
+        <button className="tool-btn" onClick={onCancel}><Icon name="back" /> Danh sách mẫu</button>
+      </div>
+      <div className="flex flex-col lg:h-[calc(100dvh-180px)] lg:min-h-[560px] lg:flex-row">
+        <div ref={areaRef} className="relative h-[480px] bg-[#ece1d0] lg:h-auto lg:w-[62%]">
+          {area.w > 0 && (
+            <div key={target} className="absolute inset-0">
+              <CdDesigner ref={(h) => { handle.current = h; }} spec={spec} mode="template" pages={pages} viewport={{ w: area.w, h: area.h }}
+                active onChange={(_i, d) => setDoc(d)} toolbarTarget={host} guides={guides} zones={zones}
+                tray={target === "back_inner" && trayOn ? TRAY : undefined}
+                uploadImage={(f) => uploadPublicImage(f, "templates", 15, true)}
+                caption={`${TPL_TARGETS.find((t) => t.value === target)?.label.split(" (")[0]} · ${sizeText(spec)}`} />
+            </div>
+          )}
+        </div>
+        <aside className="flex flex-col divide-y divide-[#ecebe7] lg:flex-1 lg:overflow-y-auto lg:border-l lg:border-[#dedad3]">
+          <section className="space-y-2.5 p-4">
+            <p className="tool-label">Thông tin mẫu</p>
+            <input className="tool-input w-full" placeholder="Tên mẫu" value={name} onChange={(e) => setName(e.target.value)} />
+            <select className="tool-input w-full" value={target} onChange={(e) => setTarget(e.target.value as TplTarget)} aria-label="Loại mẫu">
+              {TPL_TARGETS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+            <Switch on={active} onClick={() => setActive(!active)} label="Hiển thị cho khách" />
+          </section>
+          <section className="p-4">
+            <div className="mb-3 flex flex-col gap-2">
+              <Switch on={guides} onClick={() => setGuides(!guides)} label="Hiển thị guideline" />
+              {target === "back_inner" && <Switch on={trayOn} onClick={() => setTrayOn(!trayOn)} label="Ướm khay đĩa" />}
+            </div>
+            <div ref={(el) => { if (el && host !== el) setHost(el); }} />
+            <p className="mt-3 text-[11px] text-[#8a857e]">Khung ảnh: vị trí để khách đặt ảnh (khách bấm vào khung để tải ảnh). Chữ của mẫu: khách sửa được nội dung, không di chuyển được.</p>
+          </section>
+          <section className="mt-auto space-y-2 p-4">
+            {err && <p className="text-[12px] text-[#d0303f]">{err}</p>}
+            <button className="h-10 w-full rounded-[8px] bg-[#ff5fa2] text-[14px] font-semibold text-white disabled:opacity-50" disabled={saving} onClick={save}>
+              {saving ? "Đang lưu..." : "Lưu mẫu"}
+            </button>
+          </section>
+        </aside>
+      </div>
+    </div>
+  );
+}

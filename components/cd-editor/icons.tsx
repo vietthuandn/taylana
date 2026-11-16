@@ -11,6 +11,8 @@ const paths: Record<string, React.ReactNode> = {
   alignR: <path d="M3 4h10M7 7h6M3 10h10M7 13h6" />,
   lineHeight: <path d="M7 4h7M7 8h7M7 12h7M3.5 3v10M2 4.5l1.5-1.5L5 4.5M2 11.5L3.5 13 5 11.5" />,
   back: <path d="M10 3L5 8l5 5" />,
+  frame: <><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" strokeDasharray="2 1.6" /><path d="M8 5.5v5M5.5 8h5" /></>,
+  user: <><circle cx="8" cy="5.5" r="2.6" /><path d="M3 13.5c.8-2.6 2.8-3.8 5-3.8s4.2 1.2 5 3.8" /></>,
 };
 
 export function Icon({ name, className = "" }: { name: keyof typeof paths | string; className?: string }) {

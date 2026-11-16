@@ -2,6 +2,7 @@ import Link from "next/link";
 import { services } from "@/lib/services";
 import { SearchIcon } from "@/components/decor/Icons";
 import { Sparkle } from "@/components/ui/Shapes";
+import { AccountButton } from "./AccountButton";
 
 function SearchBox({ className = "" }: { className?: string }) {
   return (
@@ -38,9 +39,10 @@ export function Header() {
         </nav>
 
         <SearchBox className="ml-auto hidden w-56 md:block lg:ml-0" />
+        <div className="ml-auto md:ml-0"><AccountButton /></div>
 
         {/* Điện thoại & máy tính bảng: menu hamburger (không cần JavaScript) */}
-        <details className="group relative ml-auto md:ml-0 lg:hidden">
+        <details className="group relative lg:hidden">
           <summary aria-label="Mở menu"
             className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-full bg-ink-900 text-white [&::-webkit-details-marker]:hidden">
             <span className="flex flex-col gap-[5px] group-open:hidden">

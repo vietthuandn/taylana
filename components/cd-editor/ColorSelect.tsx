@@ -23,7 +23,7 @@ export function ColorSelect({ value, colors, onChange }: {
   return (
     <div ref={box} className="relative flex-1">
       <button type="button" className="tool-btn w-full !justify-start" onClick={() => setOpen(!open)} aria-haspopup="listbox" aria-expanded={open}>
-        <span className="h-4 w-4 shrink-0 rounded-full border border-black/15" style={{ background: value }} />
+        <span className="h-3 w-4 shrink-0 rounded-[3px] border border-black/15" style={{ background: value }} />
         <span className="truncate">{preset?.name ?? value.toUpperCase()}</span>
         <span className="ml-auto text-[10px] text-[#8a857e]">▾</span>
       </button>

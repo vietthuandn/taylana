@@ -9,14 +9,18 @@ import { SPECS } from "@/lib/print";
 import { newSlotId, stripSlots, targetLabels, type Slot } from "@/lib/templates";
 import { revalidatePublic } from "@/app/admin/actions";
 import { TemplateThumb } from "@/components/designer/TemplateThumb";
+import type { TemplateDoc } from "@/lib/cdDoc";
 import { Badge, Field, ImageInput, Message, SortButtons, Toggle } from "./ui";
 
 const TemplateCanvas = dynamic(() => import("./TemplateCanvas").then((m) => m.TemplateCanvas), { ssr: false });
+// Mẫu Custom CD: dùng chung trình chỉnh với trang Custom CD
+const CdTemplateEditor = dynamic(() => import("@/components/cd-editor/TemplateEditor").then((m) => m.CdTemplateEditor), { ssr: false });
 
 type Mode = "cd" | "strip";
 type Row = {
   id?: string; name: string; overlay_url: string | null; slots: Slot[]; is_active: boolean; sort_order: number;
-  target?: "front" | "back" | "disc"; background_url?: string | null;
+  target?: "front" | "back" | "back_outer" | "back_inner" | "disc"; background_url?: string | null;
+  doc?: TemplateDoc | null; thumbnail_url?: string | null;
   slot_count?: 3 | 4; background_color?: string;
 };
 
@@ -25,7 +29,7 @@ const cfg = {
   strip: { table: "photostrip_frames", path: "/photostrip", folder: "photostrip" },
 } as const;
 
-const specOf = (mode: Mode, r: Row) => (mode === "strip" ? SPECS.photostrip : SPECS[r.target ?? "front"]);
+const specOf = (mode: Mode, r: Row) => (mode === "strip" ? SPECS.photostrip : r.target === "disc" ? SPECS.disc : !r.target || r.target === "front" ? SPECS.front : SPECS.back);
 
 export function TemplateAdmin({ mode }: { mode: Mode }) {
   const { table, path, folder } = cfg[mode];
@@ -55,7 +59,8 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
   async function save(r: Row) {
     if (!r.name.trim()) return setMsg({ type: "err", text: "Cần đặt tên mẫu" });
     const payload: Record<string, unknown> = { name: r.name.trim(), overlay_url: r.overlay_url, slots: r.slots, is_active: r.is_active };
-    if (mode === "cd") Object.assign(payload, { target: r.target, background_url: r.background_url ?? null });
+    if (mode === "cd") Object.assign(payload, { target: r.target, background_url: r.background_url ?? null },
+      r.doc !== undefined ? { doc: r.doc, thumbnail_url: r.thumbnail_url ?? null } : {});
     else Object.assign(payload, { slot_count: r.slot_count, background_color: r.background_color || "#ffffff", background_url: r.background_url ?? null });
     const sb = createClient();
     const res = r.id ? await sb.from(table).update(payload).eq("id", r.id)
@@ -89,6 +94,12 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
     await after("✓ Đã đổi thứ tự");
   }
 
+  if (editing && mode === "cd") {
+    return (
+      <CdTemplateEditor row={editing as never} onCancel={() => setEditing(null)}
+        onSave={(v) => save({ ...editing, name: v.name, target: v.target, is_active: v.is_active, doc: v.doc, thumbnail_url: v.thumbnail_url, overlay_url: null, background_url: null, slots: [] })} />
+    );
+  }
   if (editing) {
     return <Editor mode={mode} folder={folder} row={editing} onCancel={() => setEditing(null)} onSave={save} />;
   }
@@ -106,8 +117,11 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
           return (
             <li key={r.id} className={`pop-sm rounded-2xl bg-cream-50 p-3 ${r.is_active ? "" : "opacity-60"}`}>
               <div className={mode === "strip" ? "mx-auto w-16" : ""}>
-                <TemplateThumb ratio={spec.w / spec.h} slots={r.slots} overlay={r.overlay_url} background={r.background_url}
-                  bgColor={r.background_color} disc={spec.shape === "disc"} />
+                {r.thumbnail_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={r.thumbnail_url} alt="" className={`w-full object-cover ${spec.shape === "disc" ? "rounded-full" : "rounded-md"}`} style={{ aspectRatio: `${spec.w} / ${spec.h}` }} />
+                ) : <TemplateThumb ratio={spec.w / spec.h} slots={r.slots} overlay={r.overlay_url} background={r.background_url}
+                  bgColor={r.background_color} disc={spec.shape === "disc"} />}
               </div>
               <p className="mt-2 truncate font-display">{r.name}</p>
               <p className="flex flex-wrap gap-1">

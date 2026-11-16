@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { publicClient } from "@/lib/supabase/public";
 import type { DesignTemplate } from "@/lib/templates";
 import type { Package } from "@/lib/types";
@@ -20,7 +21,9 @@ export default async function CustomCdPage() {
   }
   return (
     <div data-fit-screen className="flex flex-1 flex-col md:min-h-0">
-      <CustomCdLoader templates={templates} packages={packages} />
+      <Suspense>
+        <CustomCdLoader templates={templates} packages={packages} />
+      </Suspense>
     </div>
   );
 }

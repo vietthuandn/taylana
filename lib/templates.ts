@@ -54,4 +54,4 @@ export const defaultFrames: PhotostripFrame[] = [3, 4].map((n, i) => ({
   background_color: i ? "#fff8ec" : "#ffffff", thumbnail_url: null, slots: stripSlots(n), is_active: true, sort_order: 0,
 }));
 
-export const targetLabels = { front: "Bìa trước", back: "Bìa sau", disc: "Mặt đĩa" } as const;
+export const targetLabels: Record<string, string> = { front: "Bìa trước", back: "Bìa sau - Mặt Ngoài", back_outer: "Bìa sau - Mặt Ngoài", back_inner: "Bìa sau - Mặt Trong", disc: "Mặt đĩa" };
