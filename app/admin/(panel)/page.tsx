@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
-import { adminLinks } from "@/components/admin/AdminNav";
+import { adminLinks } from "@/lib/adminLinks";
 
 export default async function AdminHome() {
   const { supabase } = await requireAdmin();

@@ -17,7 +17,11 @@ export async function proxy(request: NextRequest) {
       },
     },
   });
-  await supabase.auth.getUser();
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    // lỗi mạng tạm thời: bỏ qua, trang admin sẽ tự báo lỗi
+  }
   return response;
 }
 
