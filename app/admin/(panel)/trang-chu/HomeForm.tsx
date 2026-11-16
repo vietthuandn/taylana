@@ -14,7 +14,7 @@ const BG_PRESETS = [
   { label: "Kem", value: "#f7f0e6" },
   { label: "Đen", value: "#141414" },
 ];
-const COLORS: { value: OptionColor; label: string; cls: string }[] = [
+const COLORS: { value: Exclude<OptionColor, "custom">; label: string; cls: string }[] = [
   { value: "lime", label: "Xanh chanh", cls: "bg-lime-500" },
   { value: "violet", label: "Tím", cls: "bg-violet-500" },
   { value: "hot", label: "Hồng", cls: "bg-hot-500" },
@@ -71,8 +71,15 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
           </div>
         )}
 
-        <ImageInput value={home.banner_image} onChange={(u) => setHome({ ...home, banner_image: u })} folder="home"
-          label="Ảnh bên phải (vuông, ảnh sẽ phủ kín khung)" removeLabel="Xoá — dùng ảnh mặc định" />
+        <Toggle checked={home.banner_image_enabled} onChange={(v) => setHome({ ...home, banner_image_enabled: v })} label="Hiện ảnh bên phải" />
+        {home.banner_image_enabled && (
+          <>
+            <ImageInput value={home.banner_image} onChange={(u) => setHome({ ...home, banner_image: u })} folder="home"
+              label="Ảnh bên phải (vuông, ảnh sẽ phủ kín khung)" removeLabel="Xoá — dùng ảnh mặc định" />
+            <Toggle checked={home.banner_image_petal} onChange={(v) => setHome({ ...home, banner_image_petal: v })}
+              label={home.banner_image_petal ? "Khung: cánh hoa tròn" : "Khung: hình vuông"} />
+          </>
+        )}
 
         <div>
           <span className="mb-1 block text-sm font-medium">Màu nền banner</span>
@@ -102,12 +109,30 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
                 label="Icon riêng (PNG/SVG)" removeLabel="Dùng icon mặc định" />
               <div>
                 <span className="mb-1 block text-sm font-medium">Màu nền</span>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   {COLORS.map((c) => (
                     <button key={c.value} type="button" title={c.label} aria-label={c.label} onClick={() => setOpt(i, { color: c.value })}
                       className={`h-9 w-9 rounded-full border-2 border-ink-900 ${c.cls} ${o.color === c.value ? "ring-4 ring-violet-300" : ""}`} />
                   ))}
+                  <label title="Màu riêng" className={`flex items-center gap-1 rounded-full border-2 border-ink-900 bg-white py-0.5 pl-0.5 pr-2 text-xs ${o.color === "custom" ? "ring-4 ring-violet-300" : ""}`}>
+                    <input type="color" value={o.bg_custom} onChange={(e) => setOpt(i, { color: "custom", bg_custom: e.target.value })}
+                      onClick={() => setOpt(i, { color: "custom" })} className="h-7 w-7 cursor-pointer rounded-full" aria-label="Màu nền riêng" />
+                    Màu riêng
+                  </label>
                 </div>
+              </div>
+              <div>
+                <span className="mb-1 block text-sm font-medium">Màu icon</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setOpt(i, { icon_color: "" })}
+                    className={`rounded-full border-2 border-ink-900 bg-white px-3 py-1.5 text-xs ${!o.icon_color ? "ring-4 ring-violet-300" : ""}`}>Tự động</button>
+                  <label className={`flex items-center gap-1 rounded-full border-2 border-ink-900 bg-white py-0.5 pl-0.5 pr-2 text-xs ${o.icon_color ? "ring-4 ring-violet-300" : ""}`}>
+                    <input type="color" value={o.icon_color || "#141414"} onChange={(e) => setOpt(i, { icon_color: e.target.value })}
+                      className="h-7 w-7 cursor-pointer rounded-full" aria-label="Màu icon riêng" />
+                    Chọn màu
+                  </label>
+                </div>
+                <span className="mt-1 block text-xs text-ink-500">Chỉ áp dụng cho icon mặc định</span>
               </div>
               <button type="button" className="text-xs underline" onClick={() => setOpt(i, { ...defaultOptions[i], icon_url: o.icon_url })}>
                 Đặt lại tên, link, màu mặc định

@@ -11,6 +11,8 @@ export type HomeSettings = {
   btn2_label: string;
   btn2_href: string;
   banner_image: string | null; // null = dùng ảnh mặc định
+  banner_image_enabled: boolean; // bật/tắt ảnh bên phải
+  banner_image_petal: boolean; // true = khung cánh hoa, false = hình vuông
   banner_bg: string; // màu nền banner
 };
 
@@ -24,23 +26,26 @@ export const defaultHome: HomeSettings = {
   btn2_label: "Tự tay thiết kế",
   btn2_href: "/tu-thiet-ke",
   banner_image: null,
+  banner_image_enabled: true,
+  banner_image_petal: false,
   banner_bg: "#c8e03c",
 };
 
 // ---------- 6 lựa chọn trên trang chủ (key "home_options") ----------
-export type OptionColor = "lime" | "violet" | "hot";
-export type HomeOption = { title: string; href: string; icon_url: string | null; color: OptionColor };
+export type OptionColor = "lime" | "violet" | "hot" | "custom";
+// color = màu nền có sẵn hoặc "custom" (dùng bg_custom); icon_color rỗng = tự động đen/trắng
+export type HomeOption = { title: string; href: string; icon_url: string | null; color: OptionColor; bg_custom: string; icon_color: string };
 
 // icon mặc định theo thứ tự (vector có sẵn)
 export const optionIcons = ["bag", "book", "brush", "upload", "gallery", "chat"] as const;
 
 export const defaultOptions: HomeOption[] = [
-  { title: "Đặt đơn", href: "/dat-don", icon_url: null, color: "lime" },
-  { title: "Hướng dẫn làm file", href: "/huong-dan", icon_url: null, color: "violet" },
-  { title: "Tự Tay Thiết Kế", href: "/tu-thiet-ke", icon_url: null, color: "hot" },
-  { title: "Nộp file", href: "/nop-file", icon_url: null, color: "lime" },
-  { title: "Sản phẩm & Đánh giá", href: "/san-pham", icon_url: null, color: "violet" },
-  { title: "Liên Hệ", href: "/lien-he", icon_url: null, color: "hot" },
+  { title: "Đặt đơn", href: "/dat-don", icon_url: null, color: "lime", bg_custom: "#ffcf5c", icon_color: "" },
+  { title: "Hướng dẫn làm file", href: "/huong-dan", icon_url: null, color: "violet", bg_custom: "#ffcf5c", icon_color: "" },
+  { title: "Tự Tay Thiết Kế", href: "/tu-thiet-ke", icon_url: null, color: "hot", bg_custom: "#ffcf5c", icon_color: "" },
+  { title: "Nộp file", href: "/nop-file", icon_url: null, color: "lime", bg_custom: "#ffcf5c", icon_color: "" },
+  { title: "Sản phẩm & Đánh giá", href: "/san-pham", icon_url: null, color: "violet", bg_custom: "#ffcf5c", icon_color: "" },
+  { title: "Liên Hệ", href: "/lien-he", icon_url: null, color: "hot", bg_custom: "#ffcf5c", icon_color: "" },
 ];
 
 // ---------- Liên hệ (key "contact") ----------
@@ -83,4 +88,13 @@ export async function getSettings() {
     }
   }
   return { home, contact, options };
+}
+
+// Nền tối → chữ/icon trắng
+export function isDark(hex: string) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return 0.299 * r + 0.587 * g + 0.114 * b < 140;
 }

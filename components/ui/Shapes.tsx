@@ -65,8 +65,8 @@ export function WavyFrame({ shape = "cloud", border = "lime", className = "", ch
 }
 
 // Bông hoa 4 cánh làm nền cho icon
-export function FlowerBadge({ color = "lime", className = "", children }: { color?: "lime" | "violet" | "hot"; className?: string; children?: React.ReactNode }) {
-  const fill = { lime: "var(--color-lime-500)", violet: "var(--color-violet-500)", hot: "var(--color-hot-500)" }[color];
+export function FlowerBadge({ color = "lime", fillColor, className = "", children }: { color?: "lime" | "violet" | "hot"; fillColor?: string; className?: string; children?: React.ReactNode }) {
+  const fill = fillColor || { lime: "var(--color-lime-500)", violet: "var(--color-violet-500)", hot: "var(--color-hot-500)" }[color];
   return (
     <span className={`relative inline-grid place-items-center ${className}`}>
       <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:rotate-45" aria-hidden>
@@ -120,8 +120,8 @@ export function WavyLine() {
 }
 
 // Hình vuông 8 cánh lượn tròn (như con dấu) làm nền cho icon
-export function StampBadge({ color = "lime", className = "", children }: { color?: "lime" | "violet" | "hot"; className?: string; children?: React.ReactNode }) {
-  const fill = { lime: "var(--color-lime-500)", violet: "var(--color-violet-500)", hot: "var(--color-hot-500)" }[color];
+export function StampBadge({ color = "lime", fillColor, className = "", children }: { color?: "lime" | "violet" | "hot"; fillColor?: string; className?: string; children?: React.ReactNode }) {
+  const fill = fillColor || { lime: "var(--color-lime-500)", violet: "var(--color-violet-500)", hot: "var(--color-hot-500)" }[color];
   return (
     <span className={`relative inline-grid place-items-center ${className}`}>
       <svg viewBox="0 0 1 1" className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:rotate-[22.5deg]" aria-hidden>
