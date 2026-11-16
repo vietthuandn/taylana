@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Konva from "konva";
 import { BACK_SPINE_MM, SPECS, mmToPx, sizeText, type PrintSpec } from "@/lib/print";
-import { INNER_SPINE_FROM_CM, INNER_SPINE_TO_CM, TRAY_DISC_DIAMETER_CM, TRAY_DISC_HOLE_CM } from "@/lib/cdSpecs";
+import { INNER_SPINE_FROM_CM, INNER_SPINE_ROTATION, INNER_SPINE_TO_CM, LEFT_SPINE_ROTATION, RIGHT_SPINE_ROTATION, TRAY_DISC_DIAMETER_CM, TRAY_DISC_HOLE_CM } from "@/lib/cdSpecs";
 import type { DesignTemplate } from "@/lib/templates";
 import type { Package } from "@/lib/types";
 import { formatVND } from "@/lib/format";
@@ -16,7 +16,7 @@ import { hasSupabase } from "@/lib/supabase/env";
 import { CdDesigner, FONTS, PX_UNIT, SIZE_PRESETS, TEXT_COLORS, type CdDesignerHandle, type Half, type PageInput } from "@/components/cd-editor/CdDesigner";
 import { ColorSelect } from "@/components/cd-editor/ColorSelect";
 import { Icon } from "@/components/cd-editor/icons";
-import { SpineEditor, emptySide, sideHasContent, type SpineSide, type SpineText, type Zone } from "@/components/designer/Spine";
+import { SpineEditor, dirOf, emptySide, sideHasContent, type SpineSide, type SpineText, type Zone } from "@/components/designer/Spine";
 import { TemplateThumb } from "@/components/designer/TemplateThumb";
 import { OrderDialog, downloadBlob, type DesignFile } from "@/components/designer/OrderDialog";
 import { useSize } from "@/components/designer/useSize";
@@ -82,9 +82,9 @@ const IN_FROM = mmToPx(INNER_SPINE_FROM_CM * 10), IN_TO = mmToPx(INNER_SPINE_TO_
 const TRAY = { cx: (IN_TO + (BW - GAY)) / 2, cy: BH / 2, r: mmToPx(TRAY_DISC_DIAMETER_CM * 5), hole: mmToPx(TRAY_DISC_HOLE_CM * 5) };
 type ZoneId = "b1-left" | "b1-right" | "b2-spine";
 const ZONE: Record<ZoneId, { page: string; title: string; x: number; w: number; dir: "cw" | "ccw"; cm: number }> = {
-  "b1-left": { page: "B-out", title: "gáy trái", x: 0, w: GAY, dir: "cw", cm: BACK_SPINE_MM / 10 },
-  "b1-right": { page: "B-out", title: "gáy phải", x: BW - GAY, w: GAY, dir: "ccw", cm: BACK_SPINE_MM / 10 },
-  "b2-spine": { page: "B-in", title: "Spine", x: IN_FROM, w: IN_TO - IN_FROM, dir: "cw", cm: INNER_SPINE_TO_CM - INNER_SPINE_FROM_CM },
+  "b1-left": { page: "B-out", title: "gáy trái", x: 0, w: GAY, dir: dirOf(LEFT_SPINE_ROTATION), cm: BACK_SPINE_MM / 10 },
+  "b1-right": { page: "B-out", title: "gáy phải", x: BW - GAY, w: GAY, dir: dirOf(RIGHT_SPINE_ROTATION), cm: BACK_SPINE_MM / 10 },
+  "b2-spine": { page: "B-in", title: "Spine", x: IN_FROM, w: IN_TO - IN_FROM, dir: dirOf(INNER_SPINE_ROTATION), cm: INNER_SPINE_TO_CM - INNER_SPINE_FROM_CM },
 };
 const emptyZones = (): Record<ZoneId, SpineSide> => ({ "b1-left": emptySide(), "b1-right": emptySide(), "b2-spine": emptySide() });
 
@@ -163,12 +163,12 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
 
   // ---------- Gáy / Spine ----------
   const zonesFor = useCallback((id: string): Zone[] | undefined => id === "B-out" ? [
-    { id: "b1-left", label: "Gáy", x: 0, w: GAY, dir: "cw", side: zoneData["b1-left"] },
-    { id: "b1-right", label: "Gáy", x: BW - GAY, w: GAY, dir: "ccw", side: zoneData["b1-right"] },
+    { id: "b1-left", label: "Gáy", x: 0, w: GAY, dir: dirOf(LEFT_SPINE_ROTATION), side: zoneData["b1-left"] },
+    { id: "b1-right", label: "Gáy", x: BW - GAY, w: GAY, dir: dirOf(RIGHT_SPINE_ROTATION), side: zoneData["b1-right"] },
   ] : id === "B-in" ? [
-    { id: "b2-gay-l", label: "", x: 0, w: GAY, dir: "cw", side: null },
-    { id: "b2-gay-r", label: "", x: BW - GAY, w: GAY, dir: "ccw", side: null },
-    { id: "b2-spine", label: "Spine", x: IN_FROM, w: IN_TO - IN_FROM, dir: "cw", side: zoneData["b2-spine"] },
+    { id: "b2-gay-l", label: "", x: 0, w: GAY, dir: dirOf(LEFT_SPINE_ROTATION), side: null },
+    { id: "b2-gay-r", label: "", x: BW - GAY, w: GAY, dir: dirOf(RIGHT_SPINE_ROTATION), side: null },
+    { id: "b2-spine", label: "Spine", x: IN_FROM, w: IN_TO - IN_FROM, dir: dirOf(INNER_SPINE_ROTATION), side: zoneData["b2-spine"] },
   ] : undefined, [zoneData]);
   const zB1 = useMemo(() => zonesFor("B-out"), [zonesFor]);
   const zB2 = useMemo(() => zonesFor("B-in"), [zonesFor]);
@@ -374,8 +374,8 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
     if (!hasSupabase) return setMsg("Web chưa kết nối database.");
     const { data } = await createClient().auth.getUser();
     if (!data.user) { setAuthOpen(true); return; }
-    if (!designName) { setDesignName(`Thiết kế CD ${new Date().toLocaleDateString("vi-VN")}`); setNameAsk("save"); return; }
-    await doSave(designName);
+    // lưu lần đầu: tự đặt tên mặc định (đổi tên ở trang Thiết kế của tôi)
+    await doSave(designName || `Thiết kế CD ${new Date().toLocaleDateString("vi-VN")}`);
   }
   async function doSave(name: string) {
     setNameAsk(false); setBusy(true); setMsg("Đang lưu...");
@@ -484,10 +484,6 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
       {/* ---------- BÊN PHẢI: panel ---------- */}
       <aside className="flex flex-col divide-y divide-[#ecebe7] bg-white pb-16 font-sans text-[13px] text-[#141414] md:min-h-0 md:flex-1 md:overflow-y-auto md:border-l md:border-[#dedad3] md:pb-0">
         <section className="space-y-2.5 p-4">
-          <button className="block max-w-full truncate text-[12px] text-[#8a857e] hover:text-[#141414]" title="Bấm để đổi tên"
-            onClick={() => { if (!designName) setDesignName(`Thiết kế CD ${new Date().toLocaleDateString("vi-VN")}`); setNameAsk("rename"); }}>
-            {designName || "Thiết kế chưa đặt tên"} ✎
-          </button>
           {pkg && (
             <label className="flex items-center gap-2">
               <span className="tool-label w-9 shrink-0">Gói</span>

@@ -24,6 +24,9 @@ export const sideHasContent = (s: SpineSide | null | undefined) => !!s && (!!s.b
 export type Zone = { id: string; label: string; x: number; w: number; dir: "cw" | "ccw"; side: SpineSide | null };
 
 // Phép đặt nội dung dải lên bìa (toạ độ bản in)
+// đổi góc xoay (độ) → chiều: 90 = "cw", -90 = "ccw"
+export const dirOf = (deg: number): "cw" | "ccw" => (deg === 90 ? "cw" : "ccw");
+
 export const zonePlacement = (z: { x: number; w: number; dir: "cw" | "ccw" }, H: number) =>
   z.dir === "cw" ? { x: z.x + z.w, y: 0, rotation: 90 } : { x: z.x, y: H, rotation: -90 };
 

@@ -4,12 +4,12 @@
    ảnh trang trí (trên/dưới ảnh khách), khung ảnh, chữ, màu nền, ảnh nền; cùng zoom/guideline/gáy/Spine/ướm khay. */
 import { useMemo, useRef, useState } from "react";
 import { BACK_SPINE_MM, SPECS, mmToPx, sizeText } from "@/lib/print";
-import { INNER_SPINE_FROM_CM, INNER_SPINE_TO_CM, TRAY_DISC_DIAMETER_CM, TRAY_DISC_HOLE_CM } from "@/lib/cdSpecs";
+import { INNER_SPINE_FROM_CM, INNER_SPINE_ROTATION, INNER_SPINE_TO_CM, LEFT_SPINE_ROTATION, RIGHT_SPINE_ROTATION, TRAY_DISC_DIAMETER_CM, TRAY_DISC_HOLE_CM } from "@/lib/cdSpecs";
 import { emptyDoc, templateDoc, type PageDoc, type TemplateDoc } from "@/lib/cdDoc";
 import type { DesignTemplate } from "@/lib/templates";
 import { uploadPublicImage } from "@/lib/upload";
 import { useSize } from "@/components/designer/useSize";
-import type { Zone } from "@/components/designer/Spine";
+import { dirOf, type Zone } from "@/components/designer/Spine";
 import { CdDesigner, type CdDesignerHandle } from "./CdDesigner";
 import { Icon } from "./icons";
 
@@ -54,12 +54,12 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
   const spec = specFor(target);
 
   const zones = useMemo<Zone[] | undefined>(() => target === "back_outer" ? [
-    { id: "gl", label: "", x: 0, w: GAY, dir: "cw", side: null },
-    { id: "gr", label: "", x: BW - GAY, w: GAY, dir: "ccw", side: null },
+    { id: "gl", label: "", x: 0, w: GAY, dir: dirOf(LEFT_SPINE_ROTATION), side: null },
+    { id: "gr", label: "", x: BW - GAY, w: GAY, dir: dirOf(RIGHT_SPINE_ROTATION), side: null },
   ] : target === "back_inner" ? [
-    { id: "gl", label: "", x: 0, w: GAY, dir: "cw", side: null },
-    { id: "gr", label: "", x: BW - GAY, w: GAY, dir: "ccw", side: null },
-    { id: "sp", label: "", x: IN_FROM, w: IN_TO - IN_FROM, dir: "cw", side: null },
+    { id: "gl", label: "", x: 0, w: GAY, dir: dirOf(LEFT_SPINE_ROTATION), side: null },
+    { id: "gr", label: "", x: BW - GAY, w: GAY, dir: dirOf(RIGHT_SPINE_ROTATION), side: null },
+    { id: "sp", label: "", x: IN_FROM, w: IN_TO - IN_FROM, dir: dirOf(INNER_SPINE_ROTATION), side: null },
   ] : undefined, [target]);
   const pages = useMemo(() => [{ doc, tpl: null }], [doc]);
 
