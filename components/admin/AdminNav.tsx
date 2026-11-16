@@ -6,9 +6,9 @@ import { usePathname } from "next/navigation";
 // soon = sẽ làm ở giai đoạn sau
 export const adminLinks = [
   { href: "/admin", label: "Tổng quan" },
-  { href: "/admin/don-hang", label: "Đơn hàng", soon: true },
-  { href: "/admin/goi-san-pham", label: "Gói & phụ kiện", soon: true },
-  { href: "/admin/san-pham", label: "Sản phẩm & đánh giá", soon: true },
+  { href: "/admin/don-hang", label: "Đơn hàng" },
+  { href: "/admin/goi-san-pham", label: "Gói & phụ kiện" },
+  { href: "/admin/san-pham", label: "Sản phẩm & đánh giá" },
   { href: "/admin/huong-dan", label: "Hướng dẫn", soon: true },
   { href: "/admin/mau-cd", label: "Mẫu Custom CD", soon: true },
   { href: "/admin/photostrip", label: "Khung Photostrip", soon: true },
