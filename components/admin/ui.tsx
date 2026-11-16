@@ -26,7 +26,7 @@ export function Field({ label, hint, children, className = "" }: { label: string
 }
 
 // Ô chọn ảnh: tải lên Storage và trả về link
-export function ImageInput({ value, onChange, folder, label = "Ảnh" }: { value: string | null; onChange: (url: string | null) => void; folder: string; label?: string }) {
+export function ImageInput({ value, onChange, folder, label = "Ảnh", allowSvg = false, removeLabel = "Bỏ ảnh" }: { value: string | null; onChange: (url: string | null) => void; folder: string; label?: string; allowSvg?: boolean; removeLabel?: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   return (
@@ -44,7 +44,7 @@ export function ImageInput({ value, onChange, folder, label = "Ảnh" }: { value
         <div className="flex flex-col gap-1">
           <label className="btn cursor-pointer btn-ghost btn-sm">
             {busy ? "Đang tải..." : value ? "Đổi ảnh" : "Chọn ảnh"}
-            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" disabled={busy}
+            <input type="file" accept={allowSvg ? "image/png,image/svg+xml,image/jpeg,image/webp" : "image/jpeg,image/png,image/webp,image/gif"} className="sr-only" disabled={busy}
               onChange={async (e) => {
                 const f = e.target.files?.[0];
                 e.target.value = "";
@@ -52,7 +52,7 @@ export function ImageInput({ value, onChange, folder, label = "Ảnh" }: { value
                 setBusy(true);
                 setErr("");
                 try {
-                  onChange(await uploadPublicImage(f, folder));
+                  onChange(await uploadPublicImage(f, folder, 15, allowSvg));
                 } catch (x) {
                   setErr(x instanceof Error ? x.message : "Lỗi tải ảnh");
                 }
@@ -60,7 +60,7 @@ export function ImageInput({ value, onChange, folder, label = "Ảnh" }: { value
               }} />
           </label>
           {value && (
-            <button type="button" className="text-left text-xs text-hot-500 underline" onClick={() => onChange(null)}>Bỏ ảnh</button>
+            <button type="button" className="text-left text-xs text-hot-500 underline" onClick={() => onChange(null)}>{removeLabel}</button>
           )}
         </div>
       </div>
