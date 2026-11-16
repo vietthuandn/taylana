@@ -10,7 +10,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <label className="mb-4 block">
       <span className="mb-1 block text-sm font-medium">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-xs text-cocoa-400">{hint}</span>}
+      {hint && <span className="mt-1 block text-xs text-ink-500">{hint}</span>}
     </label>
   );
 }
@@ -49,14 +49,14 @@ export function SettingsForm({ initialHome, initialContact }: { initialHome: Hom
   return (
     <form onSubmit={save}>
       <fieldset className="pop mb-6 rounded-3xl bg-cream-50 p-5">
-        <legend className="rounded-full bg-pink-200 px-3 font-display text-lg">Banner trang chủ</legend>
+        <legend className="rounded-full bg-hot-100 px-3 font-display text-lg">Banner trang chủ</legend>
         <Field label="Tiêu đề"><input className="field" {...h("banner_title")} /></Field>
         <Field label="Mô tả ngắn"><textarea rows={3} className="field" {...h("banner_subtitle")} /></Field>
         <Field label="Nhãn nhỏ phía trên" hint="Để trống nếu không muốn hiện"><input className="field" {...h("banner_note")} /></Field>
       </fieldset>
 
       <fieldset className="pop mb-6 rounded-3xl bg-cream-50 p-5">
-        <legend className="rounded-full bg-matcha-200 px-3 font-display text-lg">Liên hệ</legend>
+        <legend className="rounded-full bg-lime-300 px-3 font-display text-lg">Liên hệ</legend>
         <Field label="Link Zalo" hint="Ví dụ: https://zalo.me/0912345678 — để trống thì ẩn nút">
           <input className="field" type="url" placeholder="https://zalo.me/..." {...c("zalo")} />
         </Field>
@@ -68,11 +68,11 @@ export function SettingsForm({ initialHome, initialContact }: { initialHome: Hom
       </fieldset>
 
       <div className="flex items-center gap-4">
-        <button type="submit" className="btn bg-pink-300" disabled={status === "saving"}>
+        <button type="submit" className="btn" disabled={status === "saving"}>
           {status === "saving" ? "Đang lưu..." : "Lưu thay đổi"}
         </button>
-        {status === "saved" && <span className="text-matcha-500">✓ Đã lưu! Trang chủ đã cập nhật.</span>}
-        {status === "error" && <span className="text-pink-500">Lỗi: {errMsg}</span>}
+        {status === "saved" && <span className="text-lime-700">✓ Đã lưu! Trang chủ đã cập nhật.</span>}
+        {status === "error" && <span className="text-hot-500">Lỗi: {errMsg}</span>}
       </div>
     </form>
   );

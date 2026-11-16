@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   return (
     <div className="max-w-2xl">
       <h1 className="text-3xl">Trang chủ & liên hệ</h1>
-      <p className="mb-6 mt-1 text-sm text-cocoa-500">Sửa nội dung banner và các nút liên hệ ở cuối trang chủ.</p>
+      <p className="mb-6 mt-1 text-sm text-ink-600">Sửa nội dung banner và các nút liên hệ ở cuối trang chủ.</p>
       <SettingsForm initialHome={home} initialContact={contact} />
     </div>
   );

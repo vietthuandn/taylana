@@ -40,24 +40,24 @@ export function PhotostripEditor({ frames: dbFrames }: { frames: PhotostripFrame
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4">
-      <div className="grid gap-8 md:grid-cols-[1fr_260px]">
+    <div className="mx-auto max-w-5xl px-4">
+      <div className="grid gap-8 md:grid-cols-[1fr_280px]">
         <div className="md:order-2">
           {counts.length > 1 && (
             <div className="mb-4 flex justify-center gap-2 md:justify-start">
               {counts.map((n) => (
                 <button key={n} onClick={() => { setCount(n); setFrameId(frames.find((f) => f.slot_count === n)?.id ?? ""); }}
-                  className={`pop-sm rounded-full px-4 py-2 font-display text-lg ${count === n ? "bg-pink-300" : "bg-cream-50"}`}>
+                  aria-pressed={count === n} className="chip !px-5 !text-base">
                   {n} ảnh
                 </button>
               ))}
             </div>
           )}
-          <p className="mb-2 text-center text-sm font-medium md:text-left">Chọn khung:</p>
-          <div className="flex gap-3 overflow-x-auto pb-2 md:flex-wrap">
+          <p className="mb-2 text-center text-xs font-bold uppercase tracking-widest text-ink-900 md:text-left">Chọn khung</p>
+          <div className="no-scrollbar flex gap-3 overflow-x-auto pb-2 md:flex-wrap">
             {list.map((f) => (
               <button key={f.id} onClick={() => setFrameId(f.id)}
-                className={`pop-sm w-20 shrink-0 rounded-2xl p-2 text-center text-xs ${frame?.id === f.id ? "bg-pink-200" : "bg-cream-50"}`}>
+                className={`w-20 shrink-0 rounded-[16px] border-2 bg-white p-2 text-center text-xs font-semibold text-ink-900 ${frame?.id === f.id ? "border-ink-900 bg-lime-500" : "border-ink-100"}`}>
                 <div className="mx-auto mb-1 w-10">
                   <TemplateThumb ratio={spec.w / spec.h} slots={f.slots} overlay={f.overlay_url} bgColor={f.background_color} />
                 </div>
@@ -70,15 +70,16 @@ export function PhotostripEditor({ frames: dbFrames }: { frames: PhotostripFrame
         <div className="md:order-1">
           <Designer ref={ref} spec={spec} width={230} template={frame}
             extraTools={({ addText }) => (
-              <button className="btn bg-cream-50 !min-h-11 !text-base" onClick={() => addText(today())}>＋ Ngày tháng</button>
+              <button className="chip" onClick={() => addText(today())}>＋ Ngày tháng</button>
             )} />
         </div>
       </div>
 
-      <div className="pop mx-auto mt-8 max-w-xl rounded-[2rem] bg-pink-100 p-5 text-center">
+      <div className="mx-auto mt-10 max-w-xl rounded-[28px] bg-violet-500 p-6 text-center text-white">
+        <p className="mb-3 font-display text-3xl uppercase text-white">Xong rồi thì...</p>
         <div className="flex flex-wrap justify-center gap-2">
-          <button className="btn bg-cream-50 !text-base" disabled={busy} onClick={download}>Tải ảnh PNG</button>
-          <button className="btn bg-pink-300 !text-base" disabled={busy} onClick={() => setOrdering(true)}>Gửi đơn in ♡</button>
+          <button className="btn btn-ghost !border-white !text-white hover:!bg-white hover:!text-ink-900" disabled={busy} onClick={download}>Tải ảnh PNG</button>
+          <button className="btn btn-lime" disabled={busy} onClick={() => setOrdering(true)}>Gửi đơn in →</button>
         </div>
         {msg && <p className="mt-3 text-sm">{msg}</p>}
       </div>

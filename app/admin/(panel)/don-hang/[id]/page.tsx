@@ -37,7 +37,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
     <div className="max-w-3xl">
       <Link href="/admin/don-hang" className="text-sm underline">← Danh sách đơn</Link>
       <h1 className="mt-2 text-3xl">Đơn {order.code}</h1>
-      <p className="text-sm text-cocoa-400">{orderTypeLabels[order.order_type]} · đặt lúc {formatDate(order.created_at)}</p>
+      <p className="text-sm text-ink-500">{orderTypeLabels[order.order_type]} · đặt lúc {formatDate(order.created_at)}</p>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <div className="pop-sm rounded-3xl bg-cream-50 p-4">
@@ -49,7 +49,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           </p>
           {order.address && <p className="mt-1 whitespace-pre-line text-sm">{order.address}</p>}
           {order.note && (
-            <p className="mt-3 whitespace-pre-line rounded-xl bg-butter-100 p-2 text-sm"><b>Ghi chú:</b> {order.note}</p>
+            <p className="mt-3 whitespace-pre-line rounded-xl bg-violet-100 p-2 text-sm"><b>Ghi chú:</b> {order.note}</p>
           )}
         </div>
 
@@ -62,10 +62,10 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                 <span>{formatVND(it.price * it.qty)}</span>
               </li>
             ))}
-            {!order.items.length && <li className="text-cocoa-400">(không có)</li>}
+            {!order.items.length && <li className="text-ink-500">(không có)</li>}
           </ul>
-          <p className="mt-2 flex justify-between border-t-2 border-dashed border-cocoa-300 pt-2 font-bold">
-            <span>Tạm tính</span><span className="text-pink-500">{formatVND(order.total)}</span>
+          <p className="mt-2 flex justify-between border-t-2 border-dashed border-ink-300 pt-2 font-bold">
+            <span>Tạm tính</span><span className="text-hot-500">{formatVND(order.total)}</span>
           </p>
         </div>
       </div>
@@ -79,7 +79,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             🎵 File nhạc: <a className="break-all underline" href={order.music_link} target="_blank" rel="noreferrer">{order.music_link}</a>
           </p>
         )}
-        {order.files_cleaned_at && <p className="mb-3 text-sm text-cocoa-400">File đã được dọn lúc {formatDate(order.files_cleaned_at)}.</p>}
+        {order.files_cleaned_at && <p className="mb-3 text-sm text-ink-500">File đã được dọn lúc {formatDate(order.files_cleaned_at)}.</p>}
         {files.length ? (
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {files.map((f) => {
@@ -98,7 +98,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                   <div className="p-2 text-xs">
                     <p className="font-bold">{kindLabels[f.kind] ?? f.kind}{f.page ? ` · trang ${f.page}` : ""}{outdated.has(f.id) ? " · bản cũ" : ""}</p>
                     <p className="truncate">{f.file_name}</p>
-                    <p className="text-cocoa-400">
+                    <p className="text-ink-500">
                       {formatBytes(f.size_bytes)}{f.width_px ? ` · ${f.width_px}×${f.height_px}px` : ""}
                     </p>
                     {url && <a className="mt-1 inline-block underline" href={`${url}&download=${encodeURIComponent(f.file_name)}`}>Tải file gốc</a>}
@@ -108,7 +108,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             })}
           </ul>
         ) : (
-          <p className="text-sm text-cocoa-400">Khách chưa nộp file nào.</p>
+          <p className="text-sm text-ink-500">Khách chưa nộp file nào.</p>
         )}
       </section>
     </div>

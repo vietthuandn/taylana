@@ -1,27 +1,35 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import type { Addon, Package } from "@/lib/types";
 import { formatVND } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { Stepper } from "@/components/site/Stepper";
-import { CdIcon, FlowerIcon, HeartIcon, StarIcon } from "@/components/decor/Icons";
+import { Button } from "@/components/ui/Button";
+import { CdDisc, Sparkle, WavyFrame } from "@/components/ui/Shapes";
 
 type Result = { code: string; total: number };
+const tints = ["bg-violet-100", "bg-lime-100", "bg-hot-100"];
 
-function StepHeading({ n, title }: { n: number; title: string }) {
+function StepHeading({ n, title, hint }: { n: number; title: string; hint?: string }) {
   return (
-    <h2 className="mb-4 flex items-center gap-3 text-2xl">
-      <span className="pop-sm grid h-10 w-10 shrink-0 place-items-center rounded-full bg-butter-100 text-xl">{n}</span>
-      {title}
-    </h2>
+    <div className="mb-5 flex items-center gap-4">
+      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-violet-500 font-display text-2xl text-white">{n}</span>
+      <div>
+        <h2 className="text-3xl sm:text-4xl">{title}</h2>
+        {hint && <p className="text-sm text-ink-500">{hint}</p>}
+      </div>
+    </div>
   );
 }
 
 export function OrderForm({ packages, addons }: { packages: Package[]; addons: Addon[] }) {
-  const [packageId, setPackageId] = useState<string>("");
+  const params = useSearchParams();
+  const pre = params.get("goi");
+  const [packageId, setPackageId] = useState<string>(packages.some((p) => p.id === pre) ? pre! : "");
   const [qty, setQty] = useState(1);
   const [addonQty, setAddonQty] = useState<Record<string, number>>({});
   const [form, setForm] = useState({ name: "", phone: "", address: "", note: "" });
@@ -84,75 +92,49 @@ export function OrderForm({ packages, addons }: { packages: Package[]; addons: A
   if (result) return <Success result={result} />;
 
   if (!packages.length) {
-    return (
-      <p className="mx-auto max-w-md px-4 text-center text-cocoa-500">
-        Tiệm đang cập nhật bảng giá, bạn quay lại sau hoặc nhắn tiệm qua Zalo nhé!
-      </p>
-    );
+    return <p className="mx-auto max-w-md px-4 text-center">Tiệm đang cập nhật bảng giá, bạn quay lại sau hoặc nhắn tiệm qua Zalo nhé!</p>;
   }
 
   return (
-    <form onSubmit={submit} className="mx-auto max-w-5xl px-4 pb-32">
+    <form onSubmit={submit} className="mx-auto max-w-6xl px-4 pb-32">
       {/* ---- Bước 1: chọn gói ---- */}
-      <section id="buoc-1" className="scroll-mt-28">
-        <StepHeading n={1} title="Chọn gói sản phẩm" />
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <section id="buoc-1" className="scroll-mt-24">
+        <StepHeading n={1} title="Chọn gói" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {packages.map((p, i) => {
             const active = p.id === packageId;
             return (
-              <label
-                key={p.id}
-                className={`pop relative flex cursor-pointer flex-col rounded-[2rem] p-4 transition ${
-                  active ? "bg-pink-200 -translate-y-1" : "bg-cream-50 hover:-translate-y-0.5"
-                }`}
-              >
-                <input type="radio" name="package" value={p.id} checked={active}
-                  onChange={() => setPackageId(p.id)} className="sr-only" />
-                {active && (
-                  <span className="pop-sm absolute -right-2 -top-3 z-10 rotate-6 rounded-full bg-butter-200 px-3 py-1 font-display text-sm">
-                    ✓ Đã chọn
-                  </span>
-                )}
+              <label key={p.id}
+                className={`relative flex cursor-pointer flex-col rounded-[20px] border-2 bg-white p-4 transition ${active ? "border-violet-500 ring-4 ring-violet-100" : "border-lime-500 hover:-translate-y-0.5"}`}>
+                <input type="radio" name="package" value={p.id} checked={active} onChange={() => setPackageId(p.id)} className="sr-only" />
+                {active && <span className="eyebrow absolute right-3 top-3 z-10 bg-violet-500 text-white">✓ Đã chọn</span>}
                 <div className="flex gap-4 sm:block">
-                <div className={`sticker aspect-square w-24 shrink-0 overflow-hidden rounded-xl bg-matcha-100 sm:mb-4 sm:w-full ${i % 2 ? "rotate-1" : "-rotate-1"}`}>
-                  {p.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
-                  ) : (
-                    <div className="grid h-full place-items-center">
-                      <CdIcon className="h-14 w-14 sm:h-24 sm:w-24" />
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
-                  <h3 className="text-xl">{p.name}</h3>
-                  <span className="shrink-0 font-display text-xl text-pink-500">{formatVND(p.price)}</span>
-                </div>
-                {p.description && <p className="mt-1 text-sm text-cocoa-500">{p.description}</p>}
-                </div>
+                  <WavyFrame shape="cloud" border={i % 2 ? "violet" : "lime"} className="aspect-square w-24 shrink-0 sm:mb-4 sm:w-full">
+                    {p.image_url ? (
+                      <Image src={p.image_url} alt={p.name} fill sizes="(min-width:640px) 360px, 96px" className="object-cover" />
+                    ) : (
+                      <div className={`grid h-full place-items-center ${tints[i % 3]}`}><CdDisc className="w-1/2" /></div>
+                    )}
+                  </WavyFrame>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-2xl">{p.name}</h3>
+                    <p className="font-display text-2xl text-hot-500">{formatVND(p.price)}</p>
+                    {p.description && <p className="mt-1 text-sm">{p.description}</p>}
+                  </div>
                 </div>
                 {p.features.length > 0 && (
-                  <ul className="mt-3 space-y-1 text-sm">
-                    {p.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2">
-                        <FlowerIcon className="mt-0.5 h-4 w-4 shrink-0 text-pink-300" />
-                        {f}
-                      </li>
-                    ))}
+                  <ul className="mt-3 flex flex-wrap gap-1.5">
+                    {p.features.map((f) => <li key={f} className="rounded-full bg-lime-100 px-2.5 py-1 text-xs font-semibold text-ink-900">{f}</li>)}
                   </ul>
                 )}
-                <span className={`btn mt-4 !min-h-11 !text-base ${active ? "bg-cream-50" : "bg-pink-200"}`}>
-                  {active ? "Gói đã chọn ♡" : "Chọn gói này"}
-                </span>
+                <span className={`btn btn-sm mt-4 ${active ? "btn-lime" : "btn-ghost"}`}>{active ? "Gói đã chọn" : "Chọn gói này"}</span>
               </label>
             );
           })}
         </div>
-
         {pkg && (
-          <div className="mt-5 flex items-center justify-center gap-3">
-            <span className="font-medium">Số lượng:</span>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <span className="font-semibold text-ink-900">Số lượng:</span>
             <Stepper value={qty} onChange={setQty} />
           </div>
         )}
@@ -160,32 +142,24 @@ export function OrderForm({ packages, addons }: { packages: Package[]; addons: A
 
       {/* ---- Bước 2: phụ kiện ---- */}
       {addons.length > 0 && (
-        <section className="mt-12">
-          <StepHeading n={2} title="Phụ kiện mua kèm" />
-          <p className="-mt-2 mb-4 text-sm text-cocoa-500">Không bắt buộc — chọn bao nhiêu tuỳ thích.</p>
+        <section className="mt-14">
+          <StepHeading n={2} title="Phụ kiện mua kèm" hint="Không bắt buộc — chọn bao nhiêu tuỳ thích." />
           <div className="grid gap-3 sm:grid-cols-2">
             {addons.map((a) => {
               const q = addonQty[a.id] ?? 0;
               return (
-                <div key={a.id}
-                  className={`pop-sm flex items-center gap-3 rounded-3xl p-3 transition ${q ? "bg-matcha-200" : "bg-cream-50"}`}>
-                  <button type="button" onClick={() => toggleAddon(a.id)} className="flex flex-1 items-center gap-3 text-left" aria-pressed={q > 0}>
-                    <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border-2 border-cocoa-700 ${q ? "bg-pink-300" : "bg-white"}`}>
-                      {q > 0 && "✓"}
+                <div key={a.id} className={`flex items-center gap-3 rounded-full border-[1.5px] p-2 pr-3 transition ${q ? "border-lime-500 bg-lime-500" : "border-ink-900 bg-white"}`}>
+                  <button type="button" onClick={() => toggleAddon(a.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-pressed={q > 0}>
+                    <span className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full text-lg font-bold ${q ? "bg-ink-900 text-lime-500" : "bg-cream-100 text-ink-900"}`}>
+                      {a.image_url ? <Image src={a.image_url} alt="" width={48} height={48} className="h-full w-full object-cover" /> : q ? "✓" : "+"}
                     </span>
-                    {a.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={a.image_url} alt="" className="h-14 w-14 shrink-0 rounded-xl border-2 border-white object-cover" loading="lazy" />
-                    ) : (
-                      <HeartIcon className="h-10 w-10 shrink-0 text-pink-200" />
-                    )}
                     <span className="min-w-0">
-                      <span className="block font-display text-lg leading-tight">{a.name}</span>
-                      {a.description && <span className="block text-xs text-cocoa-500">{a.description}</span>}
-                      <span className="block text-sm font-bold text-pink-500">+{formatVND(a.price)}</span>
+                      <span className="block truncate font-bold text-ink-900">{a.name}</span>
+                      <span className="block truncate text-xs text-ink-600">{a.description}</span>
                     </span>
                   </button>
-                  {q > 0 && <Stepper value={q} onChange={(v) => setAddonQty({ ...addonQty, [a.id]: v })} />}
+                  {q > 0 ? <Stepper value={q} onChange={(v) => setAddonQty({ ...addonQty, [a.id]: v })} />
+                    : <span className="shrink-0 font-display text-lg text-hot-500">+{formatVND(a.price)}</span>}
                 </div>
               );
             })}
@@ -194,45 +168,39 @@ export function OrderForm({ packages, addons }: { packages: Package[]; addons: A
       )}
 
       {/* ---- Bước 3: thông tin ---- */}
-      <section className="mt-12">
+      <section className="mt-14">
         <StepHeading n={addons.length ? 3 : 2} title="Thông tin nhận hàng" />
-        <div className="pop stitch grid gap-4 rounded-[2rem] bg-cream-50 p-5 sm:grid-cols-2 sm:p-7">
+        <div className="panel grid gap-4 p-5 sm:grid-cols-2 sm:p-7">
           <label className="block">
-            <span className="mb-1 block text-sm font-medium">Tên của bạn *</span>
-            <input className="field" required maxLength={100} autoComplete="name"
-              value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <span className="mb-1.5 block text-sm font-semibold text-ink-900">Tên của bạn *</span>
+            <input className="field" required maxLength={100} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </label>
           <label className="block">
-            <span className="mb-1 block text-sm font-medium">Số điện thoại / Zalo *</span>
-            <input className="field" required type="tel" inputMode="tel" maxLength={20} autoComplete="tel"
-              value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <span className="mb-1.5 block text-sm font-semibold text-ink-900">Số điện thoại / Zalo *</span>
+            <input className="field" required type="tel" inputMode="tel" maxLength={20} autoComplete="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </label>
           <label className="block sm:col-span-2">
-            <span className="mb-1 block text-sm font-medium">Địa chỉ nhận hàng</span>
-            <textarea className="field" rows={2} maxLength={500} autoComplete="street-address"
-              value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <span className="mb-1.5 block text-sm font-semibold text-ink-900">Địa chỉ nhận hàng</span>
+            <textarea className="field" rows={2} maxLength={500} autoComplete="street-address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           </label>
           <label className="block sm:col-span-2">
-            <span className="mb-1 block text-sm font-medium">Ghi chú cho tiệm</span>
-            <textarea className="field" rows={3} maxLength={2000}
-              placeholder="Ví dụ: tên album, màu sắc mong muốn, ngày cần nhận..."
+            <span className="mb-1.5 block text-sm font-semibold text-ink-900">Ghi chú cho tiệm</span>
+            <textarea className="field" rows={3} maxLength={2000} placeholder="Ví dụ: tên album, màu sắc mong muốn, ngày cần nhận..."
               value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
           </label>
         </div>
       </section>
 
-      {error && <p className="mt-6 rounded-2xl bg-pink-100 px-4 py-3 text-center text-pink-500">{error}</p>}
+      {error && <p className="mt-6 rounded-full bg-hot-100 px-5 py-3 text-center font-semibold text-hot-700">{error}</p>}
 
       {/* ---- Thanh tổng tiền dính ở đáy màn hình ---- */}
       <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-3">
-        <div className="pop mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-full bg-cream-50 py-2 pl-5 pr-2">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-full bg-ink-900 py-2 pl-6 pr-2 shadow-[0_10px_30px_rgba(20,20,20,.3)]">
           <div className="min-w-0 leading-tight">
-            <span className="block text-xs text-cocoa-400">Tạm tính</span>
-            <span className="block font-display text-2xl text-pink-500">{formatVND(total)}</span>
+            <span className="block text-xs uppercase tracking-widest text-white/60">Tạm tính</span>
+            <span className="block font-display text-2xl text-lime-500">{formatVND(total)}</span>
           </div>
-          <button type="submit" disabled={sending} className="btn shrink-0 bg-pink-300">
-            {sending ? "Đang gửi..." : "Gửi đơn ♡"}
-          </button>
+          <button type="submit" disabled={sending} className="btn btn-lime shrink-0">{sending ? "Đang gửi..." : "Gửi đơn →"}</button>
         </div>
       </div>
     </form>
@@ -242,28 +210,26 @@ export function OrderForm({ packages, addons }: { packages: Package[]; addons: A
 function Success({ result }: { result: Result }) {
   const [copied, setCopied] = useState(false);
   return (
-    <section className="mx-auto max-w-lg px-4 pb-10">
-      <div className="tape pop relative rounded-[2rem] bg-matcha-100 px-6 py-10 text-center">
-        <StarIcon className="absolute left-6 top-6 h-8 w-8 text-butter-200 animate-wiggle" />
-        <HeartIcon className="absolute bottom-6 right-6 h-8 w-8 text-pink-300 animate-float" />
-        <h2 className="text-3xl">Tiệm đã nhận đơn rồi nè! ✿</h2>
-        <p className="mt-2 text-cocoa-500">Mã đơn của bạn là:</p>
-        <p className="pop-sm mx-auto mt-3 inline-block rounded-2xl bg-white px-5 py-2 font-display text-3xl tracking-wider">
-          {result.code}
-        </p>
+    <section className="mx-auto max-w-xl px-4 pb-10">
+      <div className="relative overflow-hidden rounded-[32px] bg-lime-500 px-6 py-12 text-center">
+        <Sparkle color="white" className="absolute left-6 top-6 h-8 w-8 animate-twinkle" />
+        <Sparkle className="absolute bottom-6 right-6 h-8 w-8 animate-twinkle" />
+        <h2 className="text-4xl sm:text-5xl">Tiệm đã nhận đơn!</h2>
+        <p className="mt-3 text-ink-700">Mã đơn của bạn:</p>
+        <p className="mx-auto mt-2 inline-block rounded-full bg-ink-900 px-6 py-2 font-display text-3xl tracking-wider text-white">{result.code}</p>
         <div>
-          <button type="button" className="mt-3 text-sm underline"
+          <button type="button" className="mt-3 text-sm font-semibold underline"
             onClick={() => { navigator.clipboard?.writeText(result.code); setCopied(true); }}>
             {copied ? "✓ Đã sao chép" : "Sao chép mã đơn"}
           </button>
         </div>
-        <p className="mt-4">Tạm tính: <b className="text-pink-500">{formatVND(result.total)}</b></p>
-        <p className="mt-4 text-sm text-cocoa-500">
-          Bạn nhớ lưu lại mã đơn để nộp file in nhé. Tiệm sẽ liên hệ qua Zalo/SĐT để xác nhận và báo phí ship.
+        <p className="mt-4 text-ink-900">Tạm tính: <b className="font-display text-2xl">{formatVND(result.total)}</b></p>
+        <p className="mx-auto mt-3 max-w-sm text-sm text-ink-700">
+          Lưu lại mã đơn để nộp file nhé. Tiệm sẽ liên hệ qua Zalo/SĐT để xác nhận và báo phí ship.
         </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href={`/nop-file?ma=${encodeURIComponent(result.code)}`} className="btn bg-pink-300">Nộp file ngay →</Link>
-          <Link href="/huong-dan" className="btn bg-cream-50">Hướng dẫn làm file</Link>
+        <div className="mt-7 flex flex-wrap justify-center gap-3">
+          <Button href={`/nop-file?ma=${encodeURIComponent(result.code)}`}>Nộp file ngay →</Button>
+          <Button href="/huong-dan" variant="ghost">Hướng dẫn làm file</Button>
         </div>
       </div>
     </section>

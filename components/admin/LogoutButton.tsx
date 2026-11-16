@@ -7,7 +7,7 @@ export function LogoutButton() {
   const router = useRouter();
   return (
     <button
-      className="btn bg-cream-50 !min-h-10 !text-base"
+      className="btn btn-lime btn-sm"
       onClick={async () => {
         await createClient().auth.signOut();
         router.replace("/admin/login");

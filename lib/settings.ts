@@ -16,9 +16,9 @@ export type ContactSettings = {
 };
 
 export const defaultHome: HomeSettings = {
-  banner_title: "Chào mừng đến Tiệm In Taylana!",
-  banner_subtitle: "Thiết kế & thi công CD theo yêu cầu — từ bìa hộp, mặt đĩa đến booklet, làm thủ công thật xinh cho bạn.",
-  banner_note: "Đang nhận đơn ✿ Giao toàn quốc",
+  banner_title: "CD của bạn, theo cách của bạn",
+  banner_subtitle: "Thiết kế & thi công CD theo yêu cầu — bìa hộp, mặt đĩa, booklet. Tự tay thiết kế online, tiệm in sắc nét 300 DPI.",
+  banner_note: "Đang nhận đơn · Giao toàn quốc",
 };
 
 export const defaultContact: ContactSettings = {

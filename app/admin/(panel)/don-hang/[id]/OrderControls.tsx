@@ -40,13 +40,13 @@ export function OrderControls({ order, fileCount, paths }: { order: Order; fileC
   }
 
   return (
-    <section className="pop mt-5 rounded-3xl bg-matcha-100 p-4">
+    <section className="pop mt-5 rounded-3xl bg-lime-100 p-4">
       <h2 className="mb-3 text-xl">Trạng thái</h2>
       <div className="flex flex-wrap gap-2">
         {(["new", "in_progress", "delivered"] as const).map((s) => (
           <button key={s} disabled={busy}
             onClick={() => { setStatus(s); save({ status: s }); }}
-            className={`pop-sm rounded-full px-4 py-2 font-display ${status === s ? "bg-pink-300" : "bg-white"}`}>
+            className={`pop-sm rounded-full px-4 py-2 font-display ${status === s ? "bg-lime-500" : "bg-white"}`}>
             {statusLabels[s]}
           </button>
         ))}
@@ -63,10 +63,10 @@ export function OrderControls({ order, fileCount, paths }: { order: Order; fileC
         </label>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button className="btn bg-pink-200 !min-h-10 !text-base" disabled={busy} onClick={() => save({ admin_note: adminNote, total: Math.max(0, Math.round(total)) })}>
+        <button className="btn btn-sm" disabled={busy} onClick={() => save({ admin_note: adminNote, total: Math.max(0, Math.round(total)) })}>
           Lưu ghi chú & giá
         </button>
-        <button className="ml-auto text-sm text-pink-500 underline" disabled={busy} onClick={del}>Xoá đơn</button>
+        <button className="ml-auto text-sm text-hot-500 underline" disabled={busy} onClick={del}>Xoá đơn</button>
       </div>
       <div className="mt-3"><Message msg={msg} /></div>
     </section>

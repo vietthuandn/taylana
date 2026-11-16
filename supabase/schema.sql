@@ -561,3 +561,20 @@ begin
        3);
   end if;
 end $$;
+
+-- =====================================================================
+-- (THÊM Ở BẢN GIAO DIỆN MỚI) ĐĂNG KÝ NHẬN TIN — ô "Nhận tin mới" ở footer
+-- Khách chỉ được THÊM; chỉ admin xem/xoá.
+-- =====================================================================
+create table if not exists public.subscribers (
+  id         uuid primary key default gen_random_uuid(),
+  contact    text not null check (char_length(contact) between 5 and 120),
+  created_at timestamptz not null default now()
+);
+alter table public.subscribers enable row level security;
+grant insert on public.subscribers to anon, authenticated;
+grant select, delete on public.subscribers to authenticated;
+drop policy if exists "subscribers: khách đăng ký" on public.subscribers;
+create policy "subscribers: khách đăng ký" on public.subscribers for insert to anon, authenticated with check (true);
+drop policy if exists "subscribers: admin xem & xoá" on public.subscribers;
+create policy "subscribers: admin xem & xoá" on public.subscribers for all to authenticated using (public.is_admin()) with check (public.is_admin());

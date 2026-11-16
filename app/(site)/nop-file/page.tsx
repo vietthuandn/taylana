@@ -1,4 +1,4 @@
-import { PageTitle } from "@/components/site/PageTitle";
+import { PageHeader } from "@/components/ui/SectionTitle";
 import { SubmitFiles } from "./SubmitFiles";
 
 export const metadata = { title: "Nộp file" };
@@ -7,7 +7,7 @@ export default async function SubmitPage({ searchParams }: { searchParams: Promi
   const { ma } = await searchParams;
   return (
     <>
-      <PageTitle title="Nộp file in" subtitle="Tải từng file lên đúng ô — bạn sẽ thấy ngay bản in trông thế nào trên hộp CD, mặt đĩa và booklet." />
+      <PageHeader eyebrow="Đã có mã đơn" title="Nộp file in" subtitle="Tải từng file lên đúng ô — bạn thấy ngay bản in trông thế nào trên hộp CD, mặt đĩa và booklet." />
       <SubmitFiles initialCode={ma ?? ""} />
     </>
   );

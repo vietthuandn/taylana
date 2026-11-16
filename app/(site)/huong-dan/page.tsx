@@ -1,15 +1,15 @@
+import Image from "next/image";
 import Link from "next/link";
 import { publicClient } from "@/lib/supabase/public";
 import type { GuideSection } from "@/lib/types";
-import { PageTitle } from "@/components/site/PageTitle";
+import { PageHeader } from "@/components/ui/SectionTitle";
 import { RichText } from "@/components/site/RichText";
-import { GalleryIcon, NoteIcon } from "@/components/decor/Icons";
+import { GalleryIcon } from "@/components/decor/Icons";
 
 export const metadata = { title: "Hướng dẫn làm file" };
 export const revalidate = 60;
 
-const bgs = ["bg-cream-50", "bg-matcha-100", "bg-pink-100", "bg-butter-100"];
-const tilts = ["-rotate-2", "rotate-2", "-rotate-1", "rotate-1"];
+const numberBg = ["bg-lime-500 text-ink-900", "bg-violet-500 text-white", "bg-hot-500 text-white"];
 
 export default async function GuidePage() {
   const sb = publicClient();
@@ -21,38 +21,37 @@ export default async function GuidePage() {
 
   return (
     <>
-      <PageTitle title="Hướng dẫn làm file" subtitle="Chuẩn bị file đúng chuẩn để CD in ra thật sắc nét nha ♡" />
+      <PageHeader eyebrow="Trước khi nộp file" title="Hướng dẫn làm file" subtitle="Chuẩn bị file đúng chuẩn để CD in ra thật sắc nét." />
 
       {sections.length > 1 && (
-        <nav className="mx-auto mb-8 flex max-w-3xl flex-wrap justify-center gap-2 px-4">
-          {sections.map((s) => (
-            <a key={s.id} href={`#muc-${s.id}`} className="pop-sm rounded-full bg-cream-50 px-4 py-2 text-sm hover:bg-pink-100">{s.title}</a>
-          ))}
+        <nav className="no-scrollbar mx-auto mb-8 flex max-w-6xl gap-2 overflow-x-auto px-4">
+          {sections.map((s) => <a key={s.id} href={`#muc-${s.id}`} className="chip shrink-0">{s.title}</a>)}
         </nav>
       )}
 
-      <div className="mx-auto max-w-3xl space-y-10 px-4">
+      <div className="mx-auto max-w-4xl space-y-6 px-4">
         {sections.map((s, i) => (
-          <section key={s.id} id={`muc-${s.id}`} className={`tape pop relative scroll-mt-28 rounded-[2rem] px-5 pb-6 pt-8 sm:px-8 ${bgs[i % bgs.length]}`}>
-            <h2 className="flex items-center gap-2 text-2xl sm:text-3xl">
-              <NoteIcon className="h-7 w-7 shrink-0 text-pink-400" />
-              {s.title}
-            </h2>
-            {s.body && <RichText text={s.body} className="mt-3 leading-relaxed text-cocoa-600" />}
+          <section key={s.id} id={`muc-${s.id}`} className="card scroll-mt-24 p-5 sm:p-8">
+            <div className="flex items-start gap-4">
+              <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-full font-display text-2xl ${numberBg[i % 3]}`}>{i + 1}</span>
+              <h2 className="pt-1 text-3xl sm:text-4xl">{s.title.replace(/^\d+\.\s*/, "")}</h2>
+            </div>
+            {s.body && <RichText text={s.body} className="mt-4 leading-relaxed" />}
 
             {s.images.length > 0 && (
-              <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-7 sm:grid-cols-3">
+              <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {s.images.map((img, j) => (
-                  <figure key={j} className={`${tilts[j % 4]}`}>
+                  <figure key={j}>
                     {img.url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <a href={img.url} target="_blank" rel="noreferrer"><img src={img.url} alt={img.caption} loading="lazy" className="sticker w-full rounded-sm bg-white" /></a>
+                      <a href={img.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-[16px] border-[3px] border-lime-500 bg-cream-50">
+                        <Image src={img.url} alt={img.caption} width={480} height={480} sizes="(min-width:640px) 260px, 45vw" className="h-auto w-full" />
+                      </a>
                     ) : (
-                      <div className="sticker grid aspect-square place-items-center rounded-sm bg-cream-200">
-                        <GalleryIcon className="h-12 w-12 text-cocoa-400" />
+                      <div className="grid aspect-square place-items-center rounded-[16px] border-[3px] border-dashed border-lime-500 bg-lime-100">
+                        <GalleryIcon className="h-12 w-12 text-ink-900" />
                       </div>
                     )}
-                    {img.caption && <figcaption className="mt-2 text-center font-display text-sm">{img.caption}</figcaption>}
+                    {img.caption && <figcaption className="mt-2 text-center text-sm font-bold uppercase tracking-wide text-ink-900">{img.caption}</figcaption>}
                   </figure>
                 ))}
               </div>
@@ -62,16 +61,16 @@ export default async function GuidePage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 {s.links.map((l, j) =>
                   l.url.startsWith("/") ? (
-                    <Link key={j} href={l.url} className="btn bg-pink-200 !text-base">{l.label || l.url} →</Link>
+                    <Link key={j} href={l.url} className="btn">{l.label || l.url} →</Link>
                   ) : (
-                    <a key={j} href={l.url} target="_blank" rel="noopener noreferrer" className="btn bg-pink-200 !text-base">{l.label || "Mở link"} ↗</a>
+                    <a key={j} href={l.url} target="_blank" rel="noopener noreferrer" className="btn">{l.label || "Mở link"} ↗</a>
                   ),
                 )}
               </div>
             )}
           </section>
         ))}
-        {!sections.length && <p className="text-center text-cocoa-500">Tiệm đang soạn hướng dẫn, bạn quay lại sau nhé!</p>}
+        {!sections.length && <p className="text-center">Tiệm đang soạn hướng dẫn, bạn quay lại sau nhé!</p>}
       </div>
     </>
   );

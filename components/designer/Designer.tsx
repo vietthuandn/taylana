@@ -2,6 +2,7 @@
 
 /* Trình thiết kế dùng chung cho Custom CD & Photostrip (react-konva).
    Toạ độ bên trong = pixel bản in ở 300 DPI; màn hình chỉ là bản thu nhỏ. */
+import "@fontsource/itim/400.css";
 import "@fontsource/pangolin/400.css";
 import "@fontsource/patrick-hand/400.css";
 import "@fontsource/dancing-script/600.css";
@@ -29,14 +30,15 @@ type FreeEl = {
 type Sel = { type: "slot"; index: number } | { type: "el"; id: string } | null;
 
 export const FONTS = [
+  { name: "Anton", label: "ANTON (in hoa đậm)" },
   { name: "Itim", label: "Itim (vẽ tay)" },
   { name: "Pangolin", label: "Pangolin" },
   { name: "Patrick Hand", label: "Patrick Hand" },
   { name: "Dancing Script", label: "Dancing Script (bay bổng)" },
   { name: "Be Vietnam Pro", label: "Be Vietnam Pro" },
 ];
-const COLORS = ["#4b3329", "#ffffff", "#e2789b", "#f39bb4", "#7e9f5a", "#a6c37f", "#ffcf5c", "#7aa6d8", "#000000"];
-const BG_COLORS = ["#ffffff", "#fff8ec", "#ffeef2", "#ffd9e3", "#f0f5e4", "#dfeac8", "#fff6d6", "#e8f1fb", "#4b3329", "#1f1f1f"];
+const COLORS = ["#141414", "#ffffff", "#c8e03c", "#7b68ee", "#ff5fa2", "#5a47cf", "#e0337e", "#ffcf5c", "#3aa7ff"];
+const BG_COLORS = ["#ffffff", "#f7f0e6", "#c8e03c", "#f1f8c8", "#7b68ee", "#e9e5ff", "#ff5fa2", "#ffe3ef", "#ffcf5c", "#141414"];
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -157,15 +159,15 @@ function Guides({ spec, W, H, s }: { spec: PrintSpec; W: number; H: number; s: n
   const px = (mm: number) => (mm / spec.w) * W;
   const cut = px(spec.cut), safe = px(spec.safe);
   const thin = 1.5 / s;
-  const band = "rgba(243,155,180,0.45)";
+  const band = "rgba(255,95,162,0.4)";
   if (spec.shape === "disc") {
     const r = W / 2;
     return (
       <Group listening={false}>
         <Ring x={r} y={r} innerRadius={r - cut} outerRadius={r} fill={band} />
         <Circle x={r} y={r} radius={px(spec.hub! / 2)} fill={band} />
-        <Circle x={r} y={r} radius={px(spec.hole! / 2)} stroke="#4b3329" strokeWidth={thin} />
-        <Circle x={r} y={r} radius={r} stroke="#4b3329" strokeWidth={thin} />
+        <Circle x={r} y={r} radius={px(spec.hole! / 2)} stroke="#141414" strokeWidth={thin} />
+        <Circle x={r} y={r} radius={r} stroke="#141414" strokeWidth={thin} />
         <Circle x={r} y={r} radius={r - safe} stroke="#ffffff" strokeWidth={thin * 1.5} dash={[8 / s, 6 / s]} />
         <Circle x={r} y={r} radius={px(spec.hub! / 2) + px(2)} stroke="#ffffff" strokeWidth={thin * 1.5} dash={[8 / s, 6 / s]} />
       </Group>
@@ -180,8 +182,8 @@ function Guides({ spec, W, H, s }: { spec: PrintSpec; W: number; H: number; s: n
       <Rect x={safe} y={safe} width={W - safe * 2} height={H - safe * 2} stroke="#ffffff" strokeWidth={thin * 1.5} dash={[8 / s, 6 / s]} shadowColor="#000" shadowOpacity={0.3} shadowBlur={2 / s} />
       {spec.spine && (
         <>
-          <Rect x={0} y={0} width={px(spec.spine)} height={H} fill="rgba(75,51,41,0.2)" />
-          <Rect x={W - px(spec.spine)} y={0} width={px(spec.spine)} height={H} fill="rgba(75,51,41,0.2)" />
+          <Rect x={0} y={0} width={px(spec.spine)} height={H} fill="rgba(20,20,20,0.2)" />
+          <Rect x={W - px(spec.spine)} y={0} width={px(spec.spine)} height={H} fill="rgba(20,20,20,0.2)" />
           <Line points={[px(spec.spine), 0, px(spec.spine), H]} stroke="#fff" strokeWidth={thin} dash={[6 / s, 4 / s]} />
           <Line points={[W - px(spec.spine), 0, W - px(spec.spine), H]} stroke="#fff" strokeWidth={thin} dash={[6 / s, 4 / s]} />
         </>
@@ -318,7 +320,7 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
   const addText = useCallback((text: string) => {
     const fontSize = Math.round(Math.min(W, H) * (spec.kind === "photostrip" ? 0.11 : 0.08));
     const el: FreeEl = {
-      id: uid(), kind: "text", text, fontFamily: "Itim", fontSize, fill: "#4b3329", outline: false,
+      id: uid(), kind: "text", text, fontFamily: "Itim", fontSize, fill: "#141414", outline: false,
       x: W * 0.15, y: spec.kind === "photostrip" ? H * 0.88 : H * 0.45, rotation: 0, scaleX: 1, scaleY: 1,
     };
     setEls((cur) => [...cur, el]);
@@ -362,7 +364,7 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
 
   return (
     <div>
-      <div className={`mx-auto ${isDisc ? "" : "pop-sm"} bg-[repeating-conic-gradient(#f3e2c3_0_25%,#fffdf8_0_50%)] bg-[length:16px_16px]`}
+      <div className={`mx-auto ${isDisc ? "" : "pop-sm"} bg-[repeating-conic-gradient(#ece1d0_0_25%,#fbf7f1_0_50%)] bg-[length:16px_16px]`}
         style={{ width, height: width * (H / W), borderRadius: isDisc ? "50%" : 4 }}>
         <Stage ref={stageRef} width={width} height={width * (H / W)} scaleX={s} scaleY={s}
           onMouseDown={deselect} onTouchStart={deselect}>
@@ -386,7 +388,7 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
                 <FreeNode key={el.id} el={el} fontTick={fontTick} onSelect={() => setSel({ type: "el", id: el.id })} onChange={(p) => updateEl(el.id, p)} />
               ))}
             </Group>
-            <Transformer ref={trRef} rotateAnchorOffset={24} anchorSize={14} borderStroke="#e2789b" anchorStroke="#e2789b"
+            <Transformer ref={trRef} rotateAnchorOffset={24} anchorSize={14} borderStroke="#7b68ee" anchorStroke="#7b68ee"
               anchorCornerRadius={7} keepRatio enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right"]}
               ignoreStroke flipEnabled={false} />
           </Layer>
@@ -404,10 +406,10 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
                 <Group key={slot.id + i} x={slot.x * W} y={slot.y * H} rotation={slot.rotation ?? 0} listening={empty}
                   onMouseDown={(e) => { if (e.evt.button === 0) pickSlot(i); }} onTap={() => pickSlot(i)}>
                   <Shape {...shapeProps} fill={empty ? "rgba(255,255,255,0.55)" : undefined}
-                    stroke="#e2789b" strokeWidth={3 / s} dash={[10 / s, 7 / s]} />
+                    stroke="#7b68ee" strokeWidth={3 / s} dash={[10 / s, 7 / s]} />
                   {empty && (
                     <Text text={"＋\nThêm ảnh"} width={w} height={h} align="center" verticalAlign="middle"
-                      fontFamily="Itim" fontSize={Math.max(14 / s, Math.min(w, h) * 0.12)} fill="#7d5c48" lineHeight={1.2} />
+                      fontFamily="Be Vietnam Pro" fontStyle="bold" fontSize={Math.max(14 / s, Math.min(w, h) * 0.12)} fill="#4d4a46" lineHeight={1.2} />
                   )}
                 </Group>
               );
@@ -421,21 +423,21 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
       <input ref={freeInput} type="file" accept="image/*" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) addImage(URL.createObjectURL(f), "image", 0.5); }} />
 
-      {err && <p className="mx-auto mt-3 max-w-md rounded-xl bg-pink-100 px-3 py-2 text-center text-sm text-pink-500">{err}</p>}
+      {err && <p className="mx-auto mt-3 max-w-md rounded-xl bg-hot-100 px-3 py-2 text-center text-sm text-hot-500">{err}</p>}
 
-      {/* ---------- Thanh công cụ ---------- */}
-      <div className="mx-auto mt-4 max-w-xl space-y-3">
+      {/* ---------- Thanh công cụ (thẻ trắng bo tròn, nút dạng pill) ---------- */}
+      <div className="mx-auto mt-5 max-w-xl space-y-4 rounded-[24px] border-[1.5px] border-ink-900 bg-white p-4">
         <div className="flex flex-wrap justify-center gap-2">
-          <button className="btn bg-cream-50 !min-h-11 !text-base" onClick={() => freeInput.current?.click()}>＋ Ảnh</button>
-          <button className="btn bg-cream-50 !min-h-11 !text-base" onClick={() => addText("Chữ của bạn")}>＋ Chữ</button>
-          <button className={`btn !min-h-11 !text-base ${showStickers ? "bg-pink-200" : "bg-cream-50"}`} onClick={() => setShowStickers(!showStickers)}>＋ Sticker</button>
+          <button className="chip" aria-pressed={selectedEl?.kind === "image"} onClick={() => freeInput.current?.click()}>＋ Ảnh</button>
+          <button className="chip" aria-pressed={selectedEl?.kind === "text"} onClick={() => addText("Chữ của bạn")}>＋ Chữ</button>
+          <button className="chip" aria-pressed={showStickers || selectedEl?.kind === "sticker"} onClick={() => setShowStickers(!showStickers)}>＋ Sticker</button>
           {extraTools?.({ addText })}
         </div>
 
         {showStickers && (
-          <div className="pop-sm grid grid-cols-5 gap-2 rounded-3xl bg-cream-50 p-3 sm:grid-cols-7">
+          <div className="grid grid-cols-5 gap-2 rounded-[18px] bg-cream-100 p-3 sm:grid-cols-7">
             {stickers.map((st) => (
-              <button key={st.id} className="rounded-2xl p-1 hover:bg-pink-100" onClick={() => addImage(st.src, "sticker", 0.25)} aria-label={`Sticker ${st.id}`}>
+              <button key={st.id} className="rounded-[12px] p-1 transition hover:bg-lime-500" onClick={() => addImage(st.src, "sticker", 0.25)} aria-label={`Sticker ${st.id}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={st.src} alt="" className="h-full w-full" />
               </button>
@@ -445,19 +447,19 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
 
         {/* Bảng chỉnh phần đang chọn */}
         {sel?.type === "slot" && slotData[sel.index] && (
-          <div className="pop-sm space-y-3 rounded-3xl bg-matcha-100 p-4">
-            <p className="text-sm">Kéo ảnh trong ô để căn chỉnh. Phóng to:</p>
-            <input type="range" min={1} max={5} step={0.01} value={slotData[sel.index].zoom} className="w-full accent-pink-400"
+          <div className="space-y-3 rounded-[18px] bg-lime-100 p-4">
+            <p className="text-sm font-semibold text-ink-900">Kéo ảnh trong ô để căn chỉnh. Phóng to:</p>
+            <input type="range" min={1} max={5} step={0.01} value={slotData[sel.index].zoom} className="w-full accent-violet-500"
               onChange={(e) => { const i = sel.index; setSlotData((cur) => ({ ...cur, [i]: zoomSlot(cur[i], slots[i], W, H, Number(e.target.value)) })); }} />
             <div className="flex flex-wrap gap-2">
-              <button className="rounded-full bg-white px-4 py-2 text-sm" onClick={() => pickSlot(sel.index)}>Đổi ảnh</button>
-              <button className="rounded-full bg-pink-100 px-4 py-2 text-sm text-pink-500" onClick={removeSelected}>Xoá ảnh</button>
+              <button className="chip" onClick={() => pickSlot(sel.index)}>Đổi ảnh</button>
+              <button className="chip !border-hot-500 !text-hot-700" onClick={removeSelected}>Xoá ảnh</button>
             </div>
           </div>
         )}
 
         {selectedEl && (
-          <div className="pop-sm space-y-3 rounded-3xl bg-matcha-100 p-4">
+          <div className="space-y-3 rounded-[18px] bg-lime-100 p-4">
             {selectedEl.kind === "text" && (
               <>
                 <textarea className="field" rows={2} value={selectedEl.text} onChange={(e) => updateEl(selectedEl.id, { text: e.target.value })} />
@@ -468,40 +470,40 @@ export function Designer({ ref, spec, width, template, extraTools, active = true
                 <div className="flex flex-wrap items-center gap-2">
                   {COLORS.map((c) => (
                     <button key={c} aria-label={c} onClick={() => updateEl(selectedEl.id, { fill: c })}
-                      className={`h-8 w-8 rounded-full border-2 ${selectedEl.fill === c ? "border-pink-500 ring-2 ring-pink-300" : "border-cocoa-700"}`} style={{ background: c }} />
+                      className={`h-8 w-8 rounded-full border-2 border-ink-900 ${selectedEl.fill === c ? "ring-4 ring-violet-500" : ""}`} style={{ background: c }} />
                   ))}
                   <input type="color" value={selectedEl.fill} onChange={(e) => updateEl(selectedEl.id, { fill: e.target.value })} className="h-8 w-10" aria-label="Màu khác" />
                 </div>
-                <label className="block text-sm">Cỡ chữ
+                <label className="block text-sm font-semibold text-ink-900">Cỡ chữ
                   <input type="range" min={Math.round(H * 0.015)} max={Math.round(Math.min(W, H) * 0.3)} value={selectedEl.fontSize}
-                    onChange={(e) => updateEl(selectedEl.id, { fontSize: Number(e.target.value) })} className="w-full accent-pink-400" />
+                    onChange={(e) => updateEl(selectedEl.id, { fontSize: Number(e.target.value) })} className="w-full accent-violet-500" />
                 </label>
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" className="h-5 w-5" checked={!!selectedEl.outline} onChange={(e) => updateEl(selectedEl.id, { outline: e.target.checked })} /> Viền trắng quanh chữ
+                  <input type="checkbox" className="h-5 w-5 accent-violet-500" checked={!!selectedEl.outline} onChange={(e) => updateEl(selectedEl.id, { outline: e.target.checked })} /> Viền trắng quanh chữ
                 </label>
               </>
             )}
-            <p className="text-xs text-cocoa-500">Kéo để di chuyển · kéo góc để phóng to · kéo nút tròn phía trên để xoay.</p>
+            <p className="text-xs">Kéo để di chuyển · kéo góc để phóng to · kéo nút tròn phía trên để xoay.</p>
             <div className="flex flex-wrap gap-2">
-              <button className="rounded-full bg-white px-4 py-2 text-sm" onClick={() => moveLayer(1)}>Đưa lên trên</button>
-              <button className="rounded-full bg-white px-4 py-2 text-sm" onClick={() => moveLayer(-1)}>Đưa xuống dưới</button>
-              <button className="rounded-full bg-white px-4 py-2 text-sm" onClick={() => updateEl(selectedEl.id, { rotation: 0, scaleX: 1, scaleY: 1 })}>Bỏ xoay</button>
-              <button className="rounded-full bg-pink-100 px-4 py-2 text-sm text-pink-500" onClick={removeSelected}>Xoá</button>
+              <button className="chip" onClick={() => moveLayer(1)}>Đưa lên trên</button>
+              <button className="chip" onClick={() => moveLayer(-1)}>Đưa xuống dưới</button>
+              <button className="chip" onClick={() => updateEl(selectedEl.id, { rotation: 0, scaleX: 1, scaleY: 1 })}>Bỏ xoay</button>
+              <button className="chip !border-hot-500 !text-hot-700" onClick={removeSelected}>Xoá</button>
             </div>
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="text-sm">Màu nền:</span>
+        <div className="flex flex-wrap items-center justify-center gap-2 border-t border-ink-100 pt-4">
+          <span className="text-sm font-semibold text-ink-900">Màu nền:</span>
           {BG_COLORS.map((c) => (
             <button key={c} aria-label={`Nền ${c}`} onClick={() => setBgColor(c)}
-              className={`h-7 w-7 rounded-full border-2 ${bgColor === c ? "border-pink-500 ring-2 ring-pink-300" : "border-cocoa-700"}`} style={{ background: c }} />
+              className={`h-7 w-7 rounded-full border-2 border-ink-900 ${bgColor === c ? "ring-4 ring-violet-500" : ""}`} style={{ background: c }} />
           ))}
           <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="h-7 w-9" aria-label="Màu nền khác" />
         </div>
         <label className="flex items-center justify-center gap-2 text-sm">
-          <input type="checkbox" className="h-5 w-5" checked={guides} onChange={(e) => setGuides(e.target.checked)} />
-          Hiện đường cắt & vùng an toàn <span className="text-xs text-cocoa-400">(không in ra)</span>
+          <input type="checkbox" className="h-5 w-5 accent-violet-500" checked={guides} onChange={(e) => setGuides(e.target.checked)} />
+          Hiện đường cắt & vùng an toàn <span className="text-xs text-ink-500">(không in ra)</span>
         </label>
       </div>
     </div>

@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
-import { CdIcon } from "@/components/decor/Icons";
 
 export function LoginForm() {
   const router = useRouter();
@@ -40,10 +39,10 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="pop stitch w-full max-w-sm rounded-[2rem] bg-cream-50 px-6 py-8">
-      <CdIcon className="mx-auto mb-2 h-16 w-16 animate-spin-slow" />
-      <h1 className="text-center text-3xl">Quản trị Taylana</h1>
-      <p className="mb-6 text-center text-sm text-cocoa-400">Chỉ dành cho chủ tiệm</p>
+    <form onSubmit={onSubmit} className="panel w-full max-w-sm px-6 py-8">
+      <p className="mb-2 text-center font-display text-5xl text-ink-900">TAYLANA</p>
+      <h1 className="text-center text-2xl">Quản trị</h1>
+      <p className="mb-6 text-center text-sm text-ink-500">Chỉ dành cho chủ tiệm</p>
 
       <label className="mb-1 block text-sm font-medium" htmlFor="email">Email</label>
       <input id="email" type="email" autoComplete="email" required className="field mb-4"
@@ -53,9 +52,9 @@ export function LoginForm() {
       <input id="password" type="password" autoComplete="current-password" required className="field mb-4"
         value={password} onChange={(e) => setPassword(e.target.value)} />
 
-      {error && <p className="mb-4 rounded-xl bg-pink-100 px-3 py-2 text-sm text-pink-500">{error}</p>}
+      {error && <p className="mb-4 rounded-xl bg-hot-100 px-3 py-2 text-sm text-hot-500">{error}</p>}
 
-      <button type="submit" disabled={loading} className="btn w-full bg-pink-300">
+      <button type="submit" disabled={loading} className="btn w-full">
         {loading ? "Đang đăng nhập..." : "Đăng nhập"}
       </button>
     </form>

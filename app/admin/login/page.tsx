@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="grid min-h-dvh place-items-center px-4">
       <div className="w-full max-w-sm">
-        {problem && <p className="pop-sm mb-4 rounded-2xl bg-butter-100 p-3 text-sm break-words">⚠ {problem}</p>}
+        {problem && <p className="pop-sm mb-4 rounded-2xl bg-violet-100 p-3 text-sm break-words">⚠ {problem}</p>}
         <LoginForm />
       </div>
     </main>

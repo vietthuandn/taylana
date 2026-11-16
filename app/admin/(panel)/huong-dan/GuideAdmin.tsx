@@ -78,7 +78,7 @@ export function GuideAdmin() {
   return (
     <>
       <div className="mb-3 flex justify-end">
-        <button className="btn bg-pink-200 !min-h-10 !text-base" onClick={() => setEditing({ ...empty })}>+ Thêm mục</button>
+        <button className="btn btn-sm" onClick={() => setEditing({ ...empty })}>+ Thêm mục</button>
       </div>
       <div className="mb-3"><Message msg={msg} /></div>
       {editing && !editing.id && <Editor draft={editing} onCancel={() => setEditing(null)} onSave={save} />}
@@ -97,8 +97,8 @@ export function GuideAdmin() {
                   {!s.is_active && <Badge tone="pink">Đang ẩn</Badge>}
                 </p>
               </div>
-              <button className="rounded-full bg-matcha-200 px-3 py-1 text-sm" onClick={() => setEditing({ ...s })}>Sửa</button>
-              <button className="rounded-full bg-pink-100 px-3 py-1 text-sm text-pink-500" onClick={() => remove(s)}>Xoá</button>
+              <button className="rounded-full bg-lime-300 px-3 py-1 text-sm" onClick={() => setEditing({ ...s })}>Sửa</button>
+              <button className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500" onClick={() => remove(s)}>Xoá</button>
             </li>
           ),
         )}
@@ -114,7 +114,7 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
   const setLink = (i: number, v: Partial<Draft["links"][number]>) => setD({ ...d, links: d.links.map((x, j) => (j === i ? { ...x, ...v } : x)) });
 
   return (
-    <form className="pop mb-4 space-y-4 rounded-3xl bg-butter-100 p-4"
+    <form className="pop mb-4 space-y-4 rounded-3xl bg-violet-100 p-4"
       onSubmit={async (e) => { e.preventDefault(); setSaving(true); await onSave(d); setSaving(false); }}>
       <Field label="Tiêu đề *"><input className="field" required value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} /></Field>
       <Field label="Nội dung" hint="Xuống dòng sẽ được giữ nguyên. Dán link https://... sẽ tự bấm được.">
@@ -132,7 +132,7 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
               </Field>
               <SortButtons first={i === 0} last={i === d.images.length - 1}
                 onUp={() => setD({ ...d, images: moveItem(d.images, i, -1) })} onDown={() => setD({ ...d, images: moveItem(d.images, i, 1) })} />
-              <button type="button" className="rounded-full bg-pink-100 px-3 py-1 text-sm text-pink-500"
+              <button type="button" className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500"
                 onClick={() => setD({ ...d, images: d.images.filter((_, j) => j !== i) })}>Bỏ</button>
             </div>
           ))}
@@ -147,7 +147,7 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
             <div key={i} className="grid gap-2 rounded-2xl bg-cream-50 p-3 sm:grid-cols-[1fr_2fr_auto]">
               <input className="field" placeholder="Chữ trên nút, vd: Template Canva" value={l.label} onChange={(e) => setLink(i, { label: e.target.value })} />
               <input className="field" placeholder="https://www.canva.com/..." value={l.url} onChange={(e) => setLink(i, { url: e.target.value })} />
-              <button type="button" className="rounded-full bg-pink-100 px-3 py-1 text-sm text-pink-500"
+              <button type="button" className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500"
                 onClick={() => setD({ ...d, links: d.links.filter((_, j) => j !== i) })}>Bỏ</button>
             </div>
           ))}
@@ -157,8 +157,8 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
 
       <Toggle checked={d.is_active} onChange={(v) => setD({ ...d, is_active: v })} label="Hiện trên web" />
       <div className="flex gap-2">
-        <button className="btn bg-pink-300 !min-h-10 !text-base" disabled={saving}>{saving ? "Đang lưu..." : "Lưu"}</button>
-        <button type="button" className="btn bg-cream-50 !min-h-10 !text-base" onClick={onCancel}>Huỷ</button>
+        <button className="btn btn-sm" disabled={saving}>{saving ? "Đang lưu..." : "Lưu"}</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Huỷ</button>
       </div>
     </form>
   );

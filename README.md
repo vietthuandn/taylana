@@ -8,8 +8,10 @@ Web của Tiệm In Taylana. Dùng Next.js 16, Tailwind CSS 4 và Supabase.
 |---|---|
 | `app/(site)/` | Các trang cho khách (trang chủ, đặt đơn, nộp file...) |
 | `app/admin/` | Trang quản trị (`/admin`) |
-| `app/globals.css` | **Bảng màu và font**. Muốn đổi màu thì sửa khối `@theme` |
-| `components/decor/` | Hoạ tiết SVG vẽ tay (CD, nốt nhạc, sao, hoa) và viền ren |
+| `app/globals.css` | **Bảng màu, font và kiểu nút/thẻ/ô nhập**. Muốn đổi màu thì sửa khối `@theme` |
+| `components/ui/` | Component dùng chung: `Button`, `Card`, `SectionTitle`, `Accordion`, `Stat`, `Shapes` (khung lượn sóng `WavyFrame`, bông hoa 4 cánh `FlowerBadge`, `Sparkle`, `CdDisc`, `WavyLine`) |
+| `components/decor/` | Icon nét đậm cho 6 dịch vụ |
+| `lib/faq.ts` | Nội dung "Câu hỏi thường gặp" trên trang chủ |
 | `lib/supabase/` | Kết nối Supabase |
 | `supabase/schema.sql` | Toàn bộ database, quyền truy cập và kho file |
 

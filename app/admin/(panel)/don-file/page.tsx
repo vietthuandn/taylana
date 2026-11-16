@@ -46,14 +46,14 @@ export default async function CleanupPage() {
       <section className="pop mb-8 rounded-3xl bg-cream-50 p-5">
         <h2 className="text-xl">Dung lượng Storage đang dùng</h2>
         {usageErr ? (
-          <p className="text-pink-500">{usageErr.message}</p>
+          <p className="text-hot-500">{usageErr.message}</p>
         ) : (
           <>
-            <p className="mt-1"><b className="font-display text-2xl">{formatBytes(total)}</b> <span className="text-sm text-cocoa-400">/ {formatBytes(QUOTA)} (gói Free)</span></p>
-            <div className="mt-2 h-4 overflow-hidden rounded-full border-2 border-cocoa-700 bg-white">
-              <div className={`h-full ${pct > 80 ? "bg-pink-400" : "bg-matcha-300"}`} style={{ width: `${pct}%` }} />
+            <p className="mt-1"><b className="font-display text-2xl">{formatBytes(total)}</b> <span className="text-sm text-ink-500">/ {formatBytes(QUOTA)} (gói Free)</span></p>
+            <div className="mt-2 h-4 overflow-hidden rounded-full border-2 border-ink-900 bg-white">
+              <div className={`h-full ${pct > 80 ? "bg-violet-500" : "bg-lime-500"}`} style={{ width: `${pct}%` }} />
             </div>
-            <ul className="mt-3 text-sm text-cocoa-500">
+            <ul className="mt-3 text-sm text-ink-600">
               {rows.map((r) => (
                 <li key={r.bucket}>
                   {r.bucket === "order-files" ? "File khách nộp" : r.bucket === "public-assets" ? "Ảnh trên web" : r.bucket}:{" "}
@@ -66,8 +66,8 @@ export default async function CleanupPage() {
       </section>
 
       <h2 className="mb-1 text-2xl">File của đơn đã giao</h2>
-      <p className="mb-4 text-sm text-cocoa-500">Sau khi xoá, đơn hàng vẫn còn nhưng file gốc sẽ mất hẳn — hãy chắc là đã in xong.</p>
-      {filesErr && <p className="text-pink-500">{filesErr.message}</p>}
+      <p className="mb-4 text-sm text-ink-600">Sau khi xoá, đơn hàng vẫn còn nhưng file gốc sẽ mất hẳn — hãy chắc là đã in xong.</p>
+      {filesErr && <p className="text-hot-500">{filesErr.message}</p>}
       <CleanupList orders={orders} />
     </div>
   );

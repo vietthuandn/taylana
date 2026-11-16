@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import { publicClient } from "@/lib/supabase/public";
 import type { Addon, Package } from "@/lib/types";
-import { PageTitle } from "@/components/site/PageTitle";
+import { PageHeader } from "@/components/ui/SectionTitle";
 import { OrderForm } from "./OrderForm";
 
 export const metadata = { title: "Đặt đơn" };
@@ -21,8 +22,10 @@ export default async function OrderPage() {
 
   return (
     <>
-      <PageTitle title="Đặt đơn" subtitle="Chọn gói CD bạn thích, thêm phụ kiện xinh xắn rồi gửi đơn cho tiệm nhé ♡" />
-      <OrderForm packages={packages} addons={addons} />
+      <PageHeader eyebrow="3 bước đơn giản" title="Đặt đơn" subtitle="Chọn gói CD, thêm phụ kiện rồi gửi đơn — tiệm sẽ liên hệ xác nhận qua Zalo/SĐT." />
+      <Suspense>
+        <OrderForm packages={packages} addons={addons} />
+      </Suspense>
     </>
   );
 }

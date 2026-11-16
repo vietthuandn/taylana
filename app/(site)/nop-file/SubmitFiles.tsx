@@ -19,7 +19,7 @@ type Slot = {
   count: number; // số lần đã gửi cho ô này
 };
 
-const levelStyle = { ok: "bg-matcha-100 text-matcha-500", warn: "bg-butter-100 text-cocoa-600", bad: "bg-pink-100 text-pink-500" };
+const levelStyle = { ok: "bg-lime-100 text-ink-900", warn: "bg-violet-100 text-violet-700", bad: "bg-hot-100 text-hot-700" };
 
 export function SubmitFiles({ initialCode }: { initialCode: string }) {
   const [query, setQuery] = useState(initialCode);
@@ -100,13 +100,13 @@ export function SubmitFiles({ initialCode }: { initialCode: string }) {
   if (!order) {
     return (
       <form onSubmit={(e) => { e.preventDefault(); find(); }}
-        className="pop stitch mx-auto max-w-md rounded-[2rem] bg-cream-50 px-5 py-8 text-center">
-        <h2 className="text-2xl">Bước 1: Tìm đơn của bạn</h2>
-        <p className="mb-4 mt-1 text-sm text-cocoa-500">Nhập mã đơn (ví dụ TL-261116-AB12) hoặc số điện thoại đã đặt.</p>
+        className="panel mx-4 max-w-md px-5 py-8 text-center sm:mx-auto">
+        <h2 className="text-3xl">Bước 1: Tìm đơn của bạn</h2>
+        <p className="mb-4 mt-1 text-sm text-ink-600">Nhập mã đơn (ví dụ TL-261116-AB12) hoặc số điện thoại đã đặt.</p>
         <input className="field text-center" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Mã đơn hoặc SĐT" autoFocus />
-        {findErr && <p className="mt-3 rounded-xl bg-pink-100 px-3 py-2 text-sm text-pink-500">{findErr}</p>}
-        <button className="btn mt-4 w-full bg-pink-300" disabled={finding}>{finding ? "Đang tìm..." : "Tiếp tục →"}</button>
-        <p className="mt-4 text-xs text-cocoa-400">Chưa có đơn? <Link className="underline" href="/dat-don">Đặt đơn tại đây</Link></p>
+        {findErr && <p className="mt-3 rounded-[16px] bg-hot-100 px-3 py-2 text-sm font-semibold text-hot-700">{findErr}</p>}
+        <button className="btn mt-4 w-full" disabled={finding}>{finding ? "Đang tìm..." : "Tiếp tục →"}</button>
+        <p className="mt-4 text-xs text-ink-500">Chưa có đơn? <Link className="underline" href="/dat-don">Đặt đơn tại đây</Link></p>
       </form>
     );
   }
@@ -116,18 +116,18 @@ export function SubmitFiles({ initialCode }: { initialCode: string }) {
 
   return (
     <div className="mx-auto max-w-5xl px-4">
-      <div className="pop-sm mb-6 flex flex-wrap items-center justify-between gap-3 rounded-3xl bg-matcha-100 px-5 py-3">
-        <p>Đang nộp file cho đơn <b className="font-display text-xl">{order.code}</b></p>
-        <button className="text-sm underline" onClick={() => { setOrder(null); setSlots({}); }}>Đổi đơn khác</button>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-full bg-lime-500 px-6 py-3 text-ink-900">
+        <p>Đang nộp file cho đơn <b className="font-display text-2xl">{order.code}</b></p>
+        <button className="text-sm font-semibold underline" onClick={() => { setOrder(null); setSlots({}); }}>Đổi đơn khác</button>
       </div>
 
-      <div className="mb-6 rounded-3xl bg-cream-50 p-4 text-sm text-cocoa-600">
+      <div className="panel mb-8 p-5 text-sm">
         <p>• Chỉ cần nộp những phần có trong gói của bạn. Nhận file <b>JPG, PNG, PDF</b>, tối đa <b>30MB</b>/file — tiệm lưu nguyên file gốc, không nén.</p>
         <p>• Nộp lại một ô thì tiệm sẽ dùng file mới nhất. Xem kích thước chuẩn ở <Link href="/huong-dan" className="underline">Hướng dẫn làm file</Link>.</p>
         <div className="mt-3"><GuideLegend /></div>
       </div>
 
-      <h2 className="mb-4 text-2xl">Bước 2: Tải file hình ảnh</h2>
+      <h2 className="mb-5 text-3xl sm:text-4xl">Bước 2: Tải file hình ảnh</h2>
       <div className="grid gap-6 md:grid-cols-3">
         <UploadCard spec={SPECS.front} slot={slots.front} onFile={(f) => handleFile("front", SPECS.front, f)}>
           {(src, pdf) => <CaseFront spec={SPECS.front} src={src} isPdf={pdf} />}
@@ -144,11 +144,11 @@ export function SubmitFiles({ initialCode }: { initialCode: string }) {
 
       <section className="mt-10">
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <h3 className="text-xl">Booklet</h3>
+          <h3 className="text-2xl">Booklet</h3>
           <div className="flex flex-wrap gap-2">
             {[0, 4, 8, 12].map((n) => (
               <button key={n} onClick={() => setPages(n)}
-                className={`pop-sm rounded-full px-4 py-1.5 font-display ${pages === n ? "bg-pink-300" : "bg-cream-50"}`}>
+                aria-pressed={pages === n} className="chip">
                 {n ? `${n} trang` : "Không có"}
               </button>
             ))}
@@ -156,7 +156,7 @@ export function SubmitFiles({ initialCode }: { initialCode: string }) {
         </div>
         {pages > 0 && (
           <>
-            <p className="mb-3 text-sm text-cocoa-500">
+            <p className="mb-3 text-sm text-ink-600">
               Mỗi trang {sizeText(SPECS.booklet)} ({mmToPx(SPECS.booklet.w)} x {mmToPx(SPECS.booklet.h)} px). Trang 1 là bìa booklet.
               <label className="ml-2 cursor-pointer underline">
                 Chọn nhiều trang một lúc
@@ -178,16 +178,16 @@ export function SubmitFiles({ initialCode }: { initialCode: string }) {
 
       <MusicLink orderId={order.id} />
 
-      <div className="pop mt-10 rounded-[2rem] bg-pink-100 px-5 py-6 text-center">
+      <div className="mt-12 rounded-[28px] bg-violet-500 px-5 py-8 text-center text-white">
         {busy ? (
-          <p className="font-display text-xl">Đang tải file lên, bạn đừng đóng trang nhé...</p>
+          <p className="font-display text-2xl uppercase text-white">Đang tải file lên, bạn đừng đóng trang nhé...</p>
         ) : doneCount ? (
           <>
-            <p className="font-display text-2xl">Tiệm đã nhận {doneCount} file ✿</p>
-            <p className="mt-1 text-sm text-cocoa-500">Tiệm sẽ kiểm tra và nhắn bạn qua Zalo nếu cần chỉnh sửa. Cảm ơn bạn!</p>
+            <p className="font-display text-4xl uppercase text-white">Tiệm đã nhận {doneCount} file!</p>
+            <p className="mt-1 text-sm text-white/85">Tiệm sẽ kiểm tra và nhắn bạn qua Zalo nếu cần chỉnh sửa. Cảm ơn bạn!</p>
           </>
         ) : (
-          <p className="text-cocoa-500">Chưa có file nào được gửi.</p>
+          <p className="text-white/85">Chưa có file nào được gửi.</p>
         )}
       </div>
     </div>
@@ -201,25 +201,25 @@ function UploadCard({ spec, slot, onFile, children, note, title, compact }: {
 }) {
   const isPdf = slot?.file?.type === "application/pdf";
   return (
-    <div className={`pop flex flex-col rounded-[2rem] bg-cream-50 ${compact ? "p-3" : "p-4"}`}>
+    <div className={`card flex flex-col ${compact ? "p-3" : "p-4"}`}>
       {!compact && (
         <div className="mb-3">
-          <h3 className="text-xl">{title ?? spec.label}</h3>
-          <p className="text-xs text-cocoa-400">{sizeText(spec)} · {mmToPx(spec.w)} x {mmToPx(spec.h)} px</p>
+          <h3 className="text-2xl">{title ?? spec.label}</h3>
+          <p className="text-xs text-ink-500">{sizeText(spec)} · {mmToPx(spec.w)} x {mmToPx(spec.h)} px</p>
         </div>
       )}
       <div className={compact ? "mb-3 mt-2" : "mb-3 px-2"}>{children(slot?.preview, isPdf)}</div>
-      {note && !compact && <p className="mb-2 text-xs text-cocoa-400">{note}</p>}
+      {note && !compact && <p className="mb-2 text-xs text-ink-500">{note}</p>}
 
       {slot?.check && slot.status !== "error" && (
-        <ul className={`mb-2 space-y-1 rounded-xl px-3 py-2 text-xs ${levelStyle[slot.check.level]}`}>
+        <ul className={`mb-2 space-y-1 rounded-[14px] px-3 py-2 text-xs font-semibold ${levelStyle[slot.check.level]}`}>
           {slot.check.messages.map((m) => <li key={m}>{m}</li>)}
         </ul>
       )}
-      {slot?.error && <p className="mb-2 rounded-xl bg-pink-100 px-3 py-2 text-xs text-pink-500">{slot.error}</p>}
-      {slot?.file && <p className="mb-2 truncate text-xs text-cocoa-400">{slot.file.name} · {formatBytes(slot.file.size)}</p>}
+      {slot?.error && <p className="mb-2 rounded-xl bg-hot-100 px-3 py-2 text-xs text-hot-500">{slot.error}</p>}
+      {slot?.file && <p className="mb-2 truncate text-xs text-ink-500">{slot.file.name} · {formatBytes(slot.file.size)}</p>}
 
-      <label className={`btn mt-auto cursor-pointer !text-base ${slot?.status === "done" ? "bg-matcha-200" : "bg-pink-200"} ${compact ? "!min-h-10 !px-3 !text-sm" : ""}`}>
+      <label className={`btn mt-auto cursor-pointer ${slot?.status === "done" ? "btn-lime" : ""} ${compact ? "btn-sm" : ""}`}>
         {slot?.status === "uploading" ? "Đang gửi..." : slot?.status === "done" ? "✓ Đã gửi · Đổi file" : compact ? "Chọn file" : `Chọn file ${spec.label.toLowerCase()}`}
         <input type="file" accept="image/jpeg,image/png,application/pdf" className="sr-only" disabled={slot?.status === "uploading"}
           onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
@@ -234,8 +234,8 @@ function MusicLink({ orderId }: { orderId: string }) {
   const [err, setErr] = useState("");
   return (
     <section className="mt-10">
-      <h2 className="mb-2 text-2xl">Bước 3: Link file nhạc</h2>
-      <form className="pop-sm rounded-3xl bg-cream-50 p-4"
+      <h2 className="mb-4 text-3xl sm:text-4xl">Bước 3: Link file nhạc</h2>
+      <form className="panel p-5"
         onSubmit={async (e) => {
           e.preventDefault();
           if (!/^https?:\/\//i.test(link.trim())) { setState("error"); setErr("Link cần bắt đầu bằng https://"); return; }
@@ -243,16 +243,16 @@ function MusicLink({ orderId }: { orderId: string }) {
           const { error } = await createClient().rpc("set_order_music_link", { p_order_id: orderId, p_link: link.trim() });
           if (error) { setState("error"); setErr(error.message); } else setState("saved");
         }}>
-        <p className="mb-3 text-sm text-cocoa-500">
+        <p className="mb-3 text-sm text-ink-600">
           Tải file nhạc lên Google Drive, bấm <b>Chia sẻ → Bất kỳ ai có đường liên kết</b>, rồi dán link vào đây (không upload nhạc lên web).
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <input className="field" type="url" inputMode="url" placeholder="https://drive.google.com/..." value={link}
             onChange={(e) => { setLink(e.target.value); setState(""); }} />
-          <button className="btn shrink-0 bg-matcha-200" disabled={state === "saving"}>{state === "saving" ? "Đang lưu..." : "Lưu link"}</button>
+          <button className="btn shrink-0" disabled={state === "saving"}>{state === "saving" ? "Đang lưu..." : "Lưu link"}</button>
         </div>
-        {state === "saved" && <p className="mt-2 text-sm text-matcha-500">✓ Đã lưu link nhạc</p>}
-        {state === "error" && <p className="mt-2 text-sm text-pink-500">{err}</p>}
+        {state === "saved" && <p className="mt-2 text-sm text-lime-700">✓ Đã lưu link nhạc</p>}
+        {state === "error" && <p className="mt-2 text-sm text-hot-500">{err}</p>}
       </form>
     </section>
   );

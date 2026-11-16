@@ -69,19 +69,19 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-cocoa-700/50 sm:place-items-center" role="dialog" aria-modal>
+    <div className="fixed inset-0 z-50 grid place-items-end bg-ink-900/50 sm:place-items-center" role="dialog" aria-modal>
       <div className="pop max-h-[92dvh] w-full overflow-auto rounded-t-[2rem] bg-cream-50 p-5 sm:max-w-lg sm:rounded-[2rem]">
         {done ? (
           <div className="py-4 text-center">
             <h2 className="text-3xl">Tiệm đã nhận đơn! ✿</h2>
-            <p className="mt-2 text-cocoa-500">Mã đơn của bạn:</p>
+            <p className="mt-2 text-ink-600">Mã đơn của bạn:</p>
             <p className="pop-sm mx-auto mt-2 inline-block rounded-2xl bg-white px-5 py-2 font-display text-3xl">{done.code}</p>
-            <p className="mt-3 text-sm text-cocoa-500">Đã gửi {done.files} file thiết kế. Tiệm sẽ nhắn bạn qua Zalo/SĐT để xác nhận và báo giá.</p>
+            <p className="mt-3 text-sm text-ink-600">Đã gửi {done.files} file thiết kế. Tiệm sẽ nhắn bạn qua Zalo/SĐT để xác nhận và báo giá.</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {orderType === "custom_cd" && (
-                <Link href={`/nop-file?ma=${encodeURIComponent(done.code)}`} className="btn bg-pink-300 !text-base">Gửi link nhạc / file khác →</Link>
+                <Link href={`/nop-file?ma=${encodeURIComponent(done.code)}`} className="btn !text-base">Gửi link nhạc / file khác →</Link>
               )}
-              <button className="btn bg-cream-50 !text-base" onClick={onClose}>Đóng</button>
+              <button className="btn btn-ghost !text-base" onClick={onClose}>Đóng</button>
             </div>
           </div>
         ) : (
@@ -106,7 +106,7 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
                 <input className="field" type="number" min={1} max={500} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
               </label>
             )}
-            {pkg && <p className="text-sm">Tạm tính: <b className="text-pink-500">{formatVND(pkg.price * qty)}</b></p>}
+            {pkg && <p className="text-sm">Tạm tính: <b className="text-hot-500">{formatVND(pkg.price * qty)}</b></p>}
 
             <label className="block">
               <span className="mb-1 block text-sm font-medium">Tên của bạn *</span>
@@ -125,8 +125,8 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
               <textarea className="field" rows={2} maxLength={1800} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
             </label>
 
-            {error && <p className="rounded-xl bg-pink-100 px-3 py-2 text-sm text-pink-500">{error}</p>}
-            <button type="submit" className="btn w-full bg-pink-300" disabled={!!step}>{step || "Gửi đơn ♡"}</button>
+            {error && <p className="rounded-xl bg-hot-100 px-3 py-2 text-sm text-hot-500">{error}</p>}
+            <button type="submit" className="btn w-full" disabled={!!step}>{step || "Gửi đơn ♡"}</button>
           </form>
         )}
       </div>

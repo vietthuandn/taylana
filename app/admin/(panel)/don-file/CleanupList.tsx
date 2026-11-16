@@ -57,15 +57,15 @@ export function CleanupList({ orders }: { orders: CleanupOrder[] }) {
   const old = orders.filter((o) => o.delivered_at && new Date(o.delivered_at).getTime() < cutoff);
   const picked = orders.filter((o) => selected.has(o.id));
 
-  if (!orders.length) return <p className="text-cocoa-400">Không có đơn đã giao nào còn file. Gọn gàng quá! ✿</p>;
+  if (!orders.length) return <p className="text-ink-500">Không có đơn đã giao nào còn file. Gọn gàng quá! ✿</p>;
 
   return (
     <div>
-      <div className="pop-sm mb-4 flex flex-wrap items-center gap-2 rounded-3xl bg-butter-100 p-4">
+      <div className="pop-sm mb-4 flex flex-wrap items-center gap-2 rounded-3xl bg-violet-100 p-4">
         <span>Xoá file của đơn đã giao quá</span>
         <input type="number" min={0} className="field !w-20 !min-h-10 text-center" value={days} onChange={(e) => setDays(Math.max(0, Number(e.target.value)))} />
         <span>ngày</span>
-        <button className="btn bg-pink-300 !min-h-10 !text-base" disabled={!!busy} onClick={() => cleanup(old)}>
+        <button className="btn btn-sm" disabled={!!busy} onClick={() => cleanup(old)}>
           Xoá ({old.length} đơn)
         </button>
       </div>
@@ -76,7 +76,7 @@ export function CleanupList({ orders }: { orders: CleanupOrder[] }) {
             onChange={(e) => setSelected(e.target.checked ? new Set(orders.map((o) => o.id)) : new Set())} />
           Chọn tất cả
         </label>
-        <button className="btn bg-pink-200 !min-h-10 !text-base" disabled={!picked.length || !!busy} onClick={() => cleanup(picked)}>
+        <button className="btn btn-sm" disabled={!picked.length || !!busy} onClick={() => cleanup(picked)}>
           Xoá file đã chọn ({picked.length})
         </button>
       </div>
@@ -86,11 +86,11 @@ export function CleanupList({ orders }: { orders: CleanupOrder[] }) {
       <ul className="space-y-2">
         {orders.map((o) => (
           <li key={o.id}>
-            <label className={`pop-sm flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 ${selected.has(o.id) ? "bg-pink-100" : "bg-cream-50"}`}>
+            <label className={`pop-sm flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 ${selected.has(o.id) ? "bg-hot-100" : "bg-cream-50"}`}>
               <input type="checkbox" className="h-5 w-5 shrink-0" checked={selected.has(o.id)} onChange={() => toggle(o.id)} />
               <span className="min-w-0 flex-1">
                 <Link href={`/admin/don-hang/${o.id}`} className="font-display text-lg underline-offset-2 hover:underline">{o.code}</Link>
-                <span className="block truncate text-xs text-cocoa-400">{o.customer_name} · giao {formatDate(o.delivered_at, false)}</span>
+                <span className="block truncate text-xs text-ink-500">{o.customer_name} · giao {formatDate(o.delivered_at, false)}</span>
               </span>
               <span className="shrink-0 text-right text-sm">{o.count} file<br /><b>{formatBytes(o.bytes)}</b></span>
             </label>

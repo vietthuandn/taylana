@@ -13,7 +13,7 @@ export function AdminNav() {
         const active = l.href === "/admin" ? path === "/admin" : path.startsWith(l.href);
         if (l.soon) {
           return (
-            <span key={l.href} className="shrink-0 cursor-default rounded-full px-3 py-2 text-sm text-cocoa-400" title="Giai đoạn sau">
+            <span key={l.href} className="shrink-0 cursor-default rounded-full px-3 py-2 text-sm text-white/40" title="Giai đoạn sau">
               {l.label} <small>· sắp có</small>
             </span>
           );
@@ -22,7 +22,7 @@ export function AdminNav() {
           <Link
             key={l.href}
             href={l.href}
-            className={`shrink-0 rounded-full px-3 py-2 text-sm font-medium ${active ? "bg-cream-50 pop-sm" : "hover:bg-pink-100"}`}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${active ? "bg-lime-500 text-ink-900" : "text-white/85 hover:bg-white/10"}`}
           >
             {l.label}
           </Link>

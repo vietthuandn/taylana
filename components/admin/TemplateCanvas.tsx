@@ -52,8 +52,8 @@ export function TemplateCanvas({ spec, width, overlay, background, bgColor, slot
         {ov && <KImage image={ov} width={W} height={H} opacity={overlayOpacity} listening={false} />}
         {isDisc && (
           <Group listening={false}>
-            <Circle x={W / 2} y={W / 2} radius={W / 2} stroke="#4b3329" strokeWidth={1.5} />
-            <Circle x={W / 2} y={W / 2} radius={(spec.hole! / 2 / spec.w) * W} fill="#fff8ec" stroke="#4b3329" strokeWidth={1} />
+            <Circle x={W / 2} y={W / 2} radius={W / 2} stroke="#141414" strokeWidth={1.5} />
+            <Circle x={W / 2} y={W / 2} radius={(spec.hole! / 2 / spec.w) * W} fill="#f7f0e6" stroke="#141414" strokeWidth={1} />
           </Group>
         )}
 
@@ -80,8 +80,8 @@ export function TemplateCanvas({ spec, width, overlay, background, bgColor, slot
                 update(s.id, { x: n.x() / W, y: n.y() / H, w: (n2.width() * sx) / W, h: (n2.height() * sy) / H });
               }
             },
-            fill: s.id === selectedId ? "rgba(243,155,180,0.55)" : "rgba(166,195,127,0.45)",
-            stroke: "#4b3329", strokeWidth: 1.5, dash: [6, 4],
+            fill: s.id === selectedId ? "rgba(123,104,238,0.45)" : "rgba(200,224,60,0.5)",
+            stroke: "#141414", strokeWidth: 1.5, dash: [6, 4],
           };
           return (
             <Group key={s.id}>
@@ -90,12 +90,12 @@ export function TemplateCanvas({ spec, width, overlay, background, bgColor, slot
               ) : (
                 <Rect {...common} x={s.x * W} y={s.y * H} width={s.w * W} height={s.h * H} />
               )}
-              <Text listening={false} text={String(i + 1)} x={s.x * W + 4} y={s.y * H + 4} fontSize={16} fontFamily="Itim" fill="#4b3329" />
+              <Text listening={false} text={String(i + 1)} x={s.x * W + 4} y={s.y * H + 4} fontSize={16} fontFamily="Itim" fill="#141414" />
             </Group>
           );
         })}
         <Transformer ref={trRef} rotateEnabled={false} keepRatio={false} anchorSize={12} anchorCornerRadius={6}
-          borderStroke="#e2789b" anchorStroke="#e2789b" ignoreStroke
+          borderStroke="#7b68ee" anchorStroke="#7b68ee" ignoreStroke
           boundBoxFunc={(oldB, newB) => (newB.width < 12 || newB.height < 12 ? oldB : newB)} />
       </Layer>
     </Stage>

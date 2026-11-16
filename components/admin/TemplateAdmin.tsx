@@ -96,10 +96,10 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
   return (
     <>
       <div className="mb-3 flex justify-end">
-        <button className="btn bg-pink-200 !min-h-10 !text-base" onClick={() => setEditing(blank())}>+ Tạo mẫu mới</button>
+        <button className="btn btn-sm" onClick={() => setEditing(blank())}>+ Tạo mẫu mới</button>
       </div>
       <div className="mb-3"><Message msg={msg} /></div>
-      {!rows.length && <p className="text-cocoa-400">Chưa có mẫu nào.{mode === "strip" ? " Khách đang dùng 2 khung trắng mặc định (3 và 4 ảnh)." : ""}</p>}
+      {!rows.length && <p className="text-ink-500">Chưa có mẫu nào.{mode === "strip" ? " Khách đang dùng 2 khung trắng mặc định (3 và 4 ảnh)." : ""}</p>}
       <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         {rows.map((r, i) => {
           const spec = specOf(mode, r);
@@ -118,9 +118,9 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
               <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
                 <SortButtons first={i === 0} last={i === rows.length - 1} onUp={() => move(i, -1)} onDown={() => move(i, 1)} />
                 <span className="flex gap-1">
-                  <button className="rounded-full bg-matcha-200 px-2 py-0.5 text-xs" onClick={() => setEditing({ ...r })}>Sửa</button>
+                  <button className="rounded-full bg-lime-300 px-2 py-0.5 text-xs" onClick={() => setEditing({ ...r })}>Sửa</button>
                   <button className="rounded-full bg-cream-200 px-2 py-0.5 text-xs" onClick={() => toggle(r)}>{r.is_active ? "Ẩn" : "Hiện"}</button>
-                  <button className="rounded-full bg-pink-100 px-2 py-0.5 text-xs text-pink-500" onClick={() => remove(r)}>Xoá</button>
+                  <button className="rounded-full bg-hot-100 px-2 py-0.5 text-xs text-hot-500" onClick={() => remove(r)}>Xoá</button>
                 </span>
               </div>
             </li>
@@ -155,7 +155,7 @@ function Editor({ mode, folder, row, onCancel, onSave }: { mode: Mode; folder: s
   }
 
   return (
-    <div className="pop rounded-3xl bg-butter-100 p-4">
+    <div className="pop rounded-3xl bg-violet-100 p-4">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl">{r.id ? "Sửa mẫu" : "Mẫu mới"}</h2>
         <button className="text-sm underline" onClick={onCancel}>← Quay lại danh sách</button>
@@ -169,18 +169,18 @@ function Editor({ mode, folder, row, onCancel, onSave }: { mode: Mode; folder: s
               slots={r.slots} onChange={(slots) => setR({ ...r, slots })} selectedId={sel} onSelect={setSel} overlayOpacity={opacity} />
           </div>
           <div className="mt-3 flex flex-wrap justify-center gap-2">
-            <button className="btn bg-cream-50 !min-h-10 !text-base" onClick={() => addSlot("rect")}>＋ Ô chữ nhật</button>
-            <button className="btn bg-cream-50 !min-h-10 !text-base" onClick={() => addSlot("circle")}>＋ Ô tròn</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => addSlot("rect")}>＋ Ô chữ nhật</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => addSlot("circle")}>＋ Ô tròn</button>
             {mode === "strip" && (
-              <button className="btn bg-cream-50 !min-h-10 !text-base" onClick={() => setR({ ...r, slots: stripSlots(r.slot_count ?? 4) })}>Chia ô tự động</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setR({ ...r, slots: stripSlots(r.slot_count ?? 4) })}>Chia ô tự động</button>
             )}
           </div>
           {r.overlay_url && (
             <label className="mt-3 block text-center text-xs">Độ hiện của khung khi chỉnh
-              <input type="range" min={0} max={1} step={0.05} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full accent-pink-400" />
+              <input type="range" min={0} max={1} step={0.05} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full accent-violet-500" />
             </label>
           )}
-          <p className="mt-2 text-center text-xs text-cocoa-500">Kéo ô để di chuyển · kéo góc để đổi kích thước. Ô màu hồng là ô đang chọn.</p>
+          <p className="mt-2 text-center text-xs text-ink-600">Kéo ô để di chuyển · kéo góc để đổi kích thước. Ô màu hồng là ô đang chọn.</p>
         </div>
 
         {/* ---------- Thông tin ---------- */}
@@ -234,21 +234,21 @@ function Editor({ mode, folder, row, onCancel, onSave }: { mode: Mode; folder: s
                   const c = { ...selected, id: newSlotId(), x: Math.min(selected.x + 0.04, 1 - selected.w), y: Math.min(selected.y + 0.04, 1 - selected.h) };
                   setR({ ...r, slots: [...r.slots, c] }); setSel(c.id);
                 }}>Nhân đôi</button>
-                <button className="rounded-full bg-pink-100 px-3 py-1 text-sm text-pink-500" onClick={() => { setR({ ...r, slots: r.slots.filter((s) => s.id !== sel) }); setSel(null); }}>Xoá ô</button>
+                <button className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500" onClick={() => { setR({ ...r, slots: r.slots.filter((s) => s.id !== sel) }); setSel(null); }}>Xoá ô</button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-cocoa-500">Bấm vào một ô trên canvas để chỉnh số đo hoặc xoá.</p>
+            <p className="text-sm text-ink-600">Bấm vào một ô trên canvas để chỉnh số đo hoặc xoá.</p>
           )}
 
           {mode === "strip" && r.slots.length !== r.slot_count && (
-            <p className="rounded-xl bg-pink-100 px-3 py-2 text-xs text-pink-500">Khung {r.slot_count} ảnh nhưng đang có {r.slots.length} ô.</p>
+            <p className="rounded-xl bg-hot-100 px-3 py-2 text-xs text-hot-500">Khung {r.slot_count} ảnh nhưng đang có {r.slots.length} ô.</p>
           )}
           <Toggle checked={r.is_active} onChange={(v) => setR({ ...r, is_active: v })} label="Hiện cho khách" />
           <div className="flex gap-2">
-            <button className="btn bg-pink-300 !min-h-10 !text-base" disabled={saving}
+            <button className="btn btn-sm" disabled={saving}
               onClick={async () => { setSaving(true); await onSave(r); setSaving(false); }}>{saving ? "Đang lưu..." : "Lưu mẫu"}</button>
-            <button className="btn bg-cream-50 !min-h-10 !text-base" onClick={onCancel}>Huỷ</button>
+            <button className="btn btn-ghost btn-sm" onClick={onCancel}>Huỷ</button>
           </div>
         </div>
       </div>

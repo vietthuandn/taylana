@@ -24,7 +24,7 @@ export function PrintArea({ spec, src, isPdf, bg = "var(--color-cream-50)", guid
         <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : (
         <div className="absolute inset-0 grid place-items-center bg-[repeating-linear-gradient(45deg,var(--color-cream-200)_0_8px,var(--color-cream-100)_8px_16px)] p-2 text-center">
-          <span className="font-display text-sm text-cocoa-400">
+          <span className="font-display text-sm text-ink-500">
             {isPdf ? "📄 File PDF\n(không xem trước được)" : (placeholder ?? spec.label)}
           </span>
         </div>
@@ -33,7 +33,7 @@ export function PrintArea({ spec, src, isPdf, bg = "var(--color-cream-50)", guid
       <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
         <defs>
           <pattern id={id} width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <rect width="3" height="3" fill="rgb(243 155 180 / 0.55)" />
+            <rect width="3" height="3" fill="rgb(255 95 162 / 0.5)" />
             <line x1="0" y1="0" x2="0" y2="3" stroke="rgb(255 255 255 / 0.7)" strokeWidth="1" />
           </pattern>
         </defs>
@@ -52,8 +52,8 @@ export function PrintArea({ spec, src, isPdf, bg = "var(--color-cream-50)", guid
                 <circle cx={r} cy={r} r={spec.hub! / 2 + 2} fill="none" stroke="#fff" strokeWidth="0.6" strokeDasharray="2 1.5" />
               </>
             )}
-            <circle cx={r} cy={r} r={spec.hole! / 2} fill={bg} stroke="rgb(75 51 41 / 0.4)" strokeWidth="0.5" />
-            <circle cx={r} cy={r} r={r - 0.3} fill="none" stroke="rgb(75 51 41 / 0.35)" strokeWidth="0.6" />
+            <circle cx={r} cy={r} r={spec.hole! / 2} fill={bg} stroke="rgb(20 20 20 / 0.4)" strokeWidth="0.5" />
+            <circle cx={r} cy={r} r={r - 0.3} fill="none" stroke="rgb(20 20 20 / 0.35)" strokeWidth="0.6" />
           </>
         ) : (
           guides && (
@@ -64,8 +64,8 @@ export function PrintArea({ spec, src, isPdf, bg = "var(--color-cream-50)", guid
                 stroke="#fff" strokeWidth="0.6" strokeDasharray="2 1.5" vectorEffect="non-scaling-stroke" />
               {spec.spine && (
                 <>
-                  <rect x={0} y={0} width={spec.spine} height={h} fill="rgb(75 51 41 / 0.18)" />
-                  <rect x={w - spec.spine} y={0} width={spec.spine} height={h} fill="rgb(75 51 41 / 0.18)" />
+                  <rect x={0} y={0} width={spec.spine} height={h} fill="rgb(20 20 20 / 0.18)" />
+                  <rect x={w - spec.spine} y={0} width={spec.spine} height={h} fill="rgb(20 20 20 / 0.18)" />
                   <line x1={spec.spine} y1={0} x2={spec.spine} y2={h} stroke="#fff" strokeWidth="0.5" strokeDasharray="1.5 1" />
                   <line x1={w - spec.spine} y1={0} x2={w - spec.spine} y2={h} stroke="#fff" strokeWidth="0.5" strokeDasharray="1.5 1" />
                 </>
@@ -81,7 +81,7 @@ export function PrintArea({ spec, src, isPdf, bg = "var(--color-cream-50)", guid
 // Hộp CD nhìn từ trước: khung nhựa trong + bản lề bên trái + ánh bóng
 export function CaseFront(props: AreaProps) {
   return (
-    <div className="relative rounded-md bg-gradient-to-br from-white to-cream-200 p-[5%] pl-[11%] shadow-[0_10px_25px_rgb(75_51_41/0.25)] ring-2 ring-cocoa-700/70">
+    <div className="relative rounded-md bg-gradient-to-br from-white to-cream-200 p-[5%] pl-[11%] shadow-[0_10px_25px_rgb(75_51_41/0.25)] ring-2 ring-ink-900/70">
       <div className="absolute inset-y-[3%] left-[2.5%] w-[5%] rounded-sm bg-[repeating-linear-gradient(0deg,#e8ddd0_0_4px,#f8f2ea_4px_8px)]" />
       <PrintArea {...props} />
       <div className="pointer-events-none absolute inset-0 rounded-md bg-[linear-gradient(120deg,rgb(255_255_255/0.45)_0%,transparent_35%,transparent_70%,rgb(255_255_255/0.25)_100%)]" />
@@ -92,7 +92,7 @@ export function CaseFront(props: AreaProps) {
 // Bìa sau (khay đĩa): có 2 gáy gập ở 2 bên
 export function CaseBack(props: AreaProps) {
   return (
-    <div className="relative rounded-md bg-gradient-to-br from-white to-cream-200 p-[4%] shadow-[0_10px_25px_rgb(75_51_41/0.25)] ring-2 ring-cocoa-700/70">
+    <div className="relative rounded-md bg-gradient-to-br from-white to-cream-200 p-[4%] shadow-[0_10px_25px_rgb(75_51_41/0.25)] ring-2 ring-ink-900/70">
       <PrintArea {...props} />
       <div className="pointer-events-none absolute inset-0 rounded-md bg-[linear-gradient(120deg,rgb(255_255_255/0.4)_0%,transparent_35%)]" />
     </div>
@@ -110,11 +110,11 @@ export function Disc(props: AreaProps) {
 
 export function BookletPage({ pageNo, ...props }: AreaProps & { pageNo: number }) {
   return (
-    <div className="relative bg-white p-[3%] shadow-[0_6px_14px_rgb(75_51_41/0.2)] ring-1 ring-cocoa-700/40">
+    <div className="relative bg-white p-[3%] shadow-[0_6px_14px_rgb(75_51_41/0.2)] ring-1 ring-ink-900/40">
       <PrintArea {...props} />
       {/* bóng nếp gấp bên trái */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-[8%] bg-gradient-to-r from-cocoa-700/20 to-transparent" />
-      <span className="absolute -top-2 left-2 rounded-full bg-butter-200 px-2 text-[10px] font-bold">
+      <div className="pointer-events-none absolute inset-y-0 left-0 w-[8%] bg-gradient-to-r from-ink-900/20 to-transparent" />
+      <span className="absolute -top-2 left-2 rounded-full bg-lime-300 px-2 text-[10px] font-bold">
         {pageNo === 1 ? "Trang 1 · Bìa" : `Trang ${pageNo}`}
       </span>
     </div>
@@ -123,15 +123,15 @@ export function BookletPage({ pageNo, ...props }: AreaProps & { pageNo: number }
 
 export function GuideLegend() {
   return (
-    <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-cocoa-500">
+    <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-ink-600">
       <span className="flex items-center gap-1">
-        <span className="h-3 w-5 rounded-sm bg-[repeating-linear-gradient(45deg,#f39bb4_0_3px,#fff_3px_4px)]" /> Mép có thể bị cắt
+        <span className="h-3 w-5 rounded-sm bg-[repeating-linear-gradient(45deg,#ff5fa2_0_3px,#fff_3px_4px)]" /> Mép có thể bị cắt
       </span>
       <span className="flex items-center gap-1">
-        <span className="h-3 w-5 rounded-sm border-2 border-dashed border-cocoa-400" /> Vùng an toàn (để chữ bên trong)
+        <span className="h-3 w-5 rounded-sm border-2 border-dashed border-ink-500" /> Vùng an toàn (để chữ bên trong)
       </span>
       <span className="flex items-center gap-1">
-        <span className="h-3 w-5 rounded-sm bg-cocoa-700/20" /> Gáy hộp (bìa sau)
+        <span className="h-3 w-5 rounded-sm bg-ink-900/20" /> Gáy hộp (bìa sau)
       </span>
     </div>
   );

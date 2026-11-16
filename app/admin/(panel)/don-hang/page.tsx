@@ -44,7 +44,7 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
       <div className="mb-4 flex flex-wrap gap-2">
         {["", "new", "in_progress", "delivered"].map((s) => (
           <Link key={s || "all"} href={link({ status: s })}
-            className={`pop-sm rounded-full px-4 py-1.5 text-sm font-medium ${status === s ? "bg-pink-300" : "bg-cream-50"}`}>
+            className={`pop-sm rounded-full px-4 py-1.5 text-sm font-medium ${status === s ? "bg-lime-500" : "bg-cream-50"}`}>
             {s ? statusLabels[s] : "Tất cả"}
           </Link>
         ))}
@@ -53,33 +53,33 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
       <form className="mb-5 flex gap-2" action="/admin/don-hang">
         {status && <input type="hidden" name="status" value={status} />}
         <input name="q" defaultValue={q} placeholder="Tìm mã đơn, SĐT, tên..." className="field" />
-        <button className="btn bg-matcha-200 !min-h-12 shrink-0">Tìm</button>
+        <button className="btn !min-h-12 shrink-0">Tìm</button>
       </form>
 
-      {error && <p className="text-pink-500">{error.message}</p>}
-      <p className="mb-2 text-sm text-cocoa-400">{count ?? 0} đơn</p>
+      {error && <p className="text-hot-500">{error.message}</p>}
+      <p className="mb-2 text-sm text-ink-500">{count ?? 0} đơn</p>
 
       <ul className="space-y-2">
         {orders.map((o) => (
           <li key={o.id}>
-            <Link href={`/admin/don-hang/${o.id}`} className="pop-sm flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl bg-cream-50 px-4 py-3 hover:bg-pink-100">
+            <Link href={`/admin/don-hang/${o.id}`} className="pop-sm flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl bg-cream-50 px-4 py-3 hover:bg-hot-100">
               <span className="font-display text-lg">{o.code}</span>
               <Badge tone={tones[o.status]}>{statusLabels[o.status]}</Badge>
               {o.order_type !== "cd" && <Badge>{orderTypeLabels[o.order_type]}</Badge>}
               <span className="min-w-0 flex-1 truncate text-sm">{o.customer_name} · {o.phone}</span>
-              <span className="text-sm font-bold text-pink-500">{formatVND(o.total)}</span>
-              <span className="w-full text-xs text-cocoa-400 sm:w-auto">{formatDate(o.created_at)}</span>
+              <span className="text-sm font-bold text-hot-500">{formatVND(o.total)}</span>
+              <span className="w-full text-xs text-ink-500 sm:w-auto">{formatDate(o.created_at)}</span>
             </Link>
           </li>
         ))}
-        {!orders.length && <li className="text-cocoa-400">Không có đơn nào.</li>}
+        {!orders.length && <li className="text-ink-500">Không có đơn nào.</li>}
       </ul>
 
       {pages > 1 && (
         <div className="mt-6 flex items-center justify-center gap-3">
-          {page > 1 && <Link className="btn bg-cream-50 !min-h-10 !text-base" href={link({ page: page - 1 })}>← Trước</Link>}
+          {page > 1 && <Link className="btn btn-ghost btn-sm" href={link({ page: page - 1 })}>← Trước</Link>}
           <span className="text-sm">Trang {page}/{pages}</span>
-          {page < pages && <Link className="btn bg-cream-50 !min-h-10 !text-base" href={link({ page: page + 1 })}>Sau →</Link>}
+          {page < pages && <Link className="btn btn-ghost btn-sm" href={link({ page: page + 1 })}>Sau →</Link>}
         </div>
       )}
     </div>

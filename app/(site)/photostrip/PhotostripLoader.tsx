@@ -1,12 +1,12 @@
 "use client";
 import dynamic from "next/dynamic";
-import { FilmIcon } from "@/components/decor/Icons";
+import { CdDisc } from "@/components/ui/Shapes";
 
 export const PhotostripLoader = dynamic(() => import("./PhotostripEditor").then((m) => m.PhotostripEditor), {
   ssr: false,
   loading: () => (
-    <div className="py-16 text-center text-cocoa-500">
-      <FilmIcon className="mx-auto mb-3 h-16 w-16 animate-wiggle" /> Đang mở bàn thiết kế...
+    <div className="py-16 text-center font-semibold text-ink-900">
+      <CdDisc spin className="mx-auto mb-4 w-20" /> Đang mở bàn thiết kế...
     </div>
   ),
 });

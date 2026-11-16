@@ -50,12 +50,12 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4">
+    <div className="mx-auto max-w-5xl px-4">
       {/* Chọn phần đang thiết kế */}
-      <div className="mb-5 flex justify-center gap-2">
+      <div className="mb-6 flex justify-center gap-2">
         {PARTS.map((p) => (
           <button key={p} onClick={() => setPart(p)}
-            className={`pop-sm rounded-full px-4 py-2 font-display text-lg ${part === p ? "bg-pink-300" : "bg-cream-50"}`}>
+            aria-pressed={part === p} className="chip !px-5 !text-base">
             {targetLabels[p]}
           </button>
         ))}
@@ -68,20 +68,21 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
         const tpl = list.find((t) => t.id === chosen[p]) ?? null;
         return (
           <section key={p} className={p === part ? "" : "hidden"}>
-            <p className="mb-3 text-center text-sm text-cocoa-500">
+            <p className="mb-4 text-center text-sm font-semibold text-ink-900">
               {spec.label} · {sizeText(spec)}{p === "back" ? " (gồm 2 gáy hộp ở hai bên)" : ""}{p === "disc" ? " · hình tròn có lỗ giữa" : ""}
             </p>
 
             {/* Chọn mẫu */}
-            <div className="mb-5 flex gap-3 overflow-x-auto pb-2">
+            <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-900">Chọn mẫu</p>
+            <div className="no-scrollbar mb-6 flex gap-3 overflow-x-auto pb-2">
               <button onClick={() => setChosen({ ...chosen, [p]: "" })}
-                className={`pop-sm w-24 shrink-0 rounded-2xl p-2 text-center text-xs ${!tpl ? "bg-pink-200" : "bg-cream-50"}`}>
-                <div className={`mb-1 grid aspect-square place-items-center bg-white text-2xl ${p === "disc" ? "rounded-full" : "rounded-md"}`}>✎</div>
+                className={`w-24 shrink-0 rounded-[16px] border-2 bg-white p-2 text-center text-xs font-semibold text-ink-900 ${!tpl ? "border-ink-900 bg-lime-500" : "border-ink-100"}`}>
+                <div className={`mb-1 grid aspect-square place-items-center bg-cream-100 text-2xl ${p === "disc" ? "rounded-full" : "rounded-md"}`}>✎</div>
                 Tự do
               </button>
               {list.map((t) => (
                 <button key={t.id} onClick={() => setChosen({ ...chosen, [p]: t.id })}
-                  className={`pop-sm w-24 shrink-0 rounded-2xl p-2 text-center text-xs ${tpl?.id === t.id ? "bg-pink-200" : "bg-cream-50"}`}>
+                  className={`w-24 shrink-0 rounded-[16px] border-2 bg-white p-2 text-center text-xs font-semibold text-ink-900 ${tpl?.id === t.id ? "border-ink-900 bg-lime-500" : "border-ink-100"}`}>
                   <div className="mb-1">
                     <TemplateThumb ratio={spec.w / spec.h} slots={t.slots} overlay={t.overlay_url} background={t.background_url} disc={p === "disc"} />
                   </div>
@@ -96,15 +97,15 @@ export function CustomCdEditor({ templates, packages }: { templates: DesignTempl
       })}
       </div>
 
-      <div className="pop mx-auto mt-8 max-w-xl rounded-[2rem] bg-pink-100 p-5 text-center">
-        <p className="font-display text-xl">Xong rồi thì...</p>
+      <div className="mx-auto mt-10 max-w-xl rounded-[28px] bg-violet-500 p-6 text-center text-white">
+        <p className="font-display text-3xl uppercase text-white">Xong rồi thì...</p>
         <div className="mt-3 flex flex-wrap justify-center gap-2">
-          <button className="btn bg-cream-50 !text-base" disabled={busy} onClick={() => download([part])}>Tải {targetLabels[part].toLowerCase()}</button>
-          <button className="btn bg-cream-50 !text-base" disabled={busy} onClick={() => download(PARTS)}>Tải cả 3 phần</button>
-          <button className="btn bg-pink-300 !text-base" disabled={busy} onClick={() => setOrdering(true)}>Gửi kèm đơn ♡</button>
+          <button className="btn btn-ghost !border-white !text-white hover:!bg-white hover:!text-ink-900" disabled={busy} onClick={() => download([part])}>Tải {targetLabels[part].toLowerCase()}</button>
+          <button className="btn btn-ghost !border-white !text-white hover:!bg-white hover:!text-ink-900" disabled={busy} onClick={() => download(PARTS)}>Tải cả 3 phần</button>
+          <button className="btn btn-lime" disabled={busy} onClick={() => setOrdering(true)}>Gửi kèm đơn →</button>
         </div>
         {msg && <p className="mt-3 text-sm">{msg}</p>}
-        <p className="mt-3 text-xs text-cocoa-500">File xuất PNG 300 DPI đúng khổ in, không có đường cắt.</p>
+        <p className="mt-3 text-xs text-white/80">File xuất PNG 300 DPI đúng khổ in, không có đường cắt.</p>
       </div>
 
       {ordering && (

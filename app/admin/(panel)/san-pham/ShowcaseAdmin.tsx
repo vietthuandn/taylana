@@ -83,19 +83,19 @@ export function ShowcaseAdmin() {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-2xl">Ảnh sản phẩm (showcase)</h2>
         <div className="flex gap-2">
-          <label className="btn cursor-pointer bg-matcha-200 !min-h-10 !text-base">
+          <label className="btn cursor-pointer btn-sm">
             {bulk || "Tải nhiều ảnh"}
             <input type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={!!bulk}
               onChange={(e) => { if (e.target.files?.length) bulkUpload(e.target.files); e.target.value = ""; }} />
           </label>
-          <button className="btn bg-pink-200 !min-h-10 !text-base" onClick={() => setEditing({ ...empty, category: categories[0] ?? "CD" })}>+ Thêm</button>
+          <button className="btn btn-sm" onClick={() => setEditing({ ...empty, category: categories[0] ?? "CD" })}>+ Thêm</button>
         </div>
       </div>
       <div className="mb-3"><Message msg={msg} /></div>
       <datalist id="showcase-cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
 
       {editing && (
-        <form className="pop mb-4 grid gap-4 rounded-3xl bg-butter-100 p-4 sm:grid-cols-2"
+        <form className="pop mb-4 grid gap-4 rounded-3xl bg-violet-100 p-4 sm:grid-cols-2"
           onSubmit={(e) => { e.preventDefault(); save(editing); }}>
           <ImageInput value={editing.image_url} onChange={(u) => setEditing({ ...editing, image_url: u })} folder="showcase" label="Ảnh *" />
           <div className="flex items-center"><Toggle checked={editing.is_active} onChange={(v) => setEditing({ ...editing, is_active: v })} label="Hiện trên web" /></div>
@@ -107,8 +107,8 @@ export function ShowcaseAdmin() {
             <textarea className="field" rows={2} value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} />
           </Field>
           <div className="flex gap-2 sm:col-span-2">
-            <button className="btn bg-pink-300 !min-h-10 !text-base">Lưu</button>
-            <button type="button" className="btn bg-cream-50 !min-h-10 !text-base" onClick={() => setEditing(null)}>Huỷ</button>
+            <button className="btn btn-sm">Lưu</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>Huỷ</button>
           </div>
         </form>
       )}
@@ -124,15 +124,15 @@ export function ShowcaseAdmin() {
               <div className="flex items-center justify-between">
                 <SortButtons first={i === 0} last={i === items.length - 1} onUp={() => move(i, -1)} onDown={() => move(i, 1)} />
                 <span className="flex gap-1">
-                  <button className="rounded-full bg-matcha-200 px-2 py-0.5 text-xs" onClick={() => setEditing({ ...it })}>Sửa</button>
-                  <button className="rounded-full bg-pink-100 px-2 py-0.5 text-xs text-pink-500" onClick={() => remove(it)}>Xoá</button>
+                  <button className="rounded-full bg-lime-300 px-2 py-0.5 text-xs" onClick={() => setEditing({ ...it })}>Sửa</button>
+                  <button className="rounded-full bg-hot-100 px-2 py-0.5 text-xs text-hot-500" onClick={() => remove(it)}>Xoá</button>
                 </span>
               </div>
             </div>
           </li>
         ))}
       </ul>
-      {!items.length && <p className="text-cocoa-400">Chưa có ảnh sản phẩm nào.</p>}
+      {!items.length && <p className="text-ink-500">Chưa có ảnh sản phẩm nào.</p>}
     </section>
   );
 }

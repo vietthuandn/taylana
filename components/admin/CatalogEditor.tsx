@@ -92,16 +92,16 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
     <section className="mb-10">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-2xl">{title}</h2>
-        <button className="btn bg-pink-200 !min-h-10 !text-base" onClick={() => setEditing({ ...empty })}>+ Thêm</button>
+        <button className="btn btn-sm" onClick={() => setEditing({ ...empty })}>+ Thêm</button>
       </div>
       <div className="mb-3"><Message msg={msg} /></div>
 
       {editing && !editing.id && <Editor row={editing} withFeatures={withFeatures} folder={table} onCancel={() => setEditing(null)} onSave={save} />}
 
       {loading ? (
-        <p className="text-cocoa-400">Đang tải...</p>
+        <p className="text-ink-500">Đang tải...</p>
       ) : rows.length === 0 ? (
-        <p className="text-cocoa-400">Chưa có mục nào.</p>
+        <p className="text-ink-500">Chưa có mục nào.</p>
       ) : (
         <ul className="space-y-3">
           {rows.map((r, i) =>
@@ -119,14 +119,14 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-display text-lg">{r.name}</p>
                   <p className="text-sm">
-                    <b className="text-pink-500">{formatVND(r.price)}</b>{" "}
+                    <b className="text-hot-500">{formatVND(r.price)}</b>{" "}
                     {!r.is_active && <Badge>Đang ẩn</Badge>}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col gap-1 sm:flex-row">
-                  <button className="rounded-full bg-matcha-200 px-3 py-1 text-sm" onClick={() => setEditing({ ...r })}>Sửa</button>
+                  <button className="rounded-full bg-lime-300 px-3 py-1 text-sm" onClick={() => setEditing({ ...r })}>Sửa</button>
                   <button className="rounded-full bg-cream-200 px-3 py-1 text-sm" onClick={() => quickToggle(r)}>{r.is_active ? "Ẩn" : "Hiện"}</button>
-                  <button className="rounded-full bg-pink-100 px-3 py-1 text-sm text-pink-500" onClick={() => remove(r)}>Xoá</button>
+                  <button className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500" onClick={() => remove(r)}>Xoá</button>
                 </div>
               </li>
             ),
@@ -144,7 +144,7 @@ function Editor({ row, withFeatures, folder, onCancel, onSave }: { row: Row; wit
 
   return (
     <form
-      className="pop mb-3 grid gap-4 rounded-3xl bg-butter-100 p-4 sm:grid-cols-2"
+      className="pop mb-3 grid gap-4 rounded-3xl bg-violet-100 p-4 sm:grid-cols-2"
       onSubmit={async (e) => {
         e.preventDefault();
         setSaving(true);
@@ -168,8 +168,8 @@ function Editor({ row, withFeatures, folder, onCancel, onSave }: { row: Row; wit
       <ImageInput value={r.image_url} onChange={(url) => setR({ ...r, image_url: url })} folder={folder} label="Ảnh mẫu" />
       <div className="flex items-center"><Toggle checked={r.is_active} onChange={(v) => setR({ ...r, is_active: v })} label="Hiện trên web" /></div>
       <div className="flex gap-2 sm:col-span-2">
-        <button type="submit" className="btn bg-pink-300 !min-h-10 !text-base" disabled={saving}>{saving ? "Đang lưu..." : "Lưu"}</button>
-        <button type="button" className="btn bg-cream-50 !min-h-10 !text-base" onClick={onCancel}>Huỷ</button>
+        <button type="submit" className="btn btn-sm" disabled={saving}>{saving ? "Đang lưu..." : "Lưu"}</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Huỷ</button>
       </div>
     </form>
   );

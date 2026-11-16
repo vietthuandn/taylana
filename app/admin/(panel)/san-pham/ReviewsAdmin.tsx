@@ -59,7 +59,7 @@ export function ReviewsAdmin() {
     <section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-2xl">Đánh giá</h2>
-        <button className="btn bg-pink-200 !min-h-10 !text-base"
+        <button className="btn btn-sm"
           onClick={() => setEditing({ customer_name: "", rating: 5, content: "", image_url: null, is_approved: true })}>
           + Tự thêm đánh giá
         </button>
@@ -67,13 +67,13 @@ export function ReviewsAdmin() {
       <div className="mb-3 flex flex-wrap gap-2">
         {([["pending", `Chờ duyệt (${pendingCount})`], ["approved", "Đã duyệt"], ["all", "Tất cả"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)}
-            className={`pop-sm rounded-full px-4 py-1.5 text-sm ${filter === k ? "bg-pink-300" : "bg-cream-50"}`}>{l}</button>
+            className={`pop-sm rounded-full px-4 py-1.5 text-sm ${filter === k ? "bg-lime-500" : "bg-cream-50"}`}>{l}</button>
         ))}
       </div>
       <div className="mb-3"><Message msg={msg} /></div>
 
       {editing && (
-        <form className="pop mb-4 grid gap-4 rounded-3xl bg-butter-100 p-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); save(editing); }}>
+        <form className="pop mb-4 grid gap-4 rounded-3xl bg-violet-100 p-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); save(editing); }}>
           <Field label="Tên khách *"><input className="field" required maxLength={80} value={editing.customer_name} onChange={(e) => setEditing({ ...editing, customer_name: e.target.value })} /></Field>
           <Field label="Số sao">
             <select className="field" value={editing.rating} onChange={(e) => setEditing({ ...editing, rating: Number(e.target.value) })}>
@@ -89,8 +89,8 @@ export function ReviewsAdmin() {
             Hiện trên web
           </label>
           <div className="flex gap-2 sm:col-span-2">
-            <button className="btn bg-pink-300 !min-h-10 !text-base">Lưu</button>
-            <button type="button" className="btn bg-cream-50 !min-h-10 !text-base" onClick={() => setEditing(null)}>Huỷ</button>
+            <button className="btn btn-sm">Lưu</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>Huỷ</button>
           </div>
         </form>
       )}
@@ -108,20 +108,20 @@ export function ReviewsAdmin() {
                 {r.is_approved ? <Badge tone="matcha">Đang hiện</Badge> : <Badge tone="pink">Chờ duyệt</Badge>}
               </p>
               <p className="whitespace-pre-line text-sm">{r.content}</p>
-              <p className="text-xs text-cocoa-400">{formatDate(r.created_at)}</p>
+              <p className="text-xs text-ink-500">{formatDate(r.created_at)}</p>
               <div className="mt-2 flex flex-wrap gap-1">
                 {r.is_approved ? (
                   <button className="rounded-full bg-cream-200 px-3 py-1 text-xs" onClick={() => setApproved(r, false)}>Ẩn</button>
                 ) : (
-                  <button className="rounded-full bg-matcha-300 px-3 py-1 text-xs font-bold" onClick={() => setApproved(r, true)}>✓ Duyệt</button>
+                  <button className="rounded-full bg-lime-500 px-3 py-1 text-xs font-bold" onClick={() => setApproved(r, true)}>✓ Duyệt</button>
                 )}
-                <button className="rounded-full bg-matcha-100 px-3 py-1 text-xs" onClick={() => setEditing({ ...r })}>Sửa</button>
-                <button className="rounded-full bg-pink-100 px-3 py-1 text-xs text-pink-500" onClick={() => remove(r)}>Xoá</button>
+                <button className="rounded-full bg-lime-100 px-3 py-1 text-xs" onClick={() => setEditing({ ...r })}>Sửa</button>
+                <button className="rounded-full bg-hot-100 px-3 py-1 text-xs text-hot-500" onClick={() => remove(r)}>Xoá</button>
               </div>
             </div>
           </li>
         ))}
-        {!shown.length && <li className="text-cocoa-400">Không có đánh giá nào.</li>}
+        {!shown.length && <li className="text-ink-500">Không có đánh giá nào.</li>}
       </ul>
     </section>
   );
