@@ -639,3 +639,23 @@ alter table public.design_templates add column if not exists doc jsonb;
 alter table public.design_templates drop constraint if exists design_templates_target_check;
 alter table public.design_templates add constraint design_templates_target_check
   check (target in ('front', 'back', 'back_outer', 'back_inner', 'disc'));
+
+-- ====== (Gộp từ supabase/migration_package_presets.sql) ======
+alter table public.packages add column if not exists has_disc boolean not null default true;
+alter table public.packages add column if not exists front_pages integer not null default 0;
+alter table public.packages add column if not exists back_pages integer not null default 0;
+alter table public.packages drop constraint if exists packages_front_pages_check;
+alter table public.packages add constraint packages_front_pages_check check (front_pages in (0, 1, 2, 4, 8, 12));
+alter table public.packages drop constraint if exists packages_back_pages_check;
+alter table public.packages add constraint packages_back_pages_check check (back_pages in (0, 1, 2));
+
+-- Điền sẵn preset cho các gói hiện có (theo tên gói)
+update public.packages set has_disc = true, front_pages = 0, back_pages = 0
+  where name ilike 'CD lẻ%' or name ilike 'CD + Hộp%' or name ilike 'CD + hộp%';
+update public.packages set has_disc = true, front_pages = 1, back_pages = 1
+  where name ilike '%2 bìa 1 mặt%' or name ilike 'Combo bìa trước & sau%';
+update public.packages set has_disc = true, front_pages = 2, back_pages = 2
+  where name ilike '%2 bìa 2 mặt%';
+update public.packages set has_disc = true, front_pages = 4, back_pages = 2 where name ilike '%booklet 4%';
+update public.packages set has_disc = true, front_pages = 8, back_pages = 2 where name ilike '%booklet 8%';
+update public.packages set has_disc = true, front_pages = 12, back_pages = 2 where name ilike '%booklet 12%';

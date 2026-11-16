@@ -212,10 +212,13 @@ function Guides({ spec, W, H, s }: { spec: PrintSpec; W: number; H: number; s: n
 }
 
 type Sel = { page: number; id: string; type: "el" | "frame" | "tplText" } | null;
+// Bộ nhớ copy dùng chung mọi trang (Ctrl+C / Ctrl+V)
+let clipboard: El | null = null;
+const MENU_W = 236;
 
 // ================================================================
 export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view = "all", viewport, active, interactive = true,
-  toolbarTarget, caption, guides, zones, onZoneClick, tray, onSnapshot, uploadImage, spreadDoc, onSpreadChange }: {
+  toolbarTarget, caption, guides, zones, onZoneClick, tray, onSnapshot, uploadImage, spreadDoc, onSpreadChange, onToggleGuides, reserveTop = 0 }: {
   ref?: React.Ref<CdDesignerHandle>;
   spec: PrintSpec;
   mode?: "customer" | "template";
@@ -236,6 +239,8 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   // Trải đôi: artwork của cả cặp trang (1 vùng liền, toạ độ trên 2 trang) — chỉ cắt ở mép ngoài
   spreadDoc?: PageDoc;
   onSpreadChange?: (d: PageDoc) => void;
+  onToggleGuides?: () => void; // menu chuột phải: Hiển thị/Ẩn guideline
+  reserveTop?: number; // chừa chỗ phía trên (nút nổi) khi "Vừa màn hình"
 }) {
   const W1 = mmToPx(spec.w), H = mmToPx(spec.h);
   const spread = pages.length === 2;
@@ -284,9 +289,9 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   const regionX = view === "R" ? W1 : 0;
   const regionW = view === "all" ? W : W1;
   const reserveB = 44;
-  const fit = Math.max(0.01, Math.min((viewport.w - 48) / regionW, (viewport.h - 32 - reserveB) / H));
+  const fit = Math.max(0.01, Math.min((viewport.w - 48) / regionW, (viewport.h - 32 - reserveB - reserveTop) / H));
   const s = fit * zoom;
-  const centerPos = (sc: number) => ({ x: viewport.w / 2 - (regionX + regionW / 2) * sc, y: (viewport.h - reserveB) / 2 - (H / 2) * sc + 8 });
+  const centerPos = (sc: number) => ({ x: viewport.w / 2 - (regionX + regionW / 2) * sc, y: reserveTop + (viewport.h - reserveB - reserveTop) / 2 - (H / 2) * sc + 8 });
   const p = pos ?? centerPos(s);
   const fitScreen = useCallback(() => { setZoom(1); setPos(null); }, []);
   useEffect(() => { if (active) fitScreen(); }, [active, view, fitScreen]);
@@ -361,13 +366,82 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
     if (sel.type === "tplText") upd(sel.page, (d) => { const t = { ...d.texts }; delete t[sel.id]; return { ...d, texts: t }; });
     setSel(null); setAdjust(null);
   }
+  // ---------- Thao tác phần tử (menu chuột phải & phím tắt) ----------
+  const [menu, setMenu] = useState<{ x: number; y: number; onEl: boolean } | null>(null);
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia("(min-width: 768px)");
+    const f = () => setDesktop(m.matches);
+    f();
+    m.addEventListener("change", f);
+    return () => m.removeEventListener("change", f);
+  }, []);
+  const OFFSET = mmToPx(5) * (W1 / mmToPx(spec.w)); // lệch 5mm
+  function duplicate() {
+    if (!sel || sel.type !== "el" || !selEl) return;
+    const c: El = { ...selEl, id: uid(), x: selEl.x + OFFSET, y: selEl.y + OFFSET };
+    upd(sel.page, (d) => { const i = d.els.findIndex((e) => e.id === sel.id); const els = [...d.els]; els.splice(i + 1, 0, c); return { ...d, els }; });
+    setSel({ page: sel.page, id: c.id, type: "el" });
+  }
+  function layerTo(where: "top" | "bottom") {
+    if (!sel || sel.type !== "el") return;
+    upd(sel.page, (d) => {
+      const it = d.els.find((e) => e.id === sel.id);
+      if (!it) return d;
+      const rest = d.els.filter((e) => e.id !== sel.id);
+      return { ...d, els: where === "top" ? [...rest, it] : [it, ...rest] };
+    });
+  }
+  function copySel() { if (sel?.type === "el" && selEl) clipboard = { ...selEl }; }
+  function paste() {
+    if (!clipboard) return;
+    const c: El = { ...clipboard, id: uid(), x: clipboard.x + OFFSET, y: clipboard.y + OFFSET };
+    clipboard = { ...c };
+    upd(focusPage, (d) => ({ ...d, els: [...d.els, c] }));
+    setSel({ page: focusPage, id: c.id, type: "el" });
+  }
+  // Chuột phải: phần tử → chọn & mở menu thao tác; chỗ trống → Dán / guideline
+  const onContextMenu = (e: Konva.KonvaEventObject<PointerEvent>) => {
+    e.evt.preventDefault();
+    if (!interactive || !desktop) return;
+    let n: Konva.Node | null = e.target;
+    let hit: { page: number; id: string } | null = null;
+    while (n && !hit) {
+      const nid = n.id();
+      const m = /^n(-?\d+)_(.+)$/.exec(nid);
+      if (m) {
+        const page = Number(m[1]);
+        const d = page === -1 ? spreadDoc : pages[page]?.doc;
+        const el = d?.els.find((x) => nodeId(page, x.id) === nid);
+        if (el) hit = { page, id: el.id };
+      }
+      n = n.getParent();
+    }
+    if (hit) setSel({ ...hit, type: "el" });
+    const r = boxRef.current!.getBoundingClientRect();
+    const h = hit ? 300 : 90;
+    setMenu({ x: clamp(e.evt.clientX - r.left, 4, r.width - MENU_W - 4), y: clamp(e.evt.clientY - r.top, 4, Math.max(4, r.height - h - 4)), onEl: !!hit });
+  };
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest?.("[data-ctx-menu]")) setMenu(null); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menu]);
   useEffect(() => {
     if (!active || !interactive) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT") return;
+      const mod = e.ctrlKey || e.metaKey;
+      const elSel = sel?.type === "el";
       if ((e.key === "Delete" || e.key === "Backspace") && sel && sel.type !== "tplText") { e.preventDefault(); removeSelected(); }
-      if (e.key === "Escape") setAdjust(null);
+      else if (e.key === "Escape") { setAdjust(null); setMenu(null); }
+      else if (mod && e.key.toLowerCase() === "d" && elSel) { e.preventDefault(); duplicate(); }
+      else if (mod && e.key === "]" && elSel) { e.preventDefault(); moveLayer(1); }
+      else if (mod && e.key === "[" && elSel) { e.preventDefault(); moveLayer(-1); }
+      else if (mod && e.key.toLowerCase() === "c" && elSel) { copySel(); }
+      else if (mod && e.key.toLowerCase() === "v" && clipboard) { e.preventDefault(); paste(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -615,16 +689,16 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
         </div>
       )}
 
-      {(selEl || (sel?.type === "frame" && selFill)) && (
+      {(selEl || (sel?.type === "frame" && selFill)) && !(desktop && !templateMode && sel?.type === "el" && (selEl?.kind === "image" || selEl?.kind === "sticker")) && (
         <div className="space-y-2.5 py-3">
           <div className="flex items-center justify-between">
             <p className="tool-label">Thuộc tính · {sel?.type === "frame" ? "ảnh trong khung" : sel?.type === "tplText" ? "chữ của mẫu" : isText ? "chữ" : selEl?.kind === "frame" ? "khung ảnh" : selEl?.kind === "sticker" ? "sticker" : "ảnh"}</p>
             <div className="flex gap-1">
-              {sel?.type === "el" && <>
+              {sel?.type === "el" && !(desktop && !templateMode) && <>
                 <button className="tool-btn tool-icon" title="Đưa lên trên" aria-label="Đưa lên trên" onClick={() => moveLayer(1)}><Icon name="up" /></button>
                 <button className="tool-btn tool-icon" title="Đưa xuống dưới" aria-label="Đưa xuống dưới" onClick={() => moveLayer(-1)}><Icon name="down" /></button>
               </>}
-              {sel?.type !== "tplText" && <button className="tool-btn tool-icon !text-[#d0303f]" title="Xoá" aria-label="Xoá" onClick={removeSelected}><Icon name="trash" /></button>}
+              {sel?.type !== "tplText" && !(desktop && !templateMode && sel?.type === "el") && <button className="tool-btn tool-icon !text-[#d0303f]" title="Xoá" aria-label="Xoá" onClick={removeSelected}><Icon name="trash" /></button>}
             </div>
           </div>
 
@@ -649,7 +723,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
 
           {sel?.type === "el" && selEl && (selEl.kind === "image" || selEl.kind === "sticker") && (
             <>
-              <div className="flex gap-1.5">
+              <div className={`flex gap-1.5 ${desktop && !templateMode ? "hidden" : ""}`}>
                 <button className="tool-btn flex-1" onClick={() => fitImage("contain")} title="Vừa trang theo cạnh nhỏ hơn, căn giữa">Vừa khung</button>
                 <button className="tool-btn flex-1" onClick={() => fitImage("cover")} title="Phủ kín toàn trang">Phủ kín</button>
               </div>
@@ -748,7 +822,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   return (
     <div ref={boxRef} className="relative select-none overflow-hidden" style={{ width: viewport.w, height: viewport.h, cursor: panMode ? "grab" : undefined }}>
       <Stage ref={stageRef} width={viewport.w} height={viewport.h} x={p.x} y={p.y} scaleX={s} scaleY={s}
-        onMouseDown={deselect} onTouchStart={deselect} onWheel={onWheel} listening={interactive}>
+        onMouseDown={deselect} onTouchStart={deselect} onWheel={onWheel} onContextMenu={onContextMenu} listening={interactive}>
         <Layer ref={paperRef} listening={false}>
           {isDisc
             ? <Circle x={W / 2} y={W / 2} radius={W / 2} fill="#ffffff" shadowColor="#000" shadowOpacity={0.18} shadowBlur={18 / s} shadowOffsetY={4 / s} />
@@ -859,6 +933,45 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
       <input ref={freeInput} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFreeFile(f); }} />
       <input ref={frameInput} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFrameFile(f); }} />
       <input ref={bgInput} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onBgFile(f); }} />
+
+      {menu && (() => {
+        const isImg = selEl?.kind === "image" || selEl?.kind === "sticker";
+        const Item = ({ icon, label, kbd, onClick, danger }: { icon?: string; label: string; kbd?: string; onClick: () => void; danger?: boolean }) => (
+          <button className={`flex h-8 w-full items-center gap-2.5 rounded-[6px] px-2 text-left hover:bg-[#f4f2ee] ${danger ? "text-[#d0303f]" : "text-[#141414]"}`}
+            onClick={() => { onClick(); setMenu(null); }}>
+            <span className="grid w-4 place-items-center text-[#77726b]">{icon && <Icon name={icon} />}</span>
+            <span className="flex-1">{label}</span>
+            {kbd && <span className="text-[11px] text-[#b0aba3]">{kbd}</span>}
+          </button>
+        );
+        const Sep = () => <div className="my-1 h-px bg-[#ecebe7]" />;
+        return (
+          <div data-ctx-menu className="absolute z-30 rounded-[8px] border border-[#e3e0da] bg-white p-1 font-sans text-[13px] shadow-[0_8px_24px_rgba(20,20,20,.14)]"
+            style={{ left: menu.x, top: menu.y, width: MENU_W }} onContextMenu={(e) => e.preventDefault()}>
+            {menu.onEl && sel?.type === "el" ? (
+              <>
+                <Item icon="copy" label="Nhân bản" kbd="Ctrl+D" onClick={duplicate} />
+                <Item icon="copy" label="Sao chép" kbd="Ctrl+C" onClick={copySel} />
+                {clipboard && <Item icon="paste" label="Dán" kbd="Ctrl+V" onClick={paste} />}
+                <Sep />
+                <Item icon="up" label="Đưa lên trên một lớp" kbd="Ctrl+]" onClick={() => moveLayer(1)} />
+                <Item icon="down" label="Đưa xuống dưới một lớp" kbd="Ctrl+[" onClick={() => moveLayer(-1)} />
+                <Item icon="top" label="Đưa lên trên cùng" onClick={() => layerTo("top")} />
+                <Item icon="bottom" label="Đưa xuống dưới cùng" onClick={() => layerTo("bottom")} />
+                {isImg && <><Sep /><Item icon="fit" label="Vừa khung" onClick={() => fitImage("contain")} /><Item icon="cover" label="Phủ kín" onClick={() => fitImage("cover")} /></>}
+                <Sep />
+                <Item icon="trash" label="Xoá" kbd="Delete" danger onClick={removeSelected} />
+              </>
+            ) : (
+              <>
+                {clipboard && <Item icon="paste" label="Dán" kbd="Ctrl+V" onClick={paste} />}
+                {onToggleGuides && <Item icon="grid" label={guides ? "Ẩn guideline" : "Hiển thị guideline"} onClick={onToggleGuides} />}
+                {!clipboard && !onToggleGuides && <p className="px-2 py-1.5 text-[#8a857e]">Không có thao tác</p>}
+              </>
+            )}
+          </div>
+        );
+      })()}
 
       {interactive && toolbarTarget && createPortal(toolbar, toolbarTarget)}
     </div>

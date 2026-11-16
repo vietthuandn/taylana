@@ -8,6 +8,10 @@ export type Package = {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
+  // preset thiết kế trang Custom CD (có sau migration_package_presets.sql)
+  has_disc?: boolean;
+  front_pages?: number;
+  back_pages?: number;
 };
 
 export type Addon = {

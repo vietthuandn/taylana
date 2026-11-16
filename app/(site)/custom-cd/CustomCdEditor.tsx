@@ -7,6 +7,8 @@ import { BACK_SPINE_MM, SPECS, mmToPx, sizeText, type PrintSpec } from "@/lib/pr
 import { INNER_SPINE_FROM_CM, INNER_SPINE_TO_CM, TRAY_DISC_DIAMETER_CM, TRAY_DISC_HOLE_CM } from "@/lib/cdSpecs";
 import type { DesignTemplate } from "@/lib/templates";
 import type { Package } from "@/lib/types";
+import { formatVND } from "@/lib/format";
+import { renameDesign } from "@/lib/designs";
 import { docHasArtwork, emptyDoc, mergeToSpread, splitFromSpread, templateDoc, type El, type PageDoc, type TemplateDoc } from "@/lib/cdDoc";
 import { loadDesign, saveDesign, type DesignData } from "@/lib/designs";
 import { createClient } from "@/lib/supabase/client";
@@ -24,9 +26,10 @@ type Part = "front" | "back" | "disc";
 const PARTS: Part[] = ["front", "back", "disc"];
 const PART_LABEL: Record<Part, string> = { front: "Bìa trước", back: "Bìa sau", disc: "Mặt đĩa" };
 type PageDef = { id: string; part: Part; label: string; kind: string; page: number | null };
-const FRONT_COUNTS = [1, 2, 4, 8] as const;
+const FRONT_COUNTS = [1, 2, 4, 8, 12] as const;
 const BACK_COUNTS = [1, 2] as const;
 const DRAFT_KEY = "taylana-cd-draft-v1";
+const PREFS_KEY = "taylana-cd-prefs"; // nhớ Hiển thị guideline & Trải đôi
 
 // Danh sách trang. Dữ liệu lưu theo id trang → đổi số trang vẫn giữ thiết kế (trang dư tạm ẩn).
 function pagesOf(frontN: number, backN: number): PageDef[] {
@@ -43,9 +46,11 @@ function pagesOf(frontN: number, backN: number): PageDef[] {
 }
 // Trải đôi: 1 | 2–3 | 4–5 | 6–7 | 8 (4 trang: 1 | 2–3 | 4)
 function groupsOf(frontN: number): string[][] {
-  if (frontN === 4) return [["F-out"], ["P2", "P3"], ["P4"]];
-  if (frontN === 8) return [["F-out"], ["P2", "P3"], ["P4", "P5"], ["P6", "P7"], ["P8"]];
-  return [];
+  if (frontN < 4) return [];
+  const out: string[][] = [["F-out"]];
+  for (let i = 2; i + 1 < frontN; i += 2) out.push([`P${i}`, `P${i + 1}`]);
+  out.push([`P${frontN}`]);
+  return out;
 }
 // doc của cả cặp trải đôi: ["P2","P3"] → "S23"
 const pairKey = (g: string[]) => `S${g[0].slice(1)}${g[1].slice(1)}`;
@@ -94,6 +99,10 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
   const [host, setHost] = useState<HTMLDivElement | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [pkgId, setPkgId] = useState<string>("custom"); // gói đang chọn ("custom" = Tuỳ chỉnh)
+  const [panelTab, setPanelTab] = useState<"pack" | Part>("pack");
+  const [pendingPkg, setPendingPkg] = useState<string | null>(null);
+  const [dlOpen, setDlOpen] = useState(false);
   const [ordering, setOrdering] = useState(false);
   const [confirmSpread, setConfirmSpread] = useState(false);
   const [draftAsk, setDraftAsk] = useState<(DesignData & { designId?: string | null; designName?: string }) | null>(null);
@@ -101,9 +110,15 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
   const [designId, setDesignId] = useState<string | null>(null);
   const [designName, setDesignName] = useState("");
   const [authOpen, setAuthOpen] = useState(false);
-  const [nameAsk, setNameAsk] = useState(false);
+  const [nameAsk, setNameAsk] = useState<false | "save" | "rename">(false);
 
-  const pages = pagesOf(frontN, backN);
+  // Preset của gói: tab nào hiện, mỗi tab bao nhiêu trang
+  const pkg = packages.find((x) => x.id === pkgId);
+  const preset = pkg ? { disc: pkg.has_disc !== false, front: pkg.front_pages ?? 0, back: pkg.back_pages ?? 0 } : null;
+  const allPages = pagesOf(frontN, backN);
+  const filtered = preset ? allPages.filter((p) => (p.part === "disc" ? preset.disc : p.part === "front" ? preset.front > 0 : preset.back > 0)) : allPages;
+  const pages = filtered.length ? filtered : allPages;
+  const visibleParts = PARTS.filter((pt) => pages.some((p) => p.part === pt));
   const booklet = frontN >= 4;
   const groups = groupsOf(frontN);
   const activePage = pages.find((p) => p.id === activeId) ?? pages[0];
@@ -165,11 +180,41 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
   const visibleInputs = useMemo(() => visibleIds.map((id) => inputOf(id)), [visibleIds.join(","), inputOf]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Nháp (localStorage) ----------
-  const draftData = (): DesignData => ({ v: 1, frontN, backN, spread: spreadView, docs, zones: zoneData });
+  const draftData = (): DesignData => ({ v: 1, frontN, backN, spread: spreadView, docs, zones: zoneData, guides, pkg: pkgId });
   const applyData = (d: DesignData) => {
     setFrontN(d.frontN); setBackN(d.backN); setSpreadView(d.spread); setDocs(d.docs ?? {});
+    if (typeof d.guides === "boolean") setGuides(d.guides);
+    if (d.pkg) setPkgId(d.pkg);
+    setPanelTab("front");
     setZoneData({ ...emptyZones(), ...(d.zones as Record<ZoneId, SpineSide>) }); setActiveId("F-out"); setGroupIdx(0);
   };
+  useEffect(() => {
+    try {
+      const pr = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "null");
+      if (pr) { if (typeof pr.guides === "boolean") setGuides(pr.guides); if (typeof pr.spread === "boolean") setSpreadView(pr.spread); }
+    } catch { /* bỏ qua */ }
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify({ guides, spread: spreadView })); } catch { /* */ }
+  }, [ready, guides, spreadView]);
+  // tab đang mở luôn là 1 phần có trong gói
+  useEffect(() => {
+    if (panelTab !== "pack" && !visibleParts.includes(panelTab)) setPanelTab(visibleParts[0] ?? "pack");
+    else if (panelTab !== "pack" && panelTab !== part) setPanelTab(part);
+  }, [panelTab, part, visibleParts.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Thông báo dạng toast, tự ẩn sau 3 giây
+  useEffect(() => {
+    if (!msg || msg.endsWith("...")) return;
+    const t = setTimeout(() => setMsg(""), 3000);
+    return () => clearTimeout(t);
+  }, [msg]);
+  useEffect(() => {
+    if (!dlOpen) return;
+    const close = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest?.("[data-dl-menu]")) setDlOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [dlOpen]);
   useEffect(() => {
     const id = params.get("design");
     if (id && hasSupabase) {
@@ -193,7 +238,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
       try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...draftData(), designId, designName })); } catch { /* đầy bộ nhớ */ }
     }, 1000);
     return () => clearTimeout(t);
-  }, [ready, docs, zoneData, frontN, backN, spreadView, designId, designName]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ready, docs, zoneData, frontN, backN, spreadView, designId, designName, guides, pkgId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- Điều hướng ----------
   function openPage(id: string) {
@@ -230,6 +275,28 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
     if (pt === "front") setFrontN(n); else setBackN(n);
     if (!next.some((x) => x.id === activeId)) setActiveId(next.find((x) => x.part === pt)!.id);
     if (pt === "front" && n < 4) setSpreadView(false);
+    setGroupIdx(0);
+  }
+  // Chọn gói: số trang cố định theo preset (trang dư tạm ẩn, không xoá)
+  function choosePkg(id: string) {
+    if (id === pkgId) return;
+    if (pages.some((p) => hasArt(p.id))) { setPendingPkg(id); return; }
+    applyPkg(id);
+  }
+  function applyPkg(id: string) {
+    setPendingPkg(null);
+    setPkgId(id);
+    const pk = packages.find((x) => x.id === id);
+    if (!pk) return;
+    const nf = pk.front_pages || frontN, nb = pk.back_pages || backN;
+    if (nf !== frontN) {
+      if (spreadView) setDocs((cur) => (nf >= 4 ? mergeAll(splitAll(cur, groups), groupsOf(nf)) : splitAll(cur, groups)));
+      if (nf < 4) setSpreadView(false);
+      setFrontN(nf);
+    }
+    setBackN(nb);
+    const np = pagesOf(nf, nb).filter((p) => (p.part === "disc" ? pk.has_disc !== false : p.part === "front" ? (pk.front_pages ?? 0) > 0 : (pk.back_pages ?? 0) > 0));
+    if (np.length && !np.some((p) => p.id === activeId)) setActiveId(np[0].id);
     setGroupIdx(0);
   }
   function toggleSpread() {
@@ -277,7 +344,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
     if (!hasSupabase) return setMsg("Web chưa kết nối database.");
     const { data } = await createClient().auth.getUser();
     if (!data.user) { setAuthOpen(true); return; }
-    if (!designName) { setDesignName(`Thiết kế CD ${new Date().toLocaleDateString("vi-VN")}`); setNameAsk(true); return; }
+    if (!designName) { setDesignName(`Thiết kế CD ${new Date().toLocaleDateString("vi-VN")}`); setNameAsk("save"); return; }
     await doSave(designName);
   }
   async function doSave(name: string) {
@@ -360,7 +427,13 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
               toolbarTarget={host} guides={guides}
               zones={visibleIds.length === 1 ? zonesOf(visibleIds[0]) : undefined} onZoneClick={openZone}
               tray={visibleIds[0] === "B-in" && trayOn ? TRAY : undefined}
-              caption={`${visLabel} · ${sizeText(curSpec)}`} />
+              caption={`${visLabel} · ${sizeText(curSpec)}`}
+              reserveTop={44} onToggleGuides={() => setGuides((g) => !g)} />
+          </div>
+        )}
+        {!spineMode && (
+          <div className="absolute right-3 top-3 z-20 rounded-full bg-white px-3 py-1.5 font-sans shadow-[0_2px_10px_rgba(20,20,20,.12)]">
+            <Switch on={guides} onClick={() => setGuides(!guides)} label="Hiển thị guideline" />
           </div>
         )}
         {/* Bản ẩn từng trang: xuất file & ảnh thu nhỏ */}
@@ -374,20 +447,55 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
       </div>
 
       {/* ---------- BÊN PHẢI: panel ---------- */}
-      <aside className="flex flex-col divide-y divide-[#ecebe7] bg-white font-sans text-[13px] text-[#141414] md:min-h-0 md:flex-1 md:overflow-y-auto md:border-l md:border-[#dedad3]">
-        <section className="p-4">
-          <div className="flex rounded-[8px] bg-[#f4f2ee] p-0.5">
-            {PARTS.map((pt) => (
-              <button key={pt} aria-pressed={part === pt}
-                className={`h-8 flex-1 rounded-[6px] text-[12.5px] font-medium ${part === pt ? "bg-[#ff5fa2] text-white shadow-sm" : "text-[#77726b] hover:text-[#141414]"}`}
-                onClick={() => openPage(pages.find((x) => x.part === pt)!.id)}>
+      <aside className="flex flex-col divide-y divide-[#ecebe7] bg-white pb-16 font-sans text-[13px] text-[#141414] md:min-h-0 md:flex-1 md:overflow-y-auto md:border-l md:border-[#dedad3] md:pb-0">
+        <section className="space-y-2.5 p-4">
+          <button className="block max-w-full truncate text-[12px] text-[#8a857e] hover:text-[#141414]" title="Bấm để đổi tên"
+            onClick={() => { if (!designName) setDesignName(`Thiết kế CD ${new Date().toLocaleDateString("vi-VN")}`); setNameAsk("rename"); }}>
+            {designName || "Thiết kế chưa đặt tên"} ✎
+          </button>
+          <div className="flex gap-0.5 rounded-[8px] bg-[#f4f2ee] p-0.5">
+            <button aria-pressed={panelTab === "pack"} onClick={() => setPanelTab("pack")}
+              className={`h-8 shrink-0 rounded-[6px] px-2.5 text-[12.5px] font-medium ${panelTab === "pack" ? "bg-[#ff5fa2] text-white shadow-sm" : "text-[#77726b] hover:text-[#141414]"}`}>Gói</button>
+            {visibleParts.map((pt) => (
+              <button key={pt} aria-pressed={panelTab === pt}
+                className={`h-8 flex-1 rounded-[6px] px-1 text-[12px] font-medium ${panelTab === pt ? "bg-[#ff5fa2] text-white shadow-sm" : "text-[#77726b] hover:text-[#141414]"}`}
+                onClick={() => { setPanelTab(pt); openPage(pages.find((x) => x.part === pt)!.id); }}>
                 {PART_LABEL[pt]} <span className="opacity-80">{countOf(pt)}</span>
               </button>
             ))}
           </div>
         </section>
 
-        {part !== "disc" && (
+        {panelTab === "pack" && (
+          <section className="p-4">
+            <Label>Chọn gói</Label>
+            <div className="mt-2 space-y-1.5">
+              {packages.map((pk) => (
+                <button key={pk.id} onClick={() => choosePkg(pk.id)}
+                  className={`flex w-full items-center gap-2.5 rounded-[10px] border p-1.5 text-left ${pkgId === pk.id ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e3e0da] hover:border-[#bdb8b0]"}`}>
+                  <span className="block h-11 w-11 shrink-0 overflow-hidden rounded-[6px] bg-[#f4f2ee]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {pk.image_url && <img src={pk.image_url} alt="" className="h-full w-full object-cover" />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{pk.name}</span>
+                    <span className="block text-[12px] font-semibold text-[#ff5fa2]">{formatVND(pk.price)}</span>
+                  </span>
+                </button>
+              ))}
+              <button onClick={() => choosePkg("custom")}
+                className={`flex w-full items-center gap-2.5 rounded-[10px] border p-1.5 text-left ${pkgId === "custom" ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e3e0da] hover:border-[#bdb8b0]"}`}>
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[6px] bg-[#f4f2ee] text-lg">✎</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-medium">Tuỳ chỉnh</span>
+                  <span className="block text-[12px] text-[#8a857e]">Tự chọn số trang cho từng phần</span>
+                </span>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {panelTab !== "pack" && !preset && part !== "disc" && (
           <section className="p-4">
             <Label>Số trang</Label>
             <div className="mt-2 flex gap-1.5">
@@ -398,7 +506,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
           </section>
         )}
 
-        <section className="p-4">
+        <section className={`p-4 ${panelTab === "pack" ? "hidden" : ""}`}>
           <div className="mb-2 flex items-center justify-between">
             <Label>Trang</Label>
             {booklet && part === "front" && <Switch on={spreadView} onClick={toggleSpread} label="Trải đôi" />}
@@ -430,7 +538,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
         </section>
 
         {spineMode && zone ? (
-          <section className="space-y-3 p-4">
+          <section className={`space-y-3 p-4 ${panelTab === "pack" ? "hidden" : ""}`}>
             <button className="tool-btn w-full" onClick={() => { setSpineMode(null); setSpineSel(null); }}><Icon name="back" /> Xong, quay lại bìa</button>
             <div className="flex items-center justify-between">
               <Label>Sửa {zone.title}</Label>
@@ -486,7 +594,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
             </div>
           </section>
         ) : (
-          <section className="p-4">
+          <section className={`p-4 ${panelTab === "pack" ? "hidden" : ""}`}>
             <div className="mb-2 flex items-center justify-between">
               <Label>Mẫu</Label>
               {inSpread && group.length === 2 && (
@@ -523,33 +631,41 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
           </section>
         )}
 
-        <section className={`p-4 ${spineMode ? "hidden" : ""}`}>
-          <div className="mb-3 flex flex-col gap-2">
-            <Switch on={guides} onClick={() => setGuides(!guides)} label="Hiển thị guideline" />
-            {visibleIds[0] === "B-in" && <Switch on={trayOn} onClick={() => setTrayOn(!trayOn)} label="Ướm khay đĩa" dim={!guides} />}
-          </div>
+        <section className={`p-4 ${spineMode || panelTab === "pack" ? "hidden" : ""}`}>
+          {visibleIds[0] === "B-in" && <div className="mb-3"><Switch on={trayOn} onClick={() => setTrayOn(!trayOn)} label="Ướm khay đĩa" dim={!guides} /></div>}
           <div ref={(el) => { if (el && host !== el) setHost(el); }} />
         </section>
 
-        <section className="mt-auto space-y-2 p-4">
-          <div className="grid grid-cols-2 gap-1.5">
-            <button className="tool-btn" disabled={busy} onClick={downloadThis}>Tải trang này</button>
-            <button className="tool-btn" disabled={busy} onClick={downloadAll}>Tải tất cả (.zip)</button>
-          </div>
-          <div className="grid grid-cols-[1fr_1.4fr] gap-1.5">
-            <button className="tool-btn !h-10" disabled={busy} onClick={startSave}>{designId ? "Lưu thiết kế" : "Lưu thiết kế"}</button>
-            <button className="h-10 rounded-[8px] bg-[#ff5fa2] text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50" disabled={busy} onClick={() => setOrdering(true)}>
-              Gửi đơn
+        {/* Thanh hành động cố định ở đáy panel (điện thoại: đáy màn hình) */}
+        <div className="fixed inset-x-0 bottom-0 z-40 mt-auto border-t border-[#ecebe7] bg-white p-3 md:sticky md:inset-x-auto">
+          <div className="flex gap-2">
+            <button className="tool-btn !h-10 flex-1" disabled={busy} onClick={startSave}>Lưu</button>
+            <div className="relative flex-1" data-dl-menu>
+              <button className="tool-btn !h-10 w-full" disabled={busy} onClick={() => setDlOpen(!dlOpen)} aria-expanded={dlOpen}>Tải xuống <span className="text-[10px]">▾</span></button>
+              {dlOpen && (
+                <div className="absolute bottom-12 left-0 z-50 w-48 rounded-[8px] border border-[#e3e0da] bg-white p-1 shadow-[0_8px_24px_rgba(20,20,20,.14)]">
+                  <button className="block h-8 w-full rounded-[6px] px-2 text-left hover:bg-[#f4f2ee]" onClick={() => { setDlOpen(false); downloadThis(); }}>Tải trang này</button>
+                  <button className="block h-8 w-full rounded-[6px] px-2 text-left hover:bg-[#f4f2ee]" onClick={() => { setDlOpen(false); downloadAll(); }}>Tải tất cả (.zip)</button>
+                </div>
+              )}
+            </div>
+            <button className="h-10 flex-[1.6] rounded-[8px] bg-[#ff5fa2] text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50" disabled={busy} onClick={() => setOrdering(true)}>
+              Đặt mua
             </button>
           </div>
-          {designName && <p className="truncate text-center text-[11px] text-[#8a857e]">Đang sửa: {designName}</p>}
-          {msg && <p className="text-center text-[12px]">{msg}</p>}
-          <p className="text-center text-[11px] text-[#8a857e]">PNG 300 DPI đúng khổ in, không có guideline. Nháp tự lưu trên máy này.</p>
-        </section>
+        </div>
       </aside>
 
+      {msg && (
+        <div className="fixed bottom-20 right-4 z-[70] max-w-xs rounded-[8px] bg-[#141414] px-3 py-2 font-sans text-[13px] text-white shadow-lg md:bottom-6" role="status">{msg}</div>
+      )}
+      {pendingPkg && (
+        <Modal title="Đổi gói?" text="Đổi gói sẽ thay đổi số trang. Các trang dư sẽ được ẩn (không bị xoá). Tiếp tục?"
+          ok="Tiếp tục" cancel="Huỷ" onOk={() => applyPkg(pendingPkg)} onCancel={() => setPendingPkg(null)} />
+      )}
       {ordering && (
-        <OrderDialog orderType="custom_cd" title="Gửi đơn Custom CD" packages={packages} onClose={() => setOrdering(false)}
+        <OrderDialog orderType="custom_cd" title="Đặt mua Custom CD" packages={packages} onClose={() => setOrdering(false)}
+          initialPackageId={preset ? pkgId : undefined}
           getFiles={async () => (await Promise.all(pages.map(exportPage))).filter((f): f is DesignFile => !!f)} />
       )}
 
@@ -566,7 +682,12 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
       )}
       {nameAsk && (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-ink-900/50 p-4" role="dialog" aria-modal>
-          <form className="w-full max-w-sm rounded-[14px] bg-white p-5 font-sans text-[14px] shadow-xl" onSubmit={(e) => { e.preventDefault(); doSave(designName); }}>
+          <form className="w-full max-w-sm rounded-[14px] bg-white p-5 font-sans text-[14px] shadow-xl" onSubmit={async (e) => {
+            e.preventDefault();
+            if (nameAsk === "save") return doSave(designName);
+            setNameAsk(false);
+            if (designId) { try { await renameDesign(designId, designName); setMsg("✓ Đã đổi tên"); } catch (er) { setMsg(er instanceof Error ? er.message : "Lỗi"); } }
+          }}>
             <p className="mb-3 text-[16px] font-semibold">Đặt tên thiết kế</p>
             <input autoFocus className="tool-input !h-10 w-full !text-[14px]" maxLength={120} value={designName} onChange={(e) => setDesignName(e.target.value)} />
             <div className="mt-4 flex justify-end gap-2">

@@ -10,16 +10,17 @@ import type { Package } from "@/lib/types";
 export type DesignFile = { kind: string; blob: Blob; name: string; page?: number | null };
 
 // Hộp thoại gửi đơn kèm file thiết kế (Custom CD / Photostrip)
-export function OrderDialog({ orderType, title, packages = [], quantityLabel, getFiles, onClose }: {
+export function OrderDialog({ orderType, title, packages = [], quantityLabel, getFiles, onClose, initialPackageId }: {
   orderType: "custom_cd" | "photostrip";
   title: string;
   packages?: Package[];
   quantityLabel?: string; // ví dụ "Số bản in"
   getFiles: () => Promise<DesignFile[]>;
   onClose: () => void;
+  initialPackageId?: string; // chọn sẵn gói
 }) {
   const [form, setForm] = useState({ name: "", phone: "", address: "", note: "" });
-  const [packageId, setPackageId] = useState("");
+  const [packageId, setPackageId] = useState(initialPackageId ?? "");
   const [qty, setQty] = useState(1);
   const [step, setStep] = useState("");
   const [error, setError] = useState("");

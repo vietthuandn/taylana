@@ -17,9 +17,17 @@ type Row = {
   image_url: string | null;
   is_active: boolean;
   sort_order: number;
+  // preset thiết kế (chỉ gói sản phẩm): trang Custom CD hiện tab/số trang theo gói
+  has_disc?: boolean;
+  front_pages?: number;
+  back_pages?: number;
 };
 
-const empty: Row = { name: "", price: 0, description: "", features: [], image_url: null, is_active: true, sort_order: 0 };
+// Mô tả ngắn preset của gói
+export const presetText = (r: { has_disc?: boolean; front_pages?: number; back_pages?: number }) =>
+  [r.front_pages ? (r.front_pages >= 4 ? `Booklet ${r.front_pages} trang` : `Bìa trước ${r.front_pages} trang`) : "", r.back_pages ? `Bìa sau ${r.back_pages} trang` : "", r.has_disc !== false ? "Mặt đĩa" : ""].filter(Boolean).join(" · ");
+
+const empty: Row = { name: "", price: 0, description: "", features: [], image_url: null, is_active: true, sort_order: 0, has_disc: true, front_pages: 0, back_pages: 0 };
 
 export function CatalogEditor({ table, title, withFeatures }: { table: "packages" | "addons"; title: string; withFeatures?: boolean }) {
   const [rows, setRows] = useState<Row[]>([]);
@@ -54,6 +62,7 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
       is_active: row.is_active,
     };
     if (withFeatures) payload.features = (row.features ?? []).map((f) => f.trim()).filter(Boolean);
+    if (table === "packages") Object.assign(payload, { has_disc: row.has_disc !== false, front_pages: row.front_pages ?? 0, back_pages: row.back_pages ?? 0 });
     if (!payload.name) return setMsg({ type: "err", text: "Tên không được để trống" });
 
     const res = row.id
@@ -120,6 +129,7 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
                   <p className="truncate font-display text-lg">{r.name}</p>
                   <p className="text-sm">
                     <b className="text-hot-500">{formatVND(r.price)}</b>{" "}
+                    {table === "packages" && <span className="text-xs text-ink-500">· {presetText(r) || "chưa có preset"} </span>}
                     {!r.is_active && <Badge>Đang ẩn</Badge>}
                   </p>
                 </div>
@@ -164,6 +174,24 @@ function Editor({ row, withFeatures, folder, onCancel, onSave }: { row: Row; wit
         <Field label="Trong gói có gì" hint="Mỗi dòng là một ý" className="sm:col-span-2">
           <textarea className="field" rows={4} value={featuresText} onChange={(e) => setFeaturesText(e.target.value)} />
         </Field>
+      )}
+      {folder === "packages" && (
+        <div className="grid gap-3 rounded-2xl bg-white p-3 sm:col-span-2 sm:grid-cols-3">
+          <p className="text-sm font-medium sm:col-span-3">Preset thiết kế (trang Custom CD)</p>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" className="h-5 w-5" checked={r.has_disc !== false} onChange={(e) => setR({ ...r, has_disc: e.target.checked })} /> Có Mặt đĩa
+          </label>
+          <Field label="Số trang Bìa trước">
+            <select className="field" value={r.front_pages ?? 0} onChange={(e) => setR({ ...r, front_pages: Number(e.target.value) })}>
+              {[0, 1, 2, 4, 8, 12].map((n) => <option key={n} value={n}>{n === 0 ? "Không có" : n >= 4 ? `${n} (booklet)` : n}</option>)}
+            </select>
+          </Field>
+          <Field label="Số trang Bìa sau">
+            <select className="field" value={r.back_pages ?? 0} onChange={(e) => setR({ ...r, back_pages: Number(e.target.value) })}>
+              {[0, 1, 2].map((n) => <option key={n} value={n}>{n === 0 ? "Không có" : n}</option>)}
+            </select>
+          </Field>
+        </div>
       )}
       <ImageInput value={r.image_url} onChange={(url) => setR({ ...r, image_url: url })} folder={folder} label="Ảnh mẫu" />
       <div className="flex items-center"><Toggle checked={r.is_active} onChange={(v) => setR({ ...r, is_active: v })} label="Hiện trên web" /></div>

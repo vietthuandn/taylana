@@ -12,6 +12,8 @@ export type DesignData = {
   spread: boolean;
   docs: Record<string, PageDoc>;
   zones: Record<string, SpineSide>;
+  guides?: boolean; // trạng thái "Hiển thị guideline"
+  pkg?: string; // gói đang chọn ("custom" = Tuỳ chỉnh)
 };
 export type DesignRow = { id: string; name: string; thumbnail: string | null; created_at: string; updated_at: string; data?: DesignData };
 
