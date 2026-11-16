@@ -1,7 +1,7 @@
 /* Hoạ tiết & khung hình tự vẽ (SVG/CSS nhẹ). */
 
 // ---- Tạo đường viền lượn sóng trong hệ toạ độ 0–1 (objectBoundingBox) ----
-function wavePath(kind: "flower" | "cloud") {
+function wavePath(kind: "flower" | "cloud" | "stamp8" | "petal") {
   const pts: string[] = [];
   const N = 360;
   for (let i = 0; i <= N; i++) {
@@ -11,6 +11,15 @@ function wavePath(kind: "flower" | "cloud") {
       const r = 0.5 * (0.92 + 0.08 * Math.cos(10 * t));
       x = 0.5 + r * Math.cos(t);
       y = 0.5 + r * Math.sin(t);
+    } else if (kind === "stamp8" || kind === "petal") {
+      // hình vuông có mép lượn tròn như con dấu: 8 cánh (icon) hoặc 16 cánh (khung ảnh banner)
+      const lobes = kind === "stamp8" ? 8 : 16;
+      const amp = kind === "stamp8" ? 0.085 : 0.045;
+      const p = 3.2;
+      const c = Math.cos(t), s = Math.sin(t);
+      const k = 1 - amp * (1 - Math.cos(lobes * t)) / 2;
+      x = 0.5 + 0.5 * k * Math.sign(c) * Math.abs(c) ** (2 / p);
+      y = 0.5 + 0.5 * k * Math.sign(s) * Math.abs(s) ** (2 / p);
     } else {
       // hình vuông bo tròn có mép gợn sóng đều như đám mây
       const p = 3.4;
@@ -25,6 +34,8 @@ function wavePath(kind: "flower" | "cloud") {
 }
 const FLOWER = wavePath("flower");
 const CLOUD = wavePath("cloud");
+const STAMP8 = wavePath("stamp8");
+const PETAL = wavePath("petal");
 
 // Đặt 1 lần trong layout gốc: định nghĩa các khung cắt dùng bằng CSS clip-path
 export function ClipDefs() {
@@ -33,6 +44,7 @@ export function ClipDefs() {
       <defs>
         <clipPath id="clip-flower" clipPathUnits="objectBoundingBox"><path d={FLOWER} /></clipPath>
         <clipPath id="clip-cloud" clipPathUnits="objectBoundingBox"><path d={CLOUD} /></clipPath>
+        <clipPath id="clip-petal" clipPathUnits="objectBoundingBox"><path d={PETAL} /></clipPath>
       </defs>
     </svg>
   );
@@ -42,7 +54,7 @@ const borderColors = { lime: "bg-lime-500", violet: "bg-violet-500", hot: "bg-ho
 
 // Khung ảnh lượn sóng có viền màu dày ~4px
 export function WavyFrame({ shape = "cloud", border = "lime", className = "", children }: {
-  shape?: "flower" | "cloud"; border?: keyof typeof borderColors; className?: string; children: React.ReactNode;
+  shape?: "flower" | "cloud" | "petal"; border?: keyof typeof borderColors; className?: string; children: React.ReactNode;
 }) {
   const clip = { clipPath: `url(#clip-${shape})` };
   return (
@@ -104,5 +116,28 @@ export function WavyLine() {
         d="M-5 70 C 40 10, 70 190, 105 150 S 25 370, -5 430 S 75 640, 105 670 S 20 890, -5 950"
         fill="none" stroke="var(--color-lime-500)" strokeOpacity="0.75" strokeWidth="2.5" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
     </svg>
+  );
+}
+
+// Hình vuông 8 cánh lượn tròn (như con dấu) làm nền cho icon
+export function StampBadge({ color = "lime", className = "", children }: { color?: "lime" | "violet" | "hot"; className?: string; children?: React.ReactNode }) {
+  const fill = { lime: "var(--color-lime-500)", violet: "var(--color-violet-500)", hot: "var(--color-hot-500)" }[color];
+  return (
+    <span className={`relative inline-grid place-items-center ${className}`}>
+      <svg viewBox="0 0 1 1" className="absolute inset-0 h-full w-full transition-transform duration-500 group-hover:rotate-[22.5deg]" aria-hidden>
+        <path d={STAMP8} fill={fill} />
+      </svg>
+      <span className="relative">{children}</span>
+    </span>
+  );
+}
+
+// Khung ảnh vuông cánh hoa tròn, ảnh phủ kín, viền màu mảnh (banner trang chủ)
+export function PetalFrame({ className = "", children }: { className?: string; children: React.ReactNode }) {
+  const clip = { clipPath: "url(#clip-petal)" };
+  return (
+    <div className={`relative bg-ink-900 ${className}`} style={clip}>
+      <div className="absolute inset-[2px] overflow-hidden bg-cream-50" style={clip}>{children}</div>
+    </div>
   );
 }

@@ -68,3 +68,11 @@ export function SearchIcon({ className }: P) {
     </svg>
   );
 }
+export function ChatIcon({ className }: P) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden>
+      <path d="M8 12c0-2.5 2-4 4.5-4h23c2.5 0 4.5 1.5 4.5 4v16c0 2.5-2 4-4.5 4H22l-9 7v-7h-.5C10 32 8 30.5 8 28z" {...st} />
+      <path d="M17 20h.01M24 20h.01M31 20h.01" {...st} strokeWidth={4} />
+    </svg>
+  );
+}

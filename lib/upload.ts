@@ -2,6 +2,7 @@
 import { createClient } from "./supabase/client";
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const SVG = "image/svg+xml";
 
 function extOf(file: File) {
   const fromName = file.name.split(".").pop()?.toLowerCase();
@@ -15,8 +16,8 @@ export function randomName(file: File) {
 }
 
 // Tải ảnh lên bucket công khai "public-assets", trả về link ảnh.
-export async function uploadPublicImage(file: File, folder: string, maxMB = 15) {
-  if (!IMAGE_TYPES.includes(file.type)) throw new Error("Chỉ nhận ảnh JPG, PNG, WEBP hoặc GIF");
+export async function uploadPublicImage(file: File, folder: string, maxMB = 15, allowSvg = false) {
+  if (!IMAGE_TYPES.includes(file.type) && !(allowSvg && file.type === SVG)) throw new Error(allowSvg ? "Chỉ nhận ảnh PNG, SVG, JPG hoặc WEBP" : "Chỉ nhận ảnh JPG, PNG, WEBP hoặc GIF");
   if (file.size > maxMB * 1024 * 1024) throw new Error(`Ảnh tối đa ${maxMB}MB`);
   const supabase = createClient();
   const path = `${folder}/${randomName(file)}`;

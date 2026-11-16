@@ -8,5 +8,6 @@ export const adminLinks = [
   { href: "/admin/mau-cd", label: "Mẫu Custom CD" },
   { href: "/admin/photostrip", label: "Khung Photostrip" },
   { href: "/admin/don-file", label: "Dọn file" },
-  { href: "/admin/cai-dat", label: "Trang chủ & liên hệ" },
+  { href: "/admin/trang-chu", label: "Trang chủ" },
+  { href: "/admin/lien-he", label: "Liên hệ" },
 ] as { href: string; label: string; soon?: boolean }[];

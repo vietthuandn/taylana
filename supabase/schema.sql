@@ -470,7 +470,7 @@ values
   ('order-files', 'order-files', false, 31457280,
    array['image/jpeg', 'image/png', 'application/pdf']),
   ('public-assets', 'public-assets', true, 15728640,
-   array['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+   array['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'])
 on conflict (id) do update
   set public = excluded.public,
       file_size_limit = excluded.file_size_limit,
