@@ -7,7 +7,7 @@ import { BACK_SPINE_MM, SPECS, mmToPx, sizeText, type PrintSpec } from "@/lib/pr
 import { INNER_SPINE_FROM_CM, INNER_SPINE_TO_CM, TRAY_DISC_DIAMETER_CM, TRAY_DISC_HOLE_CM } from "@/lib/cdSpecs";
 import type { DesignTemplate } from "@/lib/templates";
 import type { Package } from "@/lib/types";
-import { docHasArtwork, emptyDoc, splitSpread, templateDoc, type El, type PageDoc, type TemplateDoc } from "@/lib/cdDoc";
+import { docHasArtwork, emptyDoc, mergeToSpread, splitFromSpread, templateDoc, type El, type PageDoc, type TemplateDoc } from "@/lib/cdDoc";
 import { loadDesign, saveDesign, type DesignData } from "@/lib/designs";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
@@ -47,6 +47,9 @@ function groupsOf(frontN: number): string[][] {
   if (frontN === 8) return [["F-out"], ["P2", "P3"], ["P4", "P5"], ["P6", "P7"], ["P8"]];
   return [];
 }
+// doc của cả cặp trải đôi: ["P2","P3"] → "S23"
+const pairKey = (g: string[]) => `S${g[0].slice(1)}${g[1].slice(1)}`;
+const FW1 = mmToPx(SPECS.front.w);
 const specOf = (id: string): PrintSpec => (id.startsWith("B") ? SPECS.back : id === "D" ? SPECS.disc : SPECS.front);
 const targetsOf = (id: string) => (id === "B-out" ? ["back_outer", "back"] : id === "B-in" ? ["back_inner"] : id === "D" ? ["disc"] : ["front"]);
 
@@ -139,7 +142,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
   const zonesOf = (id: string) => (id === "B-out" ? zB1 : id === "B-in" ? zB2 : undefined);
 
   // ---------- Có artwork ----------
-  const hasArt = (id: string) => docHasArtwork(docs[id])
+  const hasArt = (id: string) => docHasArtwork(exportDocs[id] ?? docs[id])
     || (id === "B-out" && (sideHasContent(zoneData["b1-left"]) || sideHasContent(zoneData["b1-right"])))
     || (id === "B-in" && sideHasContent(zoneData["b2-spine"]));
   const countOf = (pt: Part) => { const l = pages.filter((p) => p.part === pt); return `${l.filter((p) => hasArt(p.id)).length}/${l.length}`; };
@@ -149,8 +152,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
     const out: Record<string, PageDoc> = {};
     for (const p of pages) out[p.id] = docOf(p.id);
     if (spreadView && booklet) for (const g of groups) if (g.length === 2) {
-      const sp = SPECS.front;
-      const [l, r] = splitSpread(docOf(g[0]), docOf(g[1]), mmToPx(sp.w), measureText);
+      const [l, r] = splitFromSpread(docs[pairKey(g)], docOf(g[0]), docOf(g[1]), FW1, measureText);
       out[g[0]] = l; out[g[1]] = r;
     }
     return out;
@@ -199,7 +201,31 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
     const gi = groups.findIndex((g) => g.includes(id));
     if (gi >= 0) setGroupIdx(gi);
   }
+  // tách hết các cặp trải đôi về từng trang
+  const splitAll = (cur: Record<string, PageDoc>, gs: string[][]) => {
+    const next = { ...cur };
+    for (const g of gs) if (g.length === 2) {
+      const k = pairKey(g);
+      const [l, r] = splitFromSpread(cur[k], cur[g[0]] ?? emptyDoc(), cur[g[1]] ?? emptyDoc(), FW1, measureText);
+      next[g[0]] = l; next[g[1]] = r; delete next[k];
+    }
+    return next;
+  };
+  // ghép từng cặp trang thành 1 vùng trải đôi (giữ nguyên vị trí)
+  const mergeAll = (cur: Record<string, PageDoc>, gs: string[][]) => {
+    const next = { ...cur };
+    for (const g of gs) if (g.length === 2) {
+      const k = pairKey(g);
+      const m = mergeToSpread(cur[k], cur[g[0]] ?? emptyDoc(), cur[g[1]] ?? emptyDoc(), FW1);
+      next[k] = m.S; next[g[0]] = m.L; next[g[1]] = m.R;
+    }
+    return next;
+  };
   function setCount(pt: Part, n: number) {
+    if (pt === "front" && spreadView) {
+      const ng = groupsOf(n);
+      setDocs((cur) => (n >= 4 ? mergeAll(splitAll(cur, groups), ng) : splitAll(cur, groups)));
+    }
     const next = pt === "front" ? pagesOf(n, backN) : pagesOf(frontN, n);
     if (pt === "front") setFrontN(n); else setBackN(n);
     if (!next.some((x) => x.id === activeId)) setActiveId(next.find((x) => x.part === pt)!.id);
@@ -213,17 +239,8 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
   }
   function doToggleSpread() {
     setConfirmSpread(false);
-    if (spreadView) {
-      // Trải đôi → 1 trang: giữ phần tử ở đúng trang của nó, phần vắt qua được nhân bản sang trang kia
-      setDocs((cur) => {
-        const next = { ...cur };
-        for (const g of groups) if (g.length === 2) {
-          const [l, r] = splitSpread(cur[g[0]] ?? emptyDoc(), cur[g[1]] ?? emptyDoc(), mmToPx(SPECS.front.w), measureText);
-          next[g[0]] = l; next[g[1]] = r;
-        }
-        return next;
-      });
-    }
+    // Trải đôi → 1 trang: mỗi trang nhận bản sao phần tử chạm vào nó; 1 trang → Trải đôi: ghép cặp, giữ vị trí
+    setDocs((cur) => (spreadView ? splitAll(cur, groups) : mergeAll(cur, groups)));
     setSpreadView(!spreadView);
     setSpineMode(null);
   }
@@ -338,6 +355,8 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
           <div key={visibleIds.join("-")} className={`absolute inset-0 ${part === "back" ? "animate-[flipIn_.3s_ease]" : ""}`}>
             <CdDesigner spec={curSpec} pages={visibleInputs} view="all" viewport={vp} active
               onChange={(i, d) => setDoc(visibleIds[i], d)}
+              spreadDoc={visibleIds.length === 2 ? docs[pairKey(visibleIds)] ?? emptyDoc() : undefined}
+              onSpreadChange={visibleIds.length === 2 ? (d) => setDoc(pairKey(visibleIds), d) : undefined}
               toolbarTarget={host} guides={guides}
               zones={visibleIds.length === 1 ? zonesOf(visibleIds[0]) : undefined} onZoneClick={openZone}
               tray={visibleIds[0] === "B-in" && trayOn ? TRAY : undefined}
@@ -473,7 +492,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
               {inSpread && group.length === 2 && (
                 <div className="flex gap-1">
                   {group.map((id, i) => (
-                    <button key={id} className="tool-btn !h-6 !px-2 !text-[11px]" aria-pressed={tplTarget === i} onClick={() => setTplTarget(i as 0 | 1)}>Trang {pages.find((p) => p.id === id)?.label}</button>
+                    <button key={id} className="tool-btn !h-6 !px-2 !text-[11px]" aria-pressed={tplTarget === i} onClick={() => setTplTarget(i as 0 | 1)} title={`Trang ${pages.find((p) => p.id === id)?.label}`}>{i === 0 ? "Trang trái" : "Trang phải"}</button>
                   ))}
                 </div>
               )}

@@ -13,7 +13,8 @@ export type El = {
   layer?: "above" | "below"; // ảnh trang trí của mẫu: trên/dưới ảnh khách
 };
 export type FrameFill = { src: string; nw: number; nh: number; zoom: number; ox: number; oy: number };
-export type BgImage = { src: string } | null;
+// half: ảnh nền của cả cặp trải đôi đã được tách → trang này hiện nửa trái/phải của ảnh
+export type BgImage = { src: string; half?: "L" | "R" } | null;
 
 // Nội dung 1 mẫu (do admin tạo)
 export type TemplateDoc = { bg: string | null; bgImage: BgImage; els: El[] };
@@ -59,18 +60,43 @@ export function elBox(e: El, measureText?: (e: El) => { w: number; h: number }) 
   return { minX: Math.min(...xs), maxX: Math.max(...xs) };
 }
 
-// Trải đôi → 1 trang: phần tử của trang nào giữ ở trang đó; vắt qua 2 trang thì nhân bản sang trang kia
-export function splitSpread(L: PageDoc, R: PageDoc, W1: number, measure: (e: El) => { w: number; h: number }): [PageDoc, PageDoc] {
+// ---------- Trải đôi ----------
+// Ở chế độ Trải đôi, artwork (ảnh, chữ, sticker, màu nền, ảnh nền) lưu theo CẶP TRANG (doc "S23"...),
+// toạ độ trên cả vùng 2 trang. Mẫu + ảnh đặt trong khung mẫu vẫn lưu theo từng trang (P2, P3...).
+
+// Tách cặp → 2 trang: mỗi trang nhận bản sao các phần tử chạm vào nó (toạ độ theo trang đó).
+export function splitFromSpread(S: PageDoc | undefined, L: PageDoc, R: PageDoc, W1: number, measure: (e: El) => { w: number; h: number }): [PageDoc, PageDoc] {
+  if (!S) return [L, R];
   const l: El[] = [], r: El[] = [];
-  for (const e of L.els) {
+  for (const e of S.els) {
     const b = elBox(e, measure);
-    if (b.minX >= W1) r.push({ ...e, x: e.x - W1 });
-    else { l.push(e); if (b.maxX > W1) r.push({ ...e, id: uid(), x: e.x - W1 }); }
+    const inL = b.minX < W1, inR = b.maxX > W1;
+    if (inL) l.push(e);
+    if (inR) r.push({ ...e, id: inL ? uid() : e.id, x: e.x - W1 });
+    if (!inL && !inR) l.push(e);
   }
-  for (const e of R.els) {
-    const b = elBox(e, measure);
-    if (b.maxX <= 0) l.push({ ...e, x: e.x + W1 });
-    else { r.push(e); if (b.minX < 0) l.push({ ...e, id: uid(), x: e.x + W1 }); }
-  }
-  return [{ ...L, els: l }, { ...R, els: r }];
+  const bgL = S.bgImage ? { src: S.bgImage.src, half: "L" as const } : L.bgImage;
+  const bgR = S.bgImage ? { src: S.bgImage.src, half: "R" as const } : R.bgImage;
+  return [
+    { ...L, els: [...L.els, ...l], bg: S.bg ?? L.bg, bgImage: bgL },
+    { ...R, els: [...R.els, ...r], bg: S.bg ?? R.bg, bgImage: bgR },
+  ];
+}
+
+// Ghép 2 trang → cặp: giữ nguyên vị trí (phần tử trang phải dịch sang phải 1 trang)
+export function mergeToSpread(S: PageDoc | undefined, L: PageDoc, R: PageDoc, W1: number): { S: PageDoc; L: PageDoc; R: PageDoc } {
+  const base = S ?? emptyDoc();
+  const sameBg = L.bgImage?.half === "L" && R.bgImage?.half === "R" && L.bgImage.src === R.bgImage.src;
+  const nS: PageDoc = {
+    ...base,
+    els: [...base.els, ...L.els, ...R.els.map((e) => ({ ...e, x: e.x + W1 }))],
+    bg: base.bg ?? L.bg ?? R.bg,
+    bgImage: base.bgImage ?? (sameBg ? { src: L.bgImage!.src } : null),
+  };
+  // ảnh nền riêng từng trang (không phải nửa của 1 ảnh) vẫn giữ ở trang đó
+  return {
+    S: nS,
+    L: { ...L, els: [], bg: null, bgImage: sameBg ? null : L.bgImage },
+    R: { ...R, els: [], bg: null, bgImage: sameBg ? null : R.bgImage },
+  };
 }

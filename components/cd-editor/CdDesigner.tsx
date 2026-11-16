@@ -16,7 +16,7 @@ import { mmToPx, type PrintSpec } from "@/lib/print";
 import { stickers } from "@/lib/stickers";
 import { setPngDpi } from "@/lib/png";
 import { resolveSrc, storeLocalImage } from "@/lib/blobStore";
-import { uid, type El, type FrameFill, type FrameShape, type PageDoc, type TemplateDoc } from "@/lib/cdDoc";
+import { emptyDoc, uid, type El, type FrameFill, type FrameShape, type PageDoc, type TemplateDoc } from "@/lib/cdDoc";
 import { useView } from "@/components/designer/smoothImage";
 import { SpineContent, sideHasContent, zonePlacement, type Zone } from "@/components/designer/Spine";
 import { ColorSelect } from "./ColorSelect";
@@ -172,13 +172,15 @@ function FrameFillNode({ el, fill, s, adjusting, panMode, onSelect, onAdjust, on
   );
 }
 
-function BgImageNode({ src, x, W, H, s }: { src: string; x: number; W: number; H: number; s: number }) {
+// half: ảnh nền của cả cặp trải đôi → phủ kín 2 trang, trang này chỉ hiện nửa của nó
+function BgImageNode({ src, x, W, H, s, half }: { src: string; x: number; W: number; H: number; s: number; half?: "L" | "R" }) {
   const img = useSrcImage(src);
-  const view = useView(img, Math.max(W, H) * s);
+  const CW = half ? W * 2 : W;
+  const view = useView(img, Math.max(CW, H) * s);
   if (!img || !view) return null;
-  const k = Math.max(W / img.naturalWidth, H / img.naturalHeight); // phủ kín trang (tính cả vùng tràn viền)
+  const k = Math.max(CW / img.naturalWidth, H / img.naturalHeight); // phủ kín (tính cả vùng tràn viền)
   return <KImage name="bg" listening={false} image={view} fullImage={img} width={img.naturalWidth * k} height={img.naturalHeight * k}
-    x={x + (W - img.naturalWidth * k) / 2} y={(H - img.naturalHeight * k) / 2} />;
+    x={x - (half === "R" ? W : 0) + (CW - img.naturalWidth * k) / 2} y={(H - img.naturalHeight * k) / 2} />;
 }
 
 function Guides({ spec, W, H, s }: { spec: PrintSpec; W: number; H: number; s: number }) {
@@ -213,7 +215,7 @@ type Sel = { page: number; id: string; type: "el" | "frame" | "tplText" } | null
 
 // ================================================================
 export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view = "all", viewport, active, interactive = true,
-  toolbarTarget, caption, guides, zones, onZoneClick, tray, onSnapshot, uploadImage }: {
+  toolbarTarget, caption, guides, zones, onZoneClick, tray, onSnapshot, uploadImage, spreadDoc, onSpreadChange }: {
   ref?: React.Ref<CdDesignerHandle>;
   spec: PrintSpec;
   mode?: "customer" | "template";
@@ -231,6 +233,9 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   tray?: { cx: number; cy: number; r: number; hole: number };
   onSnapshot?: (half: Half, dataUrl: string) => void;
   uploadImage?: (file: File) => Promise<string>; // mặc định: lưu kho cục bộ (idb:)
+  // Trải đôi: artwork của cả cặp trang (1 vùng liền, toạ độ trên 2 trang) — chỉ cắt ở mép ngoài
+  spreadDoc?: PageDoc;
+  onSpreadChange?: (d: PageDoc) => void;
 }) {
   const W1 = mmToPx(spec.w), H = mmToPx(spec.h);
   const spread = pages.length === 2;
@@ -263,8 +268,14 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   pagesRef.current = pages;
 
   // trang đang thao tác (spread 1 trang → trang được xem)
-  const focusPage = spread ? (view === "R" ? 1 : 0) : 0;
-  const upd = useCallback((i: number, fn: (d: PageDoc) => PageDoc) => onChange(i, fn(pagesRef.current[i].doc)), [onChange]);
+  const spreadRef = useRef(spreadDoc);
+  spreadRef.current = spreadDoc;
+  // -1 = doc của cả cặp trải đôi
+  const focusPage = spreadDoc ? -1 : spread ? (view === "R" ? 1 : 0) : 0;
+  const upd = useCallback((i: number, fn: (d: PageDoc) => PageDoc) => {
+    if (i === -1) onSpreadChange?.(fn(spreadRef.current ?? emptyDoc()));
+    else onChange(i, fn(pagesRef.current[i].doc));
+  }, [onChange, onSpreadChange]);
 
   // ---------- Zoom & pan ----------
   const [zoom, setZoom] = useState(1);
@@ -328,7 +339,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
 
   // ---------- Phần tử đang chọn ----------
   // trong chế độ mẫu: phần tử mẫu = doc.els. Chế độ khách: phần tử của khách = doc.els, của mẫu = tpl.els
-  const selDoc = sel ? pages[sel.page]?.doc : null;
+  const selDoc = sel ? (sel.page === -1 ? spreadDoc : pages[sel.page]?.doc) : null;
   const selEl: El | undefined = sel && selDoc
     ? (sel.type === "el" ? selDoc.els.find((e) => e.id === sel.id) : pages[sel.page].tpl?.els.find((e) => e.id === sel.id))
     : undefined;
@@ -374,11 +385,17 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   }
 
   // ---------- Thêm ----------
+  // vị trí góc trên-trái để phần tử (w×h) nằm giữa: trải đôi → giữa vùng đang nhìn; 1 trang → giữa trang
+  const placeAt = (w: number, h: number) => {
+    if (focusPage !== -1) return { x: (W1 - w) / 2, y: (H - h) / 2 };
+    const cx = clamp((viewport.w / 2 - p.x) / s, 0, W), cy = clamp(((viewport.h - reserveB) / 2 - p.y) / s, 0, H);
+    return { x: cx - w / 2, y: cy - h / 2 };
+  };
   async function addImage(src: string, kind: "image" | "sticker", ratio: number) {
     try {
       const { w, h } = await sizeOf(src);
       const k = (Math.min(W1, H) * ratio) / Math.max(w, h);
-      const el: El = { id: uid(), kind, src, nw: w, nh: h, width: w * k, height: h * k, x: (W1 - w * k) / 2, y: (H - h * k) / 2, rotation: 0, scaleX: 1, scaleY: 1,
+      const el: El = { id: uid(), kind, src, nw: w, nh: h, width: w * k, height: h * k, ...placeAt(w * k, h * k), rotation: 0, scaleX: 1, scaleY: 1,
         ...(templateMode ? { layer: "above" as const } : {}) };
       upd(focusPage, (d) => ({ ...d, els: [...d.els, el] }));
       setSel({ page: focusPage, id: el.id, type: "el" });
@@ -392,7 +409,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   }
   function addText() {
     const el: El = { id: uid(), kind: "text", text: "Chữ của bạn", fontFamily: "Be Vietnam Pro", fontSize: Math.round(24 * PX_UNIT), fill: "#050505",
-      align: "left", lineHeight: 1.2, x: W1 * 0.12, y: H * 0.45, rotation: 0, scaleX: 1, scaleY: 1 };
+      align: "left", lineHeight: 1.2, ...(focusPage === -1 ? placeAt(W1 * 0.5, 24 * PX_UNIT) : { x: W1 * 0.12, y: H * 0.45 }), rotation: 0, scaleX: 1, scaleY: 1 };
     upd(focusPage, (d) => ({ ...d, els: [...d.els, el] }));
     setSel({ page: focusPage, id: el.id, type: "el" });
   }
@@ -430,8 +447,9 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   function fitImage(m: "contain" | "cover") {
     if (!sel || sel.type !== "el" || !selEl || selEl.kind === "text" || selEl.kind === "frame") return;
     const ratio = selEl.nw && selEl.nh ? selEl.nw / selEl.nh : (selEl.width ?? 1) / (selEl.height ?? 1);
-    const h = m === "contain" ? Math.min(W1 / ratio, H) : Math.max(W1 / ratio, H), w = h * ratio;
-    updEl(sel.page, selEl.id, { width: w, height: h, scaleX: 1, scaleY: 1, rotation: 0, x: (W1 - w) / 2, y: (H - h) / 2 });
+    const RW = sel.page === -1 ? W : W1; // trải đôi: vừa / phủ kín cả cặp trang
+    const h = m === "contain" ? Math.min(RW / ratio, H) : Math.max(RW / ratio, H), w = h * ratio;
+    updEl(sel.page, selEl.id, { width: w, height: h, scaleX: 1, scaleY: 1, rotation: 0, x: (RW - w) / 2, y: (H - h) / 2 });
   }
 
   // ---------- Xuất / ảnh vùng ----------
@@ -512,11 +530,12 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   };
 
   // ---------- Vẽ 1 trang ----------
-  const renderPage = (pg: PageInput, i: number) => {
+  // part: "all" = cả trang; trải đôi chia làm "base" (nền riêng của trang/mẫu) và "tpl" (nội dung mẫu)
+  const renderPage = (pg: PageInput, i: number, part: "all" | "base" | "tpl" = "all") => {
     const d = pg.doc;
     const tplEls = templateMode ? d.els : (pg.tpl?.els ?? []);
-    const userEls = templateMode ? [] : d.els;
-    const bg = d.bg ?? pg.tpl?.bg ?? "#ffffff";
+    const userEls = templateMode || spreadDoc ? [] : d.els;
+    const bg = spreadDoc ? (d.bg ?? pg.tpl?.bg ?? null) : (d.bg ?? pg.tpl?.bg ?? "#ffffff");
     const bgImg = d.bgImage ?? (templateMode ? null : pg.tpl?.bgImage ?? null);
     const below = tplEls.filter((e) => (e.kind === "image" || e.kind === "sticker") && e.layer === "below");
     const frames = tplEls.filter((e) => e.kind === "frame");
@@ -529,14 +548,17 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
         onSelect={() => setSel({ page: i, id: e.id, type: templateMode ? "el" : "tplText" })}
         onChange={(pp) => updEl(i, e.id, pp)} />
     );
-    // trải đôi: phần tử được vẽ tràn sang trang bên cạnh; 1 trang: cắt theo trang
-    const clip = spread && view === "all" ? { x: -i * W1, w: W } : { x: 0, w: W1 };
+    // nội dung mẫu luôn nằm trong trang của nó
+    const base = (
+      <Group clipFunc={isDisc ? undefined : (ctx) => ctx.rect(0, 0, W1, H)}>
+        {bg && <Rect name="bg" width={W1} height={H} fill={bg} preventDefault={false} />}
+        {bgImg && <BgImageNode src={bgImg.src} x={0} W={W1} H={H} s={s} half={bgImg.half} />}
+      </Group>
+    );
+    if (part === "base") return <Group key={`b${i}`} x={i * W1}>{base}</Group>;
     return (
-      <Group key={i} x={i * W1} clipFunc={isDisc ? undefined : (ctx) => ctx.rect(clip.x, 0, clip.w, H)}>
-        <Group clipFunc={isDisc ? undefined : (ctx) => ctx.rect(0, 0, W1, H)}>
-          <Rect name="bg" width={W1} height={H} fill={bg} preventDefault={false} />
-          {bgImg && <BgImageNode src={bgImg.src} x={0} W={W1} H={H} s={s} />}
-        </Group>
+      <Group key={`p${i}`} x={i * W1} clipFunc={isDisc ? undefined : (ctx) => ctx.rect(0, 0, W1, H)}>
+        {part === "all" && base}
         {below.map(tplNode)}
         {!templateMode && frames.map((fr) => d.fills[fr.id] ? (
           <FrameFillNode key={fr.id} el={fr} fill={d.fills[fr.id]} s={s} panMode={panMode}
@@ -557,8 +579,8 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   };
 
   // ---------- Thanh công cụ ----------
-  const fDoc = pages[focusPage]?.doc;
-  const curBg = fDoc?.bg ?? pages[focusPage]?.tpl?.bg ?? "#ffffff";
+  const fDoc = focusPage === -1 ? spreadDoc : pages[focusPage]?.doc;
+  const curBg = fDoc?.bg ?? (focusPage === -1 ? null : pages[focusPage]?.tpl?.bg) ?? "#ffffff";
   const selFrame = sel?.type === "frame" ? pages[sel.page].tpl?.els.find((e) => e.id === sel.id) : undefined;
   const selFill = sel?.type === "frame" ? pages[sel.page].doc.fills[sel.id] : undefined;
   const sizeUnit = selEl?.fontSize ? Math.round((selEl.fontSize / PX_UNIT) * 10) / 10 : 24;
@@ -734,7 +756,20 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
         </Layer>
         <Layer>
           <Group clipFunc={isDisc ? discClip : (ctx) => ctx.rect(0, 0, W, H)}>
-            {pages.map(renderPage)}
+            {spreadDoc ? (
+              <>
+                {/* Trải đôi: 1 vùng liền 2 trang — nền, ảnh nền, ảnh, chữ, sticker tràn qua gáy giữa, chỉ cắt ở mép ngoài */}
+                <Rect name="bg" width={W} height={H} fill={spreadDoc.bg ?? "#ffffff"} preventDefault={false} />
+                {pages.map((pg, i) => renderPage(pg, i, "base"))}
+                {spreadDoc.bgImage && <BgImageNode src={spreadDoc.bgImage.src} x={0} W={W} H={H} s={s} />}
+                {pages.map((pg, i) => renderPage(pg, i, "tpl"))}
+                {spreadDoc.els.map((e) => (
+                  <ElNode key={e.id} el={e} page={-1} s={s} fontTick={fontTick} templateMode={false}
+                    editable={interactive && !panMode} selectable={interactive}
+                    onSelect={() => setSel({ page: -1, id: e.id, type: "el" })} onChange={(pp) => updEl(-1, e.id, pp)} />
+                ))}
+              </>
+            ) : pages.map((pg, i) => renderPage(pg, i))}
             {(zones ?? []).map((z) => z.side && (
               <Group key={z.id} name="zone-content" {...zonePlacement(z, H)} listening={false}>
                 <SpineContent side={z.side} len={H} thick={z.w} />
