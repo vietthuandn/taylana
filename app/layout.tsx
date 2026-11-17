@@ -16,7 +16,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: { default: "Taylana — Thiết kế & thi công CD theo yêu cầu", template: "%s · Taylana" },
-  description: "Tiệm In Taylana: thiết kế & thi công CD theo yêu cầu, custom bìa, mặt đĩa, booklet, photostrip.",
+  description: "Tiệm In Taylana: thiết kế & thi công CD theo yêu cầu, custom bìa, mặt đĩa, booklet.",
 };
 
 export const viewport: Viewport = {

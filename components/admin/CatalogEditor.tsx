@@ -6,7 +6,7 @@ import { formatVND } from "@/lib/format";
 import { removePublicImage } from "@/lib/upload";
 import { revalidatePublic } from "@/app/admin/actions";
 import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
-import { Badge, Button, Card, EmptyState, Field, ImageInput, Message, SortButtons, Table, Toggle, confirmDialog } from "./ui";
+import { Badge, Button, Card, EmptyState, Field, ImageInput, ImagesInput, Message, SortButtons, Table, Toggle, confirmDialog } from "./ui";
 
 // Dùng chung cho bảng "packages" (gói sản phẩm) và "addons" (phụ kiện)
 type Row = {
@@ -22,6 +22,7 @@ type Row = {
   has_disc?: boolean;
   front_pages?: number;
   back_pages?: number;
+  images?: string[]; // nhiều ảnh (gói sản phẩm), ảnh đầu = ảnh chính
 };
 
 // Mô tả ngắn preset của gói
@@ -33,6 +34,7 @@ const empty: Row = { name: "", price: 0, description: "", features: [], image_ur
 export function CatalogEditor({ table, title, withFeatures }: { table: "packages" | "addons"; title: string; withFeatures?: boolean }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasImagesCol = table === "packages" && (rows.length === 0 || "images" in rows[0]);
   const [editing, setEditing] = useState<Row | null>(null);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
@@ -64,6 +66,11 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
     };
     if (withFeatures) payload.features = (row.features ?? []).map((f) => f.trim()).filter(Boolean);
     if (table === "packages") Object.assign(payload, { has_disc: row.has_disc !== false, front_pages: row.front_pages ?? 0, back_pages: row.back_pages ?? 0 });
+    // nhiều ảnh: chỉ gửi khi database đã có cột images (đã chạy migration_package_images.sql)
+    if (table === "packages" && hasImagesCol) {
+      const imgs = (row.images ?? []).filter(Boolean);
+      Object.assign(payload, { images: imgs, image_url: imgs[0] ?? null });
+    }
     if (!payload.name) return setMsg({ type: "err", text: "Tên không được để trống" });
 
     const res = row.id
@@ -78,7 +85,7 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
     if (!row.id || !await confirmDialog(`Xoá "${row.name}"? Không thể hoàn tác.`)) return;
     const { error } = await createClient().from(table).delete().eq("id", row.id);
     if (error) return setMsg({ type: "err", text: error.message });
-    await removePublicImage(row.image_url);
+    await Promise.all([...new Set([row.image_url, ...(row.images ?? [])])].map((u) => removePublicImage(u)));
     await after("✓ Đã xoá");
   }
 
@@ -102,7 +109,7 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
     <Card title={title} description={`${rows.length} mục`} padded={false}
       actions={<Button size="sm" icon={<Plus size={16} />} onClick={() => setEditing({ ...empty })}>Thêm mới</Button>}>
       <Message msg={msg} />
-      {editing && !editing.id && <div className="border-b border-[#efeff1] p-5"><Editor row={editing} withFeatures={withFeatures} folder={table} onCancel={() => setEditing(null)} onSave={save} /></div>}
+      {editing && !editing.id && <div className="border-b border-[#efeff1] p-5"><Editor row={editing} withFeatures={withFeatures} folder={table} multi={hasImagesCol} onCancel={() => setEditing(null)} onSave={save} /></div>}
 
       {loading ? (
         <EmptyState>Đang tải...</EmptyState>
@@ -114,7 +121,7 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
             {rows.map((r, i) =>
               editing && editing.id === r.id ? (
                 <tr key={r.id} className="!h-auto hover:!bg-transparent">
-                  <td colSpan={6} className="!p-5"><Editor row={editing} withFeatures={withFeatures} folder={table} onCancel={() => setEditing(null)} onSave={save} /></td>
+                  <td colSpan={6} className="!p-5"><Editor row={editing} withFeatures={withFeatures} folder={table} multi={hasImagesCol} onCancel={() => setEditing(null)} onSave={save} /></td>
                 </tr>
               ) : (
                 <tr key={r.id}>
@@ -150,8 +157,8 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
   );
 }
 
-function Editor({ row, withFeatures, folder, onCancel, onSave }: { row: Row; withFeatures?: boolean; folder: string; onCancel: () => void; onSave: (r: Row) => void }) {
-  const [r, setR] = useState(row);
+function Editor({ row, withFeatures, folder, multi, onCancel, onSave }: { row: Row; withFeatures?: boolean; folder: string; multi?: boolean; onCancel: () => void; onSave: (r: Row) => void }) {
+  const [r, setR] = useState<Row>(() => (multi && !(row.images ?? []).length && row.image_url ? { ...row, images: [row.image_url] } : row));
   const [featuresText, setFeaturesText] = useState((row.features ?? []).join("\n"));
   const [saving, setSaving] = useState(false);
 
@@ -196,7 +203,14 @@ function Editor({ row, withFeatures, folder, onCancel, onSave }: { row: Row; wit
           </Field>
         </div>
       )}
-      <ImageInput value={r.image_url} onChange={(url) => setR({ ...r, image_url: url })} folder={folder} label="Ảnh mẫu" />
+      {multi ? (
+        <div className="sm:col-span-2">
+          <ImagesInput value={r.images ?? []} onChange={(images) => setR({ ...r, images })} folder={folder}
+            label="Ảnh gói" hint="Kéo thả để sắp thứ tự. Ảnh đầu tiên là ảnh chính trên trang Đặt đơn." />
+        </div>
+      ) : (
+        <ImageInput value={r.image_url} onChange={(url) => setR({ ...r, image_url: url })} folder={folder} label="Ảnh mẫu" />
+      )}
       <div className="flex items-center"><Toggle checked={r.is_active} onChange={(v) => setR({ ...r, is_active: v })} label="Hiện trên web" /></div>
       <div className="flex justify-end gap-2 border-t border-[#efeff1] pt-4 sm:col-span-2">
         <Button variant="secondary" onClick={onCancel}>Huỷ</Button>

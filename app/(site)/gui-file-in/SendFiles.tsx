@@ -12,6 +12,7 @@ import { randomName } from "@/lib/upload";
 import { matchFileName, type PackLayout } from "@/lib/matchFileName";
 import { PrintArea } from "@/components/mockup/Mockups";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { btnClass, inputClass } from "@/components/ui/styles";
 import type { Package } from "@/lib/types";
 
 const PINK = "#ff5fa2";
@@ -174,9 +175,9 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
         <p className="text-5xl">✿</p>
         <h1 className="mt-3 font-sans text-[22px] font-bold normal-case tracking-[-0.02em] sm:text-[28px]">Cảm ơn bạn!</h1>
         <p className="mt-3 text-ink-600">Tiệm đã nhận {done.count} ảnh. Mã đơn của bạn:</p>
-        <p className="pop-sm mx-auto mt-3 inline-block rounded-2xl bg-white px-5 py-2 font-display text-3xl">{done.code}</p>
+        <p className="mx-auto mt-3 inline-block rounded-[10px] border border-[#e5e5e7] bg-white px-5 py-2 text-[22px] font-semibold tracking-wide text-[#18181b]">{done.code}</p>
         <p className="mt-4 text-sm text-ink-600">Lưu lại mã đơn nhé. Tiệm sẽ kiểm tra file và nhắn bạn qua Zalo/SĐT nếu cần chỉnh sửa.</p>
-        <Link href="/" className="btn mt-6">Về trang chủ</Link>
+        <Link href="/" className={`${btnClass("secondary")} mt-6`}>Về trang chủ</Link>
       </div>
     );
   }
@@ -201,7 +202,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
               <p className="font-semibold">{pkg.name}</p>
               <p className="text-[12px] text-[#8a857e]">{describePkg(pkg)}</p>
             </div>
-            <button className="tool-btn shrink-0" onClick={() => setPendingPkg({ pk: pkg, lost: [] })}>Đổi gói</button>
+            <button className={`${btnClass("secondary")} shrink-0`} onClick={() => setPendingPkg({ pk: pkg, lost: [] })}>Đổi gói</button>
           </div>
 
           {step === 1 ? (
@@ -209,7 +210,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
               <p className="text-[13px] text-ink-600">
                 Bạn chưa có ảnh? <Link href="/huong-dan" className="font-semibold underline" style={{ color: PINK }}>Nhấn vào đây</Link> để được hướng dẫn
               </p>
-              <button className="tool-btn mt-3" onClick={() => setMultiOpen(true)}>⇪ Tải nhiều ảnh</button>
+              <button className={`${btnClass("secondary")} mt-3`} onClick={() => setMultiOpen(true)}>⇪ Tải nhiều ảnh</button>
 
               {(["front", "back", "disc"] as const).map((g) => {
                 const list = slots.filter((s) => s.group === g);
@@ -240,17 +241,17 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
               <p className="mb-2 rounded-[8px] bg-[#f4f2ee] px-3 py-2 text-[12px] text-ink-600">
                 ⓘ Bạn chưa tải được nhạc từ YouTube và Spotify? <Link href="/huong-dan#audio" className="font-semibold underline" style={{ color: PINK }}>Nhấn vào đây</Link> để xem hướng dẫn
               </p>
-              <input className="tool-input w-full" type="url" inputMode="url" placeholder="https://drive.google.com/..." value={link} onChange={(e) => setLink(e.target.value)} />
+              <input className={inputClass} type="url" inputMode="url" placeholder="https://drive.google.com/..." value={link} onChange={(e) => setLink(e.target.value)} />
 
               {!orderCode && (
                 <div className="mt-5 grid gap-2 sm:grid-cols-2">
                   <p className="text-[13px] font-semibold sm:col-span-2">Thông tin liên hệ</p>
-                  <input className="tool-input w-full" placeholder="Tên của bạn" value={name} onChange={(e) => setName(e.target.value)} />
-                  <input className="tool-input w-full" type="tel" inputMode="tel" placeholder="Số điện thoại / Zalo" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                  <input className={inputClass} placeholder="Tên của bạn" value={name} onChange={(e) => setName(e.target.value)} />
+                  <input className={inputClass} type="tel" inputMode="tel" placeholder="Số điện thoại / Zalo" value={phone} onChange={(e) => setPhone(e.target.value)} />
                 </div>
               )}
 
-              <button className="tool-btn mt-5" onClick={() => setStep(1)}>← Quay lại</button>
+              <button className={`${btnClass("secondary")} mt-5`} onClick={() => setStep(1)}>← Quay lại</button>
 
               <div className="mt-6">
                 {missing.length > 0 && (
@@ -284,7 +285,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
             <div className="max-h-[90dvh] w-full max-w-2xl overflow-auto rounded-[14px] bg-white p-5 font-sans shadow-xl" onClick={(e) => e.stopPropagation()}>
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[16px] font-semibold">Đổi gói</p>
-                <button className="tool-btn" onClick={() => setPendingPkg(null)}>Đóng</button>
+                <button className={`${btnClass("secondary")}`} onClick={() => setPendingPkg(null)}>Đóng</button>
               </div>
               <PackageCards packages={packages} current={pkg?.id} onPick={choosePkg} />
             </div>
@@ -388,7 +389,7 @@ function SlotTile({ slot, picked, onFile, onRemove }: { slot: SlotDef; picked?: 
         ) : (
           <div className={`absolute inset-0 grid place-items-center border-2 border-dashed border-[#cfcac2] bg-[#f1efeb] ${isDisc ? "rounded-full" : "rounded-[8px]"}`}>
             {isDisc && <span className="absolute left-1/2 top-1/2 h-[12.5%] w-[12.5%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-[#cfcac2] bg-cream-50" />}
-            <button type="button" onClick={open} className={`tool-btn bg-white ${isDisc ? "relative mt-[45%]" : ""}`}>⇪ Tải lên</button>
+            <button type="button" onClick={open} className={`${btnClass("secondary", "sm")} ${isDisc ? "relative mt-[45%]" : ""}`}>⇪ Tải lên</button>
           </div>
         )}
         <input ref={input} type="file" accept={ACCEPT} className="sr-only" tabIndex={-1}
@@ -459,7 +460,7 @@ function MultiUpload({ slots, layout, onCancel, onConfirm }: {
                         {warn && <span className="block text-[11px] text-[#a16207]">{r.dup && !r.slot ? "Trùng ô, chọn lại" : !r.slot ? "Không nhận ra, chọn ô" : "Trùng ô"}</span>}
                       </td>
                       <td className="px-1.5 py-1.5">
-                        <select className="tool-input w-full" value={r.slot}
+                        <select className={inputClass} value={r.slot}
                           onChange={(e) => setRows((cur) => cur.map((x, j) => (j === i ? { ...x, slot: e.target.value } : x)))}>
                           <option value="">— Bỏ qua —</option>
                           {slots.map((s) => <option key={s.id} value={s.id}>{s.full}</option>)}
@@ -477,7 +478,7 @@ function MultiUpload({ slots, layout, onCancel, onConfirm }: {
           )}
         </div>
         <div className="flex justify-end gap-2 border-t border-[#ecebe7] px-5 py-3">
-          <button className="tool-btn" onClick={onCancel}>Huỷ</button>
+          <button className={`${btnClass("secondary")}`} onClick={onCancel}>Huỷ</button>
           <button className="h-9 rounded-[8px] px-5 text-[14px] font-semibold text-white disabled:opacity-45" style={{ background: PINK }}
             disabled={!rows.some((r) => r.slot)} onClick={() => onConfirm(rows.filter((r) => r.slot))}>Xác nhận</button>
         </div>
@@ -495,8 +496,8 @@ function Modal({ title, children, ok, cancel, onOk, onCancel, danger }: {
         <p className="text-[16px] font-semibold text-ink-900">{title}</p>
         <p className="mt-2 text-ink-600">{children}</p>
         <div className="mt-5 flex justify-end gap-2">
-          <button className="tool-btn" onClick={onCancel}>{cancel}</button>
-          <button className={danger ? "tool-btn !border-[#d0303f] !bg-[#d0303f] !text-white hover:!brightness-95" : "tool-btn is-active"} onClick={onOk}>{ok}</button>
+          <button className={`${btnClass("secondary")}`} onClick={onCancel}>{cancel}</button>
+          <button className={danger ? `${btnClass("primary")} !bg-[#dc2626] hover:!bg-[#b91c1c]` : btnClass("primary")} onClick={onOk}>{ok}</button>
         </div>
       </div>
     </div>

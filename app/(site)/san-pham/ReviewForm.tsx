@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { uploadPublicImage } from "@/lib/upload";
+import { btnClass, inputClass } from "@/components/ui/styles";
 
 export function ReviewForm() {
   const [name, setName] = useState("");
@@ -34,42 +35,42 @@ export function ReviewForm() {
 
   if (state === "done") {
     return (
-      <div className="rounded-[24px] bg-violet-500 px-6 py-10 text-center text-white">
-        <p className="font-display text-4xl uppercase">Cảm ơn bạn!</p>
-        <p className="mt-1 text-white/85">Đánh giá sẽ hiện lên sau khi tiệm duyệt.</p>
+      <div className="rounded-[12px] border border-[#e5e5e7] bg-white px-6 py-10 text-center">
+        <p className="text-[20px] font-semibold text-[#18181b]">Cảm ơn bạn!</p>
+        <p className="mt-1 text-[#71717a]">Đánh giá sẽ hiện lên sau khi tiệm duyệt.</p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={submit} className="panel space-y-4 p-5 sm:p-7">
+    <form onSubmit={submit} className="space-y-4 rounded-[12px] border border-[#e5e5e7] bg-white p-5 sm:p-6">
       <label className="block">
-        <span className="mb-1.5 block text-sm font-semibold text-ink-900">Tên của bạn *</span>
-        <input className="field" required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+        <span className="mb-1.5 block text-[13px] font-medium text-[#18181b]">Tên của bạn *</span>
+        <input className={inputClass} required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
       </label>
       <div>
-        <span className="mb-1.5 block text-sm font-semibold text-ink-900">Chấm điểm</span>
+        <span className="mb-1.5 block text-[13px] font-medium text-[#18181b]">Chấm điểm</span>
         <div className="flex gap-1" role="radiogroup">
           {[1, 2, 3, 4, 5].map((n) => (
             <button key={n} type="button" role="radio" aria-checked={rating === n} aria-label={`${n} sao`} onClick={() => setRating(n)}
-              className={`text-4xl transition hover:scale-110 ${n <= rating ? "text-hot-500" : "text-ink-100"}`}>★</button>
+              className={`text-[28px] leading-none transition hover:scale-110 ${n <= rating ? "text-[#ff5fa2]" : "text-[#e5e5e7]"}`}>★</button>
           ))}
         </div>
       </div>
       <label className="block">
-        <span className="mb-1.5 block text-sm font-semibold text-ink-900">Cảm nhận</span>
-        <textarea className="field" rows={4} maxLength={2000} value={content} onChange={(e) => setContent(e.target.value)} />
+        <span className="mb-1.5 block text-[13px] font-medium text-[#18181b]">Cảm nhận</span>
+        <textarea className={`${inputClass} h-auto py-2`} rows={4} maxLength={2000} value={content} onChange={(e) => setContent(e.target.value)} />
       </label>
       <label className="block">
-        <span className="mb-1.5 block text-sm font-semibold text-ink-900">Ảnh sản phẩm (không bắt buộc, tối đa 8MB)</span>
+        <span className="mb-1.5 block text-[13px] font-medium text-[#18181b]">Ảnh sản phẩm (không bắt buộc, tối đa 8MB)</span>
         <span className="flex items-center gap-3">
-          <span className="chip">Chọn ảnh</span>
-          <span className="truncate text-sm text-ink-500">{file ? file.name : "Chưa chọn ảnh"}</span>
+          <span className={btnClass("secondary", "sm")}>Chọn ảnh</span>
+          <span className="truncate text-[13px] text-[#71717a]">{file ? file.name : "Chưa chọn ảnh"}</span>
         </span>
         <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       </label>
-      {error && <p className="rounded-full bg-hot-100 px-4 py-2 text-sm font-semibold text-hot-700">{error}</p>}
-      <button type="submit" className="btn w-full" disabled={state === "sending"}>{state === "sending" ? "Đang gửi..." : "Gửi đánh giá"}</button>
+      {error && <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</p>}
+      <button type="submit" className={`${btnClass("primary")} w-full`} disabled={state === "sending"}>{state === "sending" ? "Đang gửi..." : "Gửi đánh giá"}</button>
     </form>
   );
 }

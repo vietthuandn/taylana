@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { FEATURE_PHOTOSTRIP } from "@/lib/features";
 import { publicClient } from "@/lib/supabase/public";
 import type { PhotostripFrame } from "@/lib/templates";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -7,6 +9,7 @@ export const metadata = { title: "Làm Photostrip" };
 export const revalidate = 60;
 
 export default async function PhotostripPage() {
+  if (!FEATURE_PHOTOSTRIP) redirect("/");
   const sb = publicClient();
   let frames: PhotostripFrame[] = [];
   if (sb) {

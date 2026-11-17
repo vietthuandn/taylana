@@ -1,3 +1,4 @@
+import { FEATURE_PHOTOSTRIP } from "./features";
 import { publicClient } from "./supabase/public";
 
 // ---------- Banner trang chủ (key "home" trong bảng site_settings) ----------
@@ -63,7 +64,7 @@ export const optionIcons = ["bag", "book", "brush", "upload", "gallery", "chat"]
 export const defaultOptions: HomeOption[] = [
   { title: "Đặt đơn ngay", href: "/dat-don", image_url: null, bg: "#d4dd3f", text_v: "middle", text_h: "left", text_color: "brown" },
   { title: "Hướng dẫn làm file", href: "/huong-dan", image_url: null, bg: "#a9c6e8", text_v: "top", text_h: "center", text_color: "white" },
-  { title: "Tự tay thiết kế", href: "/tu-thiet-ke", image_url: null, bg: "#fbf3e7", text_v: "top", text_h: "left", text_color: "brown" },
+  { title: "Tự tay thiết kế", href: "/custom-cd", image_url: null, bg: "#fbf3e7", text_v: "top", text_h: "left", text_color: "brown" },
   { title: "Gửi file in", href: "/gui-file-in", image_url: null, bg: "#c3b5f7", text_v: "middle", text_h: "center", text_color: "brown" },
   { title: "Sản phẩm & [đánh giá]", href: "/san-pham", image_url: null, bg: "#fbf3e7", text_v: "top", text_h: "center", text_color: "brown" },
   { title: "Liên hệ", href: "/lien-he", image_url: null, bg: "#d4dd3f", text_v: "bottom", text_h: "right", text_color: "brown" },
@@ -98,9 +99,11 @@ export function mergeOptions(value: unknown): HomeOption[] {
     const str = (x: unknown) => typeof x === "string" && x !== "";
     // ô cũ "Nộp file" (đã lưu trong database) → đổi thành "Gửi file in"
     const old = v.href === "/nop-file";
+    // "Tự tay thiết kế" giờ trỏ thẳng /custom-cd; link photostrip (đang tắt) cũng về /custom-cd
+    const toCd = v.href === "/tu-thiet-ke" || (!FEATURE_PHOTOSTRIP && v.href === "/photostrip");
     return {
       title: old && (!v.title || v.title === "Nộp file") ? "Gửi file in" : pick("title", str),
-      href: old ? "/gui-file-in" : pick("href", str),
+      href: old ? "/gui-file-in" : toCd ? "/custom-cd" : pick("href", str),
       image_url: typeof v.image_url === "string" && v.image_url ? v.image_url : null,
       bg: pick("bg", (x) => typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x)),
       text_v: pick("text_v", (x) => x === "top" || x === "middle" || x === "bottom"),

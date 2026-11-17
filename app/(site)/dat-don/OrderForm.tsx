@@ -1,74 +1,70 @@
 "use client";
 
-import { useMemo, useState } from "react";
+/* Trang Đặt đơn — 1 trang: ảnh gói (trái, dính khi cuộn) | chọn gói, phụ kiện, số lượng, thông tin, tóm tắt (phải). */
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { Check, Copy, Disc3, Minus, Plus, Upload, Brush } from "lucide-react";
 import type { Addon, Package } from "@/lib/types";
 import { formatVND } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
-import { Stepper } from "@/components/site/Stepper";
-import { Button } from "@/components/ui/Button";
-import { CdDisc, Sparkle, WavyFrame } from "@/components/ui/Shapes";
+import { Button, Field, Input, Textarea } from "@/components/ui/kit";
+import { btnClass, cx } from "@/components/ui/styles";
 
 type Result = { code: string; total: number };
-const tints = ["bg-violet-100", "bg-lime-100", "bg-hot-100"];
 
-function StepHeading({ n, title, hint }: { n: number; title: string; hint?: string }) {
-  return (
-    <div className="mb-5 flex items-center gap-4">
-      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-violet-500 font-display text-2xl text-white">{n}</span>
-      <div>
-        <h2 className="text-3xl sm:text-4xl">{title}</h2>
-        {hint && <p className="text-sm text-ink-500">{hint}</p>}
-      </div>
-    </div>
-  );
-}
+// ảnh của gói: danh sách images (ảnh đầu là ảnh chính), không có thì dùng image_url cũ
+const imagesOf = (p?: Package) => {
+  if (!p) return [];
+  const list = (p.images ?? []).filter(Boolean);
+  return list.length ? list : p.image_url ? [p.image_url] : [];
+};
+// mô tả ngắn những gì có trong gói
+const summaryOf = (p: Package) => p.description || p.features.join(" · ");
 
 export function OrderForm({ packages, addons }: { packages: Package[]; addons: Addon[] }) {
   const params = useSearchParams();
   const pre = params.get("goi");
-  const [packageId, setPackageId] = useState<string>(packages.some((p) => p.id === pre) ? pre! : "");
+  const [packageId, setPackageId] = useState<string>(packages.some((p) => p.id === pre) ? pre! : packages[0]?.id ?? "");
+  const [imgIdx, setImgIdx] = useState(0);
   const [qty, setQty] = useState(1);
-  const [addonQty, setAddonQty] = useState<Record<string, number>>({});
+  const [picked, setPicked] = useState<Set<string>>(new Set());
   const [form, setForm] = useState({ name: "", phone: "", address: "", note: "" });
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
 
   const pkg = packages.find((p) => p.id === packageId);
-  const total = useMemo(() => {
-    let t = pkg ? pkg.price * qty : 0;
-    for (const a of addons) t += (addonQty[a.id] ?? 0) * a.price;
-    return t;
-  }, [pkg, qty, addons, addonQty]);
+  const images = imagesOf(pkg);
+  const chosenAddons = addons.filter((a) => picked.has(a.id));
+  const total = useMemo(() => (pkg ? pkg.price * qty : 0) + chosenAddons.reduce((t, a) => t + a.price, 0), [pkg, qty, chosenAddons]);
 
-  function toggleAddon(id: string) {
-    setAddonQty((cur) => {
-      const next = { ...cur };
-      if (next[id]) delete next[id];
-      else next[id] = 1;
-      return next;
+  // khách đã đăng nhập → tự điền tên và SĐT
+  useEffect(() => {
+    if (!hasSupabase) return;
+    createClient().auth.getUser().then(({ data }) => {
+      const m = data.user?.user_metadata;
+      if (!m) return;
+      setForm((f) => ({ ...f, name: f.name || (m.display_name as string) || "", phone: f.phone || (m.phone as string) || "" }));
     });
+  }, []);
+
+  function choose(id: string) { setPackageId(id); setImgIdx(0); }
+  function toggleAddon(id: string) {
+    setPicked((cur) => { const n = new Set(cur); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!pkg) {
-      setError("Bạn chưa chọn gói sản phẩm.");
-      document.getElementById("buoc-1")?.scrollIntoView({ behavior: "smooth" });
-      return;
-    }
+    if (!pkg) return setError("Bạn chưa chọn gói sản phẩm.");
     if (!form.name.trim() || form.phone.replace(/\D/g, "").length < 8) {
       setError("Vui lòng nhập tên và số điện thoại/Zalo hợp lệ.");
+      document.getElementById("thong-tin")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    if (!hasSupabase) {
-      setError("Web chưa kết nối database.");
-      return;
-    }
+    if (!hasSupabase) return setError("Web chưa kết nối database.");
     setSending(true);
     const { data, error } = await createClient().rpc("create_order", {
       p_customer_name: form.name,
@@ -77,14 +73,11 @@ export function OrderForm({ packages, addons }: { packages: Package[]; addons: A
       p_note: form.note,
       p_package_id: pkg.id,
       p_quantity: qty,
-      p_addons: Object.entries(addonQty).map(([id, q]) => ({ id, qty: q })),
+      p_addons: [...picked].map((id) => ({ id, qty: 1 })),
       p_order_type: "cd",
     });
     setSending(false);
-    if (error || !data?.[0]) {
-      setError(error?.message ?? "Gửi đơn thất bại, bạn thử lại nhé.");
-      return;
-    }
+    if (error || !data?.[0]) return setError(error?.message ?? "Gửi đơn thất bại, bạn thử lại nhé.");
     setResult({ code: data[0].order_code, total: data[0].order_total });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -92,115 +85,148 @@ export function OrderForm({ packages, addons }: { packages: Package[]; addons: A
   if (result) return <Success result={result} />;
 
   if (!packages.length) {
-    return <p className="mx-auto max-w-md px-4 text-center">Tiệm đang cập nhật bảng giá, bạn quay lại sau hoặc nhắn tiệm qua Zalo nhé!</p>;
+    return <p className="mx-auto max-w-md px-4 py-16 text-center text-[#71717a]">Tiệm đang cập nhật bảng giá, bạn quay lại sau hoặc nhắn tiệm qua Zalo nhé!</p>;
   }
 
+  const label = "mb-2.5 text-[15px] font-semibold text-[#18181b]";
   return (
-    <form onSubmit={submit} className="mx-auto max-w-6xl px-4 pb-32">
-      {/* ---- Bước 1: chọn gói ---- */}
-      <section id="buoc-1" className="scroll-mt-24">
-        <StepHeading n={1} title="Chọn gói" />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {packages.map((p, i) => {
-            const active = p.id === packageId;
-            return (
-              <label key={p.id}
-                className={`relative flex cursor-pointer flex-col rounded-[20px] border-2 bg-white p-4 transition ${active ? "border-violet-500 ring-4 ring-violet-100" : "border-lime-500 hover:-translate-y-0.5"}`}>
-                <input type="radio" name="package" value={p.id} checked={active} onChange={() => setPackageId(p.id)} className="sr-only" />
-                {active && <span className="eyebrow absolute right-3 top-3 z-10 bg-violet-500 text-white">✓ Đã chọn</span>}
-                <div className="flex gap-4 sm:block">
-                  <WavyFrame shape="cloud" border={i % 2 ? "violet" : "lime"} className="aspect-square w-24 shrink-0 sm:mb-4 sm:w-full">
-                    {p.image_url ? (
-                      <Image src={p.image_url} alt={p.name} fill sizes="(min-width:640px) 360px, 96px" className="object-cover" />
-                    ) : (
-                      <div className={`grid h-full place-items-center ${tints[i % 3]}`}><CdDisc className="w-1/2" /></div>
-                    )}
-                  </WavyFrame>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="text-2xl">{p.name}</h3>
-                    <p className="font-display text-2xl text-hot-500">{formatVND(p.price)}</p>
-                    {p.description && <p className="mt-1 text-sm">{p.description}</p>}
-                  </div>
-                </div>
-                {p.features.length > 0 && (
-                  <ul className="mt-3 flex flex-wrap gap-1.5">
-                    {p.features.map((f) => <li key={f} className="rounded-full bg-lime-100 px-2.5 py-1 text-xs font-semibold text-ink-900">{f}</li>)}
-                  </ul>
-                )}
-                <span className={`btn btn-sm mt-4 ${active ? "btn-lime" : "btn-ghost"}`}>{active ? "Gói đã chọn" : "Chọn gói này"}</span>
-              </label>
-            );
-          })}
+    <form onSubmit={submit} className="mx-auto grid w-full max-w-6xl gap-6 px-4 pb-28 pt-4 md:grid-cols-[55fr_45fr] md:gap-10 md:pb-12 md:pt-8">
+      {/* ---------- Ảnh gói ---------- */}
+      <div className="md:sticky md:top-24 md:self-start">
+        <div className="relative aspect-square w-full overflow-hidden rounded-[16px] border border-[#e5e5e7] bg-white">
+          {images[imgIdx] ? (
+            <Image key={`${packageId}-${imgIdx}`} src={images[imgIdx]} alt={pkg?.name ?? ""} fill priority
+              sizes="(min-width:768px) 600px, 100vw" className="animate-[fadeIn_.35s_ease] object-cover" />
+          ) : (
+            <div key={packageId} className="grid h-full animate-[fadeIn_.35s_ease] place-items-center bg-[#f4f4f5]">
+              <Disc3 size={96} strokeWidth={1} className="text-[#d4d4d8]" />
+            </div>
+          )}
         </div>
-        {pkg && (
-          <div className="mt-6 flex items-center justify-center gap-3">
-            <span className="font-semibold text-ink-900">Số lượng:</span>
-            <Stepper value={qty} onChange={setQty} />
+        {images.length > 1 && (
+          <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
+            {images.map((src, i) => (
+              <button key={src + i} type="button" onClick={() => setImgIdx(i)} aria-label={`Ảnh ${i + 1}`}
+                className={cx("relative h-16 w-16 shrink-0 overflow-hidden rounded-[8px] border-2 bg-white transition", i === imgIdx ? "border-[#ff5fa2]" : "border-transparent opacity-70 hover:opacity-100")}>
+                <Image src={src} alt="" fill sizes="64px" className="object-cover" />
+              </button>
+            ))}
           </div>
         )}
-      </section>
+      </div>
 
-      {/* ---- Bước 2: phụ kiện ---- */}
-      {addons.length > 0 && (
-        <section className="mt-14">
-          <StepHeading n={2} title="Phụ kiện mua kèm" hint="Không bắt buộc — chọn bao nhiêu tuỳ thích." />
-          <div className="grid gap-3 sm:grid-cols-2">
-            {addons.map((a) => {
-              const q = addonQty[a.id] ?? 0;
+      {/* ---------- Thông tin đặt ---------- */}
+      <div className="min-w-0 space-y-7">
+        <div>
+          <h1 className="font-sans text-[22px] font-bold normal-case leading-tight tracking-[-0.02em] text-[#18181b] sm:text-[28px]">{pkg?.name ?? "Đặt đơn"}</h1>
+          {pkg && <p className="mt-1 text-[20px] font-semibold text-[#ff5fa2]">{formatVND(pkg.price)}</p>}
+          {pkg && summaryOf(pkg) && <p className="mt-2 text-[15px] text-[#71717a]">{summaryOf(pkg)}</p>}
+        </div>
+
+        <section>
+          <p className={label}>Chọn gói</p>
+          <div className="space-y-2" role="radiogroup">
+            {packages.map((p) => {
+              const on = p.id === packageId;
               return (
-                <div key={a.id} className={`flex items-center gap-3 rounded-full border-[1.5px] p-2 pr-3 transition ${q ? "border-lime-500 bg-lime-500" : "border-ink-900 bg-white"}`}>
-                  <button type="button" onClick={() => toggleAddon(a.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-pressed={q > 0}>
-                    <span className={`grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full text-lg font-bold ${q ? "bg-ink-900 text-lime-500" : "bg-cream-100 text-ink-900"}`}>
-                      {a.image_url ? <Image src={a.image_url} alt="" width={48} height={48} className="h-full w-full object-cover" /> : q ? "✓" : "+"}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-bold text-ink-900">{a.name}</span>
-                      <span className="block truncate text-xs text-ink-600">{a.description}</span>
-                    </span>
-                  </button>
-                  {q > 0 ? <Stepper value={q} onChange={(v) => setAddonQty({ ...addonQty, [a.id]: v })} />
-                    : <span className="shrink-0 font-display text-lg text-hot-500">+{formatVND(a.price)}</span>}
-                </div>
+                <button key={p.id} type="button" role="radio" aria-checked={on} onClick={() => choose(p.id)}
+                  className={cx("flex w-full items-center gap-3 rounded-[10px] border bg-white px-3.5 py-3 text-left transition-colors",
+                    on ? "border-[#ff5fa2] ring-[3px] ring-[#ff5fa2]/15" : "border-[#e5e5e7] hover:border-[#d4d4d8]")}>
+                  <span className={cx("grid h-5 w-5 shrink-0 place-items-center rounded-full border", on ? "border-[#ff5fa2] bg-[#ff5fa2] text-white" : "border-[#d4d4d8]")}>
+                    {on && <Check size={12} strokeWidth={3} />}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[14px] font-medium text-[#18181b]">{p.name}</span>
+                    {summaryOf(p) && <span className="block truncate text-[12px] text-[#71717a]">{summaryOf(p)}</span>}
+                  </span>
+                  <span className="shrink-0 text-[14px] font-semibold text-[#18181b]">{formatVND(p.price)}</span>
+                </button>
               );
             })}
           </div>
         </section>
-      )}
 
-      {/* ---- Bước 3: thông tin ---- */}
-      <section className="mt-14">
-        <StepHeading n={addons.length ? 3 : 2} title="Thông tin nhận hàng" />
-        <div className="panel grid gap-4 p-5 sm:grid-cols-2 sm:p-7">
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-ink-900">Tên của bạn *</span>
-            <input className="field" required maxLength={100} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          </label>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-semibold text-ink-900">Số điện thoại / Zalo *</span>
-            <input className="field" required type="tel" inputMode="tel" maxLength={20} autoComplete="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="mb-1.5 block text-sm font-semibold text-ink-900">Địa chỉ nhận hàng</span>
-            <textarea className="field" rows={2} maxLength={500} autoComplete="street-address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          </label>
-          <label className="block sm:col-span-2">
-            <span className="mb-1.5 block text-sm font-semibold text-ink-900">Ghi chú cho tiệm</span>
-            <textarea className="field" rows={3} maxLength={2000} placeholder="Ví dụ: tên album, màu sắc mong muốn, ngày cần nhận..."
-              value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
-          </label>
-        </div>
-      </section>
+        {addons.length > 0 && (
+          <section>
+            <p className={label}>Phụ kiện mua kèm <span className="text-[13px] font-normal text-[#71717a]">· không bắt buộc</span></p>
+            <div className="divide-y divide-[#efeff1] overflow-hidden rounded-[10px] border border-[#e5e5e7] bg-white">
+              {addons.map((a) => {
+                const on = picked.has(a.id);
+                return (
+                  <label key={a.id} className="flex cursor-pointer items-center gap-3 px-3.5 py-3 hover:bg-[#fafafa]">
+                    <input type="checkbox" className="h-4 w-4 shrink-0 accent-[#ff5fa2]" checked={on} onChange={() => toggleAddon(a.id)} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] text-[#18181b]">{a.name}</span>
+                      {a.description && <span className="block truncate text-[12px] text-[#71717a]">{a.description}</span>}
+                    </span>
+                    <span className="shrink-0 text-[14px] text-[#3f3f46]">+{formatVND(a.price)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
-      {error && <p className="mt-6 rounded-full bg-hot-100 px-5 py-3 text-center font-semibold text-hot-700">{error}</p>}
-
-      {/* ---- Thanh tổng tiền dính ở đáy màn hình ---- */}
-      <div className="fixed inset-x-0 bottom-0 z-30 px-3 pb-3">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 rounded-full bg-ink-900 py-2 pl-6 pr-2 shadow-[0_10px_30px_rgba(20,20,20,.3)]">
-          <div className="min-w-0 leading-tight">
-            <span className="block text-xs uppercase tracking-widest text-white/60">Tạm tính</span>
-            <span className="block font-display text-2xl text-lime-500">{formatVND(total)}</span>
+        <section>
+          <p className={label}>Số lượng</p>
+          <div className="inline-flex h-9 items-center rounded-[8px] border border-[#e5e5e7] bg-white">
+            <button type="button" className="grid h-full w-9 place-items-center text-[#3f3f46] hover:bg-[#f4f4f5] disabled:opacity-40" disabled={qty <= 1} onClick={() => setQty(qty - 1)} aria-label="Giảm"><Minus size={16} /></button>
+            <span className="w-10 text-center text-[14px] font-medium tabular-nums">{qty}</span>
+            <button type="button" className="grid h-full w-9 place-items-center text-[#3f3f46] hover:bg-[#f4f4f5] disabled:opacity-40" disabled={qty >= 1000} onClick={() => setQty(qty + 1)} aria-label="Tăng"><Plus size={16} /></button>
           </div>
-          <button type="submit" disabled={sending} className="btn btn-lime shrink-0">{sending ? "Đang gửi..." : "Gửi đơn →"}</button>
+        </section>
+
+        <section id="thong-tin" className="scroll-mt-24">
+          <p className={label}>Thông tin nhận hàng</p>
+          <div className="grid gap-4 rounded-[12px] border border-[#e5e5e7] bg-white p-4 sm:grid-cols-2">
+            <Field label="Tên của bạn *">
+              <Input required maxLength={100} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </Field>
+            <Field label="Số điện thoại / Zalo *">
+              <Input required type="tel" inputMode="tel" maxLength={20} autoComplete="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            </Field>
+            <Field label="Địa chỉ nhận hàng" className="sm:col-span-2">
+              <Textarea rows={2} maxLength={500} autoComplete="street-address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            </Field>
+            <Field label="Ghi chú cho tiệm" className="sm:col-span-2">
+              <Textarea rows={3} maxLength={2000} placeholder="Ví dụ: tên album, màu sắc mong muốn, ngày cần nhận..."
+                value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+            </Field>
+          </div>
+        </section>
+
+        <section className="rounded-[12px] border border-[#e5e5e7] bg-white p-4 text-[14px]">
+          <p className="mb-3 text-[15px] font-semibold text-[#18181b]">Tóm tắt</p>
+          <div className="space-y-1.5 text-[#3f3f46]">
+            {pkg && <p className="flex justify-between gap-3"><span className="min-w-0 truncate">{pkg.name} × {qty}</span><span>{formatVND(pkg.price * qty)}</span></p>}
+            {chosenAddons.map((a) => (
+              <p key={a.id} className="flex justify-between gap-3"><span className="min-w-0 truncate">+ {a.name}</span><span>{formatVND(a.price)}</span></p>
+            ))}
+          </div>
+          <p className="mt-3 flex items-baseline justify-between border-t border-[#efeff1] pt-3">
+            <span className="font-medium text-[#18181b]">Tổng tiền</span>
+            <span className="text-[20px] font-bold text-[#18181b]">{formatVND(total)}</span>
+          </p>
+          <p className="mt-1 text-[12px] text-[#71717a]">Chưa gồm phí ship — tiệm sẽ báo khi xác nhận đơn qua Zalo/SĐT.</p>
+        </section>
+
+        {error && <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</p>}
+
+        <button type="submit" disabled={sending} className={cx(btnClass("primary"), "hidden h-12 w-full text-[16px] font-semibold md:inline-flex")}>
+          {sending ? "Đang gửi..." : "Đặt hàng"}
+        </button>
+      </div>
+
+      {/* ---------- Điện thoại: thanh tổng tiền cố định ở đáy ---------- */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#e5e5e7] bg-white/95 px-4 py-3 backdrop-blur md:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 leading-tight">
+            <span className="block text-[12px] text-[#71717a]">Tổng tiền</span>
+            <span className="block text-[18px] font-bold text-[#18181b]">{formatVND(total)}</span>
+          </div>
+          <button type="submit" disabled={sending} className={cx(btnClass("primary"), "h-11 flex-1 text-[15px] font-semibold")}>
+            {sending ? "Đang gửi..." : "Đặt hàng"}
+          </button>
         </div>
       </div>
     </form>
@@ -210,26 +236,28 @@ export function OrderForm({ packages, addons }: { packages: Package[]; addons: A
 function Success({ result }: { result: Result }) {
   const [copied, setCopied] = useState(false);
   return (
-    <section className="mx-auto max-w-xl px-4 pb-10">
-      <div className="relative overflow-hidden rounded-[32px] bg-lime-500 px-6 py-12 text-center">
-        <Sparkle color="white" className="absolute left-6 top-6 h-8 w-8 animate-twinkle" />
-        <Sparkle className="absolute bottom-6 right-6 h-8 w-8 animate-twinkle" />
-        <h2 className="text-4xl sm:text-5xl">Tiệm đã nhận đơn!</h2>
-        <p className="mt-3 text-ink-700">Mã đơn của bạn:</p>
-        <p className="mx-auto mt-2 inline-block rounded-full bg-ink-900 px-6 py-2 font-display text-3xl tracking-wider text-white">{result.code}</p>
-        <div>
-          <button type="button" className="mt-3 text-sm font-semibold underline"
+    <section className="mx-auto w-full max-w-lg px-4 py-12">
+      <div className="rounded-[16px] border border-[#e5e5e7] bg-white p-6 text-center sm:p-8">
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#fff0f6] text-[#ff5fa2]"><Check size={24} /></span>
+        <h1 className="mt-4 font-sans text-[22px] font-bold normal-case tracking-[-0.02em] text-[#18181b] sm:text-[28px]">Cảm ơn bạn đã đặt hàng!</h1>
+        <p className="mt-1 text-[15px] text-[#71717a]">Mã đơn của bạn</p>
+        <div className="mt-2 inline-flex items-center gap-2 rounded-[10px] border border-[#e5e5e7] bg-[#fafafa] py-2 pl-4 pr-2">
+          <span className="text-[22px] font-semibold tracking-wide text-[#18181b]">{result.code}</span>
+          <button type="button" className="grid h-8 w-8 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5]" aria-label="Sao chép mã đơn"
             onClick={() => { navigator.clipboard?.writeText(result.code); setCopied(true); }}>
-            {copied ? "✓ Đã sao chép" : "Sao chép mã đơn"}
+            {copied ? <Check size={16} className="text-[#16a34a]" /> : <Copy size={16} />}
           </button>
         </div>
-        <p className="mt-4 text-ink-900">Tạm tính: <b className="font-display text-2xl">{formatVND(result.total)}</b></p>
-        <p className="mx-auto mt-3 max-w-sm text-sm text-ink-700">
-          Lưu lại mã đơn để gửi file in nhé. Tiệm sẽ liên hệ qua Zalo/SĐT để xác nhận và báo phí ship.
+        <p className="mt-4 text-[14px] text-[#3f3f46]">Tạm tính: <b>{formatVND(result.total)}</b></p>
+        <p className="mx-auto mt-2 max-w-sm text-[13px] text-[#71717a]">
+          Lưu lại mã đơn nhé. Tiệm sẽ liên hệ qua Zalo/SĐT để xác nhận và báo phí ship.
         </p>
-        <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Button href={`/gui-file-in?ma=${encodeURIComponent(result.code)}`}>Gửi file in ngay →</Button>
-          <Button href="/huong-dan" variant="ghost">Hướng dẫn làm file</Button>
+        <div className="mt-6 border-t border-[#efeff1] pt-5">
+          <p className="mb-3 text-[13px] font-medium text-[#18181b]">Bước tiếp theo</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button href={`/gui-file-in?ma=${encodeURIComponent(result.code)}`} icon={<Upload size={16} />}>Gửi file in</Button>
+            <Button href="/custom-cd" variant="secondary" icon={<Brush size={16} />}>Tự thiết kế CD</Button>
+          </div>
         </div>
       </div>
     </section>

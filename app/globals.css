@@ -62,6 +62,10 @@
   from { opacity: 0; transform: translateY(24px) scale(0.97); }
   to { opacity: 1; transform: none; }
 }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -325,12 +329,12 @@
 }
 
 /* ============================================================
-   ADMIN — tối giản kiểu SaaS. Mọi thứ nằm trong .admin-ui
+   ADMIN (.admin-ui) + TRANG KHÁCH trừ Trang chủ/Custom CD (.ui-clean, xem components/site/SiteSkin.tsx) — tối giản kiểu SaaS.
    Màu nhấn duy nhất: hồng #ff5fa2. Lỗi: đỏ #dc2626.
    Code admin cũ dùng lime/tím/kem → tự đổi sang hồng/xám nhờ đổi biến màu.
    .site-ui bên trong admin = khung xem trước trang khách (giữ màu gốc).
    ============================================================ */
-.admin-ui {
+:is(.admin-ui, .ui-clean) {
   --color-cream-50: #fafafa;
   --color-cream-100: #f4f4f5;
   --color-cream-200: #e4e4e7;
@@ -386,7 +390,7 @@
 }
 
 @layer base {
-  .admin-ui :is(h1, h2, h3, h4) {
+  :is(.admin-ui, .ui-clean) :is(h1, h2, h3, h4) {
     font-family: var(--font-inter), Inter, system-ui, sans-serif;
     text-transform: none;
     letter-spacing: -0.01em;
@@ -394,9 +398,9 @@
     font-weight: 600;
     color: #18181b;
   }
-  .admin-ui h1 { font-size: 20px; }
-  .admin-ui h2 { font-size: 15px; }
-  .admin-ui h3, .admin-ui h4 { font-size: 14px; }
+  :is(.admin-ui, .ui-clean) h1 { font-size: 20px; }
+  :is(.admin-ui, .ui-clean) h2 { font-size: 15px; }
+  :is(.admin-ui, .ui-clean) h3, :is(.admin-ui, .ui-clean) h4 { font-size: 14px; }
   .admin-ui .site-ui :is(h1, h2, h3, h4) {
     font-family: var(--font-display);
     text-transform: uppercase;
@@ -408,7 +412,7 @@
 }
 
 /* font tiêu đề in hoa không dùng trong admin (trừ khung xem trước) */
-.admin-ui .font-display:not(.site-ui *) {
+:is(.admin-ui, .ui-clean) .font-display:not(.site-ui *) {
   font-family: var(--font-inter), Inter, system-ui, sans-serif;
   text-transform: none;
   font-weight: 600;
@@ -416,7 +420,7 @@
 }
 
 /* Nút / ô nhập / thẻ kiểu cũ trong admin → kiểu mới */
-.admin-ui .btn:not(.site-ui *) {
+:is(.admin-ui, .ui-clean) .btn:not(.site-ui *) {
   min-height: 36px;
   height: 36px;
   padding: 0 14px;
@@ -430,12 +434,12 @@
   border: 1px solid #ff5fa2;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
-.admin-ui .btn:not(.site-ui *):hover { background: #f0468f; border-color: #f0468f; color: #fff; }
-.admin-ui .btn:not(.site-ui *):active { transform: none; }
-.admin-ui .btn-sm:not(.site-ui *) { min-height: 32px; height: 32px; padding: 0 12px; font-size: 13px; }
-.admin-ui .btn-ghost:not(.site-ui *) { background: #fff; color: #18181b; border-color: #e5e5e7; }
-.admin-ui .btn-ghost:not(.site-ui *):hover { background: #f4f4f5; color: #18181b; border-color: #e5e5e7; }
-.admin-ui .field:not(.site-ui *) {
+:is(.admin-ui, .ui-clean) .btn:not(.site-ui *):hover { background: #f0468f; border-color: #f0468f; color: #fff; }
+:is(.admin-ui, .ui-clean) .btn:not(.site-ui *):active { transform: none; }
+:is(.admin-ui, .ui-clean) .btn-sm:not(.site-ui *) { min-height: 32px; height: 32px; padding: 0 12px; font-size: 13px; }
+:is(.admin-ui, .ui-clean) .btn-ghost:not(.site-ui *) { background: #fff; color: #18181b; border-color: #e5e5e7; }
+:is(.admin-ui, .ui-clean) .btn-ghost:not(.site-ui *):hover { background: #f4f4f5; color: #18181b; border-color: #e5e5e7; }
+:is(.admin-ui, .ui-clean) .field:not(.site-ui *) {
   min-height: 36px;
   padding: 7px 12px;
   border-radius: 8px;
@@ -445,12 +449,25 @@
   background: #fff;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-.admin-ui .field:not(.site-ui *):focus { outline: none; border-color: #ff5fa2; box-shadow: 0 0 0 3px rgb(255 95 162 / 0.15); }
-.admin-ui textarea.field:not(.site-ui *) { border-radius: 8px; }
-.admin-ui :is(.panel, .card, .pop, .pop-sm):not(.site-ui *) { border: 1px solid #e5e5e7; }
-.admin-ui :is(.panel, .card):not(.site-ui *) { border-radius: 12px; }
-.admin-ui :is(.rounded-3xl, .rounded-2xl):not(.site-ui *) { border-radius: 12px; }
-.admin-ui .chip:not(.site-ui *) { min-height: 32px; border-radius: 8px; border: 1px solid #e5e5e7; font-weight: 500; font-size: 13px; }
-.admin-ui .eyebrow:not(.site-ui *) { letter-spacing: 0.04em; border-radius: 6px; }
-.admin-ui input[type="checkbox"]:not(.site-ui *) { accent-color: #ff5fa2; }
-.admin-ui input[type="range"]:not(.site-ui *) { accent-color: #ff5fa2; }
+:is(.admin-ui, .ui-clean) .field:not(.site-ui *):focus { outline: none; border-color: #ff5fa2; box-shadow: 0 0 0 3px rgb(255 95 162 / 0.15); }
+:is(.admin-ui, .ui-clean) textarea.field:not(.site-ui *) { border-radius: 8px; }
+:is(.admin-ui, .ui-clean) :is(.panel, .card, .pop, .pop-sm):not(.site-ui *) { border: 1px solid #e5e5e7; }
+:is(.admin-ui, .ui-clean) :is(.panel, .card):not(.site-ui *) { border-radius: 12px; }
+:is(.admin-ui, .ui-clean) :is(.rounded-3xl, .rounded-2xl):not(.site-ui *) { border-radius: 12px; }
+:is(.admin-ui, .ui-clean) .chip:not(.site-ui *) { min-height: 32px; border-radius: 8px; border: 1px solid #e5e5e7; font-weight: 500; font-size: 13px; }
+:is(.admin-ui, .ui-clean) .eyebrow:not(.site-ui *) { letter-spacing: 0.04em; border-radius: 6px; }
+:is(.admin-ui, .ui-clean) input[type="checkbox"]:not(.site-ui *) { accent-color: #ff5fa2; }
+:is(.admin-ui, .ui-clean) input[type="range"]:not(.site-ui *) { accent-color: #ff5fa2; }
+
+/* Trang khách: hồng vẫn là hồng (admin dùng hot-* cho màu lỗi đỏ) */
+.ui-clean {
+  --color-hot-100: #fff0f6;
+  --color-hot-300: #ff9fc8;
+  --color-hot-500: #ff5fa2;
+  --color-hot-700: #e0337e;
+  font-size: 15px;
+}
+@layer base {
+  .ui-clean h2 { font-size: 18px; }
+  .ui-clean h3 { font-size: 16px; }
+}

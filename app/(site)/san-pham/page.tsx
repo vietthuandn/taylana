@@ -1,9 +1,7 @@
 import { Suspense } from "react";
 import { publicClient } from "@/lib/supabase/public";
 import type { Review, ShowcaseItem } from "@/lib/types";
-import { SectionTitle } from "@/components/ui/SectionTitle";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Stat } from "@/components/ui/Stat";
 import { ShowcaseGrid } from "./ShowcaseGrid";
 import { ReviewList } from "./ReviewList";
 import { ReviewForm } from "./ReviewForm";
@@ -27,23 +25,31 @@ export default async function ProductsPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Tiệm đã làm" title="Sản phẩm" subtitle="Một vài chiếc CD tiệm đã thiết kế và thi công cùng khách." />
-      <section className="mx-auto max-w-6xl px-4">
+      <PageHeader title="Sản phẩm & đánh giá" subtitle="Một vài chiếc CD tiệm đã thiết kế và thi công cùng khách." />
+      <section className="mx-auto w-full max-w-6xl px-4">
         <Suspense>
           <ShowcaseGrid items={items} />
         </Suspense>
       </section>
 
-      <section id="danh-gia" className="mx-auto mt-20 max-w-6xl scroll-mt-24 px-4">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
-          <SectionTitle eyebrow="Khách nói gì" title="Đánh giá" tone="hot" />
-          {reviews.length > 0 && <Stat value={`★${avg.toFixed(1)}`} label={`từ ${reviews.length} đánh giá`} />}
+      <section id="danh-gia" className="mx-auto mt-14 w-full max-w-6xl scroll-mt-24 px-4">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-[20px] font-semibold tracking-[-0.01em]">Đánh giá</h2>
+            <p className="mt-0.5 text-[14px] text-[#71717a]">Khách nói gì về tiệm.</p>
+          </div>
+          {reviews.length > 0 && (
+            <p className="text-[14px] text-[#71717a]"><span className="text-[20px] font-semibold text-[#18181b]">★ {avg.toFixed(1)}</span> · {reviews.length} đánh giá</p>
+          )}
         </div>
         <ReviewList reviews={reviews} />
       </section>
 
-      <section className="mx-auto mt-20 max-w-2xl px-4">
-        <SectionTitle title="Gửi đánh giá" align="center" className="mb-6" subtitle="Đánh giá sẽ hiện lên sau khi tiệm duyệt." />
+      <section className="mx-auto mt-14 w-full max-w-2xl px-4 pb-12">
+        <div className="mb-4">
+          <h2 className="text-[20px] font-semibold tracking-[-0.01em]">Gửi đánh giá</h2>
+          <p className="mt-0.5 text-[14px] text-[#71717a]">Đánh giá sẽ hiện lên sau khi tiệm duyệt.</p>
+        </div>
         <ReviewForm />
       </section>
     </>

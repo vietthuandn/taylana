@@ -12,6 +12,8 @@ export type Package = {
   has_disc?: boolean;
   front_pages?: number;
   back_pages?: number;
+  // nhiều ảnh (có sau migration_package_images.sql) — ảnh đầu tiên là ảnh chính
+  images?: string[];
 };
 
 export type Addon = {
