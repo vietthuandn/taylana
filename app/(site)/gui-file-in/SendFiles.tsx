@@ -292,7 +292,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
     );
   }
 
-  const header = <PageHeader inset={false} title="Gửi file in" subtitle={orderCode ? undefined : "Chọn gói, tải ảnh vào đúng ô rồi gửi kèm link nhạc."} />;
+  const header = <PageHeader inset={false} title="Gửi file" subtitle={orderCode ? undefined : "Chọn gói, tải ảnh vào đúng ô rồi gửi kèm link nhạc."} />;
 
   // ---------- Đơn: đang tải / cần xác nhận SĐT ----------
   if (orderCode && orderState !== "ready") {
@@ -332,7 +332,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
               <p className="mb-2 text-[15px] font-semibold">Đơn đang chờ file</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {waiting.map((o) => (
-                  <Link key={o.id} href={`/gui-file-in?don=${encodeURIComponent(o.code)}`}
+                  <Link key={o.id} href={`/gui-file?don=${encodeURIComponent(o.code)}`}
                     className="flex items-center justify-between gap-3 rounded-[10px] border border-[#e5e5e7] bg-white p-3 hover:border-[#ff5fa2]">
                     <span className="min-w-0">
                       <span className="block font-medium">{o.payment_code ?? o.code}</span>

@@ -5,6 +5,7 @@ import { formatDate, formatVND } from "@/lib/format";
 import { blankDiscount, type Discount } from "@/lib/discountAdmin";
 import { AdminPage, Card, EmptyState, PageHeader, Table } from "@/components/admin/ui";
 import { DiscountForm } from "./DiscountForm";
+import { getCatalog } from "@/lib/catalogLoad";
 
 type Usage = { id: string; amount: number; phone: string; created_at: string; orders: { id: string; code: string; customer_name: string; total: number } | null };
 
@@ -12,10 +13,10 @@ export default async function DiscountDetail({ params }: { params: Promise<{ id:
   const { id } = await params;
   const { supabase } = await requireAdmin();
   const isNew = id === "moi";
-  const [d, pk, ad, us] = await Promise.all([
+  const [d, pk, , us] = await Promise.all([
     isNew ? Promise.resolve({ data: blankDiscount }) : supabase.from("discounts").select("*").eq("id", id).maybeSingle(),
-    supabase.from("packages").select("id, name").order("sort_order"),
-    supabase.from("addons").select("id, name").order("sort_order"),
+    getCatalog(supabase, true),
+    Promise.resolve(null),
     isNew ? Promise.resolve({ data: [] }) : supabase.from("discount_usages").select("id, amount, phone, created_at, orders(id, code, customer_name, total)").eq("discount_id", id).order("created_at", { ascending: false }).limit(200),
   ]);
   if (!d.data) notFound();
@@ -25,7 +26,9 @@ export default async function DiscountDetail({ params }: { params: Promise<{ id:
     <AdminPage>
       <Link href="/admin/giam-gia" className="mb-3 inline-flex items-center gap-1 text-[13px] text-[#71717a] hover:text-[#18181b]">← Danh sách giảm giá</Link>
       <PageHeader title={isNew ? "Tạo giảm giá" : (d.data as Discount).name} description={isNew ? "Mã riêng tư hoặc chương trình toàn shop." : undefined} />
-      <DiscountForm initial={d.data as Discount} packages={pk.data ?? []} addons={ad.data ?? []} />
+      <DiscountForm initial={{ ...(d.data as Discount), target: (d.data as Discount).target ?? "goods",
+        option_ids: (d.data as Discount).option_ids?.length ? (d.data as Discount).option_ids : [...((d.data as Discount).package_ids ?? []), ...((d.data as Discount).addon_ids ?? [])] }}
+        groups={pk.flatMap((p) => p.groups.map((g) => ({ id: g.id, name: pk.length > 1 ? `${p.name} · ${g.name}` : g.name, options: g.options.map((o) => ({ id: o.id, name: o.name })) })))} />
       {!isNew && (
         <div className="mt-6">
           <Card title="Đơn đã dùng" description={`${usages.length} đơn`} padded={false}>

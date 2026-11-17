@@ -6,6 +6,7 @@ export type Discount = {
   name: string;
   label: string;
   kind: "private" | "public";
+  target: "goods" | "shipping"; // Giảm tiền hàng / Giảm phí vận chuyển
   code: string | null;
   value_type: "amount" | "percent";
   value: number;
@@ -13,6 +14,7 @@ export type Discount = {
   scope: "order" | "items";
   package_ids: string[];
   addon_ids: string[];
+  option_ids: string[]; // "chỉ áp dụng cho" — id lựa chọn (Loại, Mua kèm...)
   min_order: number | null;
   starts_at: string | null;
   ends_at: string | null;
@@ -24,7 +26,7 @@ export type Discount = {
 };
 
 export const blankDiscount: Discount = {
-  name: "", label: "", kind: "private", code: "", value_type: "amount", value: 20000, max_discount: null,
+  name: "", label: "", kind: "private", target: "goods", option_ids: [], code: "", value_type: "amount", value: 20000, max_discount: null,
   scope: "order", package_ids: [], addon_ids: [], min_order: null, starts_at: null, ends_at: null,
   usage_limit: null, per_phone_limit: null, used_count: 0, is_active: true,
 };

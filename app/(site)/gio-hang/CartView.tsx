@@ -1,11 +1,12 @@
 "use client";
 
 /* Giỏ hàng — cùng hệ thống với trang Đặt đơn: trái 7/12 danh sách · phải 5/12 mã giảm giá + Tạm tính + thanh hành động.
-   Mỗi phụ kiện tính 1 cái cho mỗi bộ (nhân theo số lượng của dòng). Tạo 1 đơn gồm nhiều dòng. */
+   Mỗi lựa chọn tính theo số lượng của dòng. Tạo 1 đơn gồm nhiều dòng. */
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Disc3, ShoppingCart, Trash2 } from "lucide-react";
-import type { Addon, Package } from "@/lib/types";
+import Link from "next/link";
+import { productOfOption, variationText, type Product } from "@/lib/catalog";
 import { formatVND } from "@/lib/format";
 import { cart, useCart } from "@/lib/cart";
 import type { PublicDiscount } from "@/lib/discount";
@@ -13,11 +14,11 @@ import type { ShippingSettings } from "@/lib/shipping";
 import type { PaymentSettings } from "@/lib/payment/settings";
 import { Button } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
-import { ActionBar, DoneStep, InfoStep, Label, MOBILE_PAD, Qty, Stepper, Wrap, emptyForm, lineTotal, submitOrder, useAutofill, useCheckout, type Form, type Line, type Step } from "../dat-don/checkout";
+import { ActionBar, DoneStep, InfoStep, Label, MOBILE_PAD, Qty, Stepper, Wrap, emptyForm, lineTotal, lineUnit, submitOrder, useAutofill, useCheckout, type Form, type Line, type Sel, type Step } from "../dat-don/checkout";
 
-const thumb = (p: Package) => (p.images ?? []).find(Boolean) ?? p.image_url ?? null;
+const thumb = (p: Product, sels: Sel[]) => sels.map((s) => s.opt.image_url).find(Boolean) ?? p.images.find(Boolean) ?? null;
 
-export function CartView({ packages, addons, discounts, shipping, payment }: { packages: Package[]; addons: Addon[]; discounts: PublicDiscount[]; shipping: ShippingSettings; payment: PaymentSettings | null }) {
+export function CartView({ products, discounts, shipping, payment }: { products: Product[]; discounts: PublicDiscount[]; shipping: ShippingSettings; payment: PaymentSettings | null }) {
   const raw = useCart();
   const [off, setOff] = useState<Set<string>>(new Set()); // dòng bỏ chọn (mặc định chọn hết)
   const [step, setStep] = useState<Step>(1);
@@ -27,17 +28,20 @@ export function CartView({ packages, addons, discounts, shipping, payment }: { p
   const [result, setResult] = useState<{ code: string; total: number } | null>(null);
   useAutofill(setForm);
 
-  // Giá làm mới theo database; gói bị ẩn / đổi giá / phụ kiện ngừng bán thì báo
+  // Giá làm mới theo database; sản phẩm / lựa chọn ngừng bán hoặc đổi giá thì báo
   const rows = useMemo(() => raw.map((c) => {
-    const pkg = packages.find((p) => p.id === c.package_id);
-    const ad = c.addons.filter((a) => a.qty > 0).map((a) => addons.find((x) => x.id === a.id));
-    const line: Line | null = pkg ? { key: c.id, pkg, qty: c.quantity, addons: ad.filter(Boolean).map((a) => ({ addon: a!, qty: c.quantity })) } : null;
+    const product = (c.product_id && products.find((p) => p.id === c.product_id)) || productOfOption(products, c.options[0] ?? "");
+    const sels: Sel[] = (product?.groups ?? []).flatMap((g) => g.options.filter((o) => c.options.includes(o.id)).map((o) => ({ opt: o, group: g })));
+    const missingReq = (product?.groups ?? []).some((g) => g.required && !sels.some((s) => s.group.id === g.id));
+    const line: Line | null = product && sels.length && !missingReq ? { key: c.id, product, qty: c.quantity, sels } : null;
     let note = "";
-    if (!pkg) note = "Gói này đã ngừng bán — hãy xoá khỏi giỏ.";
-    else if (c.unit_price && c.unit_price !== pkg.price) note = `Giá đã đổi từ ${formatVND(c.unit_price)} thành ${formatVND(pkg.price)}`;
-    else if (ad.some((a) => !a)) note = "Một số phụ kiện đã ngừng bán và được bỏ ra.";
-    return { c, line, note };
-  }), [raw, packages, addons]);
+    if (!line) note = "Sản phẩm hoặc lựa chọn này đã ngừng bán — hãy xoá khỏi giỏ.";
+    else if (sels.length < c.options.length) note = "Một số lựa chọn đã ngừng bán và được bỏ ra.";
+    else if (c.unit_price && c.unit_price !== lineUnit(line)) note = `Giá đã đổi từ ${formatVND(c.unit_price)} thành ${formatVND(lineUnit(line))}`;
+    const variation = product ? variationText(product, sels.map((s) => s.opt.id)) : "";
+    const href = product ? `/dat-don?sp=${encodeURIComponent(product.slug)}&chon=${sels.map((s) => s.opt.id).join(",")}&sl=${c.quantity}` : "/dat-don";
+    return { c, line, note, product, variation, href };
+  }), [raw, products]);
   const chosen = rows.filter((r) => r.line && !off.has(r.c.id)).map((r) => r.line!);
   const co = useCheckout({ lines: chosen, discounts, shipping, phone: form.phone });
 
@@ -46,7 +50,7 @@ export function CartView({ packages, addons, discounts, shipping, payment }: { p
     setError(""); setSending(true);
     try {
       const ids = chosen.map((l) => l.key);
-      const r = await submitOrder(chosen, form, { code: co.privCode, autoOff: co.autoOff });
+      const r = await submitOrder(chosen, form, co.submit);
       cart.remove(ids); // xoá các dòng đã đặt
       setResult(r); go(3);
     } catch (e) { setError(e instanceof Error ? e.message : "Gửi đơn thất bại"); }
@@ -81,19 +85,19 @@ export function CartView({ packages, addons, discounts, shipping, payment }: { p
                 </label>
               </div>
               <ul className="divide-y divide-[#efeff1] overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white">
-                {rows.map(({ c, line, note }) => {
-                  const img = line ? thumb(line.pkg) : null;
+                {rows.map(({ c, line, note, product, variation, href }) => {
+                  const img = line && product ? thumb(product, line.sels) : null;
                   return (
-                    <li key={c.id} className="flex items-center gap-3 p-4">
+                    <li key={c.id} className="flex h-24 items-center gap-3 px-4">
                       <input type="checkbox" className="h-4 w-4 shrink-0 accent-[#ff5fa2]" disabled={!line} checked={!!line && !off.has(c.id)}
                         aria-label="Chọn dòng này" onChange={() => toggle(c.id)} />
                       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[8px] border border-[#e5e5e7] bg-[#f4f4f5]">
-                        {img ? <Image src={img} alt="" fill sizes="64px" className="object-cover" /> : <Disc3 size={24} strokeWidth={1.2} className="absolute inset-0 m-auto text-[#d4d4d8]" />}
+                        {img ? <Image src={img} alt="" width={64} height={64} className="h-16 w-16 object-cover" /> : <Disc3 size={24} strokeWidth={1.2} className="absolute inset-0 m-auto text-[#d4d4d8]" />}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className={cx("truncate text-[14px] font-semibold", line ? "text-[#18181b]" : "text-[#a1a1aa] line-through")}>{line?.pkg.name ?? "Gói đã ngừng bán"}</p>
-                        {line && line.addons.length > 0 && <p className="truncate text-[13px] text-[#71717a]">+ {line.addons.map((a) => a.addon.name).join(", ")}</p>}
-                        {note && <p className="truncate text-[12px] text-[#b45309]">{note}</p>}
+                        <Link href={href} className={cx("block truncate text-[14px] font-semibold hover:text-[#ff5fa2]", line ? "text-[#18181b]" : "text-[#a1a1aa] line-through")}>{product?.name ?? "Sản phẩm đã ngừng bán"}</Link>
+                        {variation && <p className="truncate text-[13px] text-[#71717a]" title={variation}>{variation}</p>}
+                        {note && <p className="truncate text-[12px] text-[#b45309]" title={note}>{note}</p>}
                       </div>
                       {line ? <Qty value={c.quantity} min={1} onChange={(v) => cart.update(c.id, { quantity: v })} /> : <span className="w-[120px] shrink-0" />}
                       <span className="hidden w-24 shrink-0 text-right text-[14px] font-semibold tabular-nums text-[#18181b] sm:block">{line ? formatVND(lineTotal(line)) : "—"}</span>

@@ -22,7 +22,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const files = (filesData ?? []) as (OrderFile & { order_item_id?: string | null; copy_no?: number })[];
   // Dòng sản phẩm (đơn nhiều dòng từ giỏ hàng). Lỗi = chưa chạy migration → dùng orders.items như cũ.
   const { data: itemData } = await supabase.from("order_items").select("*").eq("order_id", id).order("position");
-  const lines = (itemData ?? []) as { id: string; package_name: string; quantity: number; unit_price: number; line_total: number; copies_mode: string; addons: { name: string; price: number; qty: number }[] }[];
+  const lines = (itemData ?? []) as { id: string; package_name: string; product_name?: string; options?: { name: string; price: number; group?: string; multi?: boolean }[]; quantity: number; unit_price: number; line_total: number; copies_mode: string; addons: { name: string; price: number; qty: number }[] }[];
   const { data: payData } = await supabase.from("payments").select("id, amount, source, bank_txn_id, paid_at, note, created_by").eq("order_id", id).order("paid_at", { ascending: false });
   const payments = (payData ?? []) as PaymentRow[];
   // Khách nộp lại cùng một ô → file mới nhất là bản dùng, các file trước đánh dấu "bản cũ"
@@ -132,8 +132,11 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                 {lines.map((l) => (
                   <li key={l.id} className="flex justify-between gap-2">
                     <span className="min-w-0 text-[#3f3f46]">
-                      {l.package_name} × {l.quantity} <span className="text-[12px] text-[#a1a1aa]">({formatVND(l.unit_price)}/gói)</span>
-                      {l.addons.length > 0 && <span className="block text-[12px] text-[#71717a]">+ {l.addons.map((a) => `${a.name} × ${a.qty} (${formatVND(a.price)})`).join(", ")}</span>}
+                      {l.product_name ? <><b className="font-medium text-[#18181b]">{l.product_name}</b> × {l.quantity}</> : <>{l.package_name} × {l.quantity}</>} <span className="text-[12px] text-[#a1a1aa]">({formatVND(l.unit_price)}/bộ)</span>
+                      {l.product_name && (l.options ?? []).length > 0 && (
+                        <span className="block text-[12px] text-[#71717a]">{(l.options ?? []).map((o) => `${o.group ? `${o.group}: ` : ""}${o.name} (${formatVND(o.price)})`).join(" · ")}</span>
+                      )}
+                      {!l.product_name && l.addons.length > 0 && <span className="block text-[12px] text-[#71717a]">+ {l.addons.map((a) => `${a.name} × ${a.qty} (${formatVND(a.price)})`).join(", ")}</span>}
                     </span>
                     <span className="shrink-0">{formatVND(l.line_total)}</span>
                   </li>
@@ -155,13 +158,22 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                 <>
                   <p className="flex justify-between text-[#3f3f46]"><span>Tiền hàng</span><span>{formatVND(order.subtotal ?? order.total + (order.discount_amount ?? 0))}</span></p>
                   {(order.discount_amount ?? 0) > 0 && <p className="flex justify-between gap-2 text-[#ff5fa2]">
-                    <span className="min-w-0">Giảm giá{order.discount_code ? ` · mã ${order.discount_code}` : " · toàn shop"}{order.discount_label && order.discount_label !== order.discount_code ? ` (${order.discount_label})` : ""}</span>
+                    <span className="min-w-0">Giảm tiền hàng{order.discount_code ? ` · mã ${order.discount_code}` : " · toàn shop"}{order.discount_label && order.discount_label !== order.discount_code ? ` (${order.discount_label})` : ""}</span>
                     <span>−{formatVND(order.discount_amount ?? 0)}</span>
                   </p>}
                 </>
               )}
-              {(order.shipping_fee ?? 0) > 0 || order.shipping_free ? (
-                <p className="flex justify-between text-[#3f3f46]"><span>Phí vận chuyển</span><span>{order.shipping_free ? "Miễn phí" : formatVND(order.shipping_fee ?? 0)}</span></p>
+              {(order.shipping_fee ?? 0) > 0 || order.shipping_free || (order.shipping_base ?? 0) > 0 ? (
+                <>
+                  <p className="flex justify-between gap-2 text-[#3f3f46]">
+                    <span>Phí vận chuyển{(order.shipping_tier_percent ?? 0) > 0 ? ` (ưu đãi ${order.shipping_tier_percent}%)` : ""}</span>
+                    <span>{(order.shipping_base ?? 0) > (order.shipping_after_tier ?? order.shipping_fee ?? 0) && <span className="mr-1 text-[12px] text-[#a1a1aa] line-through">{formatVND(order.shipping_base ?? 0)}</span>}
+                      {(order.shipping_after_tier ?? order.shipping_fee ?? 0) === 0 ? "Miễn phí" : formatVND(order.shipping_after_tier ?? order.shipping_fee ?? 0)}</span>
+                  </p>
+                  {(order.ship_discount_amount ?? 0) > 0 && (
+                    <p className="flex justify-between gap-2 text-[#ff5fa2]"><span>Giảm phí vận chuyển{order.ship_discount_code ? ` · mã ${order.ship_discount_code}` : ""}{order.ship_discount_label && order.ship_discount_label !== order.ship_discount_code ? ` (${order.ship_discount_label})` : ""}</span><span>−{formatVND(order.ship_discount_amount ?? 0)}</span></p>
+                  )}
+                </>
               ) : null}
                             <p className="flex justify-between font-semibold"><span>Tổng</span><span>{formatVND(order.total)}</span></p>
             </div>

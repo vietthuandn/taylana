@@ -5,3 +5,6 @@ export const FEATURE_PHOTOSTRIP = false;
 
 // Phụ kiện liên quan photostrip (ẩn khi tắt tính năng)
 export const isPhotostripItem = (name: string) => /photo\s*-?\s*strip/i.test(name);
+
+// Đánh giá phía khách: tạm ẩn. Admin vẫn giữ mục Đánh giá và dữ liệu. Đổi thành true để mở lại.
+export const FEATURE_REVIEWS = false;

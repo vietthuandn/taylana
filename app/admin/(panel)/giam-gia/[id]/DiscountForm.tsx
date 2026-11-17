@@ -10,7 +10,7 @@ import type { Discount } from "@/lib/discountAdmin";
 import { revalidatePublic } from "@/app/admin/actions";
 import { Button, Field, Input, Message, SaveBar, SettingsSection, Toggle, confirmDialog } from "@/components/admin/ui";
 
-type Opt = { id: string; name: string };
+type Group = { id: string; name: string; options: { id: string; name: string }[] };
 
 // ISO ↔ ô datetime-local (giờ máy)
 const toLocal = (iso: string | null) => {
@@ -21,7 +21,7 @@ const toLocal = (iso: string | null) => {
 const fromLocal = (v: string) => (v ? new Date(v).toISOString() : null);
 const num = (v: string) => (v.trim() === "" ? null : Math.max(0, Math.round(Number(v)) || 0));
 
-export function DiscountForm({ initial, packages, addons }: { initial: Discount; packages: Opt[]; addons: Opt[] }) {
+export function DiscountForm({ initial, groups }: { initial: Discount; groups: Group[] }) {
   const router = useRouter();
   const [saved, setSaved] = useState(initial);
   const [d, setD] = useState(initial);
@@ -31,9 +31,9 @@ export function DiscountForm({ initial, packages, addons }: { initial: Discount;
   const isNew = !d.id;
   const dirty = isNew || JSON.stringify(d) !== JSON.stringify(saved);
 
-  function toggleId(key: "package_ids" | "addon_ids", id: string) {
-    const list = d[key];
-    set({ [key]: list.includes(id) ? list.filter((x) => x !== id) : [...list, id] } as Partial<Discount>);
+  function toggleId(id: string) {
+    const list = d.option_ids;
+    set({ option_ids: list.includes(id) ? list.filter((x) => x !== id) : [...list, id] });
   }
 
   async function save() {
@@ -41,12 +41,13 @@ export function DiscountForm({ initial, packages, addons }: { initial: Discount;
     if (d.kind === "private" && (d.code ?? "").length < 3) return setMsg({ type: "err", text: "Mã cần ít nhất 3 ký tự (chữ HOA không dấu và số)." });
     if (!d.value || d.value <= 0) return setMsg({ type: "err", text: "Giá trị giảm phải lớn hơn 0." });
     if (d.value_type === "percent" && d.value > 100) return setMsg({ type: "err", text: "Giảm theo % tối đa 100%." });
-    if (d.scope === "items" && !d.package_ids.length && !d.addon_ids.length) return setMsg({ type: "err", text: "Chọn ít nhất 1 gói hoặc phụ kiện được áp dụng." });
+    if (d.target === "goods" && d.scope === "items" && !d.option_ids.length) return setMsg({ type: "err", text: "Chọn ít nhất 1 lựa chọn được áp dụng." });
     if (d.starts_at && d.ends_at && d.starts_at > d.ends_at) return setMsg({ type: "err", text: "Thời gian kết thúc phải sau thời gian bắt đầu." });
     const payload = {
       name: d.name.trim(), label: d.label.trim(), kind: d.kind, code: d.kind === "private" ? toCode(d.code ?? "") : null,
       value_type: d.value_type, value: Math.round(d.value), max_discount: d.value_type === "percent" ? d.max_discount || null : null,
-      scope: d.scope, package_ids: d.scope === "items" ? d.package_ids : [], addon_ids: d.scope === "items" ? d.addon_ids : [],
+      target: d.target, scope: d.target === "shipping" ? "order" : d.scope,
+      option_ids: d.target === "goods" && d.scope === "items" ? d.option_ids : [], package_ids: [], addon_ids: [],
       min_order: d.min_order || null, starts_at: d.starts_at, ends_at: d.ends_at,
       usage_limit: d.usage_limit || null, per_phone_limit: d.per_phone_limit || null, is_active: d.is_active,
     };
@@ -102,6 +103,13 @@ export function DiscountForm({ initial, packages, addons }: { initial: Discount;
         )}
       </SettingsSection>
 
+      <SettingsSection title="Phạm vi" description="Giảm tiền hàng, hoặc giảm phí vận chuyển (tính trên phí còn lại sau ưu đãi theo bậc).">
+        <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
+          <button type="button" className={seg(d.target === "goods")} onClick={() => set({ target: "goods" })}>Giảm tiền hàng</button>
+          <button type="button" className={seg(d.target === "shipping")} onClick={() => set({ target: "shipping" })}>Giảm phí vận chuyển</button>
+        </div>
+      </SettingsSection>
+
       <SettingsSection title="Mức giảm" description="Giảm theo số tiền hoặc theo %. Số tiền + một số sản phẩm: trừ cho mỗi sản phẩm.">
         <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
           <button type="button" className={seg(d.value_type === "amount")} onClick={() => set({ value_type: "amount" })}>Số tiền</button>
@@ -120,38 +128,32 @@ export function DiscountForm({ initial, packages, addons }: { initial: Discount;
         </div>
       </SettingsSection>
 
-      <SettingsSection title="Áp dụng cho" description="Toàn bộ đơn, hoặc chỉ các gói / phụ kiện được chọn.">
+      {d.target === "goods" && (
+      <SettingsSection title="Áp dụng cho" description="Toàn bộ đơn, hoặc chỉ các lựa chọn được chọn (Loại, Mua kèm...).">
         <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
           <button type="button" className={seg(d.scope === "order")} onClick={() => set({ scope: "order" })}>Toàn bộ đơn</button>
-          <button type="button" className={seg(d.scope === "items")} onClick={() => set({ scope: "items" })}>Gói / phụ kiện được chọn</button>
+          <button type="button" className={seg(d.scope === "items")} onClick={() => set({ scope: "items" })}>Lựa chọn được chọn</button>
         </div>
         {d.scope === "items" && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <p className="mb-1.5 text-[13px] font-medium">Gói sản phẩm</p>
-              <div className="space-y-1.5">
-                {packages.map((p) => (
-                  <label key={p.id} className={check}>
-                    <input type="checkbox" className="h-4 w-4" checked={d.package_ids.includes(p.id)} onChange={() => toggleId("package_ids", p.id)} /> {p.name}
-                  </label>
-                ))}
-                {!packages.length && <p className="text-[12px] text-[#71717a]">Chưa có gói.</p>}
+            {groups.map((g) => (
+              <div key={g.id}>
+                <p className="mb-1.5 text-[13px] font-medium">{g.name}</p>
+                <div className="space-y-1.5">
+                  {g.options.map((o) => (
+                    <label key={o.id} className={check}>
+                      <input type="checkbox" className="h-4 w-4" checked={d.option_ids.includes(o.id)} onChange={() => toggleId(o.id)} /> {o.name}
+                    </label>
+                  ))}
+                  {!g.options.length && <p className="text-[12px] text-[#71717a]">Chưa có lựa chọn.</p>}
+                </div>
               </div>
-            </div>
-            <div>
-              <p className="mb-1.5 text-[13px] font-medium">Phụ kiện</p>
-              <div className="space-y-1.5">
-                {addons.map((a) => (
-                  <label key={a.id} className={check}>
-                    <input type="checkbox" className="h-4 w-4" checked={d.addon_ids.includes(a.id)} onChange={() => toggleId("addon_ids", a.id)} /> {a.name}
-                  </label>
-                ))}
-                {!addons.length && <p className="text-[12px] text-[#71717a]">Chưa có phụ kiện.</p>}
-              </div>
-            </div>
+            ))}
+            {!groups.length && <p className="text-[12px] text-[#71717a]">Chưa có sản phẩm.</p>}
           </div>
         )}
       </SettingsSection>
+      )}
 
       <SettingsSection title="Điều kiện" description="Các ô để trống là không giới hạn.">
         <Field label="Giá trị đơn tối thiểu (đồng)" hint="Chỉ áp dụng khi tạm tính ≥ số tiền này">

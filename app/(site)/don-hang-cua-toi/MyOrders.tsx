@@ -55,7 +55,7 @@ function OrderCard({ o }: { o: OrderSummary }) {
           {o.amount_due != null && o.amount_due < o.total && <p className="mt-2 text-[12px] text-[#71717a]">Cần chuyển trước (đặt cọc): {formatVND(o.amount_due)}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {canPay && <Button href={`/thanh-toan/${encodeURIComponent(o.code)}`} size="sm" icon={<CreditCard size={16} />}>Thanh toán</Button>}
-            <Button href={`/gui-file-in?don=${encodeURIComponent(o.code)}`} size="sm" variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>
+            <Button href={`/gui-file?don=${encodeURIComponent(o.code)}`} size="sm" variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>
           </div>
         </div>
       )}

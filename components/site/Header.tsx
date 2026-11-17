@@ -6,7 +6,7 @@ import { CartButton, HeaderNav, MobileNav } from "./HeaderNav";
 
 function SearchBox({ className = "" }: { className?: string }) {
   return (
-    <form action="/san-pham" role="search" className={`relative ${className}`}>
+    <form action="/ve-chung-toi" role="search" className={`relative ${className}`}>
       <input name="q" type="search" placeholder="Tìm sản phẩm..." aria-label="Tìm sản phẩm"
         className="h-9 w-full rounded-[8px] border border-[#e5e5e7] bg-white pl-9 pr-3 text-[14px] text-[#18181b] placeholder:text-[#a1a1aa] focus:border-[#ff5fa2] focus:outline-none focus:ring-[3px] focus:ring-[#ff5fa2]/15" />
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
@@ -25,8 +25,8 @@ export function Logo() {
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 border-b border-[#e5e5e7] bg-white/95 font-sans backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5">
+    <header className="sticky top-0 z-40 h-[var(--header-h)] border-b border-[#e5e5e7] bg-white font-sans">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
         <Logo />
         <HeaderNav />
 

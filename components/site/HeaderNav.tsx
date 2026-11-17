@@ -5,11 +5,12 @@ import { usePathname } from "next/navigation";
 import { ShoppingCart } from "lucide-react";
 import { services } from "@/lib/services";
 import { useCart } from "@/lib/cart";
+import { FEATURE_REVIEWS } from "@/lib/features";
 
 // Link trước đây nằm ở footer: Liên hệ hiện trên menu máy tính; tất cả hiện trong menu điện thoại
 const extra = [
   { href: "/lien-he", title: "Liên hệ", desktop: true },
-  { href: "/san-pham#danh-gia", title: "Đánh giá", desktop: false },
+  ...(FEATURE_REVIEWS ? [{ href: "/san-pham#danh-gia", title: "Đánh giá", desktop: false }] : []),
   { href: "/don-hang-cua-toi", title: "Đơn hàng của tôi", desktop: false },
 ];
 

@@ -69,9 +69,9 @@ export const optionIcons = ["bag", "book", "brush", "upload", "gallery", "chat"]
 export const defaultOptions: HomeOption[] = [
   { title: "Đặt đơn ngay", href: "/dat-don", image_url: null, bg: "#fff0f6", text_v: "middle", text_h: "left", text_color: "ink" },
   { title: "Hướng dẫn làm file", href: "/huong-dan", image_url: null, bg: "#f4f4f5", text_v: "top", text_h: "center", text_color: "ink" },
-  { title: "Tự tay thiết kế", href: "/custom-cd", image_url: null, bg: "#ffffff", text_v: "top", text_h: "left", text_color: "ink" },
-  { title: "Gửi file in", href: "/gui-file-in", image_url: null, bg: "#ffffff", text_v: "middle", text_h: "center", text_color: "ink" },
-  { title: "Sản phẩm & [đánh giá]", href: "/san-pham", image_url: null, bg: "#f4f4f5", text_v: "top", text_h: "center", text_color: "ink" },
+  { title: "Thiết Kế", href: "/thiet-ke", image_url: null, bg: "#ffffff", text_v: "top", text_h: "left", text_color: "ink" },
+  { title: "Gửi file", href: "/gui-file", image_url: null, bg: "#ffffff", text_v: "middle", text_h: "center", text_color: "ink" },
+  { title: "Về chúng tôi", href: "/ve-chung-toi", image_url: null, bg: "#f4f4f5", text_v: "top", text_h: "center", text_color: "ink" },
   { title: "Liên hệ", href: "/lien-he", image_url: null, bg: "#fff0f6", text_v: "bottom", text_h: "right", text_color: "ink" },
 ];
 

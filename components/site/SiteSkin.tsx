@@ -4,7 +4,7 @@
 import { usePathname } from "next/navigation";
 import { AdminOverlays } from "@/components/ui/kit";
 
-const KEEP_OLD = ["/custom-cd"]; // giữ thiết kế riêng
+const KEEP_OLD = ["/custom-cd", "/thiet-ke"]; // giữ thiết kế riêng
 
 export function SiteSkin({ children }: { children: React.ReactNode }) {
   const path = usePathname();

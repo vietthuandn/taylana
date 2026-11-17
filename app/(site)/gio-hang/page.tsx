@@ -1,10 +1,9 @@
 import { publicClient } from "@/lib/supabase/public";
-import type { Addon, Package } from "@/lib/types";
 import type { PublicDiscount } from "@/lib/discount";
-import { FEATURE_PHOTOSTRIP, isPhotostripItem } from "@/lib/features";
+import { getCatalog } from "@/lib/catalogLoad";
 import { getPaymentSettings } from "@/lib/payment/load";
-import { getShippingSettings } from "@/lib/shippingLoad";
 import { paymentReady } from "@/lib/payment/settings";
+import { getShippingSettings } from "@/lib/shippingLoad";
 import { CartView } from "./CartView";
 
 export const metadata = { title: "Giỏ hàng", robots: { index: false } };
@@ -13,19 +12,12 @@ export const dynamic = "force-dynamic";
 
 export default async function CartPage() {
   const sb = publicClient();
-  let packages: Package[] = [];
-  let addons: Addon[] = [];
-  let discounts: PublicDiscount[] = [];
-  if (sb) {
-    const [p, a, d] = await Promise.all([
-      sb.from("packages").select("*").eq("is_active", true).order("sort_order"),
-      sb.from("addons").select("*").eq("is_active", true).order("sort_order"),
-      sb.rpc("get_public_discounts"),
-    ]);
-    packages = p.data ?? [];
-    addons = (a.data ?? []).filter((x: Addon) => FEATURE_PHOTOSTRIP || !isPhotostripItem(x.name));
-    discounts = (d.error ? [] : d.data ?? []) as PublicDiscount[];
-  }
-  const [settings, shipping] = await Promise.all([getPaymentSettings(), getShippingSettings()]);
-  return <CartView packages={packages} addons={addons} discounts={discounts} shipping={shipping} payment={paymentReady(settings) ? settings : null} />;
+  const [products, d, settings, shipping] = await Promise.all([
+    getCatalog(sb),
+    sb ? sb.rpc("get_public_discounts") : Promise.resolve({ data: [], error: null }),
+    getPaymentSettings(),
+    getShippingSettings(),
+  ]);
+  const discounts = (d.error ? [] : d.data ?? []) as PublicDiscount[];
+  return <CartView products={products} discounts={discounts} shipping={shipping} payment={paymentReady(settings) ? settings : null} />;
 }

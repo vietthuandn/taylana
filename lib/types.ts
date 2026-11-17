@@ -65,6 +65,12 @@ export type Order = {
   discount_label?: string | null;
   discount_amount?: number;
   shipping_fee?: number;
+  shipping_base?: number;
+  shipping_tier_percent?: number;
+  shipping_after_tier?: number;
+  ship_discount_code?: string | null;
+  ship_discount_label?: string | null;
+  ship_discount_amount?: number;
   shipping_free?: boolean;
   province?: string;
   ward?: string;

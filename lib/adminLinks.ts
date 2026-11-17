@@ -7,8 +7,8 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
     { href: "/admin/don-hang", label: "Đơn hàng", icon: "orders", group: "Tổng quan" },
   ] },
   { title: "Sản phẩm", links: [
-    { href: "/admin/goi-san-pham", label: "Gói & phụ kiện", icon: "package", group: "Sản phẩm" },
-    { href: "/admin/san-pham", label: "Sản phẩm & đánh giá", icon: "star", group: "Sản phẩm" },
+    { href: "/admin/goi-san-pham", label: "Sản phẩm của tôi", icon: "package", group: "Sản phẩm" },
+    { href: "/admin/san-pham", label: "Gallery", icon: "star", group: "Sản phẩm" },
     { href: "/admin/giam-gia", label: "Giảm giá", icon: "tag", group: "Sản phẩm" },
   ] },
   { title: "Nội dung", links: [
@@ -22,6 +22,7 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
   ] },
   { title: "Hệ thống", links: [
     { href: "/admin/thanh-toan", label: "Thanh toán", icon: "card", group: "Hệ thống" },
+    { href: "/admin/van-chuyen", label: "Vận chuyển", icon: "truck", group: "Hệ thống" },
     { href: "/admin/don-file", label: "Dọn file", icon: "trash", group: "Hệ thống" },
   ] },
 ];

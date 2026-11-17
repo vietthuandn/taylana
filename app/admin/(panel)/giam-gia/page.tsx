@@ -18,7 +18,7 @@ export default async function DiscountsAdmin() {
       <PageHeader title="Giảm giá" description="Mã riêng tư (khách tự nhập) và chương trình toàn shop (tự áp dụng). Mỗi đơn dùng tối đa 1 giảm giá."
         actions={<Button href="/admin/giam-gia/moi" icon={<Plus size={16} />}>Tạo giảm giá</Button>} />
       {error && <p className="mb-3 text-[13px] text-[#dc2626]">{error.message.includes("discounts") ? "Chưa có bảng giảm giá — cần chạy supabase/migration_discounts.sql." : error.message}</p>}
-      <Table head={["Tên", "Mã", "Loại", "Giá trị", "Thời gian", "Đã dùng", "Trạng thái", ""]}
+      <Table head={["Tên", "Mã", "Loại", "Phạm vi", "Giá trị", "Thời gian", "Đã dùng", "Trạng thái", ""]}
         empty={!rows.length && <EmptyState>Chưa có chương trình giảm giá nào.</EmptyState>}>
         {rows.map((d) => {
           const s = discountState(d);
@@ -28,7 +28,8 @@ export default async function DiscountsAdmin() {
                 {d.label && <span className="block text-[12px] text-[#a1a1aa]">{d.label}</span>}</td>
               <td className="font-mono text-[13px]">{d.kind === "private" ? d.code : <span className="text-[#a1a1aa]">—</span>}</td>
               <td>{d.kind === "private" ? <Badge>Mã riêng tư</Badge> : <Badge tone="pink">Toàn shop</Badge>}</td>
-              <td className="text-[13px]">{valueText(d)}{d.scope === "items" && <span className="block text-[12px] text-[#a1a1aa]">Một số sản phẩm</span>}</td>
+              <td className="text-[13px] text-[#71717a]">{d.target === "shipping" ? "Phí vận chuyển" : "Tiền hàng"}</td>
+              <td className="text-[13px]">{valueText(d)}{d.target !== "shipping" && d.scope === "items" && <span className="block text-[12px] text-[#a1a1aa]">Một số lựa chọn</span>}</td>
               <td className="text-[12px] text-[#71717a]">{time(d)}</td>
               <td className="text-[13px]">{d.used_count}{d.usage_limit ? ` / ${d.usage_limit}` : ""}</td>
               <td><Badge tone={s.tone}>{s.label}</Badge></td>

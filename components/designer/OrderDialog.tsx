@@ -84,7 +84,7 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
             <p className="mt-3 text-sm text-ink-600">Đã gửi {done.files} file thiết kế. Tiệm sẽ nhắn bạn qua Zalo/SĐT để xác nhận và báo giá.</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {orderType === "custom_cd" && (
-                <Link href={`/gui-file-in?don=${encodeURIComponent(done.code)}`} className="btn !text-base">Gửi link nhạc / file khác →</Link>
+                <Link href={`/gui-file?don=${encodeURIComponent(done.code)}`} className="btn !text-base">Gửi link nhạc / file khác →</Link>
               )}
               <Link href="/don-hang-cua-toi" className="btn btn-ghost !text-base">Xem đơn hàng của tôi</Link>
               <button className="btn btn-ghost !text-base" onClick={onClose}>Đóng</button>

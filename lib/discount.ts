@@ -1,17 +1,20 @@
-// Giảm giá — tính XEM TRƯỚC ở trình duyệt (giống hệt công thức SQL discount_amount_for).
+// Giảm giá — tính XEM TRƯỚC ở trình duyệt (giống công thức SQL discount_amount_for / discount_value).
 // Số tiền thật luôn do server tính lại trong create_order.
+export type DiscountTarget = "goods" | "shipping";
 export type PublicDiscount = {
-  id: string; label: string; value_type: "amount" | "percent"; value: number; max_discount: number | null;
-  scope: "order" | "items"; package_ids: string[]; addon_ids: string[]; min_order: number | null; ends_at: string | null;
+  id: string; label: string; target: DiscountTarget; value_type: "amount" | "percent"; value: number; max_discount: number | null;
+  scope: "order" | "items"; option_ids: string[]; package_ids?: string[]; addon_ids?: string[];
+  min_order: number | null; starts_at?: string | null; ends_at: string | null;
 };
 export type CartItem = { type: "package" | "addon"; id: string; name: string; price: number; qty: number };
 
-const applies = (d: Pick<PublicDiscount, "scope" | "package_ids" | "addon_ids">, it: Pick<CartItem, "type" | "id">) =>
-  d.scope === "order" || (it.type === "package" ? d.package_ids.includes(it.id) : d.addon_ids.includes(it.id));
+const idsOf = (d: Pick<PublicDiscount, "option_ids" | "package_ids" | "addon_ids">) =>
+  d.option_ids?.length ? d.option_ids : [...(d.package_ids ?? []), ...(d.addon_ids ?? [])];
+const applies = (d: PublicDiscount, it: Pick<CartItem, "id">) => d.scope === "order" || idsOf(d).includes(it.id);
 
 export const subtotalOf = (items: CartItem[]) => items.reduce((t, i) => t + i.price * i.qty, 0);
 
-// Số tiền giảm (chưa xét giá trị tối thiểu)
+// Giảm tiền hàng (chưa xét giá trị tối thiểu)
 export function discountAmount(d: PublicDiscount, items: CartItem[]) {
   const sub = subtotalOf(items);
   const hit = items.filter((i) => applies(d, i));
@@ -26,34 +29,20 @@ export function discountAmount(d: PublicDiscount, items: CartItem[]) {
   return Math.min(amt, sub);
 }
 
-// Chương trình toàn shop tốt nhất cho giỏ hàng (đã đủ điều kiện) + gợi ý nếu chưa đủ tối thiểu
-export function bestPublic(list: PublicDiscount[], items: CartItem[]) {
-  const sub = subtotalOf(items);
-  let best: { d: PublicDiscount; amount: number } | null = null;
-  let hint: { need: number; amount: number; label: string } | null = null;
-  for (const d of list) {
-    const amt = discountAmount(d, items);
-    if (amt <= 0) continue;
-    if (d.min_order && sub < d.min_order) {
-      if (!hint || d.min_order - sub < hint.need) hint = { need: d.min_order - sub, amount: amt, label: d.label };
-      continue;
-    }
-    if (!best || amt > best.amount) best = { d, amount: amt };
-  }
-  return { best, hint };
+// Giảm phí ship (trên phí còn lại sau ưu đãi theo bậc)
+export function shipDiscountAmount(d: Pick<PublicDiscount, "value_type" | "value" | "max_discount">, shipAfter: number) {
+  if (shipAfter <= 0) return 0;
+  let v = d.value_type === "percent" ? Math.floor((shipAfter * d.value) / 100) : Math.min(d.value, shipAfter);
+  if (d.value_type === "percent" && d.max_discount) v = Math.min(v, d.max_discount);
+  return Math.min(v, shipAfter);
 }
 
-// Giá gạch cho 1 đơn vị: chỉ khi chương trình không có điều kiện tối thiểu và tính được theo từng sản phẩm
-export function unitPrice(list: PublicDiscount[], it: Pick<CartItem, "type" | "id" | "price">) {
-  let best = it.price;
-  for (const d of list) {
-    if (d.min_order || !applies(d, it)) continue;
-    let p = it.price;
-    if (d.value_type === "percent" && !d.max_discount) p = it.price - Math.floor((it.price * d.value) / 100);
-    else if (d.value_type === "amount" && d.scope === "items") p = it.price - Math.min(d.value, it.price);
-    if (p < best) best = p;
-  }
-  return best;
+export const discountValue = (d: PublicDiscount, items: CartItem[], shipAfter: number) =>
+  d.target === "shipping" ? shipDiscountAmount(d, shipAfter) : discountAmount(d, items);
+
+// "Giảm 20.000đ" / "Giảm 10% (tối đa 30.000đ)"
+export function valueLabel(d: Pick<PublicDiscount, "value_type" | "value" | "max_discount">, fmt: (n: number) => string) {
+  return d.value_type === "percent" ? `Giảm ${d.value}%${d.max_discount ? ` (tối đa ${fmt(d.max_discount)})` : ""}` : `Giảm ${fmt(d.value)}`;
 }
 
 // Mã: VIẾT HOA, không dấu, không khoảng trắng

@@ -6,6 +6,7 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { AuthDialog } from "./AuthDialog";
+import { FEATURE_REVIEWS } from "@/lib/features";
 
 // Nút Đăng nhập / tài khoản trên header
 export function AccountButton() {
@@ -51,7 +52,7 @@ export function AccountButton() {
           <Link href="/thiet-ke-cua-toi" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Thiết kế của tôi</Link>
           <div className="my-1 h-px bg-[#efeff1]" />
           <Link href="/huong-dan" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Hướng dẫn</Link>
-          <Link href="/san-pham#danh-gia" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Đánh giá</Link>
+          {FEATURE_REVIEWS && <Link href="/san-pham#danh-gia" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Đánh giá</Link>}
           <Link href="/lien-he" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Liên hệ</Link>
           <button onClick={async () => { await createClient().auth.signOut(); setMenu(false); }} className="block w-full rounded-[8px] px-3 py-2 text-left text-[#dc2626] hover:bg-[#fef2f2]">Đăng xuất</button>
         </div>
