@@ -19,17 +19,29 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   const { data: order } = await supabase.from("orders").select("*").eq("id", id).maybeSingle<Order>();
   if (!order) notFound();
   const { data: filesData } = await supabase.from("order_files").select("*").eq("order_id", id).order("kind").order("page").order("created_at", { ascending: false });
-  const files = (filesData ?? []) as OrderFile[];
+  const files = (filesData ?? []) as (OrderFile & { order_item_id?: string | null; copy_no?: number })[];
+  // Dòng sản phẩm (đơn nhiều dòng từ giỏ hàng). Lỗi = chưa chạy migration → dùng orders.items như cũ.
+  const { data: itemData } = await supabase.from("order_items").select("*").eq("order_id", id).order("position");
+  const lines = (itemData ?? []) as { id: string; package_name: string; quantity: number; unit_price: number; line_total: number; copies_mode: string; addons: { name: string; price: number; qty: number }[] }[];
   const { data: payData } = await supabase.from("payments").select("id, amount, source, bank_txn_id, paid_at, note, created_by").eq("order_id", id).order("paid_at", { ascending: false });
   const payments = (payData ?? []) as PaymentRow[];
   // Khách nộp lại cùng một ô → file mới nhất là bản dùng, các file trước đánh dấu "bản cũ"
   const seen = new Set<string>();
   const outdated = new Set<string>();
   for (const f of files) {
-    const k = `${f.kind}-${f.page ?? ""}`;
+    const k = `${f.order_item_id ?? ""}-${f.copy_no ?? 1}-${f.kind}-${f.page ?? ""}`;
     if (seen.has(k) && f.kind !== "design") outdated.add(f.id);
     seen.add(k);
   }
+
+  // File theo từng dòng sản phẩm (và từng bản nếu "Mỗi bản khác nhau")
+  const groupKey = (f: (typeof files)[number]) => `${f.order_item_id ?? ""}|${f.copy_no ?? 1}`;
+  const groups = [...new Set(files.map(groupKey))].map((key) => {
+    const [itemId, copy] = key.split("|");
+    const ln = lines.find((l) => l.id === itemId);
+    const title = ln ? `${ln.package_name} × ${ln.quantity}${ln.copies_mode === "different" ? ` · Bản ${copy}` : ""}` : "";
+    return { key, title, group: files.filter((f) => groupKey(f) === key) };
+  }).sort((a, b) => a.title.localeCompare(b.title));
 
   // Link tải tạm thời (hết hạn sau 1 giờ) cho file trong bucket riêng tư
   const signed = new Map<string, string>();
@@ -54,8 +66,12 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
               </p>
             )}
             {files.length ? (
-              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-                {files.map((f) => {
+              <div className="space-y-5">
+                {groups.map(({ key, title, group }) => (
+                  <div key={key}>
+                    {groups.length > 1 || title ? <p className="mb-2 text-[13px] font-semibold text-[#18181b]">{title || "Chưa gắn dòng sản phẩm"} <span className="font-normal text-[#71717a]">({group.length} file)</span></p> : null}
+                    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                {group.map((f) => {
                   const url = signed.get(f.storage_path);
                   const isImg = f.mime_type.startsWith("image/");
                   return (
@@ -78,6 +94,9 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                   );
                 })}
               </ul>
+                  </div>
+                ))}
+              </div>
             ) : (
               <p className="text-[14px] text-[#71717a]">Khách chưa gửi file in nào.</p>
             )}
@@ -108,6 +127,19 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             )}
           </Card>
           <Card title="Sản phẩm">
+            {lines.length > 0 ? (
+              <ul className="space-y-2 text-[14px]">
+                {lines.map((l) => (
+                  <li key={l.id} className="flex justify-between gap-2">
+                    <span className="min-w-0 text-[#3f3f46]">
+                      {l.package_name} × {l.quantity} <span className="text-[12px] text-[#a1a1aa]">({formatVND(l.unit_price)}/gói)</span>
+                      {l.addons.length > 0 && <span className="block text-[12px] text-[#71717a]">+ {l.addons.map((a) => `${a.name} × ${a.qty} (${formatVND(a.price)})`).join(", ")}</span>}
+                    </span>
+                    <span className="shrink-0">{formatVND(l.line_total)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
             <ul className="space-y-1.5 text-[14px]">
               {order.items.map((it, i) => (
                 <li key={i} className="flex justify-between gap-2">
@@ -117,6 +149,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
               ))}
               {!order.items.length && <li className="text-[#71717a]">(không có)</li>}
             </ul>
+            )}
             <div className="mt-3 space-y-1 border-t border-[#efeff1] pt-3 text-[14px]">
               {(order.discount_amount ?? 0) > 0 && (
                 <>

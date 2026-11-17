@@ -4,7 +4,8 @@
    admin xác nhận (hoặc sau này webhook SePay) thì tự chuyển sang "Thanh toán thành công". */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Brush, Check, Clock, Copy, Download, Upload } from "lucide-react";
+import { Brush, Check, Clock, Copy, Download, ListOrdered, Upload } from "lucide-react";
+import { saveOrderCode } from "@/lib/cart";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { formatVND } from "@/lib/format";
@@ -59,7 +60,9 @@ export function PaymentView({ code, settings }: { code: string; settings: Paymen
     if (!hasSupabase) { setInfo(null); return; }
     const { data, error } = await createClient().rpc("get_order_payment", { p_code: code });
     if (error) { setErr(error.message); return; }
-    setInfo((data?.[0] as Info) ?? null);
+    const row = (data?.[0] as Info) ?? null;
+    if (row) saveOrderCode(row.order_code);
+    setInfo(row);
   }, [code]);
   useEffect(() => {
     load();
@@ -79,8 +82,9 @@ export function PaymentView({ code, settings }: { code: string; settings: Paymen
     <div className="mt-6 border-t border-[#efeff1] pt-5">
       <p className="mb-3 text-[13px] font-medium text-[#18181b]">Bước tiếp theo</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        <Button href={`/gui-file-in?ma=${encodeURIComponent(code)}`} variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>
+        <Button href={`/gui-file-in?don=${encodeURIComponent(code)}`} variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>
         <Button href="/custom-cd" variant="secondary" icon={<Brush size={16} />}>Tự thiết kế CD</Button>
+        <Button href="/don-hang-cua-toi" variant="ghost" icon={<ListOrdered size={16} />} className="sm:col-span-2">Xem đơn hàng của tôi</Button>
       </div>
     </div>
   );

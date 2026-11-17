@@ -56,7 +56,7 @@ const BG_COLORS = ["#ffffff", "#f7f0e6", "#141414", "#c8e03c", "#f1f8c8", "#7b68
 export const PX_UNIT = 300 / 96; // cỡ chữ "px" theo kích thước in thật (96 px = 1 inch)
 export const SIZE_PRESETS = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 64, 80, 96];
 const ZOOM_MIN = 0.25, ZOOM_MAX = 4;
-const FRAME_FILL = "#e9e6e1";
+const FRAME_FILL = "#e4e4e7";
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const nodeId = (page: number, id: string) => `n${page}_${id.replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
@@ -146,12 +146,12 @@ function ElNode({ el, page, s, fontTick, text, editable, selectable, templateMod
     // chỉ hiện trong chế độ tạo mẫu (khách: khung trống vẽ ở lớp hướng dẫn, ảnh khách vẽ riêng)
     if (!templateMode) return null;
     const { w, h } = frameSize(el);
-    const shapeProps = { fill: FRAME_FILL, stroke: "#bdb8b0", strokeWidth: 1 / s };
+    const shapeProps = { fill: FRAME_FILL, stroke: "#d4d4d8", strokeWidth: 1 / s };
     return (
       <Group {...common} fw={w} fh={h} onDblClick={onFrameClick}>
         {el.shape === "circle" ? <Ellipse x={w / 2} y={h / 2} radiusX={w / 2} radiusY={h / 2} {...shapeProps} />
           : <Rect width={w} height={h} cornerRadius={el.shape === "rounded" ? Math.min(w, h) * 0.12 : 0} {...shapeProps} />}
-        <Text text="+" width={w} height={h} align="center" verticalAlign="middle" fontSize={Math.min(w, h) * 0.3} fill="#8a857e" listening={false} />
+        <Text text="+" width={w} height={h} align="center" verticalAlign="middle" fontSize={Math.min(w, h) * 0.3} fill="#71717a" listening={false} />
       </Group>
     );
   }
@@ -668,16 +668,16 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
   const sizeUnit = selEl?.fontSize ? Math.round((selEl.fontSize / PX_UNIT) * 10) / 10 : 24;
   const canStyleText = isText && sel?.type === "el";
   const toolbar = (
-    <div className="divide-y divide-[#ecebe7]">
+    <div className="divide-y divide-[#efeff1]">
       <div className="flex flex-wrap gap-1.5 pb-3">
         <button className="tool-btn" disabled={busy} onClick={() => freeInput.current?.click()}><Icon name="image" /> {templateMode ? "Ảnh trang trí" : "Ảnh"}</button>
         {templateMode && (
           <div className="relative">
             <button className="tool-btn" aria-pressed={showFrames} onClick={() => setShowFrames(!showFrames)}><Icon name="frame" /> Khung ảnh</button>
             {showFrames && (
-              <div className="absolute left-0 top-9 z-20 w-40 rounded-[10px] border border-[#dedad3] bg-white p-1 shadow-lg">
+              <div className="absolute left-0 top-9 z-20 w-40 rounded-[10px] border border-[#e5e5e7] bg-white p-1 shadow-lg">
                 {([["rect", "Chữ nhật"], ["square", "Vuông"], ["circle", "Tròn"], ["rounded", "Bo góc"]] as const).map(([k, l]) => (
-                  <button key={k} className="block w-full rounded-[6px] px-2 py-1.5 text-left text-[13px] hover:bg-[#f4f2ee]" onClick={() => addFrame(k)}>{l}</button>
+                  <button key={k} className="block w-full rounded-[6px] px-2 py-1.5 text-left text-[13px] hover:bg-[#f4f4f5]" onClick={() => addFrame(k)}>{l}</button>
                 ))}
               </div>
             )}
@@ -689,7 +689,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
       {showStickers && (
         <div className="grid grid-cols-7 gap-1 py-3">
           {stickers.map((st) => (
-            <button key={st.id} className="rounded-[6px] p-0.5 hover:bg-[#f4f2ee]" onClick={() => addImage(st.src, "sticker", 0.25)} aria-label={`Sticker ${st.id}`} title="Thêm sticker">
+            <button key={st.id} className="rounded-[6px] p-0.5 hover:bg-[#f4f4f5]" onClick={() => addImage(st.src, "sticker", 0.25)} aria-label={`Sticker ${st.id}`} title="Thêm sticker">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={st.src} alt="" className="h-full w-full" />
             </button>
@@ -706,7 +706,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
                 <button className="tool-btn tool-icon" title="Đưa lên trên" aria-label="Đưa lên trên" onClick={() => moveLayer(1)}><Icon name="up" /></button>
                 <button className="tool-btn tool-icon" title="Đưa xuống dưới" aria-label="Đưa xuống dưới" onClick={() => moveLayer(-1)}><Icon name="down" /></button>
               </>}
-              {sel?.type !== "tplText" && !(desktop && !templateMode && sel?.type === "el") && <button className="tool-btn tool-icon !text-[#d0303f]" title="Xoá" aria-label="Xoá" onClick={removeSelected}><Icon name="trash" /></button>}
+              {sel?.type !== "tplText" && !(desktop && !templateMode && sel?.type === "el") && <button className="tool-btn tool-icon !text-[#dc2626]" title="Xoá" aria-label="Xoá" onClick={removeSelected}><Icon name="trash" /></button>}
             </div>
           </div>
 
@@ -719,12 +719,12 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
                   {on ? "Xong căn chỉnh" : "Căn chỉnh ảnh trong khung"}
                 </button>
                 <label className="flex items-center gap-2">
-                  <span className="w-16 text-[12px] text-[#77726b]">Phóng to</span>
+                  <span className="w-16 text-[12px] text-[#71717a]">Phóng to</span>
                   <input type="range" min={1} max={5} step={0.01} value={selFill.zoom} className="flex-1" style={{ accentColor: ACCENT }}
                     onChange={(e) => upd(sel.page, (d) => ({ ...d, fills: { ...d.fills, [sel.id]: zoomFill(d.fills[sel.id], fs.w, fs.h, Number(e.target.value)) } }))} />
                 </label>
                 <button className="tool-btn" onClick={() => pickFrame(sel.page, sel.id)}>Đổi ảnh</button>
-                <p className="text-[11px] text-[#8a857e]">Bấm đúp vào ảnh để kéo căn chỉnh trong khung.</p>
+                <p className="text-[11px] text-[#71717a]">Bấm đúp vào ảnh để kéo căn chỉnh trong khung.</p>
               </>
             );
           })()}
@@ -758,7 +758,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
             <>
               <textarea className="tool-input !h-auto w-full py-1.5" rows={2} value={pages[sel.page].doc.texts[sel.id] ?? selEl.text ?? ""}
                 onChange={(e) => upd(sel.page, (d) => ({ ...d, texts: { ...d.texts, [sel.id]: e.target.value } }))} />
-              <p className="text-[11px] text-[#8a857e]">Chữ của mẫu: chỉ sửa được nội dung.</p>
+              <p className="text-[11px] text-[#71717a]">Chữ của mẫu: chỉ sửa được nội dung.</p>
             </>
           )}
 
@@ -804,7 +804,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
                     onClick={() => updEl(sel.page, selEl.id, { [k]: !selEl[k] })}>{t}</button>
                 ))}
               </div>
-              <p className="text-[11px] text-[#8a857e]">Kéo nút cạnh trái/phải để đổi độ rộng khung chữ (tự xuống dòng).</p>
+              <p className="text-[11px] text-[#71717a]">Kéo nút cạnh trái/phải để đổi độ rộng khung chữ (tự xuống dòng).</p>
             </>
           )}
         </div>
@@ -824,12 +824,12 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
             <Icon name="image" /> {fDoc?.bgImage ? "Đổi ảnh nền" : "Ảnh nền"}
           </button>
           {fDoc?.bgImage && (
-            <button className="grid h-[22px] w-[22px] place-items-center rounded-[6px] border border-[#dedad3] text-[13px] leading-none hover:bg-[#f4f2ee]" title="Xoá ảnh nền" aria-label="Xoá ảnh nền"
+            <button className="grid h-[22px] w-[22px] place-items-center rounded-[6px] border border-[#e5e5e7] text-[13px] leading-none hover:bg-[#f4f4f5]" title="Xoá ảnh nền" aria-label="Xoá ảnh nền"
               onClick={() => upd(focusPage, (d) => ({ ...d, bgImage: null }))}>×</button>
           )}
         </div>
       </div>
-      {err && <p className="pt-3 text-[12px] text-[#d0303f]">{err}</p>}
+      {err && <p className="pt-3 text-[12px] text-[#dc2626]">{err}</p>}
     </div>
   );
 
@@ -884,13 +884,13 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
               <Line points={[W1, 0, W1, H]} stroke="#141414" strokeWidth={stroke} dash={[6 / s, 4 / s]} />
             </Group>
           )}
-          {spread && view !== "all" && <Rect x={view === "R" ? -W1 * 4 : W1} y={-H * 4} width={W1 * 5} height={H * 9} fill="#ece1d0" />}
+          {spread && view !== "all" && <Rect x={view === "R" ? -W1 * 4 : W1} y={-H * 4} width={W1 * 5} height={H * 9} fill="#efeff1" />}
           {guides && tray && (
             <Group listening={false} opacity={0.55}>
-              <Circle x={tray.cx} y={tray.cy} radius={tray.r} stroke="#7b68ee" strokeWidth={1.5 * stroke} fill="rgba(123,104,238,0.08)" />
-              <Circle x={tray.cx} y={tray.cy} radius={tray.hole} stroke="#7b68ee" strokeWidth={stroke} />
-              <Line points={[tray.cx - 10 / s, tray.cy, tray.cx + 10 / s, tray.cy]} stroke="#7b68ee" strokeWidth={stroke} />
-              <Line points={[tray.cx, tray.cy - 10 / s, tray.cx, tray.cy + 10 / s]} stroke="#7b68ee" strokeWidth={stroke} />
+              <Circle x={tray.cx} y={tray.cy} radius={tray.r} stroke="#ff5fa2" strokeWidth={1.5 * stroke} fill="rgba(255,95,162,0.08)" />
+              <Circle x={tray.cx} y={tray.cy} radius={tray.hole} stroke="#ff5fa2" strokeWidth={stroke} />
+              <Line points={[tray.cx - 10 / s, tray.cy, tray.cx + 10 / s, tray.cy]} stroke="#ff5fa2" strokeWidth={stroke} />
+              <Line points={[tray.cx, tray.cy - 10 / s, tray.cx, tray.cy + 10 / s]} stroke="#ff5fa2" strokeWidth={stroke} />
             </Group>
           )}
           {(zones ?? []).map((z) => {
@@ -926,8 +926,8 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
               <Group key={`${i}-${fr.id}`} x={i * W1 + fr.x} y={fr.y} rotation={fr.rotation} listening={!filled && interactive && !panMode}
                 onMouseDown={(e) => { if (e.evt.button === 0) pickFrame(i, fr.id); }} onTap={() => pickFrame(i, fr.id)}
                 onMouseEnter={() => setCursor("pointer")} onMouseLeave={() => setCursor("default")}>
-                <Shape {...sp} fill={filled ? undefined : FRAME_FILL} stroke={filled ? ACCENT : "#bdb8b0"} strokeWidth={(filled ? 2 : 1) * stroke} dash={filled ? [6 / s, 4 / s] : undefined} />
-                {!filled && <Text text="+" width={w} height={h} align="center" verticalAlign="middle" fontSize={Math.min(w, h) * 0.3} fill="#8a857e" />}
+                <Shape {...sp} fill={filled ? undefined : FRAME_FILL} stroke={filled ? ACCENT : "#d4d4d8"} strokeWidth={(filled ? 2 : 1) * stroke} dash={filled ? [6 / s, 4 / s] : undefined} />
+                {!filled && <Text text="+" width={w} height={h} align="center" verticalAlign="middle" fontSize={Math.min(w, h) * 0.3} fill="#71717a" />}
               </Group>
             );
           }))}
@@ -936,13 +936,13 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
 
       {interactive && <>
         {caption && <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-[12px] font-medium text-[#4d4a46]">{caption}</p>}
-        <div className="absolute bottom-2 left-2 flex items-center gap-0.5 rounded-[8px] border border-[#dedad3] bg-white p-0.5 text-[12px] shadow-sm">
-          <button className="grid h-7 w-7 place-items-center rounded-[6px] hover:bg-[#f4f2ee]" title="Thu nhỏ" aria-label="Thu nhỏ" onClick={() => zoomAt(zoom / 1.25)}>−</button>
+        <div className="absolute bottom-2 left-2 flex items-center gap-0.5 rounded-[8px] border border-[#e5e5e7] bg-white p-0.5 text-[12px] shadow-sm">
+          <button className="grid h-7 w-7 place-items-center rounded-[6px] hover:bg-[#f4f4f5]" title="Thu nhỏ" aria-label="Thu nhỏ" onClick={() => zoomAt(zoom / 1.25)}>−</button>
           <span className="w-11 text-center tabular-nums">{Math.round(zoom * 100)}%</span>
-          <button className="grid h-7 w-7 place-items-center rounded-[6px] hover:bg-[#f4f2ee]" title="Phóng to" aria-label="Phóng to" onClick={() => zoomAt(zoom * 1.25)}>+</button>
-          <button className="h-7 rounded-[6px] px-2 hover:bg-[#f4f2ee]" title="Vừa màn hình" onClick={fitScreen}>Vừa màn hình</button>
+          <button className="grid h-7 w-7 place-items-center rounded-[6px] hover:bg-[#f4f4f5]" title="Phóng to" aria-label="Phóng to" onClick={() => zoomAt(zoom * 1.25)}>+</button>
+          <button className="h-7 rounded-[6px] px-2 hover:bg-[#f4f4f5]" title="Vừa màn hình" onClick={fitScreen}>Vừa màn hình</button>
         </div>
-        {adjust && <p className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-[#141414] px-3 py-1 text-[12px] text-white">Đang căn chỉnh ảnh trong khung · kéo để di chuyển · Esc để xong</p>}
+        {adjust && <p className="absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-[#18181b] px-3 py-1 text-[12px] text-white">Đang căn chỉnh ảnh trong khung · kéo để di chuyển · Esc để xong</p>}
       </>}
 
       <input ref={freeInput} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFreeFile(f); }} />
@@ -952,16 +952,16 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
       {menu && (() => {
         const isImg = selEl?.kind === "image" || selEl?.kind === "sticker";
         const Item = ({ icon, label, kbd, onClick, danger }: { icon?: string; label: string; kbd?: string; onClick: () => void; danger?: boolean }) => (
-          <button className={`flex h-8 w-full items-center gap-2.5 rounded-[6px] px-2 text-left hover:bg-[#f4f2ee] ${danger ? "text-[#d0303f]" : "text-[#141414]"}`}
+          <button className={`flex h-8 w-full items-center gap-2.5 rounded-[6px] px-2 text-left hover:bg-[#f4f4f5] ${danger ? "text-[#dc2626]" : "text-[#18181b]"}`}
             onClick={() => { onClick(); setMenu(null); }}>
-            <span className="grid w-4 place-items-center text-[#77726b]">{icon && <Icon name={icon} />}</span>
+            <span className="grid w-4 place-items-center text-[#71717a]">{icon && <Icon name={icon} />}</span>
             <span className="flex-1">{label}</span>
-            {kbd && <span className="text-[11px] text-[#b0aba3]">{kbd}</span>}
+            {kbd && <span className="text-[11px] text-[#a1a1aa]">{kbd}</span>}
           </button>
         );
-        const Sep = () => <div className="my-1 h-px bg-[#ecebe7]" />;
+        const Sep = () => <div className="my-1 h-px bg-[#efeff1]" />;
         return (
-          <div data-ctx-menu className="absolute z-30 rounded-[8px] border border-[#e3e0da] bg-white p-1 font-sans text-[13px] shadow-[0_8px_24px_rgba(20,20,20,.14)]"
+          <div data-ctx-menu className="absolute z-30 rounded-[8px] border border-[#e5e5e7] bg-white p-1 font-sans text-[13px] shadow-[0_8px_24px_rgba(20,20,20,.14)]"
             style={{ left: menu.x, top: menu.y, width: MENU_W }} onContextMenu={(e) => e.preventDefault()}>
             {menu.onEl && sel?.type === "el" ? (
               <>
@@ -981,7 +981,7 @@ export function CdDesigner({ ref, spec, mode = "customer", pages, onChange, view
               <>
                 {clipboard && <Item icon="paste" label="Dán" kbd="Ctrl+V" onClick={paste} />}
                 {onToggleGuides && <Item icon="grid" label={guides ? "Ẩn guideline" : "Hiển thị guideline"} onClick={onToggleGuides} />}
-                {!clipboard && !onToggleGuides && <p className="px-2 py-1.5 text-[#8a857e]">Không có thao tác</p>}
+                {!clipboard && !onToggleGuides && <p className="px-2 py-1.5 text-[#71717a]">Không có thao tác</p>}
               </>
             )}
           </div>

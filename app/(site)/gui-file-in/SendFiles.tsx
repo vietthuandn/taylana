@@ -1,8 +1,10 @@
 "use client";
 
-/* Trang Gửi file in: chọn gói → Bước 1 chọn ảnh (theo gói) → Bước 2 link nhạc → Gửi.
+/* Trang Gửi file in: Bước 1 chọn ảnh (theo gói) → Bước 2 link nhạc → Gửi.
+   - Có mã đơn (?don=): bỏ qua chọn gói, gói cố định theo đơn; file gắn vào đúng đơn + dòng sản phẩm (+ số bản).
+   - Không có mã đơn: chọn gói tự do (tạo đơn mới khi gửi), hoặc chọn trong "Đơn đang chờ file".
    File GỐC (không nén) được tải lên bucket riêng tư "order-files" khi bấm Gửi. */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
@@ -14,6 +16,10 @@ import { PrintArea } from "@/components/mockup/Mockups";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { btnClass, inputClass } from "@/components/ui/styles";
 import type { Package } from "@/lib/types";
+import { Check, Disc3, FileCheck2 } from "lucide-react";
+import { normalizePhone, PHONE_ERROR } from "@/lib/phone";
+import { saveOrderCode, savedOrderCodes } from "@/lib/cart";
+import type { OrderSummary } from "@/lib/myOrders";
 
 const PINK = "#ff5fa2";
 const ACCEPT = "image/jpeg,image/png,application/pdf";
@@ -26,8 +32,8 @@ function layoutOf(pk: Package): PackLayout {
   if (pk.front_pages == null && pk.back_pages == null) return { front: 1, back: 1, disc: pk.has_disc !== false };
   return { front: pk.front_pages ?? 0, back: pk.back_pages ?? 0, disc: pk.has_disc !== false };
 }
-const describePkg = (pk: Package) => {
-  const l = layoutOf(pk);
+const describePkg = (pk: Package) => describeLayout(layoutOf(pk));
+const describeLayout = (l: PackLayout) => {
   return [
     l.front ? (l.front >= 4 ? `Booklet ${l.front} trang` : `Bìa trước ${l.front} mặt`) : "",
     l.back ? `Bìa sau ${l.back} mặt` : "",
@@ -61,10 +67,29 @@ async function readPicked(file: File, spec: PrintSpec): Promise<Picked> {
   }
 }
 
+// ---------- Đơn hàng (từ RPC order_upload_info) ----------
+type UpFile = { id: string; kind: string; page: number | null; order_item_id: string | null; copy_no: number; file_name: string; mime_type: string; storage_path: string; created_at: string };
+type UpLine = { id: string; package_id: string | null; package_name: string; quantity: number; copies_mode: "same" | "different"; front_pages: number | null; back_pages: number | null; has_disc: boolean | null };
+type UpOrder = OrderSummary & { editable: boolean; music_link: string; lines: UpLine[]; files: UpFile[] };
+
+const lineLayout = (l: UpLine): PackLayout => layoutOf({ front_pages: l.front_pages ?? undefined, back_pages: l.back_pages ?? undefined, has_disc: l.has_disc ?? undefined } as Package);
+const copiesOf = (l: UpLine) => (l.copies_mode === "different" ? Math.max(1, l.quantity) : 1);
+// file mới nhất của 1 ô (theo dòng sản phẩm + số bản)
+function latestFor(o: UpOrder, line: UpLine, copy: number, s: SlotDef) {
+  const single = o.lines.length === 1;
+  return o.files
+    .filter((f) => (f.order_item_id === line.id || (single && !f.order_item_id)) && (f.copy_no || 1) === copy && f.kind === s.kind && (f.page ?? null) === (s.page ?? null))
+    .sort((x, y) => y.created_at.localeCompare(x.created_at))[0];
+}
+const lineDone = (o: UpOrder, l: UpLine) => {
+  const slots = slotsOf(lineLayout(l));
+  return slots.length > 0 && Array.from({ length: copiesOf(l) }, (_, i) => i + 1).every((c) => slots.every((s) => latestFor(o, l, c, s)));
+};
+
 export function SendFiles({ packages, orderCode }: { packages: Package[]; orderCode: string }) {
   const [pkg, setPkg] = useState<Package | null>(null);
   const [step, setStep] = useState<1 | 2>(1);
-  const [files, setFiles] = useState<Record<string, Picked>>({});
+  const [allFiles, setAllFiles] = useState<Record<string, Record<string, Picked>>>({});
   const [pendingPkg, setPendingPkg] = useState<{ pk: Package; lost: SlotDef[] } | null>(null);
   const [multiOpen, setMultiOpen] = useState(false);
   const [link, setLink] = useState("");
@@ -73,26 +98,94 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
   const [sending, setSending] = useState("");
   const [err, setErr] = useState("");
   const [done, setDone] = useState<{ code: string; count: number } | null>(null);
-  const filesRef = useRef(files);
-  filesRef.current = files;
+  // đơn hàng
+  const [order, setOrder] = useState<UpOrder | null>(null);
+  const [orderState, setOrderState] = useState<"none" | "loading" | "need_phone" | "ready">(orderCode ? "loading" : "none");
+  const [verifyPhone, setVerifyPhone] = useState("");
+  const [verifyErr, setVerifyErr] = useState("");
+  const [lineId, setLineId] = useState("");
+  const [copyNo, setCopyNo] = useState(1);
+  const [previews, setPreviews] = useState<Record<string, string>>({});
+  const [sentNote, setSentNote] = useState("");
+  const [waiting, setWaiting] = useState<OrderSummary[]>([]);
+  const filesRef = useRef(allFiles);
+  filesRef.current = allFiles;
 
-  const layout = pkg ? layoutOf(pkg) : null;
+  const line = order?.lines.find((l) => l.id === lineId) ?? order?.lines[0] ?? null;
+  const ctx = order && line ? `${line.id}:${copyNo}` : "free";
+  const files = useMemo(() => allFiles[ctx] ?? {}, [allFiles, ctx]);
+  const layout = order ? (line ? lineLayout(line) : null) : pkg ? layoutOf(pkg) : null;
   const slots = useMemo(() => (layout ? slotsOf(layout) : []), [layout?.front, layout?.back, layout?.disc]); // eslint-disable-line react-hooks/exhaustive-deps
-  const missing = slots.filter((s) => !files[s.id] || files[s.id].error);
+  const existing = useMemo(() => {
+    const m: Record<string, UpFile> = {};
+    if (order && line) for (const s of slots) { const f = latestFor(order, line, copyNo, s); if (f) m[s.id] = f; }
+    return m;
+  }, [order, line, copyNo, slots]);
+  const readOnly = !!order && !order.editable;
+  const missing = slots.filter((s) => !existing[s.id] && (!files[s.id] || files[s.id].error));
+  const newCount = slots.filter((s) => files[s.id] && !files[s.id].error).length;
 
   // dọn ảnh xem trước khi rời trang
-  useEffect(() => () => Object.values(filesRef.current).forEach((p) => p.preview && URL.revokeObjectURL(p.preview)), []);
+  useEffect(() => () => Object.values(filesRef.current).forEach((m) => Object.values(m).forEach((p) => p.preview && URL.revokeObjectURL(p.preview))), []);
+
+  // ---------- tải đơn ----------
+  const loadOrder = useCallback(async (code: string, ph = "") => {
+    if (!hasSupabase) { setOrderState("none"); return; }
+    setOrderState("loading");
+    const sb = createClient();
+    const saved = savedOrderCodes().some((c) => c.toUpperCase() === code.toUpperCase());
+    const { data, error } = await sb.rpc("order_upload_info", { p_code: code, p_phone: ph, p_saved: saved });
+    if (error || !data) {
+      if (error && error.message.includes("order_upload_info")) {
+        setVerifyErr("Tiệm chưa mở tính năng gửi file theo đơn.");
+      } else if (ph) setVerifyErr("Số điện thoại không khớp với đơn này.");
+      setOrderState("need_phone");
+      return;
+    }
+    const o = data as UpOrder;
+    saveOrderCode(o.code);
+    setOrder(o);
+    setLink((cur) => cur || o.music_link || "");
+    setLineId((cur) => (o.lines.some((l) => l.id === cur) ? cur : o.lines[0]?.id ?? ""));
+    setOrderState("ready");
+    // ảnh đã gửi: chủ đơn (đã đăng nhập) xem được ảnh
+    const paths = o.files.filter((f) => f.mime_type.startsWith("image/")).map((f) => f.storage_path);
+    if (paths.length) {
+      const { data: urls } = await sb.storage.from("order-files").createSignedUrls(paths, 3600);
+      const m: Record<string, string> = {};
+      urls?.forEach((u) => { if (u.path && u.signedUrl) m[u.path] = u.signedUrl; });
+      setPreviews(m);
+    }
+  }, []);
+  useEffect(() => { if (orderCode) loadOrder(orderCode); }, [orderCode, loadOrder]);
+
+  // không có mã đơn + đã đăng nhập → danh sách "Đơn đang chờ file"
+  useEffect(() => {
+    if (orderCode || !hasSupabase) return;
+    const sb = createClient();
+    sb.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: list } = await sb.rpc("my_orders");
+      const need = ((list as OrderSummary[]) ?? []).filter((o) => o.status === "new" && o.file_count < o.items.reduce((t, i) => {
+        const pk = packages.find((p) => p.id === i.package_id);
+        return t + (pk ? slotsOf(layoutOf(pk)).length * (i.copies_mode === "different" ? i.quantity : 1) : 1);
+      }, 0));
+      setWaiting(need);
+    });
+  }, [orderCode, packages]);
 
   function setSlot(id: string, p: Picked | null) {
-    setFiles((cur) => {
+    setAllFiles((all) => {
+      const cur = all[ctx] ?? {};
       const old = cur[id];
       if (old?.preview && old.preview !== p?.preview) URL.revokeObjectURL(old.preview);
       const next = { ...cur };
       if (p) next[id] = p; else delete next[id];
-      return next;
+      return { ...all, [ctx]: next };
     });
   }
   async function pickFor(slot: SlotDef, file: File) {
+    setSentNote("");
     setSlot(slot.id, await readPicked(file, slot.spec));
   }
 
@@ -113,54 +206,68 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
     setTimeout(() => document.getElementById(`slot-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
   }
 
+  async function setMode(mode: "same" | "different") {
+    if (!order || !line || readOnly) return;
+    const { error } = await createClient().rpc("set_item_copies_mode", { p_order_id: order.id, p_item_id: line.id, p_mode: mode });
+    if (error) return setErr(error.message);
+    setCopyNo(1);
+    setOrder({ ...order, lines: order.lines.map((l) => (l.id === line.id ? { ...l, copies_mode: mode } : l)) });
+  }
+
   async function send() {
     setErr("");
-    if (!pkg || missing.length) return;
+    if ((!pkg && !order) || missing.length) return;
     const music = link.trim();
     if (music && !/^https?:\/\//i.test(music)) return setErr("Link nhạc cần bắt đầu bằng https://");
-    if (!orderCode && (!name.trim() || phone.replace(/\D/g, "").length < 8)) return setErr("Vui lòng nhập tên và số điện thoại/Zalo hợp lệ.");
+    const ph = normalizePhone(phone);
+    if (!order && (!name.trim() || !ph)) return setErr(!name.trim() ? "Vui lòng nhập tên." : PHONE_ERROR);
     if (!hasSupabase) return setErr("Web chưa kết nối database.");
     const sb = createClient();
     try {
-      let order: { id: string; code: string };
-      if (orderCode) {
-        setSending("Đang tìm đơn...");
-        const { data, error } = await sb.rpc("find_order_for_upload", { p_query: orderCode });
-        if (error) throw new Error(error.message);
-        if (!data?.[0]) throw new Error(`Không tìm thấy đơn ${orderCode} đang chờ nhận file.`);
-        order = { id: data[0].order_id, code: data[0].order_code };
-      } else {
+      let target: { id: string; code: string };
+      if (order) target = { id: order.id, code: order.code };
+      else {
         setSending("Đang tạo đơn...");
         const { data, error } = await sb.rpc("create_order", {
-          p_customer_name: name.trim(), p_phone: phone, p_address: "", p_note: "Gửi file in",
-          p_package_id: pkg.id, p_quantity: 1, p_addons: [], p_order_type: "cd", p_music_link: music,
+          p_customer_name: name.trim(), p_phone: ph, p_address: "", p_note: "Gửi file in",
+          p_package_id: pkg!.id, p_quantity: 1, p_addons: [], p_order_type: "cd", p_music_link: music,
         });
         if (error || !data?.[0]) throw new Error(error?.message ?? "Không tạo được đơn");
-        order = { id: data[0].order_id, code: data[0].order_code };
+        target = { id: data[0].order_id, code: data[0].order_code };
+        saveOrderCode(target.code);
       }
 
+      const todo = slots.filter((s) => files[s.id] && !files[s.id].error);
       let n = 0;
-      for (const s of slots) {
+      for (const s of todo) {
         const p = files[s.id];
         n++;
-        setSending(`Đang gửi ảnh ${n}/${slots.length}...`);
+        setSending(`Đang gửi ảnh ${n}/${todo.length}...`);
         // FILE GỐC, không nén
-        const path = `${order.id}/${s.kind}${s.page ? `-p${String(s.page).padStart(2, "0")}` : ""}-${randomName(p.file)}`;
+        const path = `${target.id}/${s.kind}${s.page ? `-p${String(s.page).padStart(2, "0")}` : ""}-${randomName(p.file)}`;
         const up = await sb.storage.from("order-files").upload(path, p.file, { contentType: p.file.type, upsert: false });
         if (up.error) throw new Error(`Gửi "${s.full}" thất bại: ${up.error.message}`);
         const reg = await sb.rpc("register_order_file", {
-          p_order_id: order.id, p_kind: s.kind, p_storage_path: path, p_file_name: p.file.name,
+          p_order_id: target.id, p_kind: s.kind, p_storage_path: path, p_file_name: p.file.name,
           p_mime_type: p.file.type, p_size_bytes: p.file.size, p_page: s.page,
           p_width_px: p.check?.width ?? null, p_height_px: p.check?.height ?? null,
+          ...(order && line ? { p_order_item_id: line.id, p_copy_no: copyNo } : {}),
         });
         if (reg.error) throw new Error(reg.error.message);
       }
-      if (orderCode && music) {
+      if (order && music !== (order.music_link || "")) {
         setSending("Đang lưu link nhạc...");
         const { error } = await sb.rpc("set_order_music_link", { p_order_id: order.id, p_link: music });
         if (error) throw new Error(error.message);
       }
-      setDone({ code: order.code, count: slots.length });
+      if (order) {
+        setAllFiles((all) => ({ ...all, [ctx]: {} }));
+        setSentNote(todo.length ? `Đã gửi ${todo.length} file cho “${line?.package_name ?? ""}”${copiesOf(line!) > 1 ? ` · Bản ${copyNo}` : ""}.` : "Đã lưu.");
+        setStep(1);
+        await loadOrder(order.code, verifyPhone);
+      } else {
+        setDone({ code: target.code, count: todo.length });
+      }
       window.scrollTo({ top: 0 });
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Có lỗi, bạn thử lại nhé.");
@@ -168,49 +275,138 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
     setSending("");
   }
 
-  // ---------- Màn hình cảm ơn ----------
+  // ---------- Màn hình cảm ơn (gửi file không có đơn sẵn) ----------
   if (done) {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-14 text-center font-sans">
-        <p className="text-5xl">✿</p>
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#fff0f6] text-[#ff5fa2]"><Check size={24} /></span>
         <h1 className="mt-3 font-sans text-[22px] font-bold normal-case tracking-[-0.02em] sm:text-[28px]">Cảm ơn bạn!</h1>
-        <p className="mt-3 text-ink-600">Tiệm đã nhận {done.count} ảnh. Mã đơn của bạn:</p>
+        <p className="mt-3 text-[#71717a]">Tiệm đã nhận {done.count} ảnh. Mã đơn của bạn:</p>
         <p className="mx-auto mt-3 inline-block rounded-[10px] border border-[#e5e5e7] bg-white px-5 py-2 text-[22px] font-semibold tracking-wide text-[#18181b]">{done.code}</p>
-        <p className="mt-4 text-sm text-ink-600">Lưu lại mã đơn nhé. Tiệm sẽ kiểm tra file và nhắn bạn qua Zalo/SĐT nếu cần chỉnh sửa.</p>
-        <Link href="/" className={`${btnClass("secondary")} mt-6`}>Về trang chủ</Link>
+        <p className="mt-4 text-[13px] text-[#71717a]">Lưu lại mã đơn nhé. Tiệm sẽ kiểm tra file và nhắn bạn qua Zalo/SĐT nếu cần chỉnh sửa.</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Link href="/don-hang-cua-toi" className={btnClass("primary")}>Xem đơn hàng của tôi</Link>
+          <Link href="/" className={btnClass("secondary")}>Về trang chủ</Link>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 font-sans text-[14px] text-ink-900">
-      <PageHeader inset={false} title="Gửi file in"
-        subtitle={orderCode ? <>Gửi file cho đơn <b>{orderCode}</b></> : "Chọn gói, tải ảnh vào đúng ô rồi gửi kèm link nhạc."} />
+  const header = <PageHeader inset={false} title="Gửi file in" subtitle={orderCode ? undefined : "Chọn gói, tải ảnh vào đúng ô rồi gửi kèm link nhạc."} />;
 
-      {/* ---------- Chọn gói ---------- */}
-      {!pkg ? (
-        <section className="mt-6">
-          <p className="mb-3 text-[15px] font-semibold">Chọn gói của bạn để bắt đầu</p>
-          <PackageCards packages={packages} onPick={choosePkg} />
-        </section>
+  // ---------- Đơn: đang tải / cần xác nhận SĐT ----------
+  if (orderCode && orderState !== "ready") {
+    return (
+      <div className="mx-auto w-full max-w-md px-4 pb-16 pt-6 font-sans text-[14px]">
+        {header}
+        {orderState === "loading" ? <p className="mt-6 text-[#71717a]">Đang tải đơn {orderCode}...</p> : (
+          <form className="mt-4 rounded-[12px] border border-[#e5e5e7] bg-white p-5" onSubmit={(e) => {
+            e.preventDefault(); setVerifyErr("");
+            const p = normalizePhone(verifyPhone);
+            if (!p) return setVerifyErr(PHONE_ERROR);
+            loadOrder(orderCode, p);
+          }}>
+            <p className="text-[15px] font-semibold">Xác nhận đơn {orderCode}</p>
+            <p className="mt-1 text-[13px] text-[#71717a]">Nhập số điện thoại đã đặt hàng để gửi file cho đơn này.</p>
+            <input className={`${inputClass} mt-3`} type="tel" inputMode="tel" placeholder="Số điện thoại" value={verifyPhone} onChange={(e) => setVerifyPhone(e.target.value)} />
+            {verifyErr && <p className="mt-2 text-[12px] text-[#dc2626]">{verifyErr}</p>}
+            <button className={`${btnClass("primary")} mt-3 w-full`}>Xác nhận</button>
+            <p className="mt-3 text-[12px] text-[#71717a]">Hoặc <Link href="/don-hang-cua-toi" className="font-medium text-[#ff5fa2] hover:underline">xem đơn hàng của tôi</Link>.</p>
+          </form>
+        )}
+      </div>
+    );
+  }
+
+  const title = order ? (line?.package_name ?? "") : pkg?.name ?? "";
+  const desc = layout ? describeLayout(layout) : "";
+
+  return (
+    <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 font-sans text-[14px] text-[#18181b]">
+      {header}
+
+      {!order && !pkg ? (
+        <>
+          {waiting.length > 0 && (
+            <section className="mt-4">
+              <p className="mb-2 text-[15px] font-semibold">Đơn đang chờ file</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {waiting.map((o) => (
+                  <Link key={o.id} href={`/gui-file-in?don=${encodeURIComponent(o.code)}`}
+                    className="flex items-center justify-between gap-3 rounded-[10px] border border-[#e5e5e7] bg-white p-3 hover:border-[#ff5fa2]">
+                    <span className="min-w-0">
+                      <span className="block font-medium">{o.payment_code ?? o.code}</span>
+                      <span className="block truncate text-[12px] text-[#71717a]">{o.items.map((i) => `${i.package_name} × ${i.quantity}`).join(", ")}</span>
+                    </span>
+                    <span className="shrink-0 text-[13px] font-medium text-[#ff5fa2]">Gửi file →</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+          <section className="mt-6">
+            <p className="mb-3 text-[15px] font-semibold">{waiting.length ? "Hoặc chọn gói để gửi file mới" : "Chọn gói của bạn để bắt đầu"}</p>
+            <PackageCards packages={packages} onPick={choosePkg} />
+          </section>
+        </>
       ) : (
         <>
           <Progress step={step} />
-          <div className="mt-4 flex items-center gap-3 rounded-[12px] border border-[#e3e0da] bg-white p-2.5">
-            <Thumb pk={pkg} />
+          {/* Thẻ đơn / gói */}
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[12px] border border-[#e5e5e7] bg-white p-2.5">
+            {order ? (
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[8px] bg-[#fff0f6] text-[#ff5fa2]"><Disc3 size={22} /></span>
+            ) : <Thumb pk={pkg!} />}
             <div className="min-w-0 flex-1">
-              <p className="font-semibold">{pkg.name}</p>
-              <p className="text-[12px] text-[#8a857e]">{describePkg(pkg)}</p>
+              <p className="font-semibold">{order ? `Đơn ${order.payment_code ?? order.code} · ${title}` : title}</p>
+              <p className="text-[12px] text-[#71717a]">{desc}</p>
             </div>
-            <button className={`${btnClass("secondary")} shrink-0`} onClick={() => setPendingPkg({ pk: pkg, lost: [] })}>Đổi gói</button>
+            {!order && <button className={`${btnClass("secondary")} shrink-0`} onClick={() => setPendingPkg({ pk: pkg!, lost: [] })}>Đổi gói</button>}
           </div>
+
+          {order && order.lines.length > 1 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <label className="text-[13px] text-[#71717a]" htmlFor="line-pick">Gửi file cho sản phẩm</label>
+              <select id="line-pick" className={`${inputClass} !w-auto min-w-[240px]`} value={line?.id}
+                onChange={(e) => { setLineId(e.target.value); setCopyNo(1); setStep(1); setSentNote(""); }}>
+                {order.lines.map((l) => <option key={l.id} value={l.id}>{lineDone(order, l) ? "✓ " : ""}{l.package_name} × {l.quantity}</option>)}
+              </select>
+            </div>
+          )}
+          {order && line && line.quantity > 1 && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-[13px] text-[#71717a]">{line.quantity} bản:</span>
+              <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
+                {(["same", "different"] as const).map((m) => (
+                  <button key={m} type="button" disabled={readOnly} onClick={() => setMode(m)}
+                    className={`rounded-[6px] px-3 py-1.5 text-[13px] font-medium ${line.copies_mode === m ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]"}`}>
+                    {m === "same" ? "Các bản giống nhau" : "Mỗi bản khác nhau"}
+                  </button>
+                ))}
+              </div>
+              {line.copies_mode === "different" && (
+                <select className={`${inputClass} !w-auto`} value={copyNo} onChange={(e) => { setCopyNo(Number(e.target.value)); setStep(1); setSentNote(""); }} aria-label="Chọn bản">
+                  {Array.from({ length: line.quantity }, (_, i) => i + 1).map((c) => {
+                    const ok = slots.every((s) => latestFor(order, line, c, s));
+                    return <option key={c} value={c}>{ok ? "✓ " : ""}Bản {c}</option>;
+                  })}
+                </select>
+              )}
+            </div>
+          )}
+          {readOnly && <p className="mt-3 rounded-[8px] bg-[#fffbeb] px-3 py-2 text-[13px] text-[#b45309]">Đơn đã chuyển sang “Đang làm” — bạn chỉ xem được file đã gửi, không thay được nữa.</p>}
+          {sentNote && <p className="mt-3 flex items-center gap-2 rounded-[8px] bg-[#ecfdf3] px-3 py-2 text-[13px] text-[#15803d]"><Check size={14} /> {sentNote}</p>}
 
           {step === 1 ? (
             <section className="mt-6">
-              <p className="text-[13px] text-ink-600">
-                Bạn chưa có ảnh? <Link href="/huong-dan" className="font-semibold underline" style={{ color: PINK }}>Nhấn vào đây</Link> để được hướng dẫn
-              </p>
-              <button className={`${btnClass("secondary")} mt-3`} onClick={() => setMultiOpen(true)}>⇪ Tải nhiều ảnh</button>
+              {!readOnly && (
+                <>
+                  <p className="text-[13px] text-[#71717a]">
+                    Bạn chưa có ảnh? <Link href="/huong-dan" className="font-semibold underline" style={{ color: PINK }}>Nhấn vào đây</Link> để được hướng dẫn
+                  </p>
+                  <button className={`${btnClass("secondary")} mt-3`} onClick={() => setMultiOpen(true)}>⇪ Tải nhiều ảnh</button>
+                </>
+              )}
 
               {(["front", "back", "disc"] as const).map((g) => {
                 const list = slots.filter((s) => s.group === g);
@@ -218,32 +414,39 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
                 return (
                   <div key={g} className="mt-7">
                     <p className="mb-3 text-[16px] font-semibold">{g === "front" ? "Bìa trước" : g === "back" ? "Bìa sau" : "Mặt đĩa"}
-                      <span className="ml-2 text-[12px] font-normal text-[#8a857e]">{g === "front" ? "12 × 12 cm" : g === "back" ? "15 × 11.7 cm" : "Tròn 12 cm"}</span>
+                      <span className="ml-2 text-[12px] font-normal text-[#71717a]">{g === "front" ? "12 × 12 cm" : g === "back" ? "15 × 11.7 cm" : "Tròn 12 cm"}</span>
                     </p>
-                    <div className={`grid gap-4 ${g === "back" ? "grid-cols-1 sm:grid-cols-2" : g === "disc" ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"}`}>
-                      {list.map((s) => <SlotTile key={s.id} slot={s} picked={files[s.id]} onFile={(f) => pickFor(s, f)} onRemove={() => setSlot(s.id, null)} />)}
+                    <div className={`grid gap-4 ${g === "back" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"}`}>
+                      {list.map((s) => {
+                        const ex = existing[s.id];
+                        return <SlotTile key={s.id} slot={s} picked={files[s.id]} readOnly={readOnly}
+                          existing={ex ? { name: ex.file_name, url: previews[ex.storage_path] ?? null, pdf: ex.mime_type === "application/pdf" } : undefined}
+                          onFile={(f) => pickFor(s, f)} onRemove={() => setSlot(s.id, null)} />;
+                      })}
                     </div>
                   </div>
                 );
               })}
 
-              <button className="mt-8 h-11 w-full rounded-[10px] text-[15px] font-semibold text-white sm:w-auto sm:px-10"
-                style={{ background: PINK }} onClick={() => { setStep(2); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-                Tiếp tục →
-              </button>
+              {!readOnly && (
+                <button className="mt-8 h-11 w-full rounded-[10px] text-[15px] font-semibold text-white sm:w-auto sm:px-10"
+                  style={{ background: PINK }} onClick={() => { setStep(2); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                  Tiếp tục →
+                </button>
+              )}
             </section>
           ) : (
             <section className="mt-6 max-w-xl">
               <p className="mb-1 text-[16px] font-semibold">Link file nhạc</p>
-              <p className="mb-2 text-[13px] text-ink-600">
+              <p className="mb-2 text-[13px] text-[#71717a]">
                 Tải nhạc lên Google Drive, bấm <b>Chia sẻ → Bất kỳ ai có đường liên kết</b>, rồi dán link vào đây.
               </p>
-              <p className="mb-2 rounded-[8px] bg-[#f4f2ee] px-3 py-2 text-[12px] text-ink-600">
+              <p className="mb-2 rounded-[8px] bg-[#f4f4f5] px-3 py-2 text-[12px] text-[#52525b]">
                 ⓘ Bạn chưa tải được nhạc từ YouTube và Spotify? <Link href="/huong-dan#audio" className="font-semibold underline" style={{ color: PINK }}>Nhấn vào đây</Link> để xem hướng dẫn
               </p>
               <input className={inputClass} type="url" inputMode="url" placeholder="https://drive.google.com/..." value={link} onChange={(e) => setLink(e.target.value)} />
 
-              {!orderCode && (
+              {!order && (
                 <div className="mt-5 grid gap-2 sm:grid-cols-2">
                   <p className="text-[13px] font-semibold sm:col-span-2">Thông tin liên hệ</p>
                   <input className={inputClass} placeholder="Tên của bạn" value={name} onChange={(e) => setName(e.target.value)} />
@@ -264,9 +467,9 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
                     ))}
                   </p>
                 )}
-                {err && <p className="mb-2 text-[13px] text-[#d0303f]">{err}</p>}
+                {err && <p className="mb-2 text-[13px] text-[#dc2626]">{err}</p>}
                 <button className="h-12 w-full rounded-[10px] text-[16px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
-                  style={{ background: PINK }} disabled={missing.length > 0 || !!sending} onClick={send}>
+                  style={{ background: PINK }} disabled={missing.length > 0 || !!sending || (!!order && !newCount && link.trim() === (order.music_link || ""))} onClick={send}>
                   {sending || "Gửi"}
                 </button>
               </div>
@@ -281,8 +484,8 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
             Gói “{pendingPkg.pk.name}” không có các ô sau, ảnh đã tải ở đó sẽ bị xoá: <b>{pendingPkg.lost.map((s) => s.full).join("; ")}</b>
           </Modal>
         ) : (
-          <div className="fixed inset-0 z-[60] grid place-items-center bg-ink-900/50 p-4" role="dialog" aria-modal onClick={() => setPendingPkg(null)}>
-            <div className="max-h-[90dvh] w-full max-w-2xl overflow-auto rounded-[14px] bg-white p-5 font-sans shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={() => setPendingPkg(null)}>
+            <div className="max-h-[90dvh] w-full max-w-2xl overflow-auto rounded-[12px] bg-white p-5 font-sans shadow-xl" onClick={(e) => e.stopPropagation()}>
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-[16px] font-semibold">Đổi gói</p>
                 <button className={`${btnClass("secondary")}`} onClick={() => setPendingPkg(null)}>Đóng</button>
@@ -312,14 +515,14 @@ function Progress({ step }: { step: 1 | 2 }) {
   const item = (n: 1 | 2, label: string) => (
     <div className="flex items-center gap-2">
       <span className="grid h-7 w-7 place-items-center rounded-full text-[13px] font-bold"
-        style={step >= n ? { background: PINK, color: "#fff" } : { background: "#e7e4de", color: "#8a857e" }}>{n}</span>
-      <span className={`text-[14px] ${step === n ? "font-semibold" : "text-[#8a857e]"}`}>{label}</span>
+        style={step >= n ? { background: PINK, color: "#fff" } : { background: "#f4f4f5", color: "#a1a1aa" }}>{n}</span>
+      <span className={`text-[14px] ${step === n ? "font-semibold" : "text-[#71717a]"}`}>{label}</span>
     </div>
   );
   return (
     <div className="mt-5 flex items-center gap-3">
       {item(1, "Chọn ảnh")}
-      <span className="h-[2px] w-10 rounded-full sm:w-20" style={{ background: step === 2 ? PINK : "#e7e4de" }} />
+      <span className="h-[2px] w-10 rounded-full sm:w-20" style={{ background: step === 2 ? PINK : "#e5e5e7" }} />
       {item(2, "Link nhạc")}
     </div>
   );
@@ -328,23 +531,23 @@ function Progress({ step }: { step: 1 | 2 }) {
 // ---------- Thẻ gói (giống Custom CD, không hiện giá) ----------
 function Thumb({ pk }: { pk: Package }) {
   return (
-    <span className="block h-12 w-12 shrink-0 overflow-hidden rounded-[6px] bg-[#f4f2ee]">
+    <span className="block h-12 w-12 shrink-0 overflow-hidden rounded-[6px] bg-[#f4f4f5]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {pk.image_url && <img src={pk.image_url} alt="" className="h-full w-full object-cover" />}
     </span>
   );
 }
 function PackageCards({ packages, current, onPick }: { packages: Package[]; current?: string; onPick: (pk: Package) => void }) {
-  if (!packages.length) return <p className="text-[13px] text-[#8a857e]">Tiệm chưa có gói sản phẩm nào.</p>;
+  if (!packages.length) return <p className="text-[13px] text-[#71717a]">Tiệm chưa có gói sản phẩm nào.</p>;
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       {packages.map((pk) => (
         <button key={pk.id} onClick={() => onPick(pk)}
-          className={`flex w-full items-center gap-2.5 rounded-[10px] border bg-white p-2 text-left font-sans text-[14px] hover:border-[#ff5fa2] ${current === pk.id ? "border-[#ff5fa2]" : "border-[#e3e0da]"}`}>
+          className={`flex w-full items-center gap-2.5 rounded-[10px] border bg-white p-2 text-left font-sans text-[14px] hover:border-[#ff5fa2] ${current === pk.id ? "border-[#ff5fa2]" : "border-[#e5e5e7]"}`}>
           <Thumb pk={pk} />
           <span className="min-w-0 flex-1">
             <span className="block font-medium">{pk.name}</span>
-            <span className="block text-[12px] text-[#8a857e]">{describePkg(pk)}</span>
+            <span className="block text-[12px] text-[#71717a]">{describePkg(pk)}</span>
           </span>
         </button>
       ))}
@@ -353,11 +556,41 @@ function PackageCards({ packages, current, onPick }: { packages: Package[]; curr
 }
 
 // ---------- 1 ô ảnh ----------
-function SlotTile({ slot, picked, onFile, onRemove }: { slot: SlotDef; picked?: Picked; onFile: (f: File) => void; onRemove: () => void }) {
+function SlotTile({ slot, picked, existing, readOnly, onFile, onRemove }: {
+  slot: SlotDef; picked?: Picked; existing?: { name: string; url: string | null; pdf: boolean }; readOnly?: boolean;
+  onFile: (f: File) => void; onRemove: () => void;
+}) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const isDisc = slot.group === "disc";
   const has = !!picked && !picked.error;
+  // file đã gửi trước đó (chưa chọn file mới thay thế)
+  if (!has && existing) {
+    return (
+      <div id={`slot-${slot.id}`} className="scroll-mt-24">
+        <p className="mb-1.5 flex items-center gap-1 text-[13px] font-medium">{slot.label} <Check size={13} className="text-[#16a34a]" /></p>
+        <div className={`group relative ${isDisc ? "rounded-full" : "rounded-[8px]"}`} style={{ aspectRatio: `${slot.spec.w} / ${slot.spec.h}` }}
+          onDragOver={(e) => { if (!readOnly) { e.preventDefault(); setOver(true); } }} onDragLeave={() => setOver(false)}
+          onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f && !readOnly) onFile(f); }}>
+          <div className={`absolute inset-0 overflow-hidden ${isDisc ? "rounded-full" : "rounded-[8px] shadow-[0_4px_12px_rgb(0_0_0/0.12)]"} ${over ? "ring-2 ring-[#ff5fa2]" : ""}`}>
+            {existing.url ? <PrintArea spec={slot.spec} src={existing.url} isPdf={existing.pdf} bg="#f7f7f8" /> : (
+              <div className="grid h-full place-items-center bg-[#ecfdf3] p-3 text-center text-[12px] text-[#15803d]">
+                <span><FileCheck2 size={22} className="mx-auto mb-1" />Đã gửi<br /><span className="break-all text-[11px] text-[#3f3f46]">{existing.name}</span></span>
+              </div>
+            )}
+          </div>
+          {!readOnly && (
+            <button type="button" onClick={() => input.current?.click()} aria-label="Thay file" className="absolute inset-0 grid place-items-center">
+              <span className="rounded-[8px] bg-white/95 px-2.5 py-1 text-[12px] font-medium text-[#18181b] opacity-0 shadow transition-opacity group-hover:opacity-100">Thay file</span>
+            </button>
+          )}
+          <input ref={input} type="file" accept={ACCEPT} className="sr-only" tabIndex={-1}
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
+        </div>
+        <p className="mt-1 truncate text-[11px] text-[#71717a]" title={existing.name}>{existing.name}</p>
+      </div>
+    );
+  }
   const warn = picked?.error ? [picked.error] : picked?.check && picked.check.level !== "ok" ? picked.check.messages : [];
   const open = () => input.current?.click();
 
@@ -373,7 +606,7 @@ function SlotTile({ slot, picked, onFile, onRemove }: { slot: SlotDef; picked?: 
         {has ? (
           <>
             <div className={`absolute inset-0 overflow-hidden ${isDisc ? "rounded-full" : "rounded-[8px] shadow-[0_4px_12px_rgb(0_0_0/0.12)]"}`}>
-              <PrintArea spec={slot.spec} src={picked!.preview} isPdf={picked!.file.type === "application/pdf"} bg="var(--color-cream-50)" />
+              <PrintArea spec={slot.spec} src={picked!.preview} isPdf={picked!.file.type === "application/pdf"} bg="#f7f7f8" />
             </div>
             <button type="button" onClick={open} aria-label="Đổi ảnh"
               className="absolute inset-0 grid place-items-center">
@@ -387,8 +620,8 @@ function SlotTile({ slot, picked, onFile, onRemove }: { slot: SlotDef; picked?: 
               className={`absolute grid h-6 w-6 place-items-center rounded-full bg-ink-900/75 text-[15px] leading-none text-white hover:bg-ink-900 ${isDisc ? "right-[8%] top-[8%]" : "right-1.5 top-1.5"}`}>×</button>
           </>
         ) : (
-          <div className={`absolute inset-0 grid place-items-center border-2 border-dashed border-[#cfcac2] bg-[#f1efeb] ${isDisc ? "rounded-full" : "rounded-[8px]"}`}>
-            {isDisc && <span className="absolute left-1/2 top-1/2 h-[12.5%] w-[12.5%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-[#cfcac2] bg-cream-50" />}
+          <div className={`absolute inset-0 grid place-items-center border-2 border-dashed border-[#d4d4d8] bg-[#f4f4f5] ${isDisc ? "rounded-full" : "rounded-[8px]"}`}>
+            {isDisc && <span className="absolute left-1/2 top-1/2 h-[12.5%] w-[12.5%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-[#d4d4d8] bg-[#f7f7f8]" />}
             <button type="button" onClick={open} className={`${btnClass("secondary", "sm")} ${isDisc ? "relative mt-[45%]" : ""}`}>⇪ Tải lên</button>
           </div>
         )}
@@ -430,7 +663,7 @@ function MultiUpload({ slots, layout, onCancel, onConfirm }: {
       <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-[14px] bg-white font-sans text-[14px] shadow-xl">
         <div className="border-b border-[#ecebe7] px-5 py-3">
           <p className="text-[16px] font-semibold">Tải nhiều ảnh</p>
-          <p className="text-[12px] text-[#8a857e]">Đặt tên file như “bia truoc”, “bia sau trong”, “cd”, “trang 2”... để tự xếp vào đúng ô.</p>
+          <p className="text-[12px] text-[#71717a]">Đặt tên file như “bia truoc”, “bia sau trong”, “cd”, “trang 2”... để tự xếp vào đúng ô.</p>
         </div>
         <div className="flex-1 overflow-auto p-5">
           <div
@@ -440,7 +673,7 @@ function MultiUpload({ slots, layout, onCancel, onConfirm }: {
             onDrop={(e) => { e.preventDefault(); setOver(false); add(e.dataTransfer.files); }}
             className={`grid cursor-pointer place-items-center rounded-[10px] border-2 border-dashed px-4 py-8 text-center ${over ? "border-[#ff5fa2] bg-[#fff0f6]" : "border-[#cfcac2] bg-[#f6f4f0]"}`}>
             <p className="font-medium">Kéo thả ảnh vào đây</p>
-            <p className="text-[12px] text-[#8a857e]">hoặc bấm để chọn nhiều file (JPG, PNG, PDF ≤ 30MB)</p>
+            <p className="text-[12px] text-[#71717a]">hoặc bấm để chọn nhiều file (JPG, PNG, PDF ≤ 30MB)</p>
           </div>
           <input ref={input} type="file" multiple accept={ACCEPT} className="sr-only"
             onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
@@ -448,7 +681,7 @@ function MultiUpload({ slots, layout, onCancel, onConfirm }: {
           {rows.length > 0 && (
             <table className="mt-4 w-full text-[13px]">
               <thead>
-                <tr className="text-left text-[12px] text-[#8a857e]"><th className="py-1.5 font-medium">Tên file</th><th className="py-1.5 font-medium">Xếp vào ô</th><th /></tr>
+                <tr className="text-left text-[12px] text-[#71717a]"><th className="py-1.5 font-medium">Tên file</th><th className="py-1.5 font-medium">Xếp vào ô</th><th /></tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
@@ -467,7 +700,7 @@ function MultiUpload({ slots, layout, onCancel, onConfirm }: {
                         </select>
                       </td>
                       <td className="w-8 text-right">
-                        <button className="text-[16px] text-[#8a857e] hover:text-ink-900" aria-label="Bỏ file"
+                        <button className="text-[16px] text-[#71717a] hover:text-ink-900" aria-label="Bỏ file"
                           onClick={() => setRows((cur) => cur.filter((_, j) => j !== i))}>×</button>
                       </td>
                     </tr>

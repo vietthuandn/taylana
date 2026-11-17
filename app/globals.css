@@ -268,9 +268,9 @@
   height: 32px;
   padding: 0 0.65rem;
   border-radius: 8px;
-  border: 1px solid #dedad3;
+  border: 1px solid #e5e5e7;
   background: #fff;
-  color: #141414;
+  color: #18181b;
   font-size: 13px;
   font-weight: 500;
   line-height: 1;
@@ -278,7 +278,7 @@
   cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
   &:hover {
-    background: #f4f2ee;
+    background: #f4f4f5;
   }
   &[aria-pressed="true"], &.is-active {
     background: #ff5fa2;
@@ -299,21 +299,21 @@
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: #8a857e;
+  color: #71717a;
 }
 @utility tool-input {
   height: 32px;
   min-width: 0;
   border-radius: 8px;
-  border: 1px solid #dedad3;
+  border: 1px solid #e5e5e7;
   background: #fff;
   padding: 0 0.55rem;
   font-size: 13px;
-  color: #141414;
+  color: #18181b;
   &:focus {
     outline: none;
     border-color: #ff5fa2;
-    box-shadow: 0 0 0 2px #ffe3ef;
+    box-shadow: 0 0 0 3px rgb(255 95 162 / 0.15);
   }
 }
 @utility swatch {

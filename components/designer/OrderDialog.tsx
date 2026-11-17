@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { formatVND } from "@/lib/format";
 import type { Package } from "@/lib/types";
+import { normalizePhone, PHONE_ERROR } from "@/lib/phone";
+import { saveOrderCode } from "@/lib/cart";
 
 export type DesignFile = { kind: string; blob: Blob; name: string; page?: number | null };
 
@@ -30,7 +32,8 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!form.name.trim() || form.phone.replace(/\D/g, "").length < 8) return setError("Vui lòng nhập tên và số điện thoại/Zalo hợp lệ.");
+    if (!form.name.trim()) return setError("Vui lòng nhập tên.");
+    if (!normalizePhone(form.phone)) return setError(PHONE_ERROR);
     if (!hasSupabase) return setError("Web chưa kết nối database.");
     try {
       setStep("Đang xuất file 300 DPI...");
@@ -41,11 +44,12 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
       const sb = createClient();
       const note = [quantityLabel && !pkg ? `${quantityLabel}: ${qty}` : "", form.note].filter(Boolean).join("\n");
       const { data, error } = await sb.rpc("create_order", {
-        p_customer_name: form.name, p_phone: form.phone, p_address: form.address, p_note: note,
+        p_customer_name: form.name, p_phone: normalizePhone(form.phone), p_address: form.address, p_note: note,
         p_package_id: pkg?.id ?? null, p_quantity: qty, p_addons: [], p_order_type: orderType,
       });
       if (error || !data?.[0]) throw new Error(error?.message ?? "Không tạo được đơn");
       const { order_id, order_code } = data[0];
+      saveOrderCode(order_code); // để xem trong "Đơn hàng của tôi" và gửi thêm file
 
       let n = 0;
       for (const f of files) {
@@ -80,8 +84,9 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
             <p className="mt-3 text-sm text-ink-600">Đã gửi {done.files} file thiết kế. Tiệm sẽ nhắn bạn qua Zalo/SĐT để xác nhận và báo giá.</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {orderType === "custom_cd" && (
-                <Link href={`/gui-file-in?ma=${encodeURIComponent(done.code)}`} className="btn !text-base">Gửi link nhạc / file khác →</Link>
+                <Link href={`/gui-file-in?don=${encodeURIComponent(done.code)}`} className="btn !text-base">Gửi link nhạc / file khác →</Link>
               )}
+              <Link href="/don-hang-cua-toi" className="btn btn-ghost !text-base">Xem đơn hàng của tôi</Link>
               <button className="btn btn-ghost !text-base" onClick={onClose}>Đóng</button>
             </div>
           </div>

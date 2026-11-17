@@ -80,8 +80,8 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
   }
 
   const Switch = ({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) => (
-    <button type="button" role="switch" aria-checked={on} onClick={onClick} className="inline-flex items-center gap-2 text-[13px] text-[#141414]">
-      <span className={`relative h-[18px] w-8 rounded-full transition ${on ? "bg-[#ff5fa2]" : "bg-[#d6d2cb]"}`}>
+    <button type="button" role="switch" aria-checked={on} onClick={onClick} className="inline-flex items-center gap-2 text-[13px] text-[#18181b]">
+      <span className={`relative h-[18px] w-8 rounded-full transition ${on ? "bg-[#ff5fa2]" : "bg-[#d4d4d8]"}`}>
         <span className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${on ? "left-[16px]" : "left-[2px]"}`} />
       </span>
       {label}
@@ -104,7 +104,7 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
       </div>
       {err && <p className="border-b border-[#e5e5e7] px-3 py-1.5 text-[12px] text-[#dc2626] sm:hidden">{err}</p>}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div ref={areaRef} className="relative h-[480px] min-w-0 bg-[#ece1d0] lg:h-auto lg:flex-1">
+        <div ref={areaRef} className="relative h-[480px] min-w-0 bg-[#efeff1] lg:h-auto lg:flex-1">
           {area.w > 0 && (
             <div key={target} className="absolute inset-0">
               <CdDesigner ref={(h) => { handle.current = h; }} spec={spec} mode="template" pages={pages} viewport={{ w: area.w, h: area.h }}
@@ -115,7 +115,7 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
             </div>
           )}
         </div>
-        <aside className="flex flex-col divide-y divide-[#ecebe7] border-[#e5e5e7] lg:w-[320px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
+        <aside className="flex flex-col divide-y divide-[#efeff1] border-[#e5e5e7] lg:w-[320px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
           <section className="space-y-2.5 p-4">
             <p className="tool-label">Loại mẫu</p>
             <select className="tool-input w-full" value={target} onChange={(e) => setTarget(e.target.value as TplTarget)} aria-label="Loại mẫu">
@@ -129,7 +129,7 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
               {target === "back_inner" && <Switch on={trayOn} onClick={() => setTrayOn(!trayOn)} label="Ướm khay đĩa" />}
             </div>
             <div ref={(el) => { if (el && host !== el) setHost(el); }} />
-            <p className="mt-3 text-[11px] text-[#8a857e]">Khung ảnh: vị trí để khách đặt ảnh (khách bấm vào khung để tải ảnh). Chữ của mẫu: khách sửa được nội dung, không di chuyển được.</p>
+            <p className="mt-3 text-[11px] text-[#71717a]">Khung ảnh: vị trí để khách đặt ảnh (khách bấm vào khung để tải ảnh). Chữ của mẫu: khách sửa được nội dung, không di chuyển được.</p>
           </section>
         </aside>
       </div>

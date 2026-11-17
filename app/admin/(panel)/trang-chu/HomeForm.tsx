@@ -122,7 +122,7 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
                     <button key={k} type="button" onClick={() => setOpt(i, { text_color: k })}
                       className={`flex items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[13px] font-medium ${o.text_color === k ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]"}`}>
                       <span className="h-3 w-3 rounded-full border border-black/10" style={{ background: TEXT_COLORS[k] }} />
-                      {{ brown: "Nâu", white: "Trắng", lilac: "Tím" }[k]}
+                      {{ ink: "Đen", brown: "Nâu", white: "Trắng", lilac: "Tím" }[k]}
                     </button>
                   ))}
                 </div>

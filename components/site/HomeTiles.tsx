@@ -3,12 +3,15 @@ import { optionIcons, TEXT_COLORS, type HomeOption } from "@/lib/settings";
 import { ServiceIcon } from "@/components/site/ServiceIcon";
 
 
+// ô nền trắng thì có viền xám mảnh
+const border = (bg: string) => (/^#?f{6}$/i.test(bg.trim()) ? { boxShadow: "inset 0 0 0 1px #e5e5e7" } : {});
+
 // Tên menu: phần trong [ngoặc vuông] được tô tím nhạt (giống mẫu "[Sips]")
 export function TileTitle({ text, color }: { text: string; color: string }) {
   const parts = text.split(/(\[[^\]]+\])/g).filter(Boolean);
   return (
     <span style={{ color }}>
-      {parts.map((p, i) => (p.startsWith("[") ? <span key={i} style={{ color: color === TEXT_COLORS.lilac ? TEXT_COLORS.brown : TEXT_COLORS.lilac }}>{p}</span> : p))}
+      {parts.map((p, i) => (p.startsWith("[") ? <span key={i} style={{ color: color === TEXT_COLORS.ink ? "#ff5fa2" : color === TEXT_COLORS.lilac ? TEXT_COLORS.brown : TEXT_COLORS.lilac }}>{p}</span> : p))}
     </span>
   );
 }
@@ -33,10 +36,10 @@ export function Tile({ o, index, preview = false }: { o: HomeOption; index: numb
     </span>
   );
   const cls = "relative block aspect-square overflow-hidden rounded-[16px] transition duration-300";
-  if (preview) return <div className={cls} style={{ background: o.bg }}>{body}</div>;
+  if (preview) return <div className={cls} style={{ background: o.bg, ...border(o.bg) }}>{body}</div>;
   return (
-    <Link href={o.href || "/"} className={`${cls} md:hover:-translate-y-1 md:hover:shadow-[0_14px_30px_rgba(59,21,16,.18)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3b1510]`}
-      style={{ background: o.bg }}>
+    <Link href={o.href || "/"} className={`${cls} md:hover:-translate-y-1 md:hover:shadow-[0_14px_30px_rgba(0,0,0,.08)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ff5fa2]`}
+      style={{ background: o.bg, ...border(o.bg) }}>
       {body}
     </Link>
   );

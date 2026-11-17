@@ -422,15 +422,15 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
   const visLabel = visibleIds.map((id) => pages.find((p) => p.id === id)?.label).join(" – ");
   const Label = ({ children }: { children: React.ReactNode }) => <p className="tool-label">{children}</p>;
   const Switch = ({ on, onClick, label, dim }: { on: boolean; onClick: () => void; label: string; dim?: boolean }) => (
-    <button type="button" role="switch" aria-checked={on} onClick={onClick} className={`inline-flex items-center gap-2 text-[13px] text-[#141414] ${dim ? "opacity-50" : ""}`}>
-      <span className={`relative h-[18px] w-8 rounded-full transition ${on ? "bg-[#ff5fa2]" : "bg-[#d6d2cb]"}`}>
+    <button type="button" role="switch" aria-checked={on} onClick={onClick} className={`inline-flex items-center gap-2 text-[13px] text-[#18181b] ${dim ? "opacity-50" : ""}`}>
+      <span className={`relative h-[18px] w-8 rounded-full transition ${on ? "bg-[#ff5fa2]" : "bg-[#d4d4d8]"}`}>
         <span className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${on ? "left-[16px]" : "left-[2px]"}`} />
       </span>
       {label}
     </button>
   );
   const Thumb = ({ id, className = "", round = false }: { id: string; className?: string; round?: boolean }) => (
-    <span className={`relative block overflow-hidden bg-[#f4f2ee] ${round ? "rounded-full" : "rounded-[4px]"} ${className}`} style={{ aspectRatio: `${specOf(id).w} / ${specOf(id).h}` }}>
+    <span className={`relative block overflow-hidden bg-[#f4f4f5] ${round ? "rounded-full" : "rounded-[4px]"} ${className}`} style={{ aspectRatio: `${specOf(id).w} / ${specOf(id).h}` }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {thumbs[id] && <img src={thumbs[id]} alt="" className="h-full w-full object-cover" />}
       {hasArt(id) && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[#ff5fa2] ring-1 ring-white" title="Đã có thiết kế" />}
@@ -440,7 +440,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
   return (
     <div className="flex flex-1 flex-col md:min-h-0 md:flex-row">
       {/* ---------- BÊN TRÁI: vùng làm việc ---------- */}
-      <div ref={areaRef} className="relative bg-[#ece1d0] md:min-h-0 md:w-[62%]" style={!isDesktop ? { height: vp.h } : undefined}>
+      <div ref={areaRef} className="relative bg-[#efeff1] md:min-h-0 md:w-[62%]" style={!isDesktop ? { height: vp.h } : undefined}>
         {spineMode && zone ? (
           <div key={`spine-${spineMode}`} className="absolute inset-0 flex flex-col items-center justify-center p-4 animate-[flipIn_.3s_ease]">
             <SpineEditor side={zoneData[spineMode]} len={BH} thick={THICK} width={Math.max(200, area.w - 32)} dir={zone.dir} bg={spineBg}
@@ -462,7 +462,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
           </div>
         )}
         {!pkg && ready && (
-          <div className="absolute inset-0 z-30 grid place-items-center bg-[#ece1d0]/85 backdrop-blur-sm">
+          <div className="absolute inset-0 z-30 grid place-items-center bg-[#efeff1]/85 backdrop-blur-sm">
             <p className="rounded-full bg-white px-5 py-2.5 font-sans text-[15px] font-medium text-[#4d4a46] shadow-sm">Chọn gói để bắt đầu thiết kế</p>
           </div>
         )}
@@ -482,7 +482,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
       </div>
 
       {/* ---------- BÊN PHẢI: panel ---------- */}
-      <aside className="flex flex-col divide-y divide-[#ecebe7] bg-white pb-16 font-sans text-[13px] text-[#141414] md:min-h-0 md:flex-1 md:overflow-y-auto md:border-l md:border-[#dedad3] md:pb-0">
+      <aside className="flex flex-col divide-y divide-[#efeff1] bg-white pb-16 font-sans text-[13px] text-[#18181b] md:min-h-0 md:flex-1 md:overflow-y-auto md:border-l md:border-[#e5e5e7] md:pb-0">
         <section className="space-y-2.5 p-4">
           {pkg && (
             <label className="flex items-center gap-2">
@@ -492,10 +492,10 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
               </select>
             </label>
           )}
-          <div className={`flex gap-0.5 rounded-[8px] bg-[#f4f2ee] p-0.5 ${pkg ? "" : "hidden"}`}>
+          <div className={`flex gap-0.5 rounded-[8px] bg-[#f4f4f5] p-0.5 ${pkg ? "" : "hidden"}`}>
             {visibleParts.map((pt) => (
               <button key={pt} aria-pressed={panelTab === pt}
-                className={`h-8 flex-1 rounded-[6px] px-1 text-[12px] font-medium ${panelTab === pt ? "bg-[#ff5fa2] text-white shadow-sm" : "text-[#77726b] hover:text-[#141414]"}`}
+                className={`h-8 flex-1 rounded-[6px] px-1 text-[12px] font-medium ${panelTab === pt ? "bg-[#ff5fa2] text-white shadow-sm" : "text-[#71717a] hover:text-[#18181b]"}`}
                 onClick={() => { setPanelTab(pt); openPage(pages.find((x) => x.part === pt)!.id); }}>
                 {PART_LABEL[pt]} <span className="opacity-80">{countOf(pt)}</span>
               </button>
@@ -510,18 +510,18 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
             <div className="mt-2 space-y-1.5">
               {packages.map((pk) => (
                 <button key={pk.id} onClick={() => choosePkg(pk.id)}
-                  className="flex w-full items-center gap-2.5 rounded-[10px] border border-[#e3e0da] p-2 text-left hover:border-[#ff5fa2]">
-                  <span className="block h-12 w-12 shrink-0 overflow-hidden rounded-[6px] bg-[#f4f2ee]">
+                  className="flex w-full items-center gap-2.5 rounded-[10px] border border-[#e5e5e7] p-2 text-left hover:border-[#ff5fa2]">
+                  <span className="block h-12 w-12 shrink-0 overflow-hidden rounded-[6px] bg-[#f4f4f5]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {pk.image_url && <img src={pk.image_url} alt="" className="h-full w-full object-cover" />}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium">{pk.name}</span>
-                    <span className="block text-[12px] text-[#8a857e]">{describePkg(pk) || "Chưa có cấu hình trang"}</span>
+                    <span className="block text-[12px] text-[#71717a]">{describePkg(pk) || "Chưa có cấu hình trang"}</span>
                   </span>
                 </button>
               ))}
-              {!packages.length && <p className="text-[12px] text-[#8a857e]">Tiệm chưa có gói sản phẩm nào.</p>}
+              {!packages.length && <p className="text-[12px] text-[#71717a]">Tiệm chưa có gói sản phẩm nào.</p>}
             </div>
           </section>
         )}
@@ -535,7 +535,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
             <div className="grid grid-cols-3 gap-1.5">
               {groups.map((g, gi) => (
                 <button key={g.join()} onClick={() => setGroupIdx(gi)} title={`Trang ${g.map((id) => pages.find((p) => p.id === id)?.label).join("–")}`}
-                  className={`rounded-[8px] border p-1 text-center text-[11px] ${gi === groupIdx ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e3e0da] hover:border-[#bdb8b0]"}`}>
+                  className={`rounded-[8px] border p-1 text-center text-[11px] ${gi === groupIdx ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e5e5e7] hover:border-[#d4d4d8]"}`}>
                   <span className="flex justify-center gap-px">{g.map((id) => <Thumb key={id} id={id} className="w-1/2 max-w-[44px]" />)}</span>
                   <span className="mt-1 block font-medium">{g.map((id) => pages.find((p) => p.id === id)?.label).join("–")}</span>
                 </button>
@@ -547,7 +547,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                 const compact = booklet && part === "front";
                 return (
                   <button key={p.id} onClick={() => openPage(p.id)} title={p.label}
-                    className={`flex items-center gap-1.5 rounded-[8px] border p-1 text-left ${compact ? "flex-col !gap-1 text-center text-[11px]" : "text-[12px]"} ${p.id === activePage.id ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e3e0da] hover:border-[#bdb8b0]"}`}>
+                    className={`flex items-center gap-1.5 rounded-[8px] border p-1 text-left ${compact ? "flex-col !gap-1 text-center text-[11px]" : "text-[12px]"} ${p.id === activePage.id ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e5e5e7] hover:border-[#d4d4d8]"}`}>
                     <Thumb id={p.id} round={p.part === "disc"} className={compact ? "w-full" : "w-9 shrink-0"} />
                     <span className="min-w-0 font-medium leading-tight">{p.label}</span>
                   </button>
@@ -565,10 +565,10 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
               <button className="tool-btn" onClick={addSpineText}><Icon name="text" /> Chữ</button>
             </div>
             {selText ? (
-              <div className="space-y-2.5 rounded-[10px] border border-[#e3e0da] p-3">
+              <div className="space-y-2.5 rounded-[10px] border border-[#e5e5e7] p-3">
                 <div className="flex items-center justify-between">
                   <Label>Thuộc tính · chữ</Label>
-                  <button className="tool-btn tool-icon !text-[#d0303f]" title="Xoá" aria-label="Xoá"
+                  <button className="tool-btn tool-icon !text-[#dc2626]" title="Xoá" aria-label="Xoá"
                     onClick={() => { updSide((s) => ({ ...s, texts: s.texts.filter((t) => t.id !== spineSel) })); setSpineSel(null); }}><Icon name="trash" /></button>
                 </div>
                 <input className="tool-input w-full" value={selText.text} onChange={(e) => updText({ text: e.target.value })} />
@@ -597,13 +597,13 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                 <ColorSelect value={selText.fill} colors={TEXT_COLORS} onChange={(c) => updText({ fill: c })} />
               </div>
             ) : (
-              <p className="text-[12px] text-[#8a857e]">{side && side.texts.length ? "Bấm vào chữ để sửa, kéo lên/xuống để đổi vị trí." : `Thêm chữ cho ${zone.title}.`}</p>
+              <p className="text-[12px] text-[#71717a]">{side && side.texts.length ? "Bấm vào chữ để sửa, kéo lên/xuống để đổi vị trí." : `Thêm chữ cho ${zone.title}.`}</p>
             )}
             <div>
               <Label>Màu nền {zone.title}</Label>
               <div className="mt-2 flex flex-wrap items-center gap-1">
                 <button onClick={() => updSide((s) => ({ ...s, bg: null }))} aria-pressed={!side?.bg} title="Không màu" aria-label="Không màu"
-                  className="swatch bg-[linear-gradient(135deg,#fff_45%,#d0303f_45%,#d0303f_55%,#fff_55%)]" />
+                  className="swatch bg-[linear-gradient(135deg,#fff_45%,#dc2626_45%,#dc2626_55%,#fff_55%)]" />
                 {TEXT_COLORS.map((c) => (
                   <button key={c.value} aria-label={c.name} title={c.name} aria-pressed={side?.bg === c.value} onClick={() => updSide((s) => ({ ...s, bg: c.value }))} className="swatch" style={{ background: c.value }} />
                 ))}
@@ -627,15 +627,15 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
             </div>
             <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
               <button onClick={() => setTpl(null)} title="Tự do"
-                className={`w-16 shrink-0 rounded-[8px] border p-1 text-center text-[11px] ${!curTpl ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e3e0da]"}`}>
-                <div className={`mb-1 grid aspect-square place-items-center bg-[#f4f2ee] text-base ${tplPageId === "D" ? "rounded-full" : "rounded-[4px]"}`}>✎</div>
+                className={`w-16 shrink-0 rounded-[8px] border p-1 text-center text-[11px] ${!curTpl ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e5e5e7]"}`}>
+                <div className={`mb-1 grid aspect-square place-items-center bg-[#f4f4f5] text-base ${tplPageId === "D" ? "rounded-full" : "rounded-[4px]"}`}>✎</div>
                 Tự do
               </button>
               {tplList.map((t) => {
                 const sp = specOf(tplPageId);
                 return (
                   <button key={t.id} onClick={() => setTpl(t.id)} title={t.name}
-                    className={`w-16 shrink-0 rounded-[8px] border p-1 text-center text-[11px] ${curTpl === t.id ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e3e0da]"}`}>
+                    className={`w-16 shrink-0 rounded-[8px] border p-1 text-center text-[11px] ${curTpl === t.id ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e5e5e7]"}`}>
                     <div className="mb-1">
                       {t.thumbnail_url
                         // eslint-disable-next-line @next/next/no-img-element
@@ -647,7 +647,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                 );
               })}
             </div>
-            {!tplList.length && <p className="mt-2 text-[12px] text-[#8a857e]">Chưa có mẫu cho loại trang này.</p>}
+            {!tplList.length && <p className="mt-2 text-[12px] text-[#71717a]">Chưa có mẫu cho loại trang này.</p>}
           </section>
         )}
 
@@ -657,15 +657,15 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
         </section>
 
         {/* Thanh hành động cố định ở đáy panel (điện thoại: đáy màn hình) */}
-        <div className={`fixed inset-x-0 bottom-0 z-40 mt-auto border-t border-[#ecebe7] bg-white p-3 md:sticky md:inset-x-auto ${pkg ? "" : "hidden"}`}>
+        <div className={`fixed inset-x-0 bottom-0 z-40 mt-auto border-t border-[#efeff1] bg-white p-3 md:sticky md:inset-x-auto ${pkg ? "" : "hidden"}`}>
           <div className="flex gap-2">
             <button className="tool-btn !h-10 flex-1" disabled={busy} onClick={startSave}>Lưu</button>
             <div className="relative flex-1" data-dl-menu>
               <button className="tool-btn !h-10 w-full" disabled={busy} onClick={() => setDlOpen(!dlOpen)} aria-expanded={dlOpen}>Tải xuống <span className="text-[10px]">▾</span></button>
               {dlOpen && (
-                <div className="absolute bottom-12 left-0 z-50 w-48 rounded-[8px] border border-[#e3e0da] bg-white p-1 shadow-[0_8px_24px_rgba(20,20,20,.14)]">
-                  <button className="block h-8 w-full rounded-[6px] px-2 text-left hover:bg-[#f4f2ee]" onClick={() => { setDlOpen(false); downloadThis(); }}>Tải trang này</button>
-                  <button className="block h-8 w-full rounded-[6px] px-2 text-left hover:bg-[#f4f2ee]" onClick={() => { setDlOpen(false); downloadAll(); }}>Tải tất cả (.zip)</button>
+                <div className="absolute bottom-12 left-0 z-50 w-48 rounded-[8px] border border-[#e5e5e7] bg-white p-1 shadow-[0_8px_24px_rgba(20,20,20,.14)]">
+                  <button className="block h-8 w-full rounded-[6px] px-2 text-left hover:bg-[#f4f4f5]" onClick={() => { setDlOpen(false); downloadThis(); }}>Tải trang này</button>
+                  <button className="block h-8 w-full rounded-[6px] px-2 text-left hover:bg-[#f4f4f5]" onClick={() => { setDlOpen(false); downloadAll(); }}>Tải tất cả (.zip)</button>
                 </div>
               )}
             </div>
@@ -677,7 +677,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
       </aside>
 
       {msg && (
-        <div className="fixed bottom-20 right-4 z-[70] max-w-xs rounded-[8px] bg-[#141414] px-3 py-2 font-sans text-[13px] text-white shadow-lg md:bottom-6" role="status">{msg}</div>
+        <div className="fixed bottom-20 right-4 z-[70] max-w-xs rounded-[8px] bg-[#18181b] px-3 py-2 font-sans text-[13px] text-white shadow-lg md:bottom-6" role="status">{msg}</div>
       )}
       {pendingPkg && (
         <Modal title="Đổi gói?" danger ok="Đổi và xoá" cancel="Huỷ"
@@ -702,7 +702,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
           ok="Tiếp tục" cancel="Huỷ" onOk={doToggleSpread} onCancel={() => setConfirmSpread(false)} />
       )}
       {nameAsk && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-ink-900/50 p-4" role="dialog" aria-modal>
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal>
           <form className="w-full max-w-sm rounded-[14px] bg-white p-5 font-sans text-[14px] shadow-xl" onSubmit={async (e) => {
             e.preventDefault();
             if (nameAsk === "save") return doSave(designName);
@@ -725,13 +725,13 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
 
 function Modal({ title, text, ok, cancel, onOk, onCancel, danger }: { title: string; text: string; ok: string; cancel: string; onOk: () => void; onCancel: () => void; danger?: boolean }) {
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-ink-900/50 p-4" role="dialog" aria-modal>
+    <div className="fixed inset-0 z-[60] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal>
       <div className="w-full max-w-sm rounded-[14px] bg-white p-5 font-sans text-[14px] shadow-xl">
-        <p className="text-[16px] font-semibold text-ink-900">{title}</p>
-        <p className="mt-2 text-ink-600">{text}</p>
+        <p className="text-[16px] font-semibold text-[#18181b]">{title}</p>
+        <p className="mt-2 text-[#71717a]">{text}</p>
         <div className="mt-5 flex justify-end gap-2">
           <button className="tool-btn" onClick={onCancel}>{cancel}</button>
-          <button className={danger ? "tool-btn !border-[#d0303f] !bg-[#d0303f] !text-white hover:!brightness-95" : "tool-btn is-active"} onClick={onOk}>{ok}</button>
+          <button className={danger ? "tool-btn !border-[#dc2626] !bg-[#dc2626] !text-white hover:!brightness-95" : "tool-btn is-active"} onClick={onOk}>{ok}</button>
         </div>
       </div>
     </div>

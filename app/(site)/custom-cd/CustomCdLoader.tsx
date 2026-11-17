@@ -6,7 +6,7 @@ import { CdDisc } from "@/components/ui/Shapes";
 export const CustomCdLoader = dynamic(() => import("./CustomCdEditor").then((m) => m.CustomCdEditor), {
   ssr: false,
   loading: () => (
-    <div className="py-16 text-center font-semibold text-ink-900">
+    <div className="py-16 text-center font-semibold text-[#18181b]">
       <CdDisc spin className="mx-auto mb-4 w-20" /> Đang mở bàn thiết kế...
     </div>
   ),

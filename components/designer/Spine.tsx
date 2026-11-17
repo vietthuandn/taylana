@@ -47,7 +47,7 @@ export function SpineContent({ side, len, thick, editable, selectedId, onSelect,
           onMouseDown={() => onSelect?.(t.id)} onTouchStart={() => onSelect?.(t.id)}
           onDragMove={(e) => e.target.x(pad)}
           onDragEnd={(e) => onMoveText?.(t.id, e.target.y())}
-          stroke={editable && selectedId === t.id ? "#7b68ee" : undefined} strokeWidth={0} />
+          stroke={editable && selectedId === t.id ? "#ff5fa2" : undefined} strokeWidth={0} />
       ))}
     </Group>
   );
@@ -76,7 +76,7 @@ export function SpineEditor({ side, len, thick, width, dir, bg, selectedId, onSe
           </Group>
         )}
         <SpineContent side={side} len={len} thick={thick} editable selectedId={selectedId} onSelect={onSelect} onMoveText={onMoveText} />
-        {sel && <Rect x={0} y={sel.y} width={len} height={sel.fontSize * 1.1} stroke="#7b68ee" strokeWidth={2 / k} dash={[6 / k, 4 / k]} listening={false} />}
+        {sel && <Rect x={0} y={sel.y} width={len} height={sel.fontSize * 1.1} stroke="#ff5fa2" strokeWidth={2 / k} dash={[6 / k, 4 / k]} listening={false} />}
         <Line points={[0, 0, len, 0, len, thick, 0, thick, 0, 0]} stroke="#141414" strokeWidth={1.5 / k} dash={[8 / k, 6 / k]} listening={false} />
       </Layer>
     </Stage>

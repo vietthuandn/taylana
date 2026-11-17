@@ -37,7 +37,7 @@ export const defaultHome: HomeSettings = {
 // ---------- 6 ô trên trang chủ (key "home_options") ----------
 export type TextV = "top" | "middle" | "bottom";
 export type TextH = "left" | "center" | "right";
-export type TextColor = "brown" | "white" | "lilac";
+export type TextColor = "ink" | "brown" | "white" | "lilac";
 export type HomeOption = {
   title: string; // viết [chữ] trong ngoặc vuông để tô màu tím nhạt
   href: string;
@@ -50,24 +50,29 @@ export type HomeOption = {
 
 // Bảng màu theo mẫu
 export const TILE_COLORS = [
+  { label: "Hồng nhạt", value: "#fff0f6" },
+  { label: "Xám nhạt", value: "#f4f4f5" },
+  { label: "Trắng", value: "#ffffff" },
+  { label: "Hồng", value: "#ff5fa2" },
+  { label: "Đen", value: "#18181b" },
   { label: "Xanh chanh", value: "#d4dd3f" },
   { label: "Xanh trời", value: "#a9c6e8" },
   { label: "Kem", value: "#fbf3e7" },
   { label: "Tím nhạt", value: "#c3b5f7" },
   { label: "Nâu", value: "#3b1510" },
 ];
-export const TEXT_COLORS: Record<TextColor, string> = { brown: "#3b1510", white: "#ffffff", lilac: "#a593f0" };
+export const TEXT_COLORS: Record<TextColor, string> = { ink: "#18181b", brown: "#3b1510", white: "#ffffff", lilac: "#a593f0" };
 
 // icon mặc định khi ô chưa có ảnh (vector có sẵn)
 export const optionIcons = ["bag", "book", "brush", "upload", "gallery", "chat"] as const;
 
 export const defaultOptions: HomeOption[] = [
-  { title: "Đặt đơn ngay", href: "/dat-don", image_url: null, bg: "#d4dd3f", text_v: "middle", text_h: "left", text_color: "brown" },
-  { title: "Hướng dẫn làm file", href: "/huong-dan", image_url: null, bg: "#a9c6e8", text_v: "top", text_h: "center", text_color: "white" },
-  { title: "Tự tay thiết kế", href: "/custom-cd", image_url: null, bg: "#fbf3e7", text_v: "top", text_h: "left", text_color: "brown" },
-  { title: "Gửi file in", href: "/gui-file-in", image_url: null, bg: "#c3b5f7", text_v: "middle", text_h: "center", text_color: "brown" },
-  { title: "Sản phẩm & [đánh giá]", href: "/san-pham", image_url: null, bg: "#fbf3e7", text_v: "top", text_h: "center", text_color: "brown" },
-  { title: "Liên hệ", href: "/lien-he", image_url: null, bg: "#d4dd3f", text_v: "bottom", text_h: "right", text_color: "brown" },
+  { title: "Đặt đơn ngay", href: "/dat-don", image_url: null, bg: "#fff0f6", text_v: "middle", text_h: "left", text_color: "ink" },
+  { title: "Hướng dẫn làm file", href: "/huong-dan", image_url: null, bg: "#f4f4f5", text_v: "top", text_h: "center", text_color: "ink" },
+  { title: "Tự tay thiết kế", href: "/custom-cd", image_url: null, bg: "#ffffff", text_v: "top", text_h: "left", text_color: "ink" },
+  { title: "Gửi file in", href: "/gui-file-in", image_url: null, bg: "#ffffff", text_v: "middle", text_h: "center", text_color: "ink" },
+  { title: "Sản phẩm & [đánh giá]", href: "/san-pham", image_url: null, bg: "#f4f4f5", text_v: "top", text_h: "center", text_color: "ink" },
+  { title: "Liên hệ", href: "/lien-he", image_url: null, bg: "#fff0f6", text_v: "bottom", text_h: "right", text_color: "ink" },
 ];
 
 // ---------- Liên hệ (key "contact") ----------
@@ -108,7 +113,7 @@ export function mergeOptions(value: unknown): HomeOption[] {
       bg: pick("bg", (x) => typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x)),
       text_v: pick("text_v", (x) => x === "top" || x === "middle" || x === "bottom"),
       text_h: pick("text_h", (x) => x === "left" || x === "center" || x === "right"),
-      text_color: pick("text_color", (x) => x === "brown" || x === "white" || x === "lilac"),
+      text_color: pick("text_color", (x) => x === "ink" || x === "brown" || x === "white" || x === "lilac"),
     };
   });
 }

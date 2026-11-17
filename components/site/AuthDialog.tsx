@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { X } from "lucide-react";
-import { normalizePhone, phoneToEmail } from "@/lib/phoneAuth";
+import { normalizePhone, phoneToEmail, PHONE_ERROR } from "@/lib/phoneAuth";
 import { btnClass, inputClass } from "@/components/ui/styles";
 
 // Popup đăng nhập / đăng ký khách bằng số điện thoại + mật khẩu
@@ -20,7 +20,7 @@ export function AuthDialog({ onClose, onDone, title }: { onClose: () => void; on
     e.preventDefault();
     setErr("");
     const p = normalizePhone(phone);
-    if (!p) return setErr("Số điện thoại cần đúng 10 số (ví dụ 0901234567).");
+    if (!p) return setErr(`${PHONE_ERROR} (ví dụ 0905 546 694).`);
     if (pass.length < 6) return setErr("Mật khẩu tối thiểu 6 ký tự.");
     const sb = createClient();
     setBusy(true);
@@ -37,6 +37,8 @@ export function AuthDialog({ onClose, onDone, title }: { onClose: () => void; on
       const { error } = await sb.auth.signInWithPassword({ email: phoneToEmail(p), password: pass });
       if (error) { setBusy(false); return setErr("Sai số điện thoại hoặc mật khẩu."); }
     }
+    // gắn các đơn đã đặt bằng SĐT này (khi chưa đăng nhập) vào tài khoản
+    await sb.rpc("claim_my_orders").then(() => undefined, () => undefined);
     setBusy(false);
     onDone?.();
     onClose();
