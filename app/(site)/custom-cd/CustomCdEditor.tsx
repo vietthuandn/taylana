@@ -657,7 +657,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
         </section>
 
         {/* Thanh hành động cố định ở đáy panel (điện thoại: đáy màn hình) */}
-        <div className={`fixed inset-x-0 bottom-0 z-40 mt-auto border-t border-[#efeff1] bg-white p-3 md:sticky md:inset-x-auto ${pkg ? "" : "hidden"}`}>
+        <div className={`fixed inset-x-0 bottom-0 z-40 mt-auto border-t border-[#efeff1] bg-white p-3 pb-[calc(12px+env(safe-area-inset-bottom))] md:sticky md:inset-x-auto md:pb-3 ${pkg ? "" : "hidden"}`}>
           <div className="flex gap-2">
             <button className="tool-btn !h-10 flex-1" disabled={busy} onClick={startSave}>Lưu</button>
             <div className="relative flex-1" data-dl-menu>
@@ -677,7 +677,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
       </aside>
 
       {msg && (
-        <div className="fixed bottom-20 right-4 z-[70] max-w-xs rounded-[8px] bg-[#18181b] px-3 py-2 font-sans text-[13px] text-white shadow-lg md:bottom-6" role="status">{msg}</div>
+        <div className="fixed bottom-[calc(80px+env(safe-area-inset-bottom))] right-4 z-[70] max-w-xs rounded-[8px] bg-[#18181b] px-3 py-2 font-sans text-[13px] text-white shadow-lg md:bottom-6" role="status">{msg}</div>
       )}
       {pendingPkg && (
         <Modal title="Đổi gói?" danger ok="Đổi và xoá" cancel="Huỷ"

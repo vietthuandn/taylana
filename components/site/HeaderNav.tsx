@@ -6,6 +6,13 @@ import { ShoppingCart } from "lucide-react";
 import { services } from "@/lib/services";
 import { useCart } from "@/lib/cart";
 
+// Link trước đây nằm ở footer: Liên hệ hiện trên menu máy tính; tất cả hiện trong menu điện thoại
+const extra = [
+  { href: "/lien-he", title: "Liên hệ", desktop: true },
+  { href: "/san-pham#danh-gia", title: "Đánh giá", desktop: false },
+  { href: "/don-hang-cua-toi", title: "Đơn hàng của tôi", desktop: false },
+];
+
 const isOn = (path: string, href: string) => path === href || path.startsWith(href + "/");
 
 // Menu ngang (máy tính): mục của trang đang mở có chữ hồng
@@ -17,6 +24,12 @@ export function HeaderNav() {
         <Link key={s.href} href={s.href}
           className={`rounded-[8px] px-3 py-2 text-[14px] font-medium transition-colors hover:bg-[#f4f4f5] ${isOn(path, s.href) ? "text-[#ff5fa2]" : "text-[#3f3f46] hover:text-[#18181b]"}`}>
           {s.short}
+        </Link>
+      ))}
+      {extra.filter((x) => x.desktop).map((x) => (
+        <Link key={x.href} href={x.href}
+          className={`rounded-[8px] px-3 py-2 text-[14px] font-medium transition-colors hover:bg-[#f4f4f5] ${isOn(path, x.href) ? "text-[#ff5fa2]" : "text-[#3f3f46] hover:text-[#18181b]"}`}>
+          {x.title}
         </Link>
       ))}
     </nav>
@@ -31,6 +44,13 @@ export function MobileNav() {
         <Link key={s.href} href={s.href}
           className={`flex items-center justify-between rounded-[8px] px-3 py-2.5 text-[14px] font-medium hover:bg-[#f4f4f5] ${isOn(path, s.href) ? "text-[#ff5fa2]" : "text-[#18181b]"}`}>
           {s.title}<span aria-hidden className="text-[#a1a1aa]">→</span>
+        </Link>
+      ))}
+      <div className="my-1 h-px bg-[#efeff1]" />
+      {extra.map((x) => (
+        <Link key={x.href} href={x.href}
+          className={`flex items-center justify-between rounded-[8px] px-3 py-2.5 text-[14px] hover:bg-[#f4f4f5] ${isOn(path, x.href) ? "text-[#ff5fa2]" : "text-[#3f3f46]"}`}>
+          {x.title}<span aria-hidden className="text-[#a1a1aa]">→</span>
         </Link>
       ))}
     </nav>

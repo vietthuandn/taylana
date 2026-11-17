@@ -10,7 +10,7 @@ export function SiteSkin({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   if (KEEP_OLD.some((p) => path.startsWith(p))) return <>{children}</>;
   return (
-    <div className="ui-clean flex flex-1 flex-col">
+    <div className="ui-clean flex flex-1 flex-col pb-6">
       {children}
       <AdminOverlays />
     </div>

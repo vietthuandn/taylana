@@ -49,6 +49,10 @@ export function AccountButton() {
         <div className="absolute right-0 mt-2 w-52 rounded-[12px] border border-[#e5e5e7] bg-white p-1 font-sans text-[14px] text-[#18181b] shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
           <Link href="/don-hang-cua-toi" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Đơn hàng của tôi</Link>
           <Link href="/thiet-ke-cua-toi" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Thiết kế của tôi</Link>
+          <div className="my-1 h-px bg-[#efeff1]" />
+          <Link href="/huong-dan" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Hướng dẫn</Link>
+          <Link href="/san-pham#danh-gia" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Đánh giá</Link>
+          <Link href="/lien-he" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Liên hệ</Link>
           <button onClick={async () => { await createClient().auth.signOut(); setMenu(false); }} className="block w-full rounded-[8px] px-3 py-2 text-left text-[#dc2626] hover:bg-[#fef2f2]">Đăng xuất</button>
         </div>
       )}
