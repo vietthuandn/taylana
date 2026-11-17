@@ -67,7 +67,7 @@ export function CartView({ packages, addons, discounts, shipping, payment }: { p
 
   const allOn = rows.every((r) => !r.line || !off.has(r.c.id));
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col bg-[#f7f7f8]">
       <Stepper step={step} onGo={go} />
       <Wrap className={cx("pt-6", step !== 3 ? MOBILE_PAD : "pb-8")}>
         {step === 1 && (
@@ -108,9 +108,11 @@ export function CartView({ packages, addons, discounts, shipping, payment }: { p
               {co.discountBox}
               {co.summary}
               {error && <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</p>}
-              <ActionBar sets={co.sets} total={co.total} savings={co.savings} label={`Đặt đơn (${co.sets})`} onPrimary={() => go(2)} disabled={!chosen.length} />
             </aside>
           </div>
+        )}
+        {step === 1 && (
+          <ActionBar sets={co.sets} total={co.total} savings={co.savings} label={`Đặt đơn (${co.sets})`} onPrimary={() => go(2)} disabled={!chosen.length} />
         )}
 
         {step === 2 && (

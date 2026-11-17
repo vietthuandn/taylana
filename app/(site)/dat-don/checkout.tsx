@@ -251,41 +251,40 @@ export function useCheckout({ lines, discounts, shipping, phone, initialCode = "
   return { list, subtotal, discount, total, savings, sets, summary, discountBox, privCode: usePriv ? priv!.code : "", savedCode: priv?.code ?? "", autoOff };
 }
 
-// ---------- Thanh hành động: máy tính dính cuối cột phải, điện thoại cố định đáy ----------
+// ---------- Thanh hành động: 1 dải ngang cố định ở đáy màn hình (render ở cấp trang) ----------
+// Máy tính: cao 72px (+ safe-area), 1 hàng. Điện thoại: tổng tiền ở trên, các nút ở dưới.
 export function ActionBar({ sets, total, savings, label, onPrimary, disabled, onCart, bump = 0 }: {
   sets: number; total: number; savings: number; label: string; onPrimary: () => void; disabled?: boolean;
   onCart?: () => void; bump?: number;
 }) {
-  const inner = (
-    <div className="flex items-center justify-between gap-3">
-      <div className="min-w-0">
-        <p className="text-[13px] text-[#71717a]">Tổng cộng ({sets} sản phẩm)</p>
-        <p className="text-[22px] font-bold leading-tight tabular-nums text-[#ff5fa2]">{formatVND(total)}</p>
-        {savings > 0 && <p className="text-[12px] tabular-nums text-[#71717a]">Tiết kiệm: {formatVND(savings)}</p>}
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <button type="button" onClick={onPrimary} disabled={disabled}
-          className="h-12 min-w-[160px] rounded-[10px] bg-[#ff5fa2] px-4 text-[16px] font-semibold text-white transition-colors hover:bg-[#f0468f] disabled:cursor-not-allowed disabled:opacity-50">
-          {label}
-        </button>
-        {onCart && (
-          <button key={bump} type="button" onClick={onCart} title="Thêm vào giỏ hàng" aria-label="Thêm vào giỏ hàng"
-            className={cx("grid h-12 w-12 place-items-center rounded-[10px] border border-[#e5e5e7] bg-white text-[#18181b] hover:bg-[#f4f4f5]", bump > 0 && "animate-[cartBump_.45s_ease]")}>
-            <ShoppingCart size={20} />
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e7] bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
+      <Wrap className="flex flex-col gap-2 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 lg:min-h-[72px] lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-[13px] text-[#71717a]">Tổng cộng ({sets} sản phẩm)</span>
+            <span className="text-[22px] font-bold leading-tight tabular-nums text-[#ff5fa2]">{formatVND(total)}</span>
+          </p>
+          {savings > 0 && <p className="text-[12px] tabular-nums text-[#71717a]">Tiết kiệm: {formatVND(savings)}</p>}
+        </div>
+        <div className="flex items-center gap-2">
+          {onCart && (
+            <button key={bump} type="button" onClick={onCart} title="Thêm vào giỏ hàng" aria-label="Thêm vào giỏ hàng"
+              className={cx("grid h-11 w-11 shrink-0 place-items-center rounded-[10px] border border-[#e5e5e7] bg-white text-[#18181b] hover:bg-[#f4f4f5]", bump > 0 && "animate-[cartBump_.45s_ease]")}>
+              <ShoppingCart size={20} />
+            </button>
+          )}
+          <button type="button" onClick={onPrimary} disabled={disabled}
+            className="h-11 flex-1 rounded-[10px] bg-[#ff5fa2] px-4 text-[15px] font-semibold text-white transition-colors hover:bg-[#f0468f] disabled:cursor-not-allowed disabled:opacity-50 lg:w-[180px] lg:flex-none">
+            {label}
           </button>
-        )}
-      </div>
+        </div>
+      </Wrap>
     </div>
   );
-  return (
-    <>
-      <div className="sticky bottom-0 z-10 hidden border-t border-[#e5e5e7] bg-white py-4 lg:block">{inner}</div>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#e5e5e7] bg-white px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 lg:hidden">{inner}</div>
-    </>
-  );
 }
-// Chừa chỗ cho thanh hành động cố định trên điện thoại
-export const MOBILE_PAD = "pb-[calc(112px+env(safe-area-inset-bottom))] lg:pb-8";
+// Chừa chỗ cho thanh hành động: chiều cao thanh + 24px (điện thoại thanh cao hơn vì xếp 2 hàng)
+export const MOBILE_PAD = "pb-[calc(148px+env(safe-area-inset-bottom))] lg:pb-[calc(96px+env(safe-area-inset-bottom))]";
 
 // ---------- Gửi đơn ----------
 export async function submitOrder(lines: Line[], form: Form, opts: { code: string; autoOff: boolean }) {
@@ -340,8 +339,8 @@ export function InfoStep({ form, setForm, co, error, sending, onBack, onSubmit }
       <aside className="flex flex-col gap-6 lg:col-span-5">
         {co.summary}
         {error && <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</p>}
-        <ActionBar sets={co.sets} total={co.total} savings={co.savings} label={sending ? "Đang gửi..." : "Đặt hàng"} onPrimary={onSubmit} disabled={sending} />
       </aside>
+      <ActionBar sets={co.sets} total={co.total} savings={co.savings} label={sending ? "Đang gửi..." : "Đặt hàng"} onPrimary={onSubmit} disabled={sending} />
     </div>
   );
 }

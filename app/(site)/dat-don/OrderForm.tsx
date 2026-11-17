@@ -99,7 +99,7 @@ function Inner({ packages, addons, discounts, shipping, payment, draft, pre }: P
   const choose = (id: string) => { if (id !== packageId) { setPackageId(id); setImgIdx(0); } };
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex flex-1 flex-col bg-[#f7f7f8]">
       <Stepper step={step} onGo={go} />
       <Wrap className={cx("pt-6", step !== 3 && MOBILE_PAD, step === 3 && "pb-8")}>
         {!packages.length && <p className="py-16 text-center text-[14px] text-[#71717a]">Tiệm đang cập nhật bảng giá, bạn quay lại sau hoặc nhắn tiệm qua Zalo nhé!</p>}
@@ -156,9 +156,12 @@ function Inner({ packages, addons, discounts, shipping, payment, draft, pre }: P
               {co.discountBox}
               {co.summary}
               {error && <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</p>}
-              <ActionBar sets={co.sets} total={co.total} savings={co.savings} label="Đặt đơn" onPrimary={orderNow} onCart={addToCart} bump={bump} />
             </div>
           </div>
+        )}
+
+        {step === 1 && packages.length > 0 && (
+          <ActionBar sets={co.sets} total={co.total} savings={co.savings} label="Đặt đơn" onPrimary={orderNow} onCart={addToCart} bump={bump} />
         )}
 
         {step === 2 && (
