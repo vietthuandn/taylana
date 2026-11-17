@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatBytes, formatDate } from "@/lib/format";
-import { Message } from "@/components/admin/ui";
+import { Button, Input, Message, Table, confirmDialog } from "@/components/admin/ui";
 
 export type CleanupOrder = {
   id: string; code: string; customer_name: string; delivered_at: string | null;
@@ -29,7 +29,7 @@ export function CleanupList({ orders }: { orders: CleanupOrder[] }) {
     if (!list.length) return setMsg({ type: "err", text: "Không có đơn nào để xoá" });
     const files = list.reduce((t, o) => t + o.count, 0);
     const bytes = list.reduce((t, o) => t + o.bytes, 0);
-    if (!confirm(`Xoá ${files} file (${formatBytes(bytes)}) của ${list.length} đơn?\n\n${list.map((o) => o.code).join(", ")}\n\nKhông thể hoàn tác!`)) return;
+    if (!await confirmDialog(`Xoá ${files} file (${formatBytes(bytes)}) của ${list.length} đơn?\n\n${list.map((o) => o.code).join(", ")}\n\nKhông thể hoàn tác!`)) return;
 
     const sb = createClient();
     const paths = list.flatMap((o) => o.paths);
@@ -57,46 +57,38 @@ export function CleanupList({ orders }: { orders: CleanupOrder[] }) {
   const old = orders.filter((o) => o.delivered_at && new Date(o.delivered_at).getTime() < cutoff);
   const picked = orders.filter((o) => selected.has(o.id));
 
-  if (!orders.length) return <p className="text-ink-500">Không có đơn đã giao nào còn file. Gọn gàng quá! ✿</p>;
+  if (!orders.length) return <p className="text-[14px] text-[#71717a]">Không có đơn đã giao nào còn file.</p>;
 
   return (
     <div>
-      <div className="pop-sm mb-4 flex flex-wrap items-center gap-2 rounded-3xl bg-violet-100 p-4">
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[8px] bg-[#fafafa] p-3 text-[14px]">
         <span>Xoá file của đơn đã giao quá</span>
-        <input type="number" min={0} className="field !w-20 !min-h-10 text-center" value={days} onChange={(e) => setDays(Math.max(0, Number(e.target.value)))} />
+        <Input type="number" min={0} className="!w-20 text-center" value={days} onChange={(e) => setDays(Math.max(0, Number(e.target.value)))} />
         <span>ngày</span>
-        <button className="btn btn-sm" disabled={!!busy} onClick={() => cleanup(old)}>
-          Xoá ({old.length} đơn)
-        </button>
+        <Button variant="danger" size="sm" disabled={!!busy} onClick={() => cleanup(old)}>Xoá ({old.length} đơn)</Button>
       </div>
+      {busy && <p className="mb-3 text-[13px] text-[#71717a]">{busy}</p>}
+      <Message msg={msg} />
 
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" className="h-5 w-5" checked={selected.size === orders.length}
-            onChange={(e) => setSelected(e.target.checked ? new Set(orders.map((o) => o.id)) : new Set())} />
-          Chọn tất cả
-        </label>
-        <button className="btn btn-sm" disabled={!picked.length || !!busy} onClick={() => cleanup(picked)}>
-          Xoá file đã chọn ({picked.length})
-        </button>
-      </div>
-      {busy && <p className="mb-3 text-sm">{busy}</p>}
-      <div className="mb-3"><Message msg={msg} /></div>
-
-      <ul className="space-y-2">
+      <Table head={[
+        <input key="all" type="checkbox" className="h-4 w-4 align-middle" aria-label="Chọn tất cả" checked={selected.size === orders.length}
+          onChange={(e) => setSelected(e.target.checked ? new Set(orders.map((o) => o.id)) : new Set())} />,
+        "Mã đơn", "Khách hàng", "Ngày giao", "Số file", "Dung lượng",
+      ]}>
         {orders.map((o) => (
-          <li key={o.id}>
-            <label className={`pop-sm flex cursor-pointer items-center gap-3 rounded-2xl px-4 py-3 ${selected.has(o.id) ? "bg-hot-100" : "bg-cream-50"}`}>
-              <input type="checkbox" className="h-5 w-5 shrink-0" checked={selected.has(o.id)} onChange={() => toggle(o.id)} />
-              <span className="min-w-0 flex-1">
-                <Link href={`/admin/don-hang/${o.id}`} className="font-display text-lg underline-offset-2 hover:underline">{o.code}</Link>
-                <span className="block truncate text-xs text-ink-500">{o.customer_name} · giao {formatDate(o.delivered_at, false)}</span>
-              </span>
-              <span className="shrink-0 text-right text-sm">{o.count} file<br /><b>{formatBytes(o.bytes)}</b></span>
-            </label>
-          </li>
+          <tr key={o.id} className={selected.has(o.id) ? "bg-[#fff0f6]" : ""}>
+            <td className="w-10"><input type="checkbox" className="h-4 w-4 align-middle" checked={selected.has(o.id)} onChange={() => toggle(o.id)} aria-label={`Chọn ${o.code}`} /></td>
+            <td><Link href={`/admin/don-hang/${o.id}`} className="font-medium text-[#18181b] hover:text-[#ff5fa2]">{o.code}</Link></td>
+            <td className="max-w-[220px] truncate text-[#3f3f46]">{o.customer_name}</td>
+            <td className="text-[13px] text-[#71717a]">{formatDate(o.delivered_at, false)}</td>
+            <td className="text-[13px] text-[#71717a]">{o.count}</td>
+            <td className="text-right font-medium">{formatBytes(o.bytes)}</td>
+          </tr>
         ))}
-      </ul>
+      </Table>
+      <div className="mt-4 flex justify-end">
+        <Button variant="danger" disabled={!picked.length || !!busy} onClick={() => cleanup(picked)}>Xoá file đã chọn ({picked.length})</Button>
+      </div>
     </div>
   );
 }

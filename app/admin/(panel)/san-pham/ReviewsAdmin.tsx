@@ -6,7 +6,7 @@ import { removePublicImage } from "@/lib/upload";
 import { formatDate } from "@/lib/format";
 import type { Review } from "@/lib/types";
 import { revalidatePublic } from "@/app/admin/actions";
-import { Badge, Field, ImageInput, Message } from "@/components/admin/ui";
+import { Badge, Field, ImageInput, Message, confirmDialog } from "@/components/admin/ui";
 import { Stars } from "@/components/site/Stars";
 
 type Draft = { id?: string; customer_name: string; rating: number; content: string; image_url: string | null; is_approved: boolean; created_at?: string };
@@ -45,7 +45,7 @@ export function ReviewsAdmin() {
   }
 
   async function remove(r: Review) {
-    if (!confirm(`Xoá đánh giá của ${r.customer_name}?`)) return;
+    if (!await confirmDialog(`Xoá đánh giá của ${r.customer_name}?`)) return;
     const { error } = await createClient().from("reviews").delete().eq("id", r.id);
     if (error) return setMsg({ type: "err", text: error.message });
     await removePublicImage(r.image_url);
@@ -58,7 +58,7 @@ export function ReviewsAdmin() {
   return (
     <section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-2xl">Đánh giá</h2>
+        <h2 className="text-[16px]">Đánh giá</h2>
         <button className="btn btn-sm"
           onClick={() => setEditing({ customer_name: "", rating: 5, content: "", image_url: null, is_approved: true })}>
           + Tự thêm đánh giá
@@ -67,13 +67,13 @@ export function ReviewsAdmin() {
       <div className="mb-3 flex flex-wrap gap-2">
         {([["pending", `Chờ duyệt (${pendingCount})`], ["approved", "Đã duyệt"], ["all", "Tất cả"]] as const).map(([k, l]) => (
           <button key={k} onClick={() => setFilter(k)}
-            className={`pop-sm rounded-full px-4 py-1.5 text-sm ${filter === k ? "bg-lime-500" : "bg-cream-50"}`}>{l}</button>
+            className={`rounded-[6px] border px-3 py-1.5 text-[13px] font-medium ${filter === k ? "border-[#ffd1e5] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#52525b]"}`}>{l}</button>
         ))}
       </div>
       <div className="mb-3"><Message msg={msg} /></div>
 
       {editing && (
-        <form className="pop mb-4 grid gap-4 rounded-3xl bg-violet-100 p-4 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); save(editing); }}>
+        <form className="mb-4 grid gap-4 rounded-[12px] border border-[#e5e5e7] bg-white p-5 sm:grid-cols-2" onSubmit={(e) => { e.preventDefault(); save(editing); }}>
           <Field label="Tên khách *"><input className="field" required maxLength={80} value={editing.customer_name} onChange={(e) => setEditing({ ...editing, customer_name: e.target.value })} /></Field>
           <Field label="Số sao">
             <select className="field" value={editing.rating} onChange={(e) => setEditing({ ...editing, rating: Number(e.target.value) })}>
@@ -97,7 +97,7 @@ export function ReviewsAdmin() {
 
       <ul className="space-y-3">
         {shown.map((r) => (
-          <li key={r.id} className="pop-sm flex gap-3 rounded-2xl bg-cream-50 p-3">
+          <li key={r.id} className="flex gap-3 rounded-[12px] border border-[#e5e5e7] bg-white p-3">
             {r.image_url && (
               // eslint-disable-next-line @next/next/no-img-element
               <a href={r.image_url} target="_blank" rel="noreferrer"><img src={r.image_url} alt="" className="h-20 w-20 shrink-0 rounded-xl object-cover" /></a>
@@ -113,7 +113,7 @@ export function ReviewsAdmin() {
                 {r.is_approved ? (
                   <button className="rounded-full bg-cream-200 px-3 py-1 text-xs" onClick={() => setApproved(r, false)}>Ẩn</button>
                 ) : (
-                  <button className="rounded-full bg-lime-500 px-3 py-1 text-xs font-bold" onClick={() => setApproved(r, true)}>✓ Duyệt</button>
+                  <button className="rounded-[6px] bg-[#ff5fa2] px-2.5 py-1 text-xs font-medium text-white" onClick={() => setApproved(r, true)}>✓ Duyệt</button>
                 )}
                 <button className="rounded-full bg-lime-100 px-3 py-1 text-xs" onClick={() => setEditing({ ...r })}>Sửa</button>
                 <button className="rounded-full bg-hot-100 px-3 py-1 text-xs text-hot-500" onClick={() => remove(r)}>Xoá</button>

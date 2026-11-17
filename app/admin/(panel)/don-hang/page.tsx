@@ -2,10 +2,11 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
 import { formatDate, formatVND, orderTypeLabels, statusLabels } from "@/lib/format";
 import type { Order } from "@/lib/types";
-import { Badge } from "@/components/admin/ui";
+import { AdminPage, Badge, EmptyState, PageHeader, Table } from "@/components/admin/ui";
+import { btnClass, inputClass } from "@/components/admin/styles";
+import { statusTone } from "@/components/admin/tones";
 
 const PAGE = 30;
-const tones = { new: "pink", in_progress: "butter", delivered: "matcha" } as const;
 
 export default async function OrdersAdmin({ searchParams }: { searchParams: Promise<{ status?: string; q?: string; page?: string }> }) {
   const { supabase } = await requireAdmin();
@@ -38,50 +39,51 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
   };
 
   return (
-    <div className="max-w-4xl">
-      <h1 className="mb-4 text-3xl">Đơn hàng</h1>
+    <AdminPage>
+      <PageHeader title="Đơn hàng" description={`${count ?? 0} đơn${status ? ` · ${statusLabels[status]}` : ""}`} />
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {["", "new", "in_progress", "delivered"].map((s) => (
-          <Link key={s || "all"} href={link({ status: s })}
-            className={`pop-sm rounded-full px-4 py-1.5 text-sm font-medium ${status === s ? "bg-lime-500" : "bg-cream-50"}`}>
-            {s ? statusLabels[s] : "Tất cả"}
-          </Link>
-        ))}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
+          {["", "new", "in_progress", "delivered"].map((s) => (
+            <Link key={s || "all"} href={link({ status: s })}
+              className={`rounded-[6px] px-3 py-1.5 text-[13px] font-medium ${status === s ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b] hover:text-[#18181b]"}`}>
+              {s ? statusLabels[s] : "Tất cả"}
+            </Link>
+          ))}
+        </div>
+        <form className="flex w-full gap-2 sm:w-auto" action="/admin/don-hang">
+          {status && <input type="hidden" name="status" value={status} />}
+          <input name="q" defaultValue={q} placeholder="Tìm mã đơn, SĐT, tên..." className={`${inputClass} sm:w-72`} />
+          <button className={btnClass("secondary")}>Tìm</button>
+        </form>
       </div>
 
-      <form className="mb-5 flex gap-2" action="/admin/don-hang">
-        {status && <input type="hidden" name="status" value={status} />}
-        <input name="q" defaultValue={q} placeholder="Tìm mã đơn, SĐT, tên..." className="field" />
-        <button className="btn !min-h-12 shrink-0">Tìm</button>
-      </form>
+      {error && <p className="mb-3 text-[13px] text-[#dc2626]">{error.message}</p>}
 
-      {error && <p className="text-hot-500">{error.message}</p>}
-      <p className="mb-2 text-sm text-ink-500">{count ?? 0} đơn</p>
-
-      <ul className="space-y-2">
+      <Table head={["Mã đơn", "Khách hàng", "Loại", "Trạng thái", "Ngày đặt", "Tổng tiền", ""]}
+        empty={!orders.length && <EmptyState>Không có đơn nào.</EmptyState>}>
         {orders.map((o) => (
-          <li key={o.id}>
-            <Link href={`/admin/don-hang/${o.id}`} className="pop-sm flex flex-wrap items-center gap-x-4 gap-y-1 rounded-2xl bg-cream-50 px-4 py-3 hover:bg-hot-100">
-              <span className="font-display text-lg">{o.code}</span>
-              <Badge tone={tones[o.status]}>{statusLabels[o.status]}</Badge>
-              {o.order_type !== "cd" && <Badge>{orderTypeLabels[o.order_type]}</Badge>}
-              <span className="min-w-0 flex-1 truncate text-sm">{o.customer_name} · {o.phone}</span>
-              <span className="text-sm font-bold text-hot-500">{formatVND(o.total)}</span>
-              <span className="w-full text-xs text-ink-500 sm:w-auto">{formatDate(o.created_at)}</span>
-            </Link>
-          </li>
+          <tr key={o.id}>
+            <td><Link href={`/admin/don-hang/${o.id}`} className="font-medium text-[#18181b] hover:text-[#ff5fa2]">{o.code}</Link></td>
+            <td className="max-w-[260px] truncate text-[#3f3f46]">{o.customer_name} <span className="text-[#a1a1aa]">· {o.phone}</span></td>
+            <td className="text-[13px] text-[#71717a]">{orderTypeLabels[o.order_type]}</td>
+            <td><Badge tone={statusTone[o.status]}>{statusLabels[o.status]}</Badge></td>
+            <td className="text-[13px] text-[#71717a]">{formatDate(o.created_at)}</td>
+            <td className="font-medium">{formatVND(o.total)}</td>
+            <td className="text-right"><Link href={`/admin/don-hang/${o.id}`} className={btnClass("ghost", "sm")}>Xem</Link></td>
+          </tr>
         ))}
-        {!orders.length && <li className="text-ink-500">Không có đơn nào.</li>}
-      </ul>
+      </Table>
 
       {pages > 1 && (
-        <div className="mt-6 flex items-center justify-center gap-3">
-          {page > 1 && <Link className="btn btn-ghost btn-sm" href={link({ page: page - 1 })}>← Trước</Link>}
-          <span className="text-sm">Trang {page}/{pages}</span>
-          {page < pages && <Link className="btn btn-ghost btn-sm" href={link({ page: page + 1 })}>Sau →</Link>}
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-[13px] text-[#71717a]">Trang {page}/{pages}</span>
+          <div className="flex gap-2">
+            {page > 1 && <Link className={btnClass("secondary", "sm")} href={link({ page: page - 1 })}>← Trước</Link>}
+            {page < pages && <Link className={btnClass("secondary", "sm")} href={link({ page: page + 1 })}>Sau →</Link>}
+          </div>
         </div>
       )}
-    </div>
+    </AdminPage>
   );
 }

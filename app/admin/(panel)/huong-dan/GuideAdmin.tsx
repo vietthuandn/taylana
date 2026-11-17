@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { removePublicImage } from "@/lib/upload";
 import type { GuideSection } from "@/lib/types";
 import { revalidatePublic } from "@/app/admin/actions";
-import { Badge, Field, ImageInput, Message, SortButtons, Toggle } from "@/components/admin/ui";
+import { Badge, Field, ImageInput, Message, SortButtons, Toggle, confirmDialog } from "@/components/admin/ui";
 
 type Draft = Omit<GuideSection, "id"> & { id?: string };
 const empty: Draft = { title: "", body: "", images: [], links: [], is_active: true, sort_order: 0 };
@@ -60,7 +60,7 @@ export function GuideAdmin() {
   }
 
   async function remove(s: GuideSection) {
-    if (!confirm(`Xoá mục "${s.title}"?`)) return;
+    if (!await confirmDialog(`Xoá mục "${s.title}"?`)) return;
     const { error } = await createClient().from("guide_sections").delete().eq("id", s.id);
     if (error) return setMsg({ type: "err", text: error.message });
     await Promise.all(s.images.map((i) => removePublicImage(i.url)));
@@ -88,17 +88,17 @@ export function GuideAdmin() {
           editing?.id === s.id ? (
             <li key={s.id}><Editor draft={editing} onCancel={() => setEditing(null)} onSave={save} /></li>
           ) : (
-            <li key={s.id} className={`pop-sm flex items-center gap-3 rounded-2xl bg-cream-50 p-3 ${s.is_active ? "" : "opacity-60"}`}>
+            <li key={s.id} className={`flex items-center gap-3 rounded-[12px] border border-[#e5e5e7] bg-white p-3 ${s.is_active ? "" : "opacity-60"}`}>
               <SortButtons first={i === 0} last={i === sections.length - 1} onUp={() => move(i, -1)} onDown={() => move(i, 1)} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-display text-lg">{s.title}</p>
+                <p className="truncate font-medium text-[#18181b]">{s.title}</p>
                 <p className="flex flex-wrap gap-1 text-xs">
                   <Badge>{s.images.length} ảnh</Badge><Badge>{s.links.length} link</Badge>
                   {!s.is_active && <Badge tone="pink">Đang ẩn</Badge>}
                 </p>
               </div>
-              <button className="rounded-full bg-lime-300 px-3 py-1 text-sm" onClick={() => setEditing({ ...s })}>Sửa</button>
-              <button className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500" onClick={() => remove(s)}>Xoá</button>
+              <button className="rounded-[6px] border border-[#e5e5e7] bg-white px-2.5 py-1 text-[13px] font-medium hover:bg-[#f4f4f5]" onClick={() => setEditing({ ...s })}>Sửa</button>
+              <button className="rounded-[6px] border border-[#e5e5e7] bg-white px-2.5 py-1 text-[13px] font-medium text-[#dc2626] hover:bg-[#fef2f2]" onClick={() => remove(s)}>Xoá</button>
             </li>
           ),
         )}
@@ -114,7 +114,7 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
   const setLink = (i: number, v: Partial<Draft["links"][number]>) => setD({ ...d, links: d.links.map((x, j) => (j === i ? { ...x, ...v } : x)) });
 
   return (
-    <form className="pop mb-4 space-y-4 rounded-3xl bg-violet-100 p-4"
+    <form className="mb-4 space-y-4 rounded-[12px] border border-[#e5e5e7] bg-white p-5"
       onSubmit={async (e) => { e.preventDefault(); setSaving(true); await onSave(d); setSaving(false); }}>
       <Field label="Tiêu đề *"><input className="field" required value={d.title} onChange={(e) => setD({ ...d, title: e.target.value })} /></Field>
       <Field label="Nội dung" hint="Xuống dòng sẽ được giữ nguyên. Dán link https://... sẽ tự bấm được.">
@@ -132,7 +132,7 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
               </Field>
               <SortButtons first={i === 0} last={i === d.images.length - 1}
                 onUp={() => setD({ ...d, images: moveItem(d.images, i, -1) })} onDown={() => setD({ ...d, images: moveItem(d.images, i, 1) })} />
-              <button type="button" className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500"
+              <button type="button" className="rounded-[6px] border border-[#e5e5e7] bg-white px-2.5 py-1 text-[13px] font-medium text-[#dc2626] hover:bg-[#fef2f2]"
                 onClick={() => setD({ ...d, images: d.images.filter((_, j) => j !== i) })}>Bỏ</button>
             </div>
           ))}
@@ -147,7 +147,7 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
             <div key={i} className="grid gap-2 rounded-2xl bg-cream-50 p-3 sm:grid-cols-[1fr_2fr_auto]">
               <input className="field" placeholder="Chữ trên nút, vd: Template Canva" value={l.label} onChange={(e) => setLink(i, { label: e.target.value })} />
               <input className="field" placeholder="https://www.canva.com/..." value={l.url} onChange={(e) => setLink(i, { url: e.target.value })} />
-              <button type="button" className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500"
+              <button type="button" className="rounded-[6px] border border-[#e5e5e7] bg-white px-2.5 py-1 text-[13px] font-medium text-[#dc2626] hover:bg-[#fef2f2]"
                 onClick={() => setD({ ...d, links: d.links.filter((_, j) => j !== i) })}>Bỏ</button>
             </div>
           ))}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
+import { Button, Field, Input } from "@/components/admin/ui";
 
 export function LoginForm() {
   const router = useRouter();
@@ -39,24 +40,27 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="panel w-full max-w-sm px-6 py-8">
-      <p className="mb-2 text-center font-display text-5xl text-ink-900">TAYLANA</p>
-      <h1 className="text-center text-2xl">Quản trị</h1>
-      <p className="mb-6 text-center text-sm text-ink-500">Chỉ dành cho chủ tiệm</p>
+    <form onSubmit={onSubmit} className="w-full max-w-sm rounded-[12px] border border-[#e5e5e7] bg-white p-6 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
+      <div className="mb-6 flex items-center gap-2">
+        <span className="grid h-7 w-7 place-items-center rounded-[6px] bg-[#ff5fa2] text-[13px] font-bold text-white">T</span>
+        <span className="text-[16px] font-semibold text-[#18181b]">Taylana</span>
+        <span className="rounded-[4px] border border-[#e5e5e7] px-1.5 text-[11px] font-medium text-[#71717a]">Admin</span>
+      </div>
+      <h1>Đăng nhập</h1>
+      <p className="mb-5 mt-1 text-[13px] text-[#71717a]">Chỉ dành cho chủ tiệm.</p>
 
-      <label className="mb-1 block text-sm font-medium" htmlFor="email">Email</label>
-      <input id="email" type="email" autoComplete="email" required className="field mb-4"
-        value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Field label="Email" className="mb-4">
+        <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+      </Field>
+      <Field label="Mật khẩu" className="mb-4">
+        <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+      </Field>
 
-      <label className="mb-1 block text-sm font-medium" htmlFor="password">Mật khẩu</label>
-      <input id="password" type="password" autoComplete="current-password" required className="field mb-4"
-        value={password} onChange={(e) => setPassword(e.target.value)} />
+      {error && <p className="mb-4 rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</p>}
 
-      {error && <p className="mb-4 rounded-xl bg-hot-100 px-3 py-2 text-sm text-hot-500">{error}</p>}
-
-      <button type="submit" disabled={loading} className="btn w-full">
+      <Button type="submit" loading={loading} className="w-full">
         {loading ? "Đang đăng nhập..." : "Đăng nhập"}
-      </button>
+      </Button>
     </form>
   );
 }

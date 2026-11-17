@@ -1,6 +1,6 @@
 import { publicClient } from "@/lib/supabase/public";
 import type { PhotostripFrame } from "@/lib/templates";
-import { PageHeader } from "@/components/ui/SectionTitle";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { PhotostripLoader } from "./PhotostripLoader";
 
 export const metadata = { title: "Làm Photostrip" };
@@ -15,7 +15,7 @@ export default async function PhotostripPage() {
   }
   return (
     <>
-      <PageHeader eyebrow="2 x 6 inch" title="Làm Photostrip" subtitle="Chọn khung 3 hoặc 4 ảnh, thả ảnh vào, thêm chữ, ngày tháng và sticker." />
+      <PageHeader eyebrow="2 x 6 inch" title="Làm photostrip" subtitle="Chọn khung 3 hoặc 4 ảnh, thả ảnh vào, thêm chữ, ngày tháng và sticker." />
       <PhotostripLoader frames={frames} />
     </>
   );

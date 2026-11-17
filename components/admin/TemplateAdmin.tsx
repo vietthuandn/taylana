@@ -8,9 +8,12 @@ import { removePublicImage } from "@/lib/upload";
 import { SPECS } from "@/lib/print";
 import { newSlotId, stripSlots, targetLabels, type Slot } from "@/lib/templates";
 import { revalidatePublic } from "@/app/admin/actions";
+import { useSize } from "@/components/designer/useSize";
 import { TemplateThumb } from "@/components/designer/TemplateThumb";
 import type { TemplateDoc } from "@/lib/cdDoc";
-import { Badge, Field, ImageInput, Message, SortButtons, Toggle } from "./ui";
+import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { btnClass, inputClass } from "./styles";
+import { AdminPage, Badge, Button, EmptyState, Field, ImageInput, Message, PageHeader, SortButtons, Toggle, confirmDialog } from "./ui";
 
 const TemplateCanvas = dynamic(() => import("./TemplateCanvas").then((m) => m.TemplateCanvas), { ssr: false });
 // Mẫu Custom CD: dùng chung trình chỉnh với trang Custom CD
@@ -71,7 +74,7 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
   }
 
   async function remove(r: Row) {
-    if (!r.id || !confirm(`Xoá mẫu "${r.name}"?`)) return;
+    if (!r.id || !await confirmDialog(`Xoá mẫu "${r.name}"?`)) return;
     const { error } = await createClient().from(table).delete().eq("id", r.id);
     if (error) return setMsg({ type: "err", text: error.message });
     await Promise.all([removePublicImage(r.overlay_url), removePublicImage(r.background_url)]);
@@ -96,52 +99,62 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
 
   if (editing && mode === "cd") {
     return (
-      <CdTemplateEditor row={editing as never} onCancel={() => setEditing(null)}
-        onSave={(v) => save({ ...editing, name: v.name, target: v.target, is_active: v.is_active, doc: v.doc, thumbnail_url: v.thumbnail_url, overlay_url: null, background_url: null, slots: [] })} />
+      <><Message msg={msg} /><CdTemplateEditor row={editing as never} onCancel={() => setEditing(null)}
+        onSave={(v) => save({ ...editing, name: v.name, target: v.target, is_active: v.is_active, doc: v.doc, thumbnail_url: v.thumbnail_url, overlay_url: null, background_url: null, slots: [] })} /></>
     );
   }
   if (editing) {
-    return <Editor mode={mode} folder={folder} row={editing} onCancel={() => setEditing(null)} onSave={save} />;
+    return <><Message msg={msg} /><Editor mode={mode} folder={folder} row={editing} onCancel={() => setEditing(null)} onSave={save} /></>;
   }
 
+  const info = mode === "cd"
+    ? { title: "Mẫu Custom CD", desc: "Mẫu thiết kế khách chọn ở trang Custom CD: ảnh trang trí, khung ảnh, chữ, màu nền." }
+    : { title: "Khung Photostrip", desc: "Khổ 2 x 6 inch (600 x 1800 px). Mỗi khung có 3 hoặc 4 ô ảnh, màu nền và ảnh trang trí phía trước (tuỳ chọn)." };
+
   return (
-    <>
-      <div className="mb-3 flex justify-end">
-        <button className="btn btn-sm" onClick={() => setEditing(blank())}>+ Tạo mẫu mới</button>
-      </div>
-      <div className="mb-3"><Message msg={msg} /></div>
-      {!rows.length && <p className="text-ink-500">Chưa có mẫu nào.{mode === "strip" ? " Khách đang dùng 2 khung trắng mặc định (3 và 4 ảnh)." : ""}</p>}
-      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+    <AdminPage>
+      <PageHeader title={info.title} description={info.desc}
+        actions={<Button icon={<Plus size={16} />} onClick={() => setEditing(blank())}>Tạo mẫu mới</Button>} />
+      <Message msg={msg} />
+      {!rows.length && (
+        <div className="rounded-[12px] border border-dashed border-[#d4d4d8] bg-white">
+          <EmptyState>Chưa có mẫu nào.{mode === "strip" ? " Khách đang dùng 2 khung trắng mặc định (3 và 4 ảnh)." : ""}</EmptyState>
+        </div>
+      )}
+      <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {rows.map((r, i) => {
           const spec = specOf(mode, r);
           return (
-            <li key={r.id} className={`pop-sm rounded-2xl bg-cream-50 p-3 ${r.is_active ? "" : "opacity-60"}`}>
-              <div className={mode === "strip" ? "mx-auto w-16" : ""}>
-                {r.thumbnail_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.thumbnail_url} alt="" className={`w-full object-cover ${spec.shape === "disc" ? "rounded-full" : "rounded-md"}`} style={{ aspectRatio: `${spec.w} / ${spec.h}` }} />
-                ) : <TemplateThumb ratio={spec.w / spec.h} slots={r.slots} overlay={r.overlay_url} background={r.background_url}
-                  bgColor={r.background_color} disc={spec.shape === "disc"} />}
-              </div>
-              <p className="mt-2 truncate font-display">{r.name}</p>
-              <p className="flex flex-wrap gap-1">
-                <Badge tone="matcha">{mode === "cd" ? targetLabels[r.target ?? "front"] : `${r.slot_count} ảnh`}</Badge>
-                <Badge>{r.slots.length} ô</Badge>
-                {!r.is_active && <Badge tone="pink">Ẩn</Badge>}
-              </p>
-              <div className="mt-2 flex flex-wrap items-center justify-between gap-1">
-                <SortButtons first={i === 0} last={i === rows.length - 1} onUp={() => move(i, -1)} onDown={() => move(i, 1)} />
-                <span className="flex gap-1">
-                  <button className="rounded-full bg-lime-300 px-2 py-0.5 text-xs" onClick={() => setEditing({ ...r })}>Sửa</button>
-                  <button className="rounded-full bg-cream-200 px-2 py-0.5 text-xs" onClick={() => toggle(r)}>{r.is_active ? "Ẩn" : "Hiện"}</button>
-                  <button className="rounded-full bg-hot-100 px-2 py-0.5 text-xs text-hot-500" onClick={() => remove(r)}>Xoá</button>
-                </span>
+            <li key={r.id} className="group flex flex-col overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white transition-shadow hover:shadow-[0_4px_16px_rgb(0_0_0/0.06)]">
+              <button className="grid aspect-square place-items-center bg-[#f4f4f5] p-4" onClick={() => setEditing({ ...r })} aria-label={`Sửa ${r.name}`}>
+                <div className={`${mode === "strip" ? "h-full" : "w-full"} ${r.is_active ? "" : "opacity-50"}`} style={mode === "strip" ? { aspectRatio: `${spec.w} / ${spec.h}` } : undefined}>
+                  {r.thumbnail_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.thumbnail_url} alt="" className={`w-full object-cover shadow-sm ${spec.shape === "disc" ? "rounded-full" : "rounded-[4px]"}`} style={{ aspectRatio: `${spec.w} / ${spec.h}` }} />
+                  ) : <TemplateThumb ratio={spec.w / spec.h} slots={r.slots} overlay={r.overlay_url} background={r.background_url}
+                    bgColor={r.background_color} disc={spec.shape === "disc"} />}
+                </div>
+              </button>
+              <div className="flex flex-1 flex-col border-t border-[#efeff1] p-3">
+                <p className="truncate text-[14px] font-medium text-[#18181b]">{r.name}</p>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  <Badge>{mode === "cd" ? targetLabels[r.target ?? "front"] : `${r.slot_count} ảnh`}</Badge>
+                  {r.is_active ? <Badge tone="green">Hiện</Badge> : <Badge>Ẩn</Badge>}
+                </div>
+                <div className="mt-auto flex items-center justify-between gap-1 pt-2">
+                  <SortButtons first={i === 0} last={i === rows.length - 1} onUp={() => move(i, -1)} onDown={() => move(i, 1)} />
+                  <span className="flex">
+                    <button className="grid h-7 w-7 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b]" title="Sửa" onClick={() => setEditing({ ...r })}><Pencil size={16} /></button>
+                    <button className="grid h-7 w-7 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b]" title={r.is_active ? "Ẩn" : "Hiện"} onClick={() => toggle(r)}>{r.is_active ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                    <button className="grid h-7 w-7 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#fef2f2] hover:text-[#dc2626]" title="Xoá" onClick={() => remove(r)}><Trash2 size={16} /></button>
+                  </span>
+                </div>
               </div>
             </li>
           );
         })}
       </ul>
-    </>
+    </AdminPage>
   );
 }
 
@@ -152,6 +165,7 @@ function Editor({ mode, folder, row, onCancel, onSave }: { mode: Mode; folder: s
   const [saving, setSaving] = useState(false);
   const spec = specOf(mode, r);
   const width = mode === "strip" ? 220 : spec.w > spec.h ? 440 : 380;
+  const [areaRef, area] = useSize<HTMLDivElement>();
   const selected = r.slots.find((s) => s.id === sel);
   const mm = (f: number, total: number) => Math.round(f * total * 10) / 10;
 
@@ -168,41 +182,38 @@ function Editor({ mode, folder, row, onCancel, onSave }: { mode: Mode; folder: s
     setR({ ...r, slots: r.slots.map((s) => (s.id === sel ? { ...s, ...p } : s)) });
   }
 
-  return (
-    <div className="pop rounded-3xl bg-violet-100 p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl">{r.id ? "Sửa mẫu" : "Mẫu mới"}</h2>
-        <button className="text-sm underline" onClick={onCancel}>← Quay lại danh sách</button>
-      </div>
+  const fit = area.w > 0 ? Math.max(120, Math.min(area.w - 64, (area.h - 150) * (spec.w / spec.h))) : width;
 
-      <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
+  return (
+    <div className="flex h-[calc(100dvh-56px)] flex-col bg-white">
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-[#e5e5e7] px-3">
+        <Button variant="secondary" size="sm" onClick={onCancel}>← Danh sách mẫu</Button>
+        <input className="h-8 min-w-0 flex-1 rounded-[6px] border border-transparent bg-transparent px-2 text-[14px] font-semibold text-[#18181b] hover:border-[#e5e5e7] focus:border-[#ff5fa2] focus:outline-none focus:ring-[3px] focus:ring-[#ff5fa2]/15 sm:max-w-sm"
+          placeholder="Tên mẫu" value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} aria-label="Tên mẫu" />
+        <Button className="ml-auto" loading={saving} onClick={async () => { setSaving(true); await onSave(r); setSaving(false); }}>Lưu mẫu</Button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* ---------- Canvas ---------- */}
-        <div>
-          <div className="mx-auto" style={{ width }}>
-            <TemplateCanvas spec={spec} width={width} overlay={r.overlay_url} background={r.background_url} bgColor={r.background_color}
+        <div ref={areaRef} className="flex min-h-[420px] min-w-0 flex-col items-center justify-center gap-3 overflow-auto bg-[#f4f4f5] p-6 lg:flex-1">
+          <div style={{ width: fit }}>
+            <TemplateCanvas spec={spec} width={fit} overlay={r.overlay_url} background={r.background_url} bgColor={r.background_color}
               slots={r.slots} onChange={(slots) => setR({ ...r, slots })} selectedId={sel} onSelect={setSel} overlayOpacity={opacity} />
           </div>
-          <div className="mt-3 flex flex-wrap justify-center gap-2">
-            <button className="btn btn-ghost btn-sm" onClick={() => addSlot("rect")}>＋ Ô chữ nhật</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => addSlot("circle")}>＋ Ô tròn</button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button variant="secondary" size="sm" onClick={() => addSlot("rect")}>＋ Ô chữ nhật</Button>
+            <Button variant="secondary" size="sm" onClick={() => addSlot("circle")}>＋ Ô tròn</Button>
             {mode === "strip" && (
-              <button className="btn btn-ghost btn-sm" onClick={() => setR({ ...r, slots: stripSlots(r.slot_count ?? 4) })}>Chia ô tự động</button>
+              <Button variant="secondary" size="sm" onClick={() => setR({ ...r, slots: stripSlots(r.slot_count ?? 4) })}>Chia ô tự động</Button>
             )}
           </div>
-          {r.overlay_url && (
-            <label className="mt-3 block text-center text-xs">Độ hiện của khung khi chỉnh
-              <input type="range" min={0} max={1} step={0.05} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full accent-violet-500" />
-            </label>
-          )}
-          <p className="mt-2 text-center text-xs text-ink-600">Kéo ô để di chuyển · kéo góc để đổi kích thước. Ô màu hồng là ô đang chọn.</p>
+          <p className="text-center text-[12px] text-[#71717a]">Kéo ô để di chuyển · kéo góc để đổi kích thước. Ô màu hồng là ô đang chọn.</p>
         </div>
 
-        {/* ---------- Thông tin ---------- */}
-        <div className="space-y-4">
-          <Field label="Tên mẫu *"><input className="field" value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} /></Field>
+        {/* ---------- Thuộc tính ---------- */}
+        <aside className="space-y-4 border-[#e5e5e7] p-4 lg:w-[320px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
           {mode === "cd" ? (
             <Field label="Áp dụng cho">
-              <select className="field" value={r.target} onChange={(e) => setR({ ...r, target: e.target.value as Row["target"] })}>
+              <select className={inputClass} value={r.target} onChange={(e) => setR({ ...r, target: e.target.value as Row["target"] })}>
                 <option value="front">Bìa trước (12 x 12 cm)</option>
                 <option value="back">Bìa sau (15 x 11.7 cm)</option>
                 <option value="disc">Mặt đĩa (tròn 12 cm)</option>
@@ -210,7 +221,7 @@ function Editor({ mode, folder, row, onCancel, onSave }: { mode: Mode; folder: s
             </Field>
           ) : (
             <Field label="Số ảnh">
-              <select className="field" value={r.slot_count} onChange={(e) => setR({ ...r, slot_count: Number(e.target.value) as 3 | 4 })}>
+              <select className={inputClass} value={r.slot_count} onChange={(e) => setR({ ...r, slot_count: Number(e.target.value) as 3 | 4 })}>
                 <option value={3}>3 ảnh</option>
                 <option value={4}>4 ảnh</option>
               </select>
@@ -226,49 +237,49 @@ function Editor({ mode, folder, row, onCancel, onSave }: { mode: Mode; folder: s
           )}
           {mode === "strip" && (
             <Field label="Màu nền (khi không có ảnh nền)">
-              <input type="color" className="h-10 w-16" value={r.background_color} onChange={(e) => setR({ ...r, background_color: e.target.value })} />
+              <input type="color" className="h-9 w-14 rounded-[8px] border border-[#e5e5e7]" value={r.background_color} onChange={(e) => setR({ ...r, background_color: e.target.value })} />
             </Field>
           )}
 
           {selected ? (
-            <div className="rounded-2xl bg-cream-50 p-3">
-              <p className="mb-2 text-sm font-medium">Ô #{r.slots.indexOf(selected) + 1} ({selected.shape === "circle" ? "tròn" : "chữ nhật"}) — chỉnh số chính xác (mm):</p>
+            <div className="rounded-[10px] border border-[#e5e5e7] bg-[#fafafa] p-3">
+              <p className="mb-2 text-[13px] font-medium">Ô #{r.slots.indexOf(selected) + 1} ({selected.shape === "circle" ? "tròn" : "chữ nhật"}) — chỉnh số chính xác (mm):</p>
               <div className="grid grid-cols-4 gap-2 text-xs">
                 {(["x", "y", "w", "h"] as const).map((k) => {
                   const total = k === "x" || k === "w" ? spec.w : spec.h;
                   return (
                     <label key={k}>{{ x: "Trái", y: "Trên", w: "Rộng", h: "Cao" }[k]}
-                      <input className="field !min-h-9 !px-2 !text-sm" type="number" step={0.5} value={mm(selected[k], total)}
+                      <input className={`${inputClass} !px-2`} type="number" step={0.5} value={mm(selected[k], total)}
                         onChange={(e) => setSlot({ [k]: Number(e.target.value) / total })} />
                     </label>
                   );
                 })}
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
-                <button className="rounded-full bg-white px-3 py-1 text-sm" onClick={() => setSlot({ shape: selected.shape === "circle" ? "rect" : "circle" })}>
+                <button className={btnClass("secondary", "sm")} onClick={() => setSlot({ shape: selected.shape === "circle" ? "rect" : "circle" })}>
                   Đổi thành {selected.shape === "circle" ? "chữ nhật" : "tròn"}
                 </button>
-                <button className="rounded-full bg-white px-3 py-1 text-sm" onClick={() => {
+                <button className={btnClass("secondary", "sm")} onClick={() => {
                   const c = { ...selected, id: newSlotId(), x: Math.min(selected.x + 0.04, 1 - selected.w), y: Math.min(selected.y + 0.04, 1 - selected.h) };
                   setR({ ...r, slots: [...r.slots, c] }); setSel(c.id);
                 }}>Nhân đôi</button>
-                <button className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500" onClick={() => { setR({ ...r, slots: r.slots.filter((s) => s.id !== sel) }); setSel(null); }}>Xoá ô</button>
+                <button className={btnClass("danger", "sm")} onClick={() => { setR({ ...r, slots: r.slots.filter((s) => s.id !== sel) }); setSel(null); }}>Xoá ô</button>
               </div>
             </div>
           ) : (
-            <p className="text-sm text-ink-600">Bấm vào một ô trên canvas để chỉnh số đo hoặc xoá.</p>
+            <p className="text-[13px] text-[#71717a]">Bấm vào một ô trên canvas để chỉnh số đo hoặc xoá.</p>
           )}
 
           {mode === "strip" && r.slots.length !== r.slot_count && (
-            <p className="rounded-xl bg-hot-100 px-3 py-2 text-xs text-hot-500">Khung {r.slot_count} ảnh nhưng đang có {r.slots.length} ô.</p>
+            <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[12px] text-[#dc2626]">Khung {r.slot_count} ảnh nhưng đang có {r.slots.length} ô.</p>
+          )}
+          {r.overlay_url && (
+            <Field label="Độ hiện của khung khi chỉnh">
+              <input type="range" min={0} max={1} step={0.05} value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full" />
+            </Field>
           )}
           <Toggle checked={r.is_active} onChange={(v) => setR({ ...r, is_active: v })} label="Hiện cho khách" />
-          <div className="flex gap-2">
-            <button className="btn btn-sm" disabled={saving}
-              onClick={async () => { setSaving(true); await onSave(r); setSaving(false); }}>{saving ? "Đang lưu..." : "Lưu mẫu"}</button>
-            <button className="btn btn-ghost btn-sm" onClick={onCancel}>Huỷ</button>
-          </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

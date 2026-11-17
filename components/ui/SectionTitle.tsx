@@ -20,11 +20,5 @@ export function SectionTitle({ eyebrow, title, subtitle, align = "left", tone = 
   );
 }
 
-// Tiêu đề trang (dùng ở đầu các trang con)
-export function PageHeader({ eyebrow, title, subtitle }: { eyebrow?: string; title: string; subtitle?: string }) {
-  return (
-    <div className="mx-auto max-w-6xl px-4 pb-8 pt-8 sm:pt-12">
-      <SectionTitle as="h1" size="xl" eyebrow={eyebrow} title={title} subtitle={subtitle} tone="lime" />
-    </div>
-  );
-}
+// Tiêu đề trang: xem components/ui/PageHeader.tsx
+export { PageHeader } from "./PageHeader";

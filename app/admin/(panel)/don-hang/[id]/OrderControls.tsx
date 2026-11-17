@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { statusLabels } from "@/lib/format";
 import type { Order } from "@/lib/types";
-import { Message } from "@/components/admin/ui";
+import { Trash2 } from "lucide-react";
+import { Button, Card, Field, Input, Message, Textarea, confirmDialog } from "@/components/admin/ui";
 
 export function OrderControls({ order, fileCount, paths }: { order: Order; fileCount: number; paths: string[] }) {
   const router = useRouter();
@@ -25,7 +26,7 @@ export function OrderControls({ order, fileCount, paths }: { order: Order; fileC
   }
 
   async function del() {
-    if (!confirm(`Xoá hẳn đơn ${order.code}${fileCount ? ` và ${fileCount} file` : ""}? Không thể hoàn tác.`)) return;
+    if (!await confirmDialog(`Xoá hẳn đơn ${order.code}${fileCount ? ` và ${fileCount} file` : ""}? Không thể hoàn tác.`)) return;
     setBusy(true);
     const sb = createClient();
     if (paths.length) {
@@ -40,35 +41,33 @@ export function OrderControls({ order, fileCount, paths }: { order: Order; fileC
   }
 
   return (
-    <section className="pop mt-5 rounded-3xl bg-lime-100 p-4">
-      <h2 className="mb-3 text-xl">Trạng thái</h2>
-      <div className="flex flex-wrap gap-2">
+    <Card title="Xử lý đơn" description="Đổi trạng thái, ghi chú nội bộ và giá chốt.">
+      <p className="mb-1.5 text-[13px] font-medium">Trạng thái</p>
+      <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
         {(["new", "in_progress", "delivered"] as const).map((s) => (
           <button key={s} disabled={busy}
             onClick={() => { setStatus(s); save({ status: s }); }}
-            className={`pop-sm rounded-full px-4 py-2 font-display ${status === s ? "bg-lime-500" : "bg-white"}`}>
+            className={`rounded-[6px] px-3 py-1.5 text-[13px] font-medium ${status === s ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b] hover:text-[#18181b]"}`}>
             {statusLabels[s]}
           </button>
         ))}
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_180px]">
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Ghi chú nội bộ (khách không thấy)</span>
-          <textarea className="field" rows={2} value={adminNote} onChange={(e) => setAdminNote(e.target.value)} />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium">Tổng tiền (đồng)</span>
-          <input className="field" type="number" min={0} step={1000} value={total} onChange={(e) => setTotal(Number(e.target.value))} />
-        </label>
+      <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_200px]">
+        <Field label="Ghi chú nội bộ" hint="Khách không thấy">
+          <Textarea rows={2} value={adminNote} onChange={(e) => setAdminNote(e.target.value)} />
+        </Field>
+        <Field label="Tổng tiền (đồng)">
+          <Input type="number" min={0} step={1000} value={total} onChange={(e) => setTotal(Number(e.target.value))} />
+        </Field>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button className="btn btn-sm" disabled={busy} onClick={() => save({ admin_note: adminNote, total: Math.max(0, Math.round(total)) })}>
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#efeff1] pt-4">
+        <Button disabled={busy} onClick={() => save({ admin_note: adminNote, total: Math.max(0, Math.round(total)) })}>
           Lưu ghi chú & giá
-        </button>
-        <button className="ml-auto text-sm text-hot-500 underline" disabled={busy} onClick={del}>Xoá đơn</button>
+        </Button>
+        <Button variant="danger" className="ml-auto" disabled={busy} onClick={del} icon={<Trash2 size={16} />}>Xoá đơn</Button>
       </div>
-      <div className="mt-3"><Message msg={msg} /></div>
-    </section>
+      <Message msg={msg} />
+    </Card>
   );
 }

@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/admin";
 import { formatBytes } from "@/lib/format";
 import { CleanupList, type CleanupOrder } from "./CleanupList";
+import { AdminPage, Card, PageHeader } from "@/components/admin/ui";
 
 const QUOTA = 1024 ** 3; // gói Supabase Free: 1GB Storage
 
@@ -40,35 +41,36 @@ export default async function CleanupPage() {
   const orders = [...byOrder.values()].sort((a, b) => (a.delivered_at ?? "").localeCompare(b.delivered_at ?? ""));
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="mb-4 text-3xl">Dọn file</h1>
+    <AdminPage>
+      <PageHeader title="Dọn file" description="Xoá file gốc của các đơn đã giao để giải phóng dung lượng Storage." />
 
-      <section className="pop mb-8 rounded-3xl bg-cream-50 p-5">
-        <h2 className="text-xl">Dung lượng Storage đang dùng</h2>
-        {usageErr ? (
-          <p className="text-hot-500">{usageErr.message}</p>
-        ) : (
-          <>
-            <p className="mt-1"><b className="font-display text-2xl">{formatBytes(total)}</b> <span className="text-sm text-ink-500">/ {formatBytes(QUOTA)} (gói Free)</span></p>
-            <div className="mt-2 h-4 overflow-hidden rounded-full border-2 border-ink-900 bg-white">
-              <div className={`h-full ${pct > 80 ? "bg-violet-500" : "bg-lime-500"}`} style={{ width: `${pct}%` }} />
-            </div>
-            <ul className="mt-3 text-sm text-ink-600">
-              {rows.map((r) => (
-                <li key={r.bucket}>
-                  {r.bucket === "order-files" ? "File khách nộp" : r.bucket === "public-assets" ? "Ảnh trên web" : r.bucket}:{" "}
-                  {formatBytes(Number(r.total_bytes))} ({r.file_count} file)
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-      </section>
+      <div className="space-y-6">
+        <Card title="Dung lượng Storage đang dùng" description="Gói Supabase Free có 1GB.">
+          {usageErr ? (
+            <p className="text-[13px] text-[#dc2626]">{usageErr.message}</p>
+          ) : (
+            <>
+              <p><span className="text-[24px] font-semibold tracking-[-0.02em] text-[#18181b]">{formatBytes(total)}</span> <span className="text-[13px] text-[#71717a]">/ {formatBytes(QUOTA)}</span></p>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#f4f4f5]">
+                <div className={`h-full rounded-full ${pct > 80 ? "bg-[#dc2626]" : "bg-[#ff5fa2]"}`} style={{ width: `${pct}%` }} />
+              </div>
+              <ul className="mt-4 divide-y divide-[#efeff1] text-[13px]">
+                {rows.map((r) => (
+                  <li key={r.bucket} className="flex justify-between py-2">
+                    <span className="text-[#3f3f46]">{r.bucket === "order-files" ? "File khách gửi" : r.bucket === "public-assets" ? "Ảnh trên web" : r.bucket}</span>
+                    <span className="text-[#71717a]">{formatBytes(Number(r.total_bytes))} · {r.file_count} file</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </Card>
 
-      <h2 className="mb-1 text-2xl">File của đơn đã giao</h2>
-      <p className="mb-4 text-sm text-ink-600">Sau khi xoá, đơn hàng vẫn còn nhưng file gốc sẽ mất hẳn — hãy chắc là đã in xong.</p>
-      {filesErr && <p className="text-hot-500">{filesErr.message}</p>}
-      <CleanupList orders={orders} />
-    </div>
+        <Card title="File của đơn đã giao" description="Sau khi xoá, đơn hàng vẫn còn nhưng file gốc sẽ mất hẳn — hãy chắc là đã in xong.">
+          {filesErr && <p className="mb-3 text-[13px] text-[#dc2626]">{filesErr.message}</p>}
+          <CleanupList orders={orders} />
+        </Card>
+      </div>
+    </AdminPage>
   );
 }

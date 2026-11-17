@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { publicClient } from "@/lib/supabase/public";
 import type { Addon, Package } from "@/lib/types";
-import { PageHeader } from "@/components/ui/SectionTitle";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { OrderForm } from "./OrderForm";
 
 export const metadata = { title: "Đặt đơn" };

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PageHeader } from "@/components/ui/SectionTitle";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { CdDisc, Sparkle } from "@/components/ui/Shapes";
 import { FilmIcon } from "@/components/decor/Icons";
 
@@ -9,7 +9,7 @@ export const metadata = { title: "Tự Tay Thiết Kế" };
 export default function DesignHubPage() {
   return (
     <>
-      <PageHeader eyebrow="Thiết kế online" title="Tự Tay Thiết Kế" subtitle="Chọn thứ bạn muốn làm — xuất file 300 DPI đúng khổ in, gửi kèm đơn luôn." />
+      <PageHeader eyebrow="Thiết kế online" title="Tự tay thiết kế" subtitle="Chọn thứ bạn muốn làm — xuất file 300 DPI đúng khổ in, gửi kèm đơn luôn." />
       <div className="mx-auto grid max-w-6xl gap-5 px-4 md:grid-cols-2">
         <Link href="/custom-cd" className="group relative flex min-h-[320px] flex-col justify-end overflow-hidden rounded-[32px] bg-violet-500 p-7 text-white transition hover:-translate-y-1 sm:p-9">
           <CdDisc spin className="absolute -right-10 -top-10 w-64 sm:w-72" />

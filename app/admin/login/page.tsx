@@ -15,9 +15,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     problem = `Không kết nối được Supabase (${SUPABASE_URL}): ${loi}`;
   }
   return (
-    <main className="grid min-h-dvh place-items-center px-4">
+    <main className="admin-ui grid min-h-dvh place-items-center px-4">
       <div className="w-full max-w-sm">
-        {problem && <p className="pop-sm mb-4 rounded-2xl bg-violet-100 p-3 text-sm break-words">⚠ {problem}</p>}
+        {problem && <p className="mb-4 break-words rounded-[10px] border border-[#fecaca] bg-[#fef2f2] p-3 text-[13px] text-[#b91c1c]">{problem}</p>}
         <LoginForm />
       </div>
     </main>

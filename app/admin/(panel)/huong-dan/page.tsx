@@ -1,11 +1,11 @@
 import { GuideAdmin } from "./GuideAdmin";
+import { AdminPage, PageHeader } from "@/components/admin/ui";
 
 export default function Page() {
   return (
-    <div className="max-w-3xl">
-      <h1 className="mb-1 text-3xl">Hướng dẫn làm file</h1>
-      <p className="mb-6 text-sm text-ink-600">Mỗi mục gồm tiêu đề, đoạn chữ, ảnh minh hoạ (kèm chú thích) và các link. Link trong đoạn chữ cũng tự bấm được.</p>
+    <AdminPage>
+      <PageHeader title="Hướng dẫn làm file" description="Mỗi mục gồm tiêu đề, đoạn chữ, ảnh minh hoạ (kèm chú thích) và các link. Link trong đoạn chữ cũng tự bấm được." />
       <GuideAdmin />
-    </div>
+    </AdminPage>
   );
 }

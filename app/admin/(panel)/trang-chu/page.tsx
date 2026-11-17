@@ -1,13 +1,13 @@
 import { loadAdminSettings } from "@/lib/adminSettings";
 import { HomeForm } from "./HomeForm";
+import { AdminPage, PageHeader } from "@/components/admin/ui";
 
 export default async function HomeAdminPage() {
   const { home, options } = await loadAdminSettings();
   return (
-    <div className="max-w-3xl">
-      <h1 className="mb-1">Trang chủ</h1>
-      <p className="mb-6 text-sm text-ink-500">Banner chỉ hiện trên máy tính (từ 768px). 6 lựa chọn hiện ở mọi thiết bị.</p>
+    <AdminPage wide>
+      <PageHeader title="Trang chủ" description="Banner chỉ hiện trên máy tính (từ 768px). 6 ô menu hiện ở mọi thiết bị." />
       <HomeForm initialHome={home} initialOptions={options} />
-    </div>
+    </AdminPage>
   );
 }

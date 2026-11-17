@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { formatVND } from "@/lib/format";
 import { removePublicImage } from "@/lib/upload";
 import { revalidatePublic } from "@/app/admin/actions";
-import { Badge, Field, ImageInput, Message, SortButtons, Toggle } from "./ui";
+import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { Badge, Button, Card, EmptyState, Field, ImageInput, Message, SortButtons, Table, Toggle, confirmDialog } from "./ui";
 
 // Dùng chung cho bảng "packages" (gói sản phẩm) và "addons" (phụ kiện)
 type Row = {
@@ -74,7 +75,7 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
   }
 
   async function remove(row: Row) {
-    if (!row.id || !confirm(`Xoá "${row.name}"? Không thể hoàn tác.`)) return;
+    if (!row.id || !await confirmDialog(`Xoá "${row.name}"? Không thể hoàn tác.`)) return;
     const { error } = await createClient().from(table).delete().eq("id", row.id);
     if (error) return setMsg({ type: "err", text: error.message });
     await removePublicImage(row.image_url);
@@ -98,52 +99,54 @@ export function CatalogEditor({ table, title, withFeatures }: { table: "packages
   }
 
   return (
-    <section className="mb-10">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <h2 className="text-2xl">{title}</h2>
-        <button className="btn btn-sm" onClick={() => setEditing({ ...empty })}>+ Thêm</button>
-      </div>
-      <div className="mb-3"><Message msg={msg} /></div>
-
-      {editing && !editing.id && <Editor row={editing} withFeatures={withFeatures} folder={table} onCancel={() => setEditing(null)} onSave={save} />}
+    <Card title={title} description={`${rows.length} mục`} padded={false}
+      actions={<Button size="sm" icon={<Plus size={16} />} onClick={() => setEditing({ ...empty })}>Thêm mới</Button>}>
+      <Message msg={msg} />
+      {editing && !editing.id && <div className="border-b border-[#efeff1] p-5"><Editor row={editing} withFeatures={withFeatures} folder={table} onCancel={() => setEditing(null)} onSave={save} /></div>}
 
       {loading ? (
-        <p className="text-ink-500">Đang tải...</p>
+        <EmptyState>Đang tải...</EmptyState>
       ) : rows.length === 0 ? (
-        <p className="text-ink-500">Chưa có mục nào.</p>
+        <EmptyState>Chưa có mục nào.</EmptyState>
       ) : (
-        <ul className="space-y-3">
-          {rows.map((r, i) =>
-            editing && editing.id === r.id ? (
-              <li key={r.id}><Editor row={editing} withFeatures={withFeatures} folder={table} onCancel={() => setEditing(null)} onSave={save} /></li>
-            ) : (
-              <li key={r.id} className={`pop-sm flex items-center gap-3 rounded-2xl bg-cream-50 p-3 ${r.is_active ? "" : "opacity-60"}`}>
-                <SortButtons first={i === 0} last={i === rows.length - 1} onUp={() => move(i, -1)} onDown={() => move(i, 1)} />
-                {r.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={r.image_url} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
-                ) : (
-                  <div className="h-14 w-14 shrink-0 rounded-xl bg-cream-200" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-display text-lg">{r.name}</p>
-                  <p className="text-sm">
-                    <b className="text-hot-500">{formatVND(r.price)}</b>{" "}
-                    {table === "packages" && <span className="text-xs text-ink-500">· {presetText(r) || "chưa có preset"} </span>}
-                    {!r.is_active && <Badge>Đang ẩn</Badge>}
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-col gap-1 sm:flex-row">
-                  <button className="rounded-full bg-lime-300 px-3 py-1 text-sm" onClick={() => setEditing({ ...r })}>Sửa</button>
-                  <button className="rounded-full bg-cream-200 px-3 py-1 text-sm" onClick={() => quickToggle(r)}>{r.is_active ? "Ẩn" : "Hiện"}</button>
-                  <button className="rounded-full bg-hot-100 px-3 py-1 text-sm text-hot-500" onClick={() => remove(r)}>Xoá</button>
-                </div>
-              </li>
-            ),
-          )}
-        </ul>
+        <div className="[&>div]:rounded-none [&>div]:border-0">
+          <Table head={["", "Tên", table === "packages" ? "Cấu hình" : "Mô tả", "Giá", "Trạng thái", ""]}>
+            {rows.map((r, i) =>
+              editing && editing.id === r.id ? (
+                <tr key={r.id} className="!h-auto hover:!bg-transparent">
+                  <td colSpan={6} className="!p-5"><Editor row={editing} withFeatures={withFeatures} folder={table} onCancel={() => setEditing(null)} onSave={save} /></td>
+                </tr>
+              ) : (
+                <tr key={r.id}>
+                  <td className="w-[76px] !pr-0"><SortButtons first={i === 0} last={i === rows.length - 1} onUp={() => move(i, -1)} onDown={() => move(i, 1)} /></td>
+                  <td>
+                    <div className="flex items-center gap-3">
+                      {r.image_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={r.image_url} alt="" className="h-9 w-9 shrink-0 rounded-[6px] object-cover" />
+                      ) : (
+                        <div className="h-9 w-9 shrink-0 rounded-[6px] bg-[#f4f4f5]" />
+                      )}
+                      <span className="font-medium text-[#18181b]">{r.name}</span>
+                    </div>
+                  </td>
+                  <td className="max-w-[260px] truncate text-[13px] text-[#71717a]">{table === "packages" ? presetText(r) || "Chưa có preset" : r.description || "—"}</td>
+                  <td className="font-medium">{formatVND(r.price)}</td>
+                  <td>{r.is_active ? <Badge tone="green">Đang hiện</Badge> : <Badge>Đang ẩn</Badge>}</td>
+                  <td className="text-right">
+                    <div className="inline-flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => setEditing({ ...r })} icon={<Pencil size={16} />}>Sửa</Button>
+                      <Button variant="ghost" size="sm" onClick={() => quickToggle(r)} icon={r.is_active ? <EyeOff size={16} /> : <Eye size={16} />}>{r.is_active ? "Ẩn" : "Hiện"}</Button>
+                      <Button variant="ghost" size="sm" className="!text-[#dc2626] hover:!bg-[#fef2f2]" onClick={() => remove(r)} aria-label="Xoá"><Trash2 size={16} /></Button>
+                    </div>
+                  </td>
+                </tr>
+              ),
+            )}
+          </Table>
+        </div>
       )}
-    </section>
+    </Card>
   );
 }
 
@@ -154,7 +157,7 @@ function Editor({ row, withFeatures, folder, onCancel, onSave }: { row: Row; wit
 
   return (
     <form
-      className="pop mb-3 grid gap-4 rounded-3xl bg-violet-100 p-4 sm:grid-cols-2"
+      className="grid gap-4 sm:grid-cols-2"
       onSubmit={async (e) => {
         e.preventDefault();
         setSaving(true);
@@ -176,10 +179,10 @@ function Editor({ row, withFeatures, folder, onCancel, onSave }: { row: Row; wit
         </Field>
       )}
       {folder === "packages" && (
-        <div className="grid gap-3 rounded-2xl bg-white p-3 sm:col-span-2 sm:grid-cols-3">
-          <p className="text-sm font-medium sm:col-span-3">Preset thiết kế (trang Custom CD)</p>
+        <div className="grid gap-3 rounded-[10px] border border-[#e5e5e7] bg-[#fafafa] p-4 sm:col-span-2 sm:grid-cols-3">
+          <p className="text-[13px] font-semibold sm:col-span-3">Preset thiết kế (trang Custom CD)</p>
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" className="h-5 w-5" checked={r.has_disc !== false} onChange={(e) => setR({ ...r, has_disc: e.target.checked })} /> Có Mặt đĩa
+            <input type="checkbox" className="h-4 w-4" checked={r.has_disc !== false} onChange={(e) => setR({ ...r, has_disc: e.target.checked })} /> Có Mặt đĩa
           </label>
           <Field label="Số trang Bìa trước">
             <select className="field" value={r.front_pages ?? 0} onChange={(e) => setR({ ...r, front_pages: Number(e.target.value) })}>
@@ -195,9 +198,9 @@ function Editor({ row, withFeatures, folder, onCancel, onSave }: { row: Row; wit
       )}
       <ImageInput value={r.image_url} onChange={(url) => setR({ ...r, image_url: url })} folder={folder} label="Ảnh mẫu" />
       <div className="flex items-center"><Toggle checked={r.is_active} onChange={(v) => setR({ ...r, is_active: v })} label="Hiện trên web" /></div>
-      <div className="flex gap-2 sm:col-span-2">
-        <button type="submit" className="btn btn-sm" disabled={saving}>{saving ? "Đang lưu..." : "Lưu"}</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onCancel}>Huỷ</button>
+      <div className="flex justify-end gap-2 border-t border-[#efeff1] pt-4 sm:col-span-2">
+        <Button variant="secondary" onClick={onCancel}>Huỷ</Button>
+        <Button type="submit" loading={saving}>Lưu</Button>
       </div>
     </form>
   );

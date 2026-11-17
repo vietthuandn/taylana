@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { removePublicImage, uploadPublicImage } from "@/lib/upload";
 import type { ShowcaseItem } from "@/lib/types";
 import { revalidatePublic } from "@/app/admin/actions";
-import { Badge, Field, ImageInput, Message, SortButtons, Toggle } from "@/components/admin/ui";
+import { Badge, Field, ImageInput, Message, SortButtons, Toggle, confirmDialog } from "@/components/admin/ui";
 
 type Draft = Omit<ShowcaseItem, "id" | "image_url"> & { id?: string; image_url: string | null };
 const empty: Draft = { title: "", category: "CD", image_url: null, description: "", is_active: true, sort_order: 0 };
@@ -61,7 +61,7 @@ export function ShowcaseAdmin() {
   }
 
   async function remove(it: ShowcaseItem) {
-    if (!confirm("Xoá sản phẩm này?")) return;
+    if (!await confirmDialog("Xoá sản phẩm này?")) return;
     const { error } = await createClient().from("showcase_items").delete().eq("id", it.id);
     if (error) return setMsg({ type: "err", text: error.message });
     await removePublicImage(it.image_url);
@@ -81,7 +81,7 @@ export function ShowcaseAdmin() {
   return (
     <section className="mb-12">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-2xl">Ảnh sản phẩm (showcase)</h2>
+        <h2 className="text-[16px]">Ảnh sản phẩm (showcase)</h2>
         <div className="flex gap-2">
           <label className="btn cursor-pointer btn-sm">
             {bulk || "Tải nhiều ảnh"}
@@ -95,7 +95,7 @@ export function ShowcaseAdmin() {
       <datalist id="showcase-cats">{categories.map((c) => <option key={c} value={c} />)}</datalist>
 
       {editing && (
-        <form className="pop mb-4 grid gap-4 rounded-3xl bg-violet-100 p-4 sm:grid-cols-2"
+        <form className="mb-4 grid gap-4 rounded-[12px] border border-[#e5e5e7] bg-white p-5 sm:grid-cols-2"
           onSubmit={(e) => { e.preventDefault(); save(editing); }}>
           <ImageInput value={editing.image_url} onChange={(u) => setEditing({ ...editing, image_url: u })} folder="showcase" label="Ảnh *" />
           <div className="flex items-center"><Toggle checked={editing.is_active} onChange={(v) => setEditing({ ...editing, is_active: v })} label="Hiện trên web" /></div>
@@ -115,7 +115,7 @@ export function ShowcaseAdmin() {
 
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {items.map((it, i) => (
-          <li key={it.id} className={`pop-sm overflow-hidden rounded-2xl bg-cream-50 ${it.is_active ? "" : "opacity-60"}`}>
+          <li key={it.id} className={`overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white ${it.is_active ? "" : "opacity-60"}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={it.image_url} alt="" className="aspect-square w-full object-cover" loading="lazy" />
             <div className="space-y-1 p-2">

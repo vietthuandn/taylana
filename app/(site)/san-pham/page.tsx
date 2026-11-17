@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { publicClient } from "@/lib/supabase/public";
 import type { Review, ShowcaseItem } from "@/lib/types";
-import { PageHeader, SectionTitle } from "@/components/ui/SectionTitle";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { Stat } from "@/components/ui/Stat";
 import { ShowcaseGrid } from "./ShowcaseGrid";
 import { ReviewList } from "./ReviewList";

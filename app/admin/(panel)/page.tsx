@@ -1,34 +1,70 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
-import { adminLinks } from "@/lib/adminLinks";
+import { formatBytes, formatDate, formatVND, orderTypeLabels, statusLabels } from "@/lib/format";
+import type { Order } from "@/lib/types";
+import { AdminPage, Badge, Button, Card, EmptyState, PageHeader, Table } from "@/components/admin/ui";
+import { statusTone } from "@/components/admin/tones";
+
+const QUOTA = 1024 ** 3; // gói Supabase Free: 1GB Storage
 
 export default async function AdminHome() {
   const { supabase } = await requireAdmin();
-  const { count: newOrders } = await supabase
-    .from("orders")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "new");
+  const [{ count: newOrders }, { count: doing }, { data: usage }, { data: recent }] = await Promise.all([
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "new"),
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "in_progress"),
+    supabase.rpc("storage_usage"),
+    supabase.from("orders").select("id, code, order_type, customer_name, phone, total, status, created_at")
+      .order("created_at", { ascending: false }).limit(8),
+  ]);
+  const used = ((usage ?? []) as { total_bytes: number }[]).reduce((t, r) => t + Number(r.total_bytes), 0);
+  const pct = Math.min(100, (used / QUOTA) * 100);
+  const orders = (recent ?? []) as Pick<Order, "id" | "code" | "order_type" | "customer_name" | "phone" | "total" | "status" | "created_at">[];
+
+  const stat = (label: string, value: React.ReactNode, sub: React.ReactNode, href: string) => (
+    <Link href={href} className="block rounded-[12px] border border-[#e5e5e7] bg-white p-5 transition-colors hover:border-[#d4d4d8]">
+      <p className="text-[13px] text-[#71717a]">{label}</p>
+      <p className="mt-1 text-[28px] font-semibold tracking-[-0.02em] text-[#18181b]">{value}</p>
+      <div className="mt-1 text-[12px] text-[#71717a]">{sub}</div>
+    </Link>
+  );
 
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-3xl">Xin chào chủ tiệm ✿</h1>
-      <p className="mt-1 text-ink-600">Đơn mới đang chờ: <b>{newOrders ?? 0}</b></p>
-
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {adminLinks.slice(1).map((l) =>
-          l.soon ? (
-            <div key={l.href} className="rounded-3xl border-2 border-dashed border-ink-300 px-4 py-5 text-ink-500">
-              <p className="font-display text-lg">{l.label}</p>
-              <p className="text-xs">Giai đoạn sau</p>
+    <AdminPage>
+      <PageHeader title="Tổng quan" description="Tình hình đơn hàng và dung lượng lưu trữ."
+        actions={<Button href="/admin/don-hang" variant="secondary">Xem tất cả đơn</Button>} />
+      <div className="grid gap-4 sm:grid-cols-3">
+        {stat("Đơn mới", newOrders ?? 0, "Đang chờ xác nhận", "/admin/don-hang?status=new")}
+        {stat("Đơn đang làm", doing ?? 0, "Đang thiết kế / in", "/admin/don-hang?status=in_progress")}
+        {stat("Storage đã dùng", formatBytes(used), (
+          <div>
+            <div className="mb-1 h-1.5 overflow-hidden rounded-full bg-[#f4f4f5]">
+              <div className={`h-full rounded-full ${pct > 80 ? "bg-[#dc2626]" : "bg-[#ff5fa2]"}`} style={{ width: `${pct}%` }} />
             </div>
-          ) : (
-            <Link key={l.href} href={l.href} className="pop rounded-3xl bg-lime-100 px-4 py-5 hover:-translate-y-0.5 transition">
-              <p className="font-display text-lg">{l.label}</p>
-              <p className="text-xs text-ink-600">Mở →</p>
-            </Link>
-          ),
-        )}
+            {pct.toFixed(1)}% của {formatBytes(QUOTA)}
+          </div>
+        ), "/admin/don-file")}
       </div>
-    </div>
+
+      <div className="mt-8">
+        <Card title="Đơn hàng gần đây" description="8 đơn mới nhất" padded={false}
+          actions={<Button href="/admin/don-hang" variant="ghost" size="sm">Xem tất cả →</Button>}>
+          <div className="[&>div]:rounded-none [&>div]:border-0">
+            <Table head={["Mã đơn", "Khách hàng", "Trạng thái", "Ngày đặt", "Tổng tiền"]}
+              empty={!orders.length && <EmptyState>Chưa có đơn nào.</EmptyState>}>
+              {orders.map((o) => (
+                <tr key={o.id}>
+                  <td><Link href={`/admin/don-hang/${o.id}`} className="font-medium text-[#18181b] hover:text-[#ff5fa2]">{o.code}</Link>
+                    {o.order_type !== "cd" && <span className="ml-2 text-[12px] text-[#71717a]">{orderTypeLabels[o.order_type]}</span>}</td>
+                  <td className="text-[#3f3f46]">{o.customer_name} <span className="text-[#a1a1aa]">· {o.phone}</span></td>
+                  <td><Badge tone={statusTone[o.status]}>{statusLabels[o.status]}</Badge></td>
+                  <td className="text-[13px] text-[#71717a]">{formatDate(o.created_at)}</td>
+                  <td className="text-right font-medium">{formatVND(o.total)}</td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        </Card>
+      </div>
+    </AdminPage>
   );
 }

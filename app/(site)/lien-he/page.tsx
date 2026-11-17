@@ -1,5 +1,5 @@
 import { getSettings } from "@/lib/settings";
-import { PageHeader } from "@/components/ui/SectionTitle";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { FlowerBadge, StampBadge } from "@/components/ui/Shapes";
 
 export const metadata = { title: "Liên hệ" };
@@ -18,7 +18,7 @@ export default async function ContactPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Taylana" title="Liên Hệ" subtitle={contact.note || undefined} />
+      <PageHeader eyebrow="Taylana" title="Liên hệ" subtitle={contact.note || undefined} />
       <div className="mx-auto max-w-3xl px-4">
         {rows.length ? (
           <ul className="grid gap-4 sm:grid-cols-2">

@@ -89,13 +89,22 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
   );
 
   return (
-    <div className="overflow-hidden rounded-[14px] border border-[#dedad3] bg-white font-sans text-[13px] text-[#141414]">
-      <div className="flex items-center justify-between border-b border-[#ecebe7] px-4 py-2.5">
-        <p className="text-[15px] font-semibold">{row.id ? "Sửa mẫu" : "Mẫu mới"}</p>
-        <button className="tool-btn" onClick={onCancel}><Icon name="back" /> Danh sách mẫu</button>
+    <div className="flex h-[calc(100dvh-56px)] flex-col bg-white font-sans text-[13px] text-[#18181b]">
+      {/* thanh nhỏ phía trên workspace */}
+      <div className="flex h-12 shrink-0 items-center gap-3 border-b border-[#e5e5e7] px-3">
+        <button className="tool-btn shrink-0" onClick={onCancel}><Icon name="back" /> Danh sách mẫu</button>
+        <input className="h-8 min-w-0 flex-1 rounded-[6px] border border-transparent bg-transparent px-2 text-[14px] font-semibold hover:border-[#e5e5e7] focus:border-[#ff5fa2] focus:outline-none focus:ring-[3px] focus:ring-[#ff5fa2]/15 sm:max-w-sm"
+          placeholder="Tên mẫu" value={name} onChange={(e) => setName(e.target.value)} aria-label="Tên mẫu" />
+        <div className="ml-auto flex items-center gap-3">
+          {err && <p className="hidden text-[12px] text-[#dc2626] sm:block">{err}</p>}
+          <button className="h-9 rounded-[8px] bg-[#ff5fa2] px-4 text-[14px] font-medium text-white hover:bg-[#f0468f] disabled:opacity-50" disabled={saving} onClick={save}>
+            {saving ? "Đang lưu..." : "Lưu mẫu"}
+          </button>
+        </div>
       </div>
-      <div className="flex flex-col lg:h-[calc(100dvh-180px)] lg:min-h-[560px] lg:flex-row">
-        <div ref={areaRef} className="relative h-[480px] bg-[#ece1d0] lg:h-auto lg:w-[62%]">
+      {err && <p className="border-b border-[#e5e5e7] px-3 py-1.5 text-[12px] text-[#dc2626] sm:hidden">{err}</p>}
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div ref={areaRef} className="relative h-[480px] min-w-0 bg-[#ece1d0] lg:h-auto lg:flex-1">
           {area.w > 0 && (
             <div key={target} className="absolute inset-0">
               <CdDesigner ref={(h) => { handle.current = h; }} spec={spec} mode="template" pages={pages} viewport={{ w: area.w, h: area.h }}
@@ -106,10 +115,9 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
             </div>
           )}
         </div>
-        <aside className="flex flex-col divide-y divide-[#ecebe7] lg:flex-1 lg:overflow-y-auto lg:border-l lg:border-[#dedad3]">
+        <aside className="flex flex-col divide-y divide-[#ecebe7] border-[#e5e5e7] lg:w-[320px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
           <section className="space-y-2.5 p-4">
-            <p className="tool-label">Thông tin mẫu</p>
-            <input className="tool-input w-full" placeholder="Tên mẫu" value={name} onChange={(e) => setName(e.target.value)} />
+            <p className="tool-label">Loại mẫu</p>
             <select className="tool-input w-full" value={target} onChange={(e) => setTarget(e.target.value as TplTarget)} aria-label="Loại mẫu">
               {TPL_TARGETS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
@@ -122,12 +130,6 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
             </div>
             <div ref={(el) => { if (el && host !== el) setHost(el); }} />
             <p className="mt-3 text-[11px] text-[#8a857e]">Khung ảnh: vị trí để khách đặt ảnh (khách bấm vào khung để tải ảnh). Chữ của mẫu: khách sửa được nội dung, không di chuyển được.</p>
-          </section>
-          <section className="mt-auto space-y-2 p-4">
-            {err && <p className="text-[12px] text-[#d0303f]">{err}</p>}
-            <button className="h-10 w-full rounded-[8px] bg-[#ff5fa2] text-[14px] font-semibold text-white disabled:opacity-50" disabled={saving} onClick={save}>
-              {saving ? "Đang lưu..." : "Lưu mẫu"}
-            </button>
           </section>
         </aside>
       </div>

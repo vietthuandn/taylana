@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { publicClient } from "@/lib/supabase/public";
 import type { GuideSection } from "@/lib/types";
-import { PageHeader } from "@/components/ui/SectionTitle";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { RichText } from "@/components/site/RichText";
 import { GalleryIcon } from "@/components/decor/Icons";
 

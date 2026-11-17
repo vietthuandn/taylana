@@ -11,6 +11,7 @@ import { checkImage, validateFile, type CheckResult } from "@/lib/imageCheck";
 import { randomName } from "@/lib/upload";
 import { matchFileName, type PackLayout } from "@/lib/matchFileName";
 import { PrintArea } from "@/components/mockup/Mockups";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { Package } from "@/lib/types";
 
 const PINK = "#ff5fa2";
@@ -171,7 +172,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
     return (
       <div className="mx-auto w-full max-w-md px-4 py-14 text-center font-sans">
         <p className="text-5xl">✿</p>
-        <h1 className="mt-3 text-4xl">Cảm ơn bạn!</h1>
+        <h1 className="mt-3 font-sans text-[22px] font-bold normal-case tracking-[-0.02em] sm:text-[28px]">Cảm ơn bạn!</h1>
         <p className="mt-3 text-ink-600">Tiệm đã nhận {done.count} ảnh. Mã đơn của bạn:</p>
         <p className="pop-sm mx-auto mt-3 inline-block rounded-2xl bg-white px-5 py-2 font-display text-3xl">{done.code}</p>
         <p className="mt-4 text-sm text-ink-600">Lưu lại mã đơn nhé. Tiệm sẽ kiểm tra file và nhắn bạn qua Zalo/SĐT nếu cần chỉnh sửa.</p>
@@ -182,8 +183,8 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6 font-sans text-[14px] text-ink-900">
-      <h1 className="text-4xl sm:text-5xl">Gửi file in</h1>
-      {orderCode && <p className="mt-1 text-[13px] text-ink-600">Gửi file cho đơn <b>{orderCode}</b></p>}
+      <PageHeader inset={false} title="Gửi file in"
+        subtitle={orderCode ? <>Gửi file cho đơn <b>{orderCode}</b></> : "Chọn gói, tải ảnh vào đúng ô rồi gửi kèm link nhạc."} />
 
       {/* ---------- Chọn gói ---------- */}
       {!pkg ? (
