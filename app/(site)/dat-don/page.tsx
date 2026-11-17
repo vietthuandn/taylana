@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { publicClient } from "@/lib/supabase/public";
 import type { Addon, Package } from "@/lib/types";
 import { FEATURE_PHOTOSTRIP, isPhotostripItem } from "@/lib/features";
+import { getPaymentSettings } from "@/lib/payment/load";
+import { paymentReady } from "@/lib/payment/settings";
 import { OrderForm } from "./OrderForm";
 
 export const metadata = { title: "Đặt đơn" };
@@ -20,10 +22,11 @@ export default async function OrderPage() {
     addons = (a.data ?? []).filter((x: Addon) => FEATURE_PHOTOSTRIP || !isPhotostripItem(x.name));
   }
 
+  const pay = paymentReady(await getPaymentSettings());
   return (
     <>
       <Suspense>
-        <OrderForm packages={packages} addons={addons} />
+        <OrderForm packages={packages} addons={addons} payment={pay} />
       </Suspense>
     </>
   );

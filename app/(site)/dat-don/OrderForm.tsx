@@ -3,7 +3,7 @@
 /* Trang Đặt đơn — 1 trang: ảnh gói (trái, dính khi cuộn) | chọn gói, phụ kiện, số lượng, thông tin, tóm tắt (phải). */
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, Copy, Disc3, Minus, Plus, Upload, Brush } from "lucide-react";
 import type { Addon, Package } from "@/lib/types";
 import { formatVND } from "@/lib/format";
@@ -23,8 +23,9 @@ const imagesOf = (p?: Package) => {
 // mô tả ngắn những gì có trong gói
 const summaryOf = (p: Package) => p.description || p.features.join(" · ");
 
-export function OrderForm({ packages, addons }: { packages: Package[]; addons: Addon[] }) {
+export function OrderForm({ packages, addons, payment = false }: { packages: Package[]; addons: Addon[]; payment?: boolean }) {
   const params = useSearchParams();
+  const router = useRouter();
   const pre = params.get("goi");
   const [packageId, setPackageId] = useState<string>(packages.some((p) => p.id === pre) ? pre! : packages[0]?.id ?? "");
   const [imgIdx, setImgIdx] = useState(0);
@@ -78,6 +79,8 @@ export function OrderForm({ packages, addons }: { packages: Package[]; addons: A
     });
     setSending(false);
     if (error || !data?.[0]) return setError(error?.message ?? "Gửi đơn thất bại, bạn thử lại nhé.");
+    // thanh toán QR đang bật → sang trang thanh toán của đơn
+    if (payment) { setSending(true); router.push(`/thanh-toan/${encodeURIComponent(data[0].order_code)}`); return; }
     setResult({ code: data[0].order_code, total: data[0].order_total });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }

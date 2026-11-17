@@ -20,6 +20,7 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
     { href: "/admin/photostrip", label: "Khung Photostrip", icon: "strip", group: "Thiết kế" },
   ] },
   { title: "Hệ thống", links: [
+    { href: "/admin/thanh-toan", label: "Thanh toán", icon: "card", group: "Hệ thống" },
     { href: "/admin/don-file", label: "Dọn file", icon: "trash", group: "Hệ thống" },
   ] },
 ];

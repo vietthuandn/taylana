@@ -6,6 +6,7 @@ import { formatBytes, formatDate, formatVND, orderTypeLabels, statusLabels } fro
 import { AdminPage, Badge, Card, PageHeader } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/tones";
 import { OrderControls } from "./OrderControls";
+import { PaymentCard, type PaymentRow } from "./PaymentCard";
 
 const kindLabels: Record<string, string> = {
   front: "Bìa trước", back: "Bìa sau", disc: "Mặt CD", booklet: "Booklet",
@@ -19,6 +20,8 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   if (!order) notFound();
   const { data: filesData } = await supabase.from("order_files").select("*").eq("order_id", id).order("kind").order("page").order("created_at", { ascending: false });
   const files = (filesData ?? []) as OrderFile[];
+  const { data: payData } = await supabase.from("payments").select("id, amount, source, bank_txn_id, paid_at, note, created_by").eq("order_id", id).order("paid_at", { ascending: false });
+  const payments = (payData ?? []) as PaymentRow[];
   // Khách nộp lại cùng một ô → file mới nhất là bản dùng, các file trước đánh dấu "bản cũ"
   const seen = new Set<string>();
   const outdated = new Set<string>();
@@ -83,6 +86,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
         </div>
 
         <div className="space-y-4">
+          <PaymentCard order={order} payments={payments} />
           <Card title="Khách hàng">
             <p className="font-medium text-[#18181b]">{order.customer_name}</p>
             <p className="mt-1 text-[14px]">

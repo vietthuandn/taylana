@@ -9,12 +9,13 @@ const QUOTA = 1024 ** 3; // gói Supabase Free: 1GB Storage
 
 export default async function AdminHome() {
   const { supabase } = await requireAdmin();
-  const [{ count: newOrders }, { count: doing }, { data: usage }, { data: recent }] = await Promise.all([
+  const [{ count: newOrders }, { count: doing }, { data: usage }, { data: recent }, { count: payPending }] = await Promise.all([
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "in_progress"),
     supabase.rpc("storage_usage"),
     supabase.from("orders").select("id, code, order_type, customer_name, phone, total, status, created_at")
       .order("created_at", { ascending: false }).limit(8),
+    supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "pending"),
   ]);
   const used = ((usage ?? []) as { total_bytes: number }[]).reduce((t, r) => t + Number(r.total_bytes), 0);
   const pct = Math.min(100, (used / QUOTA) * 100);
@@ -32,8 +33,9 @@ export default async function AdminHome() {
     <AdminPage>
       <PageHeader title="Tổng quan" description="Tình hình đơn hàng và dung lượng lưu trữ."
         actions={<Button href="/admin/don-hang" variant="secondary">Xem tất cả đơn</Button>} />
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stat("Đơn mới", newOrders ?? 0, "Đang chờ xác nhận", "/admin/don-hang?status=new")}
+        {stat("Chờ xác nhận thanh toán", <span className={payPending ? "text-[#ff5fa2]" : ""}>{payPending ?? 0}</span>, "Khách báo đã chuyển khoản", "/admin/don-hang?pay=pending")}
         {stat("Đơn đang làm", doing ?? 0, "Đang thiết kế / in", "/admin/don-hang?status=in_progress")}
         {stat("Storage đã dùng", formatBytes(used), (
           <div>

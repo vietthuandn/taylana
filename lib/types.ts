@@ -48,6 +48,18 @@ export type Order = {
   delivered_at: string | null;
   files_cleaned_at: string | null;
   created_at: string;
+  // thanh toán (có sau migration_payment.sql)
+  order_no?: number;
+  payment_code?: string | null;
+  amount_due?: number;
+  paid_amount?: number;
+  payment_status?: "unpaid" | "pending" | "deposited" | "paid" | "expired" | "cancelled";
+  payment_deadline?: string | null;
+  payment_claimed_at?: string | null;
+  payment_confirmed_at?: string | null;
+  payment_confirmed_by?: string | null;
+  payment_note?: string;
+  payment_log?: { at: string; by: string; action: string; amount?: number; note?: string }[];
 };
 
 export type OrderFile = {
