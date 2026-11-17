@@ -9,7 +9,7 @@ import { useSearchParams } from "next/navigation";
 import { ChevronDown, Disc3 } from "lucide-react";
 import { formatVND } from "@/lib/format";
 import { cart } from "@/lib/cart";
-import { fromPrice, type Product } from "@/lib/catalog";
+import { fromPrice, kindOf, type Product } from "@/lib/catalog";
 import type { PublicDiscount } from "@/lib/discount";
 import type { ShippingSettings } from "@/lib/shipping";
 import type { PaymentSettings } from "@/lib/payment/settings";
@@ -37,7 +37,7 @@ export function OrderForm(props: Props) {
     let ids = chon ? chon.split(",") : goi ? [goi] : [];
     let qty = sl > 0 ? Math.min(1000, Math.round(sl)) : 1;
     if (!product && d) { product = products.find((p) => p.id === d!.productId); ids = d.optionIds ?? []; qty = d.qty || 1; }
-    product = product ?? products[0];
+    product = product ?? products.find((p) => kindOf(p) === "cd") ?? products[0]; // mặc định: sản phẩm CD
     const valid = new Set(product?.groups.flatMap((g) => g.options.map((o) => o.id)) ?? []);
     setInit({ draft: d, productId: product?.id ?? "", optionIds: ids.filter((x) => valid.has(x)), qty });
     // eslint-disable-next-line react-hooks/exhaustive-deps

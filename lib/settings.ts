@@ -69,8 +69,8 @@ export const optionIcons = ["bag", "book", "brush", "upload", "gallery", "chat"]
 export const defaultOptions: HomeOption[] = [
   { title: "Đặt đơn ngay", href: "/dat-don", image_url: null, bg: "#fff0f6", text_v: "middle", text_h: "left", text_color: "ink" },
   { title: "Hướng dẫn làm file", href: "/huong-dan", image_url: null, bg: "#f4f4f5", text_v: "top", text_h: "center", text_color: "ink" },
-  { title: "Thiết Kế", href: "/thiet-ke", image_url: null, bg: "#ffffff", text_v: "top", text_h: "left", text_color: "ink" },
-  { title: "Gửi file", href: "/gui-file", image_url: null, bg: "#ffffff", text_v: "middle", text_h: "center", text_color: "ink" },
+  { title: "Thiết Kế", href: "/thiet-ke/cd", image_url: null, bg: "#ffffff", text_v: "top", text_h: "left", text_color: "ink" },
+  { title: "Gửi file", href: "/gui-file/cd", image_url: null, bg: "#ffffff", text_v: "middle", text_h: "center", text_color: "ink" },
   { title: "Về chúng tôi", href: "/ve-chung-toi", image_url: null, bg: "#f4f4f5", text_v: "top", text_h: "center", text_color: "ink" },
   { title: "Liên hệ", href: "/lien-he", image_url: null, bg: "#fff0f6", text_v: "bottom", text_h: "right", text_color: "ink" },
 ];
@@ -105,10 +105,11 @@ export function mergeOptions(value: unknown): HomeOption[] {
     // ô cũ "Nộp file" (đã lưu trong database) → đổi thành "Gửi file in"
     const old = v.href === "/nop-file";
     // "Tự tay thiết kế" giờ trỏ thẳng /custom-cd; link photostrip (đang tắt) cũng về /custom-cd
-    const toCd = v.href === "/tu-thiet-ke" || (!FEATURE_PHOTOSTRIP && v.href === "/photostrip");
+    const toCd = ["/tu-thiet-ke", "/custom-cd", "/thiet-ke"].includes(String(v.href)) || (!FEATURE_PHOTOSTRIP && v.href === "/photostrip");
+    const toUpload = ["/gui-file-in", "/gui-file"].includes(String(v.href));
     return {
       title: old && (!v.title || v.title === "Nộp file") ? "Gửi file in" : pick("title", str),
-      href: old ? "/gui-file-in" : toCd ? "/custom-cd" : pick("href", str),
+      href: old || toUpload ? "/gui-file/cd" : toCd ? "/thiet-ke/cd" : pick("href", str),
       image_url: typeof v.image_url === "string" && v.image_url ? v.image_url : null,
       bg: pick("bg", (x) => typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x)),
       text_v: pick("text_v", (x) => x === "top" || x === "middle" || x === "bottom"),

@@ -6,6 +6,7 @@ import { ChevronDown, CreditCard, Search, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { formatDate, formatVND, statusLabels } from "@/lib/format";
+import { uploadHref } from "@/lib/uploadTools";
 import { normalizePhone, PHONE_ERROR } from "@/lib/phone";
 import { saveOrderCode, savedOrderCodes } from "@/lib/cart";
 import { paymentLabels, paymentTone, type PaymentStatus } from "@/lib/payment/settings";
@@ -55,7 +56,7 @@ function OrderCard({ o }: { o: OrderSummary }) {
           {o.amount_due != null && o.amount_due < o.total && <p className="mt-2 text-[12px] text-[#71717a]">Cần chuyển trước (đặt cọc): {formatVND(o.amount_due)}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {canPay && <Button href={`/thanh-toan/${encodeURIComponent(o.code)}`} size="sm" icon={<CreditCard size={16} />}>Thanh toán</Button>}
-            <Button href={`/gui-file?don=${encodeURIComponent(o.code)}`} size="sm" variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>
+            <Button href={uploadHref(o.code)} size="sm" variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>
           </div>
         </div>
       )}

@@ -47,13 +47,13 @@ export function MyDesigns() {
       {!rows.length ? (
         <div className="rounded-[12px] border border-[#e5e5e7] bg-white p-10 text-center">
           <p className="text-[#71717a]">Bạn chưa lưu thiết kế nào.</p>
-          <Button href="/custom-cd" className="mt-4">Bắt đầu thiết kế</Button>
+          <Button href="/thiet-ke/cd" className="mt-4">Bắt đầu thiết kế</Button>
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {rows.map((r) => (
             <li key={r.id} className="overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white text-[13px] transition-shadow hover:shadow-[0_4px_16px_rgb(0_0_0/0.06)]">
-              <Link href={`/custom-cd?design=${r.id}`} className="block aspect-square bg-[#f4f4f5]">
+              <Link href={`/thiet-ke/cd?design=${r.id}`} className="block aspect-square bg-[#f4f4f5]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {r.thumbnail ? <img src={r.thumbnail} alt="" className="h-full w-full object-cover" /> : <span className="grid h-full place-items-center text-ink-500">Chưa có ảnh</span>}
               </Link>
@@ -61,7 +61,7 @@ export function MyDesigns() {
                 <p className="truncate font-semibold text-ink-900" title={r.name}>{r.name}</p>
                 <p className="text-[12px] text-ink-500">Sửa {new Date(r.updated_at).toLocaleString("vi-VN")}</p>
                 <div className="flex gap-1.5">
-                  <Button href={`/custom-cd?design=${r.id}`} size="sm" className="flex-1">Mở</Button>
+                  <Button href={`/thiet-ke/cd?design=${r.id}`} size="sm" className="flex-1">Mở</Button>
                   <button className={btnClass("secondary", "sm")} onClick={async () => {
                     const name = prompt("Tên mới cho thiết kế:", r.name);
                     if (name === null) return;

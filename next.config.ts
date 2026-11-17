@@ -11,9 +11,15 @@ const supabase = (() => {
 const isLocal = supabase?.hostname === "localhost" || supabase?.hostname === "127.0.0.1";
 
 const nextConfig: NextConfig = {
-  // đường dẫn cũ /nop-file → /gui-file-in (giữ nguyên ?ma=...)
+  // Đường dẫn cũ → trang mới (giữ nguyên tham số, ví dụ ?don=<mã>, ?ma=<mã>, ?design=<id>)
   async redirects() {
-    return [{ source: "/nop-file", destination: "/gui-file-in", permanent: true }];
+    return [
+      { source: "/thiet-ke", destination: "/thiet-ke/cd", permanent: false },
+      { source: "/custom-cd", destination: "/thiet-ke/cd", permanent: false },
+      { source: "/gui-file", destination: "/gui-file/cd", permanent: false },
+      { source: "/gui-file-in", destination: "/gui-file/cd", permanent: false },
+      { source: "/nop-file", destination: "/gui-file/cd", permanent: false },
+    ];
   },
   images: {
     remotePatterns: [

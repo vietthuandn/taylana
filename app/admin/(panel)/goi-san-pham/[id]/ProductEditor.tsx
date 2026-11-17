@@ -7,13 +7,13 @@ import { Eye, EyeOff, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatVND } from "@/lib/format";
 import { removePublicImage } from "@/lib/upload";
-import type { Option, OptionGroup, Product } from "@/lib/catalog";
+import { kindOf, type Option, type OptionGroup, type Product, type ProductKind } from "@/lib/catalog";
 import { revalidatePublic } from "@/app/admin/actions";
 import { Badge, Button, Card, EmptyState, Field, ImageInput, ImagesInput, Input, Message, Select, Table, Textarea, Toggle, confirmDialog } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
 
 type Msg = { type: "ok" | "err"; text: string } | null;
-const PUBLIC_PATHS = ["/dat-don", "/gio-hang", "/custom-cd", "/thiet-ke", "/gui-file", "/gui-file-in"];
+const PUBLIC_PATHS = ["/dat-don", "/gio-hang", "/thiet-ke/cd", "/gui-file/cd"];
 const slugify = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/gi, "d").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60);
 const presetText = (o: Pick<Option, "front_pages" | "back_pages" | "has_disc">) => [
   o.front_pages ? (o.front_pages >= 4 ? `Booklet ${o.front_pages} trang` : `Bìa trước ${o.front_pages} trang`) : "",
@@ -28,7 +28,7 @@ export function ProductEditor({ id }: { id: string }) {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (isNew) { setP({ id: "", slug: "", name: "", description: "", images: [], is_active: true, sort_order: 0, groups: [] }); return; }
+    if (isNew) { setP({ id: "", kind: "other", slug: "", name: "", description: "", images: [], is_active: true, sort_order: 0, groups: [] }); return; }
     const sb = createClient();
     const [pr, gr, op] = await Promise.all([
       sb.from("products").select("*").eq("id", id).maybeSingle(),
@@ -37,7 +37,7 @@ export function ProductEditor({ id }: { id: string }) {
     ]);
     if (pr.error || !pr.data) { setMsg({ type: "err", text: pr.error?.message ?? "Không tìm thấy sản phẩm" }); return; }
     const opts = (op.data ?? []) as Option[];
-    setP({ ...(pr.data as Product), images: pr.data.images ?? [], groups: ((gr.data ?? []) as OptionGroup[]).map((g) => ({ ...g, options: opts.filter((o) => o.group_id === g.id) })) });
+    setP({ ...(pr.data as Product), kind: kindOf(pr.data as Product), images: pr.data.images ?? [], groups: ((gr.data ?? []) as OptionGroup[]).map((g) => ({ ...g, options: opts.filter((o) => o.group_id === g.id) })) });
   }, [id, isNew]);
   useEffect(() => { load(); }, [load]);
   const after = async (text: string) => { setMsg({ type: "ok", text }); await revalidatePublic(PUBLIC_PATHS); await load(); };
@@ -45,12 +45,13 @@ export function ProductEditor({ id }: { id: string }) {
   async function saveInfo() {
     if (!p) return;
     if (!p.name.trim()) return setMsg({ type: "err", text: "Cần nhập tên sản phẩm." });
-    const payload = { name: p.name.trim(), slug: slugify(p.slug || p.name) || `san-pham-${Date.now()}`, description: p.description, images: p.images, is_active: p.is_active };
+    const payload = { name: p.name.trim(), kind: p.kind ?? "other", slug: slugify(p.slug || p.name) || `san-pham-${Date.now()}`, description: p.description, images: p.images, is_active: p.is_active };
     setSaving(true);
     const sb = createClient();
     const res = isNew ? await sb.from("products").insert(payload).select("id").single() : await sb.from("products").update(payload).eq("id", p.id).select("id").single();
     setSaving(false);
-    if (res.error) return setMsg({ type: "err", text: res.error.message.includes("slug") ? "Đường dẫn (slug) đã có, đổi tên khác nhé." : res.error.message });
+    if (res.error) return setMsg({ type: "err", text: res.error.message.includes("slug") ? "Đường dẫn (slug) đã có, đổi tên khác nhé."
+      : res.error.message.includes("kind") ? "Chưa có cột “Loại sản phẩm” — cần chạy supabase/migration_product_kind.sql." : res.error.message });
     await revalidatePublic(PUBLIC_PATHS);
     if (isNew) { router.replace(`/admin/goi-san-pham/${res.data.id}`); return; }
     setMsg({ type: "ok", text: "Đã lưu thông tin sản phẩm." });
@@ -77,6 +78,12 @@ export function ProductEditor({ id }: { id: string }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Tên sản phẩm *"><Input value={p.name} onChange={(e) => setP({ ...p, name: e.target.value, slug: isNew ? slugify(e.target.value) : p.slug })} /></Field>
           <Field label="Đường dẫn (slug)" hint="Dùng trong link /dat-don?sp=..."><Input value={p.slug} onChange={(e) => setP({ ...p, slug: slugify(e.target.value) })} /></Field>
+          <Field label="Loại sản phẩm" hint="CD: dùng cho trình chỉnh CD và Gửi file CD (nhóm Loại có preset số trang).">
+            <Select value={p.kind ?? "other"} onChange={(e) => setP({ ...p, kind: e.target.value as ProductKind })}>
+              <option value="cd">CD</option>
+              <option value="other">Khác</option>
+            </Select>
+          </Field>
           <Field label="Mô tả" hint="Xuống dòng để tách đoạn. Link tự bấm được." className="sm:col-span-2">
             <Textarea rows={5} value={p.description} onChange={(e) => setP({ ...p, description: e.target.value })} />
           </Field>
@@ -87,7 +94,7 @@ export function ProductEditor({ id }: { id: string }) {
         </div>
       </Card>
 
-      {!isNew && p.groups.map((g) => <GroupCard key={g.id} group={g} onChanged={after} onError={(t) => setMsg({ type: "err", text: t })} />)}
+      {!isNew && p.groups.map((g) => <GroupCard key={g.id} group={g} isCd={kindOf(p) === "cd"} onChanged={after} onError={(t) => setMsg({ type: "err", text: t })} />)}
       {!isNew && <Button variant="secondary" icon={<Plus size={16} />} onClick={addGroup}>Thêm nhóm tuỳ chọn</Button>}
       <Message msg={msg} />
     </div>
@@ -95,13 +102,14 @@ export function ProductEditor({ id }: { id: string }) {
 }
 
 // ---------- 1 nhóm tuỳ chọn ----------
-function GroupCard({ group, onChanged, onError }: { group: OptionGroup; onChanged: (t: string) => Promise<void>; onError: (t: string) => void }) {
+function GroupCard({ group, isCd, onChanged, onError }: { group: OptionGroup; isCd: boolean; onChanged: (t: string) => Promise<void>; onError: (t: string) => void }) {
   const [g, setG] = useState(group);
   const [editing, setEditing] = useState<Partial<Option> | null>(null);
   const [drag, setDrag] = useState<number | null>(null);
   const [order, setOrder] = useState(group.options);
   useEffect(() => { setG(group); setOrder(group.options); }, [group]);
   const isType = g.select_type === "single";
+  const hasPreset = isType && isCd; // preset thiết kế chỉ cho nhóm Loại của sản phẩm CD
   const dirty = g.name !== group.name || g.select_type !== group.select_type || g.required !== group.required;
 
   async function saveGroup() {
@@ -121,7 +129,7 @@ function GroupCard({ group, onChanged, onError }: { group: OptionGroup; onChange
     const payload = {
       name: o.name.trim(), price: Math.max(0, Math.round(o.price ?? 0)), image_url: o.image_url ?? null, description: o.description ?? "",
       is_active: o.is_active ?? true,
-      front_pages: isType ? o.front_pages ?? 0 : null, back_pages: isType ? o.back_pages ?? 0 : null, has_disc: isType ? o.has_disc !== false : null,
+      front_pages: hasPreset ? o.front_pages ?? 0 : null, back_pages: hasPreset ? o.back_pages ?? 0 : null, has_disc: hasPreset ? o.has_disc !== false : null,
     };
     const sb = createClient();
     const res = o.id ? await sb.from("options").update(payload).eq("id", o.id)
@@ -171,11 +179,11 @@ function GroupCard({ group, onChanged, onError }: { group: OptionGroup; onChange
       </div>
 
       <div className="mt-4">
-        <Table head={["", "Lựa chọn", isType ? "Giá" : "Giá cộng thêm", ...(isType ? ["Preset thiết kế"] : []), "Trạng thái", ""]}
+        <Table head={["", "Lựa chọn", isType ? "Giá" : "Giá cộng thêm", ...(hasPreset ? ["Preset thiết kế"] : []), "Trạng thái", ""]}
           empty={!order.length && <EmptyState>Chưa có lựa chọn.</EmptyState>}>
           {order.map((o, i) => (
             editing?.id === o.id ? (
-              <tr key={o.id} className="!h-auto hover:!bg-transparent"><td colSpan={isType ? 6 : 5} className="!p-4"><OptionForm o={editing} isType={isType} onCancel={() => setEditing(null)} onSave={saveOption} /></td></tr>
+              <tr key={o.id} className="!h-auto hover:!bg-transparent"><td colSpan={hasPreset ? 6 : 5} className="!p-4"><OptionForm o={editing} isType={isType} hasPreset={hasPreset} onCancel={() => setEditing(null)} onSave={saveOption} /></td></tr>
             ) : (
               <tr key={o.id} draggable onDragStart={() => setDrag(i)} onDragEnd={() => setDrag(null)}
                 onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); drop(i); setDrag(null); }}
@@ -191,7 +199,7 @@ function GroupCard({ group, onChanged, onError }: { group: OptionGroup; onChange
                   </div>
                 </td>
                 <td className="tabular-nums">{isType ? "" : "+"}{formatVND(o.price)}</td>
-                {isType && <td className="text-[13px] text-[#71717a]">{presetText(o) || "—"}</td>}
+                {hasPreset && <td className="text-[13px] text-[#71717a]">{presetText(o) || "—"}</td>}
                 <td>{o.is_active ? <Badge tone="green">Đang bán</Badge> : <Badge>Đang ẩn</Badge>}</td>
                 <td className="text-right">
                   <div className="inline-flex gap-1">
@@ -204,7 +212,7 @@ function GroupCard({ group, onChanged, onError }: { group: OptionGroup; onChange
             )
           ))}
         </Table>
-        {editing && !editing.id && <div className="mt-4 rounded-[12px] border border-[#e5e5e7] p-4"><OptionForm o={editing} isType={isType} onCancel={() => setEditing(null)} onSave={saveOption} /></div>}
+        {editing && !editing.id && <div className="mt-4 rounded-[12px] border border-[#e5e5e7] p-4"><OptionForm o={editing} isType={isType} hasPreset={hasPreset} onCancel={() => setEditing(null)} onSave={saveOption} /></div>}
         <Button variant="secondary" size="sm" className="mt-4" icon={<Plus size={16} />}
           onClick={() => setEditing({ name: "", price: 0, image_url: null, is_active: true, front_pages: 0, back_pages: 0, has_disc: true })}>Thêm lựa chọn</Button>
       </div>
@@ -212,7 +220,7 @@ function GroupCard({ group, onChanged, onError }: { group: OptionGroup; onChange
   );
 }
 
-function OptionForm({ o, isType, onCancel, onSave }: { o: Partial<Option>; isType: boolean; onCancel: () => void; onSave: (o: Partial<Option>) => void }) {
+function OptionForm({ o, isType, hasPreset, onCancel, onSave }: { o: Partial<Option>; isType: boolean; hasPreset: boolean; onCancel: () => void; onSave: (o: Partial<Option>) => void }) {
   const [r, setR] = useState(o);
   const [saving, setSaving] = useState(false);
   return (
@@ -221,7 +229,7 @@ function OptionForm({ o, isType, onCancel, onSave }: { o: Partial<Option>; isTyp
       <Field label={isType ? "Giá (đ)" : "Giá cộng thêm (đ)"} hint={formatVND(r.price ?? 0)}>
         <Input type="number" min={0} step={1000} value={r.price ?? 0} onChange={(e) => setR({ ...r, price: Number(e.target.value) })} />
       </Field>
-      {isType && (
+      {hasPreset && (
         <div className="grid gap-3 rounded-[10px] border border-[#e5e5e7] bg-[#fafafa] p-4 sm:col-span-2 sm:grid-cols-3">
           <p className="text-[13px] font-semibold sm:col-span-3">Preset thiết kế (Custom CD, Gửi file)</p>
           <Field label="Số trang Bìa trước">

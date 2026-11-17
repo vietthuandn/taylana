@@ -8,7 +8,12 @@ export type Option = {
 export type OptionGroup = {
   id: string; product_id: string; name: string; select_type: "single" | "multi"; required: boolean; sort_order: number; options: Option[];
 };
+// kind: 'cd' = sản phẩm in CD (trình chỉnh CD, Gửi file CD dùng nhóm "Loại" của sản phẩm này) · 'other' = khác
+export type ProductKind = "cd" | "other" | "photostrip" | "photocard";
+export const CD_SLUG = "in-cd-theo-yeu-cau";
+export const kindOf = (p: Pick<Product, "slug"> & { kind?: ProductKind | null }): ProductKind => p.kind ?? (p.slug === CD_SLUG ? "cd" : "other");
 export type Product = {
+  kind?: ProductKind;
   id: string; slug: string; name: string; description: string; images: string[]; is_active: boolean; sort_order: number; groups: OptionGroup[];
 };
 

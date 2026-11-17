@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { publicClient } from "@/lib/supabase/public";
 import { FEATURE_PHOTOSTRIP, isPhotostripItem } from "@/lib/features";
 import type { Addon, Package } from "@/lib/types";
-import { optionToPackage, typeGroup, type Option, type OptionGroup, type Product } from "./catalog";
+import { kindOf, optionToPackage, typeGroup, type Option, type OptionGroup, type Product } from "./catalog";
 
 // Đọc sản phẩm + nhóm tuỳ chọn + lựa chọn (chỉ cái đang bán). Chưa chạy migration_products.sql
 // thì dựng tạm 1 sản phẩm từ bảng packages / addons cũ để web vẫn chạy.
@@ -33,7 +33,7 @@ async function legacy(sb: SupabaseClient): Promise<Product[]> {
     front_pages: null, back_pages: null, has_disc: null, is_active: true, sort_order: x.sort_order, ...extra,
   });
   return [{
-    id: "legacy", slug: "in-cd-theo-yeu-cau", name: "In CD theo yêu cầu", description: "", is_active: true, sort_order: 0,
+    id: "legacy", kind: "cd", slug: "in-cd-theo-yeu-cau", name: "In CD theo yêu cầu", description: "", is_active: true, sort_order: 0,
     images: [...new Set(pk.flatMap((x) => [...(x.images ?? []), x.image_url ?? ""]).filter(Boolean))],
     groups: [
       { id: "g-type", product_id: "legacy", name: "Loại", select_type: "single", required: true, sort_order: 1,
@@ -43,10 +43,15 @@ async function legacy(sb: SupabaseClient): Promise<Product[]> {
   }];
 }
 
-// Các "Loại" (dạng Package cũ, có preset trang) của sản phẩm chính — cho Custom CD và Gửi file
+// Các "Loại" (dạng Package cũ, có preset trang) — CHỈ của sản phẩm CD (kind = 'cd').
+// Dùng cho trình chỉnh CD và Gửi file CD. Không bao giờ lấy lựa chọn của sản phẩm khác.
 export async function getTypePackages(): Promise<Package[]> {
-  const list = await getCatalog();
-  const main = list[0];
-  const g = typeGroup(main);
-  return g ? g.options.map((o) => optionToPackage(o, main)) : [];
+  const sb = publicClient();
+  if (!sb) return [];
+  const cd = (await getCatalog(sb)).find((p) => kindOf(p) === "cd");
+  const g = typeGroup(cd);
+  if (cd && g && g.options.length) return g.options.map((o) => optionToPackage(o, cd));
+  // chưa có sản phẩm CD (chưa chạy migration) → đọc bảng gói CD cũ
+  const { data } = await sb.from("packages").select("*").eq("is_active", true).order("sort_order");
+  return (data ?? []) as Package[];
 }

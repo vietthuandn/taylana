@@ -1,7 +1,7 @@
 import { getTypePackages } from "@/lib/catalogLoad";
-import { SendFiles } from "./SendFiles";
+import { SendFiles } from "../../gui-file-in/SendFiles";
 
-export const metadata = { title: "Gửi file" };
+export const metadata = { title: "Gửi file CD" };
 
 export default async function SendFilesPage({ searchParams }: { searchParams: Promise<{ don?: string; ma?: string }> }) {
   const { don, ma } = await searchParams; // ?ma= là link cũ

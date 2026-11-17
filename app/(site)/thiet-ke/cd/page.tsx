@@ -2,9 +2,9 @@ import { Suspense } from "react";
 import { publicClient } from "@/lib/supabase/public";
 import type { DesignTemplate } from "@/lib/templates";
 import { getTypePackages } from "@/lib/catalogLoad";
-import { CustomCdLoader } from "./CustomCdLoader";
+import { CustomCdLoader } from "../../custom-cd/CustomCdLoader";
 
-export const metadata = { title: "Thiết Kế" };
+export const metadata = { title: "Thiết kế CD" };
 export const revalidate = 60;
 
 // Trang Thiết Kế (Custom CD). "Loại" (số trang, có mặt đĩa) đọc từ nhóm Loại của sản phẩm "In CD theo yêu cầu".

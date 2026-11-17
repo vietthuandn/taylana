@@ -28,7 +28,7 @@ type Row = {
 };
 
 const cfg = {
-  cd: { table: "design_templates", path: "/custom-cd", folder: "templates" },
+  cd: { table: "design_templates", path: "/thiet-ke/cd", folder: "templates" },
   strip: { table: "photostrip_frames", path: "/photostrip", folder: "photostrip" },
 } as const;
 
