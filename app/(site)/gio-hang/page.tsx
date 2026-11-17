@@ -3,6 +3,7 @@ import type { Addon, Package } from "@/lib/types";
 import type { PublicDiscount } from "@/lib/discount";
 import { FEATURE_PHOTOSTRIP, isPhotostripItem } from "@/lib/features";
 import { getPaymentSettings } from "@/lib/payment/load";
+import { getShippingSettings } from "@/lib/shippingLoad";
 import { paymentReady } from "@/lib/payment/settings";
 import { CartView } from "./CartView";
 
@@ -25,6 +26,6 @@ export default async function CartPage() {
     addons = (a.data ?? []).filter((x: Addon) => FEATURE_PHOTOSTRIP || !isPhotostripItem(x.name));
     discounts = (d.error ? [] : d.data ?? []) as PublicDiscount[];
   }
-  const settings = await getPaymentSettings();
-  return <CartView packages={packages} addons={addons} discounts={discounts} payment={paymentReady(settings) ? settings : null} />;
+  const [settings, shipping] = await Promise.all([getPaymentSettings(), getShippingSettings()]);
+  return <CartView packages={packages} addons={addons} discounts={discounts} shipping={shipping} payment={paymentReady(settings) ? settings : null} />;
 }

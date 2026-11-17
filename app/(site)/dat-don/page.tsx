@@ -4,6 +4,7 @@ import type { Addon, Package } from "@/lib/types";
 import type { PublicDiscount } from "@/lib/discount";
 import { FEATURE_PHOTOSTRIP, isPhotostripItem } from "@/lib/features";
 import { getPaymentSettings } from "@/lib/payment/load";
+import { getShippingSettings } from "@/lib/shippingLoad";
 import { paymentReady } from "@/lib/payment/settings";
 import { OrderForm } from "./OrderForm";
 
@@ -26,10 +27,10 @@ export default async function OrderPage() {
     discounts = (d.error ? [] : d.data ?? []) as PublicDiscount[];
   }
 
-  const settings = await getPaymentSettings();
+  const [settings, shipping] = await Promise.all([getPaymentSettings(), getShippingSettings()]);
   return (
     <Suspense>
-      <OrderForm packages={packages} addons={addons} discounts={discounts} payment={paymentReady(settings) ? settings : null} />
+      <OrderForm packages={packages} addons={addons} discounts={discounts} shipping={shipping} payment={paymentReady(settings) ? settings : null} />
     </Suspense>
   );
 }

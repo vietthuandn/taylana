@@ -151,16 +151,19 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             </ul>
             )}
             <div className="mt-3 space-y-1 border-t border-[#efeff1] pt-3 text-[14px]">
-              {(order.discount_amount ?? 0) > 0 && (
+              {((order.discount_amount ?? 0) > 0 || (order.shipping_fee ?? 0) > 0 || order.shipping_free) && (
                 <>
-                  <p className="flex justify-between text-[#3f3f46]"><span>Tạm tính</span><span>{formatVND(order.subtotal ?? order.total + (order.discount_amount ?? 0))}</span></p>
-                  <p className="flex justify-between gap-2 text-[#ff5fa2]">
+                  <p className="flex justify-between text-[#3f3f46]"><span>Tiền hàng</span><span>{formatVND(order.subtotal ?? order.total + (order.discount_amount ?? 0))}</span></p>
+                  {(order.discount_amount ?? 0) > 0 && <p className="flex justify-between gap-2 text-[#ff5fa2]">
                     <span className="min-w-0">Giảm giá{order.discount_code ? ` · mã ${order.discount_code}` : " · toàn shop"}{order.discount_label && order.discount_label !== order.discount_code ? ` (${order.discount_label})` : ""}</span>
                     <span>−{formatVND(order.discount_amount ?? 0)}</span>
-                  </p>
+                  </p>}
                 </>
               )}
-              <p className="flex justify-between font-semibold"><span>Tổng</span><span>{formatVND(order.total)}</span></p>
+              {(order.shipping_fee ?? 0) > 0 || order.shipping_free ? (
+                <p className="flex justify-between text-[#3f3f46]"><span>Phí vận chuyển</span><span>{order.shipping_free ? "Miễn phí" : formatVND(order.shipping_fee ?? 0)}</span></p>
+              ) : null}
+                            <p className="flex justify-between font-semibold"><span>Tổng</span><span>{formatVND(order.total)}</span></p>
             </div>
           </Card>
         </div>

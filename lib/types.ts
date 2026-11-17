@@ -64,6 +64,8 @@ export type Order = {
   discount_code?: string | null;
   discount_label?: string | null;
   discount_amount?: number;
+  shipping_fee?: number;
+  shipping_free?: boolean;
   province?: string;
   ward?: string;
   street?: string;

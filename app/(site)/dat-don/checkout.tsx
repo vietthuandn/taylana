@@ -1,10 +1,11 @@
 "use client";
 
-/* Phần dùng chung giữa trang Đặt đơn và Giỏ hàng:
-   tóm tắt, mã giảm giá, bước 2 (thông tin nhận hàng), bước 3 (thanh toán / cảm ơn).
-   Giá và giảm giá chỉ là XEM TRƯỚC — server tính lại trong create_order. */
+/* Phần dùng chung giữa trang Đặt đơn và Giỏ hàng.
+   Quy tắc: khoảng cách chỉ 4/8/12/16/24/32px · nhãn nhóm 13px/600 nằm TRÊN nội dung, cách 8px · nhóm cách nhau 24px
+   · chip & ô số lượng cao 36px · nút chính 48px · bo: chip 8, card 12, nút 10 · viền 1px #E5E5E7 · tiền căn phải, tabular-nums.
+   Giá, giảm giá, phí ship chỉ là XEM TRƯỚC — server tính lại trong create_order. */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Brush, Check, Copy, ListOrdered, Minus, Plus, Tag, Upload, X } from "lucide-react";
+import { Brush, Check, Copy, ListOrdered, Minus, Plus, ShoppingCart, Tag, Upload, X } from "lucide-react";
 import type { Addon, Package } from "@/lib/types";
 import { formatVND } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
@@ -12,15 +13,19 @@ import { hasSupabase } from "@/lib/supabase/env";
 import { normalizePhone, PHONE_ERROR } from "@/lib/phone";
 import { saveOrderCode } from "@/lib/cart";
 import { bestPublic, subtotalOf, toCode, type CartItem, type PublicDiscount } from "@/lib/discount";
+import { shippingFor, type ShippingSettings } from "@/lib/shipping";
 import type { PaymentSettings } from "@/lib/payment/settings";
 import { PaymentView } from "../thanh-toan/[code]/PaymentView";
 import { Button, Field, Input, Textarea } from "@/components/ui/kit";
-import { btnClass, cx, inputClass } from "@/components/ui/styles";
+import { cx } from "@/components/ui/styles";
 
 export type Step = 1 | 2 | 3;
 export type Line = { key: string; pkg: Package; qty: number; addons: { addon: Addon; qty: number }[] };
 export type Form = { name: string; phone: string; province: string; ward: string; street: string; note: string };
 export const emptyForm: Form = { name: "", phone: "", province: "", ward: "", street: "", note: "" };
+
+// Header cao 57px (56 + viền) · thanh bước 56px → cột ảnh dính ở 57 + 56 + 24 = 137px
+export const STICKY_TOP = "top-[137px]";
 
 export const lineTotal = (l: Line) => l.pkg.price * l.qty + l.addons.reduce((t, a) => t + a.addon.price * a.qty, 0);
 const flat = (lines: Line[]): CartItem[] => lines.flatMap((l) => [
@@ -28,59 +33,91 @@ const flat = (lines: Line[]): CartItem[] => lines.flatMap((l) => [
   ...l.addons.filter((a) => a.qty > 0).map((a) => ({ type: "addon" as const, id: a.addon.id, name: a.addon.name, price: a.addon.price, qty: a.qty })),
 ]);
 const toRpcLines = (lines: Line[]) => lines.map((l) => ({ package_id: l.pkg.id, qty: l.qty, addons: l.addons.filter((a) => a.qty > 0).map((a) => ({ id: a.addon.id, qty: a.qty })) }));
+const money = "tabular-nums text-right";
 
-// ---------- Giá có gạch ----------
-export function Price({ price, now, className = "" }: { price: number; now: number; className?: string }) {
-  if (now >= price) return <span className={cx("font-semibold text-[#18181b]", className)}>{formatVND(price)}</span>;
-  return (
-    <span className={cx("inline-flex flex-wrap items-baseline gap-x-1.5", className)}>
-      <span className="text-[12px] font-normal text-[#a1a1aa] line-through">{formatVND(price)}</span>
-      <span className="font-semibold text-[#ff5fa2]">{formatVND(now)}</span>
-    </span>
-  );
-}
+// ---------- Khung trang 1200px ----------
+export const Wrap = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={cx("mx-auto w-full max-w-[1200px] px-4 lg:px-6", className)}>{children}</div>
+);
+export const Label = ({ children }: { children: React.ReactNode }) => (
+  <p className="mb-2 text-[13px] font-semibold text-[#18181b]">{children}</p>
+);
 
-export function Qty({ value, onChange, min = 0 }: { value: number; onChange: (v: number) => void; min?: number }) {
-  const b = "grid h-full w-8 place-items-center text-[#3f3f46] hover:bg-[#f4f4f5] disabled:opacity-40";
-  return (
-    <span className="inline-flex h-8 shrink-0 items-center rounded-[6px] border border-[#e5e5e7] bg-white" onClick={(e) => e.stopPropagation()}>
-      <button type="button" className={b} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))} aria-label="Giảm"><Minus size={14} /></button>
-      <span className="w-9 border-x border-[#e5e5e7] text-center text-[13px] font-medium tabular-nums leading-8">{value}</span>
-      <button type="button" className={b} disabled={value >= 1000} onClick={() => onChange(value + 1)} aria-label="Tăng"><Plus size={14} /></button>
-    </span>
-  );
-}
-
-export function Progress({ step, onGo }: { step: Step; onGo: (s: Step) => void }) {
+// ---------- Thanh 3 bước: dính ngay dưới header, cao 56px ----------
+export function Stepper({ step, onGo }: { step: Step; onGo: (s: Step) => void }) {
   const steps = ["Chọn sản phẩm", "Thông tin nhận hàng", "Thanh toán"];
   return (
-    <ol className="flex items-center gap-2 overflow-x-auto text-[13px] sm:gap-3">
-      {steps.map((t, i) => {
-        const n = (i + 1) as Step;
-        const done = n < step;
-        const can = done && step !== 3;
-        return (
-          <li key={t} className="flex shrink-0 items-center gap-2 sm:gap-3">
-            {i > 0 && <span className={cx("h-px w-5 sm:w-10", n <= step ? "bg-[#ff5fa2]" : "bg-[#e5e5e7]")} />}
-            <button type="button" disabled={!can} onClick={() => can && onGo(n)} className={cx("flex items-center gap-2", can && "hover:opacity-80")}>
-              <span className={cx("grid h-6 w-6 place-items-center rounded-full text-[12px] font-semibold",
-                n === step ? "bg-[#ff5fa2] text-white" : done ? "bg-[#fff0f6] text-[#ff5fa2]" : "bg-[#f4f4f5] text-[#a1a1aa]")}>
-                {done ? <Check size={13} strokeWidth={3} /> : n}
-              </span>
-              <span className={cx(n === step ? "font-semibold text-[#18181b]" : done ? "text-[#3f3f46]" : "text-[#a1a1aa]", n !== step && "hidden sm:inline")}>{n}. {t}</span>
-            </button>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="sticky top-[57px] z-20 border-b border-[#e5e5e7] bg-white">
+      <Wrap className="flex h-14 items-center justify-center">
+        <ol className="flex items-center gap-2 overflow-x-auto">
+          {steps.map((t, i) => {
+            const n = (i + 1) as Step;
+            const done = n < step;
+            const cur = n === step;
+            const can = done && step !== 3;
+            return (
+              <li key={t} className="flex shrink-0 items-center gap-2">
+                {i > 0 && <span className={cx("h-px w-4 sm:w-8", n <= step ? "bg-[#ff5fa2]" : "bg-[#e5e5e7]")} />}
+                <button type="button" disabled={!can} onClick={() => can && onGo(n)} className={cx("flex items-center gap-2", can && "hover:opacity-80")}>
+                  <span className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-semibold",
+                    cur ? "bg-[#ff5fa2] text-white" : done ? "bg-[#fff0f6] text-[#ff5fa2]" : "border border-[#d4d4d8] text-[#a1a1aa]")}>
+                    {done ? <Check size={12} strokeWidth={3} /> : n}
+                  </span>
+                  <span className={cx("text-[14px]", cur ? "font-semibold text-[#18181b]" : done ? "text-[#3f3f46]" : "text-[#a1a1aa]", !cur && "hidden sm:inline")}>{t}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </Wrap>
+    </div>
   );
 }
 
-// ---------- Giảm giá + tóm tắt ----------
+// ---------- Chip chọn (cao 36px, có tam giác dấu tích khi chọn) ----------
+export function Chip({ on, onClick, children, role = "radio" }: { on: boolean; onClick: () => void; children: React.ReactNode; role?: "radio" | "checkbox" }) {
+  return (
+    <button type="button" role={role} aria-checked={on} onClick={onClick}
+      className={cx("relative inline-flex h-9 shrink-0 items-center overflow-hidden whitespace-nowrap rounded-[8px] border px-[14px] text-[14px] leading-none transition-colors",
+        on ? "border-[#ff5fa2] bg-[#fff5f9] text-[#ff5fa2] shadow-[inset_0_0_0_0.5px_#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#18181b] hover:border-[#a1a1aa]")}>
+      {children}
+      {on && (
+        <span className="pointer-events-none absolute bottom-0 right-0 h-[14px] w-[14px] bg-[#ff5fa2] [clip-path:polygon(100%_0,100%_100%,0_100%)]">
+          <Check size={7} strokeWidth={4} className="absolute bottom-[1px] right-[1px] text-white" />
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ---------- Bộ số lượng 120 × 36, 3 phần bằng nhau, 1 viền ngoài ----------
+export function Qty({ value, onChange, min = 1 }: { value: number; onChange: (v: number) => void; min?: number }) {
+  const b = "grid h-full place-items-center text-[#3f3f46] hover:bg-[#f4f4f5] disabled:opacity-40 disabled:hover:bg-transparent";
+  return (
+    <span className="grid h-9 w-[120px] shrink-0 grid-cols-3 overflow-hidden rounded-[8px] border border-[#e5e5e7] bg-white" onClick={(e) => e.stopPropagation()}>
+      <button type="button" className={b} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))} aria-label="Giảm"><Minus size={16} /></button>
+      <span className="grid place-items-center text-[14px] font-medium tabular-nums text-[#18181b]">{value}</span>
+      <button type="button" className={b} disabled={value >= 1000} onClick={() => onChange(Math.min(1000, value + 1))} aria-label="Tăng"><Plus size={16} /></button>
+    </span>
+  );
+}
+
+// ---------- Giá có gạch (dòng giỏ hàng) ----------
+export function Price({ price, now }: { price: number; now: number }) {
+  if (now >= price) return <span className="tabular-nums">{formatVND(price)}</span>;
+  return (
+    <span className="inline-flex items-baseline gap-1 tabular-nums">
+      <span className="text-[13px] text-[#a1a1aa] line-through">{formatVND(price)}</span>
+      <span className="text-[#ff5fa2]">{formatVND(now)}</span>
+    </span>
+  );
+}
+
+// ---------- Giảm giá + phí ship + Tạm tính ----------
 type Private = { code: string; amount: number; label: string };
 
-export function useCheckout({ lines, discounts, phone, initialCode = "", initialAutoOff = false }: {
-  lines: Line[]; discounts: PublicDiscount[]; phone: string; initialCode?: string; initialAutoOff?: boolean;
+export function useCheckout({ lines, discounts, shipping, phone, initialCode = "", initialAutoOff = false }: {
+  lines: Line[]; discounts: PublicDiscount[]; shipping: ShippingSettings; phone: string; initialCode?: string; initialAutoOff?: boolean;
 }) {
   const [autoOff, setAutoOff] = useState(initialAutoOff);
   const [codeInput, setCodeInput] = useState("");
@@ -97,7 +134,10 @@ export function useCheckout({ lines, discounts, phone, initialCode = "", initial
   const usePriv = !!priv && priv.amount > (pub?.amount ?? 0);
   const applied = usePriv ? { label: priv!.label || priv!.code, amount: priv!.amount, code: priv!.code } : pub ? { label: pub.d.label, amount: pub.amount, code: "" } : null;
   const discount = applied?.amount ?? 0;
-  const total = Math.max(0, subtotal - discount);
+  const ship = shippingFor(shipping, subtotal);
+  const total = Math.max(0, subtotal - discount) + (lines.length ? ship.fee : 0);
+  const savings = discount + (lines.length && ship.free ? ship.base : 0);
+  const sets = lines.reduce((t, l) => t + l.qty, 0);
   const linesKey = JSON.stringify(toRpcLines(lines));
 
   const check = useCallback(async (raw: string, silent = false) => {
@@ -122,7 +162,6 @@ export function useCheckout({ lines, discounts, phone, initialCode = "", initial
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [linesKey, phone]);
 
-  // giỏ đổi → kiểm tra lại mã đang dùng / mã đang chờ đủ điều kiện
   const pendingCode = priv?.code ?? (codeHint ? toCode(codeInput) : "");
   useEffect(() => {
     if (!pendingCode) return;
@@ -139,59 +178,114 @@ export function useCheckout({ lines, discounts, phone, initialCode = "", initial
   const replacedNote = usePriv && pub ? `Mã ${priv!.code} giảm nhiều hơn nên đã thay cho “${pub.d.label}”.`
     : priv && pub && !usePriv ? `“${pub.d.label}” đang giảm nhiều hơn mã ${priv.code} nên vẫn được giữ.` : "";
 
-  const summary = (compact = false) => (
-    <section className="rounded-[12px] border border-[#e5e5e7] bg-white p-4 text-[14px]">
-      <p className="mb-3 text-[15px] font-semibold text-[#18181b]">{compact ? "Đơn hàng của bạn" : "Tóm tắt"}</p>
-      <div className="space-y-1.5 text-[#3f3f46]">
-        {items.map((it, i) => (
-          <p key={`${it.id}-${i}`} className="flex justify-between gap-3"><span className="min-w-0 truncate">{it.type === "addon" ? "+ " : ""}{it.name} × {it.qty}</span><span className="shrink-0">{formatVND(it.price * it.qty)}</span></p>
-        ))}
-      </div>
-      <div className="mt-3 space-y-1.5 border-t border-[#efeff1] pt-3">
-        <p className="flex justify-between text-[#3f3f46]"><span>Tạm tính</span><span>{formatVND(subtotal)}</span></p>
-        {applied && (
-          <p className="flex justify-between gap-3 text-[#ff5fa2]"><span className="min-w-0 truncate">Giảm giá · {applied.code || applied.label}</span><span className="shrink-0">−{formatVND(discount)}</span></p>
-        )}
-        <p className="flex items-baseline justify-between pt-1">
-          <span className="font-medium text-[#18181b]">Tổng thanh toán</span>
-          <span className="flex items-baseline gap-2">
-            {discount > 0 && <span className="text-[13px] text-[#a1a1aa] line-through">{formatVND(subtotal)}</span>}
-            <span className="text-[20px] font-bold text-[#18181b]">{formatVND(total)}</span>
-          </span>
-        </p>
-      </div>
-      {!compact && <p className="mt-1 text-[12px] text-[#71717a]">Chưa gồm phí ship — tiệm sẽ báo khi xác nhận đơn.</p>}
-    </section>
-  );
-
+  // Ô mã giảm giá (đặt ngay trên card Tạm tính)
   const discountBox = (
-    <section className="rounded-[12px] border border-[#e5e5e7] bg-white p-4">
-      <p className="mb-2 text-[14px] font-semibold text-[#18181b]">Mã giảm giá</p>
+    <section>
+      <Label>Mã giảm giá</Label>
+      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); check(codeInput); }}>
+        <input className="h-10 min-w-0 flex-1 rounded-[8px] border border-[#e5e5e7] bg-white px-3 font-mono text-[14px] uppercase text-[#18181b] placeholder:font-sans placeholder:normal-case placeholder:text-[#a1a1aa] focus:border-[#ff5fa2] focus:outline-none focus:ring-[3px] focus:ring-[#ff5fa2]/15"
+          placeholder="Nhập mã giảm giá" value={codeInput} aria-label="Mã giảm giá"
+          onChange={(e) => { setCodeInput(toCode(e.target.value)); setCodeErr(""); setCodeHint(""); }} />
+        <button className="h-10 shrink-0 rounded-[10px] border border-[#e5e5e7] bg-white px-4 text-[14px] font-medium text-[#18181b] hover:bg-[#f4f4f5] disabled:opacity-50" disabled={!codeInput || checking}>
+          {checking ? "Đang kiểm tra..." : "Áp dụng"}
+        </button>
+      </form>
       {applied && (
-        <div className="mb-2 flex items-center gap-2 rounded-[8px] border border-[#ffd1e5] bg-[#fff0f6] px-3 py-2 text-[13px]">
-          <Tag size={14} className="shrink-0 text-[#ff5fa2]" />
-          <span className="min-w-0 flex-1 text-[#18181b]">Đã áp dụng: <b className="font-semibold">{applied.label}</b> <span className="text-[#ff5fa2]">−{formatVND(discount)}</span></span>
-          <button type="button" aria-label="Gỡ giảm giá" className="grid h-6 w-6 place-items-center rounded-[6px] text-[#71717a] hover:bg-white"
-            onClick={() => { if (usePriv) setPriv(null); else setAutoOff(true); }}><X size={14} /></button>
+        <div className="mt-2 flex items-center gap-2 rounded-[8px] border border-[#ffd1e5] bg-[#fff5f9] px-3 py-2 text-[13px]">
+          <Tag size={16} className="shrink-0 text-[#ff5fa2]" />
+          <span className="min-w-0 flex-1 text-[#18181b]">Đã áp dụng: <b className="font-semibold">{applied.label}</b> <span className="tabular-nums text-[#ff5fa2]">−{formatVND(discount)}</span></span>
+          <button type="button" aria-label="Gỡ giảm giá" className="grid h-6 w-6 place-items-center rounded-[4px] text-[#71717a] hover:bg-white"
+            onClick={() => { if (usePriv) setPriv(null); else setAutoOff(true); }}><X size={16} /></button>
         </div>
       )}
-      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); check(codeInput); }}>
-        <input className={cx(inputClass, "font-mono uppercase")} placeholder="Nhập mã giảm giá" value={codeInput}
-          onChange={(e) => { setCodeInput(toCode(e.target.value)); setCodeErr(""); setCodeHint(""); }} aria-label="Mã giảm giá" />
-        <button className={btnClass("secondary")} disabled={!codeInput || checking}>{checking ? "Đang kiểm tra..." : "Áp dụng"}</button>
-      </form>
-      {codeErr && <p className="mt-1.5 text-[12px] text-[#dc2626]">{codeErr}</p>}
-      {codeHint && <p className="mt-1.5 text-[12px] text-[#b45309]">{codeHint}</p>}
-      {!applied && pubHint && <p className="mt-1.5 text-[12px] text-[#b45309]">Mua thêm {formatVND(pubHint.need)} để được giảm {formatVND(pubHint.amount)}</p>}
-      {replacedNote && <p className="mt-1.5 text-[12px] text-[#71717a]">{replacedNote}</p>}
+      {codeErr && <p className="mt-2 text-[13px] text-[#dc2626]">{codeErr}</p>}
+      {codeHint && <p className="mt-2 text-[13px] text-[#b45309]">{codeHint}</p>}
+      {!applied && pubHint && <p className="mt-2 text-[13px] text-[#b45309]">Mua thêm {formatVND(pubHint.need)} để được giảm {formatVND(pubHint.amount)}</p>}
+      {replacedNote && <p className="mt-2 text-[13px] text-[#71717a]">{replacedNote}</p>}
       {autoOff && discounts.length > 0 && !usePriv && (
-        <button type="button" className="mt-1.5 text-[12px] font-medium text-[#ff5fa2] hover:underline" onClick={() => setAutoOff(false)}>Dùng lại ưu đãi toàn shop</button>
+        <button type="button" className="mt-2 text-[13px] font-medium text-[#ff5fa2] hover:underline" onClick={() => setAutoOff(false)}>Dùng lại ưu đãi toàn shop</button>
       )}
     </section>
   );
 
-  return { list, subtotal, discount, total, summary, discountBox, privCode: usePriv ? priv!.code : "", savedCode: priv?.code ?? "", autoOff };
+  // Card Tạm tính (không có dòng tổng — tổng nằm ở thanh hành động)
+  const row = "flex h-7 items-center justify-between gap-3";
+  const summary = (
+    <section>
+      <Label>Tạm tính</Label>
+      <div className="rounded-[12px] border border-[#e5e5e7] bg-white p-4 text-[14px] text-[#18181b]">
+        {lines.length ? lines.map((l) => (
+          <div key={l.key}>
+            <p className={row}><span className="min-w-0 truncate">{l.pkg.name} × {l.qty}</span><span className={money}>{formatVND(l.pkg.price * l.qty)}</span></p>
+            {l.addons.filter((a) => a.qty > 0).map((a) => (
+              <p key={a.addon.id} className={cx(row, "text-[13px] text-[#71717a]")}><span className="min-w-0 truncate">{a.addon.name} × {a.qty}</span><span className={money}>{formatVND(a.addon.price * a.qty)}</span></p>
+            ))}
+          </div>
+        )) : <p className={cx(row, "text-[13px] text-[#71717a]")}>Chưa chọn sản phẩm</p>}
+        <div className="my-2 h-px bg-[#efeff1]" />
+        <p className={row}><span>Tiền hàng</span><span className={money}>{formatVND(subtotal)}</span></p>
+        {lines.length > 0 && (
+          <>
+            <p className={row}>
+              <span>Phí vận chuyển</span>
+              {ship.free
+                ? <span className={cx(money, "flex items-baseline gap-2")}>{ship.base > 0 && <span className="text-[13px] text-[#a1a1aa] line-through">{formatVND(ship.base)}</span>}<span className="text-[#ff5fa2]">Miễn phí</span></span>
+                : <span className={money}>{formatVND(ship.fee)}</span>}
+            </p>
+            {ship.need > 0 && ship.fee > 0 && (
+              <div className="pb-2">
+                <p className="text-[13px] text-[#71717a]">Mua thêm <span className="tabular-nums">{formatVND(ship.need)}</span> để được miễn phí vận chuyển</p>
+                <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full rounded-full bg-[#ff5fa2]" style={{ width: `${Math.round(ship.progress * 100)}%` }} /></div>
+              </div>
+            )}
+            {shipping.note && <p className="pb-1 text-[13px] text-[#71717a]">{shipping.note}</p>}
+          </>
+        )}
+        {applied && (
+          <p className={cx(row, "text-[#ff5fa2]")}><span className="min-w-0 truncate">Giảm giá · {applied.code || applied.label}</span><span className={money}>−{formatVND(discount)}</span></p>
+        )}
+      </div>
+    </section>
+  );
+
+  return { list, subtotal, discount, total, savings, sets, summary, discountBox, privCode: usePriv ? priv!.code : "", savedCode: priv?.code ?? "", autoOff };
 }
+
+// ---------- Thanh hành động: máy tính dính cuối cột phải, điện thoại cố định đáy ----------
+export function ActionBar({ sets, total, savings, label, onPrimary, disabled, onCart, bump = 0 }: {
+  sets: number; total: number; savings: number; label: string; onPrimary: () => void; disabled?: boolean;
+  onCart?: () => void; bump?: number;
+}) {
+  const inner = (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-[13px] text-[#71717a]">Tổng cộng ({sets} sản phẩm)</p>
+        <p className="text-[22px] font-bold leading-tight tabular-nums text-[#ff5fa2]">{formatVND(total)}</p>
+        {savings > 0 && <p className="text-[12px] tabular-nums text-[#71717a]">Tiết kiệm: {formatVND(savings)}</p>}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button type="button" onClick={onPrimary} disabled={disabled}
+          className="h-12 min-w-[160px] rounded-[10px] bg-[#ff5fa2] px-4 text-[16px] font-semibold text-white transition-colors hover:bg-[#f0468f] disabled:cursor-not-allowed disabled:opacity-50">
+          {label}
+        </button>
+        {onCart && (
+          <button key={bump} type="button" onClick={onCart} title="Thêm vào giỏ hàng" aria-label="Thêm vào giỏ hàng"
+            className={cx("grid h-12 w-12 place-items-center rounded-[10px] border border-[#e5e5e7] bg-white text-[#18181b] hover:bg-[#f4f4f5]", bump > 0 && "animate-[cartBump_.45s_ease]")}>
+            <ShoppingCart size={20} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+  return (
+    <>
+      <div className="sticky bottom-0 z-10 hidden border-t border-[#e5e5e7] bg-white py-4 lg:block">{inner}</div>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#e5e5e7] bg-white px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 lg:hidden">{inner}</div>
+    </>
+  );
+}
+// Chừa chỗ cho thanh hành động cố định trên điện thoại
+export const MOBILE_PAD = "pb-[calc(112px+env(safe-area-inset-bottom))] lg:pb-8";
 
 // ---------- Gửi đơn ----------
 export async function submitOrder(lines: Line[], form: Form, opts: { code: string; autoOff: boolean }) {
@@ -223,16 +317,16 @@ export function useAutofill(setForm: (f: (x: Form) => Form) => void) {
 }
 
 // ---------- Bước 2: thông tin nhận hàng ----------
-export function InfoStep({ form, setForm, summary, error, sending, onBack, onSubmit, bottomBar }: {
-  form: Form; setForm: (f: Form) => void; summary: React.ReactNode; error: string; sending: boolean;
-  onBack: () => void; onSubmit: () => void; bottomBar: (btn: React.ReactNode) => React.ReactNode;
+export function InfoStep({ form, setForm, co, error, sending, onBack, onSubmit }: {
+  form: Form; setForm: (f: Form) => void; co: ReturnType<typeof useCheckout>; error: string; sending: boolean;
+  onBack: () => void; onSubmit: () => void;
 }) {
-  const btn = (cls: string) => <button type="button" onClick={onSubmit} disabled={sending} className={cx(btnClass("primary"), cls)}>{sending ? "Đang gửi..." : "Đặt hàng"}</button>;
   return (
-    <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_380px] md:gap-10">
-      <section className="min-w-0">
-        <p className="mb-2.5 text-[15px] font-semibold text-[#18181b]">Thông tin nhận hàng</p>
-        <div className="grid gap-4 rounded-[12px] border border-[#e5e5e7] bg-white p-4 sm:grid-cols-2 sm:p-5">
+    <div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
+      <section className="min-w-0 lg:col-span-7">
+        <button type="button" onClick={onBack} className="mb-4 text-[14px] text-[#71717a] hover:text-[#18181b]">← Quay lại</button>
+        <Label>Thông tin nhận hàng</Label>
+        <div className="grid gap-4 rounded-[12px] border border-[#e5e5e7] bg-white p-4 sm:grid-cols-2">
           <Field label="Tên của bạn *"><Input required maxLength={100} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
           <Field label="Số điện thoại / Zalo *"><Input required type="tel" inputMode="tel" maxLength={20} autoComplete="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
           <Field label="Tỉnh / Thành phố"><Input maxLength={100} autoComplete="address-level1" value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} placeholder="Ví dụ: TP. Hồ Chí Minh" /></Field>
@@ -243,36 +337,18 @@ export function InfoStep({ form, setForm, summary, error, sending, onBack, onSub
           </Field>
         </div>
       </section>
-      <aside className="space-y-4 md:sticky md:top-24 md:self-start">
-        {summary}
+      <aside className="flex flex-col gap-6 lg:col-span-5">
+        {co.summary}
         {error && <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</p>}
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={onBack} className="h-12 shrink-0">← Quay lại</Button>
-          {btn("hidden h-12 flex-1 text-[16px] font-semibold md:inline-flex")}
-        </div>
+        <ActionBar sets={co.sets} total={co.total} savings={co.savings} label={sending ? "Đang gửi..." : "Đặt hàng"} onPrimary={onSubmit} disabled={sending} />
       </aside>
-      {bottomBar(btn("h-11 flex-1 text-[15px] font-semibold"))}
-    </div>
-  );
-}
-
-export function BottomBar({ total, subtotal, children }: { total: number; subtotal: number; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#e5e5e7] bg-white/95 px-4 py-3 backdrop-blur md:hidden">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0 leading-tight">
-          <span className="block text-[12px] text-[#71717a]">Tổng tiền{subtotal > total && <span className="ml-1 line-through">{formatVND(subtotal)}</span>}</span>
-          <span className="block text-[18px] font-bold text-[#18181b]">{formatVND(total)}</span>
-        </div>
-        {children}
-      </div>
     </div>
   );
 }
 
 // ---------- Bước 3 ----------
 export function DoneStep({ result, payment }: { result: { code: string; total: number }; payment: PaymentSettings | null }) {
-  if (payment) return <div className="-mx-4 -mt-8 sm:-mt-12"><PaymentView code={result.code} settings={payment} /></div>;
+  if (payment) return <div className="-mx-4 lg:-mx-6"><PaymentView code={result.code} settings={payment} /></div>;
   return <Success result={result} />;
 }
 
@@ -280,21 +356,21 @@ function Success({ result }: { result: { code: string; total: number } }) {
   const [copied, setCopied] = useState(false);
   return (
     <section className="mx-auto w-full max-w-lg py-4">
-      <div className="rounded-[16px] border border-[#e5e5e7] bg-white p-6 text-center sm:p-8">
+      <div className="rounded-[12px] border border-[#e5e5e7] bg-white p-6 text-center sm:p-8">
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#fff0f6] text-[#ff5fa2]"><Check size={24} /></span>
         <h1 className="mt-4 font-sans text-[22px] font-bold normal-case tracking-[-0.02em] text-[#18181b] sm:text-[28px]">Cảm ơn bạn đã đặt hàng!</h1>
-        <p className="mt-1 text-[15px] text-[#71717a]">Mã đơn của bạn</p>
+        <p className="mt-1 text-[14px] text-[#71717a]">Mã đơn của bạn</p>
         <div className="mt-2 inline-flex items-center gap-2 rounded-[10px] border border-[#e5e5e7] bg-[#fafafa] py-2 pl-4 pr-2">
           <span className="text-[22px] font-semibold tracking-wide text-[#18181b]">{result.code}</span>
-          <button type="button" className="grid h-8 w-8 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5]" aria-label="Sao chép mã đơn"
+          <button type="button" className="grid h-8 w-8 place-items-center rounded-[8px] text-[#71717a] hover:bg-[#f4f4f5]" aria-label="Sao chép mã đơn"
             onClick={() => { navigator.clipboard?.writeText(result.code); setCopied(true); }}>
             {copied ? <Check size={16} className="text-[#16a34a]" /> : <Copy size={16} />}
           </button>
         </div>
-        <p className="mt-4 text-[14px] text-[#3f3f46]">Tổng thanh toán: <b>{formatVND(result.total)}</b></p>
-        <p className="mx-auto mt-2 max-w-sm text-[13px] text-[#71717a]">Lưu lại mã đơn nhé. Tiệm sẽ liên hệ qua Zalo/SĐT để xác nhận và báo phí ship.</p>
-        <div className="mt-6 border-t border-[#efeff1] pt-5">
-          <p className="mb-3 text-[13px] font-medium text-[#18181b]">Bước tiếp theo</p>
+        <p className="mt-4 text-[14px] text-[#3f3f46]">Tổng thanh toán: <b className="tabular-nums">{formatVND(result.total)}</b></p>
+        <p className="mx-auto mt-2 max-w-sm text-[13px] text-[#71717a]">Lưu lại mã đơn nhé. Tiệm sẽ liên hệ qua Zalo/SĐT để xác nhận đơn.</p>
+        <div className="mt-6 border-t border-[#efeff1] pt-6">
+          <p className="mb-3 text-[13px] font-semibold text-[#18181b]">Bước tiếp theo</p>
           <div className="grid gap-2 sm:grid-cols-2">
             <Button href={`/gui-file-in?don=${encodeURIComponent(result.code)}`} icon={<Upload size={16} />}>Gửi file in</Button>
             <Button href="/custom-cd" variant="secondary" icon={<Brush size={16} />}>Tự thiết kế CD</Button>
