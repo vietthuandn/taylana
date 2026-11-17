@@ -59,6 +59,14 @@ export type Order = {
   payment_confirmed_at?: string | null;
   payment_confirmed_by?: string | null;
   payment_note?: string;
+  // giảm giá + địa chỉ chi tiết (có sau migration_discounts.sql)
+  subtotal?: number | null;
+  discount_code?: string | null;
+  discount_label?: string | null;
+  discount_amount?: number;
+  province?: string;
+  ward?: string;
+  street?: string;
   payment_log?: { at: string; by: string; action: string; amount?: number; note?: string }[];
 };
 

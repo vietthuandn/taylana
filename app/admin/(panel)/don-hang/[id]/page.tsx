@@ -94,7 +94,12 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
               <span className="text-[#d4d4d8]"> · </span>
               <a className="text-[#ff5fa2] hover:underline" href={`https://zalo.me/${order.phone.replace(/^\+84/, "0")}`} target="_blank" rel="noreferrer">Zalo</a>
             </p>
-            {order.address && <p className="mt-2 whitespace-pre-line text-[13px] text-[#52525b]">{order.address}</p>}
+            {order.street || order.ward || order.province ? (
+              <div className="mt-2 text-[13px] text-[#52525b]">
+                {order.street && <p>{order.street}</p>}
+                {(order.ward || order.province) && <p>{[order.ward, order.province].filter(Boolean).join(", ")}</p>}
+              </div>
+            ) : order.address && <p className="mt-2 whitespace-pre-line text-[13px] text-[#52525b]">{order.address}</p>}
             {order.note && (
               <div className="mt-4 border-t border-[#efeff1] pt-3">
                 <p className="text-[12px] font-medium text-[#71717a]">Ghi chú của khách</p>
@@ -112,9 +117,18 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
               ))}
               {!order.items.length && <li className="text-[#71717a]">(không có)</li>}
             </ul>
-            <p className="mt-3 flex justify-between border-t border-[#efeff1] pt-3 font-semibold">
-              <span>Tạm tính</span><span>{formatVND(order.total)}</span>
-            </p>
+            <div className="mt-3 space-y-1 border-t border-[#efeff1] pt-3 text-[14px]">
+              {(order.discount_amount ?? 0) > 0 && (
+                <>
+                  <p className="flex justify-between text-[#3f3f46]"><span>Tạm tính</span><span>{formatVND(order.subtotal ?? order.total + (order.discount_amount ?? 0))}</span></p>
+                  <p className="flex justify-between gap-2 text-[#ff5fa2]">
+                    <span className="min-w-0">Giảm giá{order.discount_code ? ` · mã ${order.discount_code}` : " · toàn shop"}{order.discount_label && order.discount_label !== order.discount_code ? ` (${order.discount_label})` : ""}</span>
+                    <span>−{formatVND(order.discount_amount ?? 0)}</span>
+                  </p>
+                </>
+              )}
+              <p className="flex justify-between font-semibold"><span>Tổng</span><span>{formatVND(order.total)}</span></p>
+            </div>
           </Card>
         </div>
       </div>

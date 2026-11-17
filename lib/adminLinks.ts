@@ -9,6 +9,7 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
   { title: "Sản phẩm", links: [
     { href: "/admin/goi-san-pham", label: "Gói & phụ kiện", icon: "package", group: "Sản phẩm" },
     { href: "/admin/san-pham", label: "Sản phẩm & đánh giá", icon: "star", group: "Sản phẩm" },
+    { href: "/admin/giam-gia", label: "Giảm giá", icon: "tag", group: "Sản phẩm" },
   ] },
   { title: "Nội dung", links: [
     { href: "/admin/trang-chu", label: "Trang chủ", icon: "home", group: "Nội dung" },

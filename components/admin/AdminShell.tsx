@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen, ChevronsUpDown, CreditCard, Disc3, ExternalLink, FileStack, Home, LayoutDashboard, LogOut,
-  Menu, Package, Phone, ShoppingBag, Star, Trash2, X, type LucideIcon,
+  Menu, Package, Phone, ShoppingBag, Star, Tag, Trash2, X, type LucideIcon,
 } from "lucide-react";
 import { adminGroups, activeAdminLink, isWorkspacePath } from "@/lib/adminLinks";
 import { createClient } from "@/lib/supabase/client";
@@ -14,7 +14,7 @@ import { AdminOverlays, btnClass, cx } from "./ui";
 
 const icons: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard, orders: ShoppingBag, package: Package, star: Star, home: Home,
-  book: BookOpen, phone: Phone, disc: Disc3, strip: FileStack, trash: Trash2, card: CreditCard,
+  book: BookOpen, phone: Phone, disc: Disc3, strip: FileStack, trash: Trash2, card: CreditCard, tag: Tag,
 };
 
 async function logout(router: ReturnType<typeof useRouter>) {
@@ -89,7 +89,7 @@ export function AdminShell({ email, children }: { email: string; children: React
   const [open, setOpen] = useState(false);
   const active = activeAdminLink(path);
   const crumbs = [active?.group, active && active.label !== active.group ? active.label : null,
-    path.startsWith("/admin/don-hang/") ? "Chi tiết đơn" : null].filter(Boolean) as string[];
+    path.startsWith("/admin/don-hang/") ? "Chi tiết đơn" : path === "/admin/giam-gia/moi" ? "Tạo mới" : path.startsWith("/admin/giam-gia/") ? "Chi tiết" : null].filter(Boolean) as string[];
   const workspace = isWorkspacePath(path);
 
   return (

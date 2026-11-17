@@ -105,7 +105,7 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
             <td>{o.payment_status ? <Badge tone={paymentTone[o.payment_status]}>{paymentLabels[o.payment_status]}</Badge> : <span className="text-[#a1a1aa]">—</span>}</td>
             <td className="text-[13px]">{o.amount_due ? formatVND(o.amount_due) : "—"}</td>
             <td className="text-[13px] text-[#71717a]">{formatDate(o.created_at)}</td>
-            <td className="font-medium">{formatVND(o.total)}</td>
+            <td className="font-medium">{formatVND(o.total)}{(o.discount_amount ?? 0) > 0 && <span className="block text-[12px] font-normal text-[#ff5fa2]">−{formatVND(o.discount_amount ?? 0)}{o.discount_code ? ` · ${o.discount_code}` : ""}</span>}</td>
             <td className="text-right"><Link href={`/admin/don-hang/${o.id}`} className={btnClass("ghost", "sm")}>Xem</Link></td>
           </tr>
         ))}
