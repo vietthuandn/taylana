@@ -35,7 +35,8 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
 }) {
   // trang Mockup không có gói "CD lẻ"
   const packages = useMemo(() => allPackages.filter((p) => !isSingleCd(p)), [allPackages]);
-  const [pkgId, setPkgId] = useState(packages[0]?.id ?? "");
+  // gói mặc định khi mở trang: "Combo + 2 bìa 2 mặt" (không có thì gói đầu tiên)
+  const [pkgId, setPkgId] = useState((packages.find((p) => /2 bìa 2 mặt/.test(norm(p.name))) ?? packages[0])?.id ?? "");
   const [files, setFiles] = useState<Record<string, Picked>>({});
   const [imgs, setImgs] = useState<Record<string, HTMLImageElement>>({});
   const [previewing, setPreviewing] = useState(false);
