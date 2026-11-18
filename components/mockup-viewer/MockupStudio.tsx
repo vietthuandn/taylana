@@ -96,8 +96,8 @@ export function MockupStudio({ packages, frames, backgrounds, watermark }: {
       </aside>
 
       {/* ---------- Phải 60%: mockup ---------- */}
-      <section className="relative min-w-0 flex-1 p-4 md:overflow-y-auto">
-        <div className="mb-4 inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
+      <section className="no-scrollbar relative min-w-0 flex-1 p-3 md:overflow-y-auto md:px-4">
+        <div className="mb-3 inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
           {([["cd", "CD Mockup", Disc3], ["booklet", "Booklet Mockup", BookOpen]] as const).map(([k, t, Icon]) => (
             <button key={k} type="button" onClick={() => setTab(k)}
               className={cx("inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[13px] font-medium", tab === k ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>

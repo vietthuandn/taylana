@@ -2,7 +2,7 @@
 
 /* Tab "CD Mockup": chọn khung (admin tạo, tối đa 5) → nền → kéo / thu phóng khung trên nền → tải JPG. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Crosshair, Download, Package } from "lucide-react";
+import { Crosshair, Download, Image as ImageIcon, Package } from "lucide-react";
 import { paintBackground, bgRatio, type BgChoice } from "@/lib/mockup/backgrounds";
 import { loadImg, proxied } from "@/lib/mockup/images";
 import { composeScene, renderFrame, type SourceImage } from "@/lib/mockup/render";
@@ -80,6 +80,25 @@ export function CdMockupTab({ frames, images, bg, watermark, bgPicker }: {
     catch (e) { toast(e instanceof Error ? e.message : "Xuất ảnh thất bại", "err"); }
     setBusy(false);
   }
+  // PNG nền trong suốt: chỉ khung mockup (không nền), giữ kích thước gốc của khung
+  async function downloadPng() {
+    if (!frame) return;
+    setBusy(true);
+    try {
+      const fr = await loadImg(frame.image_url);
+      const c = await buildFrame(frame, images, Math.min(fr.width, 3000));
+      if (watermark) {
+        const x = c.getContext("2d")!;
+        x.font = `600 ${Math.round(c.width * 0.025)}px Inter, system-ui, sans-serif`;
+        x.fillStyle = "rgba(24,24,27,0.35)"; x.textAlign = "right"; x.textBaseline = "bottom";
+        x.fillText("Taylana", c.width * 0.97, c.height * 0.97);
+      }
+      const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/png"));
+      if (!blob) throw new Error("Xuất ảnh thất bại");
+      saveBlob(blob, `Mockup-${frame.name.replace(/[^\w-]+/g, "-")}.png`); toast("Đã tải xuống");
+    } catch (e) { toast(e instanceof Error ? e.message : "Xuất ảnh thất bại", "err"); }
+    setBusy(false);
+  }
   async function downloadAll() {
     setBusy(true);
     try {
@@ -95,12 +114,12 @@ export function CdMockupTab({ frames, images, bg, watermark, bgPicker }: {
     return <div className="grid h-64 place-items-center rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]"><span><Package size={24} className="mx-auto mb-2" />Tiệm chưa có mẫu khung CD.</span></div>;
   }
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* chọn mẫu khung */}
       <div className="no-scrollbar flex gap-2 overflow-x-auto">
         {frames.map((f, i) => (
           <button key={f.id} type="button" onClick={() => setIdx(i)} title={f.name}
-            className={cx("h-16 w-16 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", i === idx ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+            className={cx("h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", i === idx ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={proxied(f.image_url)} alt={f.name} className="h-full w-full object-contain" loading="lazy" />
           </button>
@@ -108,7 +127,8 @@ export function CdMockupTab({ frames, images, bg, watermark, bgPicker }: {
       </div>
       {bgPicker}
       {/* xem trước: kéo để di chuyển khung */}
-      <div ref={wrap} className="relative mx-auto w-full max-w-[560px] overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white">
+      <div ref={wrap} className="relative mx-auto w-full overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white"
+        style={{ maxWidth: `min(560px, max(260px, calc((100dvh - var(--header-h) - 250px) / ${ratio})))` }}>
         <canvas ref={view} className="block h-auto w-full cursor-grab touch-none active:cursor-grabbing"
           onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, p: pos }; }}
           onPointerMove={(e) => {
@@ -121,13 +141,13 @@ export function CdMockupTab({ frames, images, bg, watermark, bgPicker }: {
         {!built && !err && <p className="absolute inset-0 grid place-items-center text-[13px] text-[#71717a]">Đang dựng mockup...</p>}
         {err && <p className="absolute inset-x-0 top-2 text-center text-[13px] text-[#dc2626]">{err}</p>}
       </div>
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-[13px] text-[#71717a]">Kích thước khung</span>
-        <input type="range" min={0.2} max={1.4} step={0.01} value={pos.scale} onChange={(e) => setPos({ ...pos, scale: Number(e.target.value) })} className="w-40 accent-[#ff5fa2]" aria-label="Kích thước khung" />
-        <Button variant="secondary" size="sm" icon={<Crosshair size={16} />} onClick={() => setPos({ ...pos, x: 0.5, y: 0.5 })}>Căn giữa</Button>
-        <div className="ml-auto flex gap-2">
-          <Button variant="secondary" size="sm" icon={<Download size={16} />} disabled={busy} onClick={downloadAll}>Tải tất cả mẫu (.zip)</Button>
-          <Button size="sm" icon={<Download size={16} />} loading={busy} onClick={downloadOne}>Tải mockup</Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <input type="range" min={0.2} max={1.4} step={0.01} value={pos.scale} onChange={(e) => setPos({ ...pos, scale: Number(e.target.value) })} className="w-32 accent-[#ff5fa2]" aria-label="Kích thước khung" title="Kích thước khung" />
+        <Button variant="ghost" size="sm" icon={<Crosshair size={16} />} onClick={() => setPos({ ...pos, x: 0.5, y: 0.5 })}>Căn giữa</Button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" icon={<Download size={16} />} disabled={busy} onClick={downloadAll} title="Tải tất cả mẫu (.zip)">Tất cả .zip</Button>
+          <Button variant="secondary" size="sm" icon={<ImageIcon size={16} />} disabled={busy} onClick={downloadPng} title="Ảnh PNG nền trong suốt">PNG trong suốt</Button>
+          <Button size="sm" icon={<Download size={16} />} loading={busy} onClick={downloadOne}>Tải JPG</Button>
         </div>
       </div>
     </div>

@@ -3,7 +3,7 @@
 /* Tab "Booklet Mockup": cuốn sách lật trang thật (thư viện page-flip), trang vuông 12 × 12 cm,
    phủ texture giấy + bóng gáy + viền ngả kem. Trình tự: 1 (bìa, lẻ bên phải) → 2–3 → … → trang cuối (lẻ bên trái). */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BookOpen, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Download, Image as ImageIcon } from "lucide-react";
 import { paintBackground, type BgChoice } from "@/lib/mockup/backgrounds";
 import { saveBlob } from "@/lib/imageTools";
 import { Button, toast } from "@/components/ui/kit";
@@ -104,11 +104,11 @@ export function BookletMockupTab({ pages, bg, bgPicker, onChangePackage }: {
   const spread = cur === 0 ? [0] : cur >= n - 1 && n % 2 === 0 ? [n - 1] : [cur % 2 === 1 ? cur : cur - 1, (cur % 2 === 1 ? cur : cur - 1) + 1];
   const label = spread.length === 1 ? `Trang ${spread[0] + 1} / ${n}` : `Trang ${spread[0] + 1}–${spread[1] + 1} / ${n}`;
 
-  async function downloadSpread() {
+  async function downloadSpread(transparent = false) {
     const W = 2400, H = 1600;
     const out = document.createElement("canvas"); out.width = W; out.height = H;
     const x = out.getContext("2d")!;
-    paintBackground(x, W, H, bg);
+    if (!transparent) paintBackground(x, W, H, bg);
     const size = H * 0.7, top = (H - size) / 2;
     x.save(); x.shadowColor = "rgba(0,0,0,0.25)"; x.shadowBlur = 40; x.shadowOffsetY = 16;
     if (spread.length === 1) {
@@ -119,9 +119,16 @@ export function BookletMockupTab({ pages, bg, bgPicker, onChangePackage }: {
       x.drawImage(canvases[spread[1]], W / 2, top, size, size);
     }
     x.restore();
-    const blob = await new Promise<Blob | null>((r) => out.toBlob(r, "image/jpeg", 0.92));
+    // nền trong suốt: cắt sát phần trang (kèm chỗ cho bóng)
+    let res = out;
+    if (transparent) {
+      const l = spread.length === 1 ? (spread[0] === 0 ? W / 2 : W / 2 - size) : W / 2 - size, w = spread.length === 1 ? size : size * 2, m = 60;
+      res = document.createElement("canvas"); res.width = w + m * 2; res.height = size + m * 2;
+      res.getContext("2d")!.drawImage(out, l - m, top - m, res.width, res.height, 0, 0, res.width, res.height);
+    }
+    const blob = await new Promise<Blob | null>((r) => res.toBlob(r, transparent ? "image/png" : "image/jpeg", 0.92));
     if (!blob) return toast("Xuất ảnh thất bại", "err");
-    saveBlob(blob, `Booklet-${label.replace(/[^\d–/]+/g, "").replace(/[–/]/g, "-")}.jpg`);
+    saveBlob(blob, `Booklet-${label.replace(/[^\d–/]+/g, "").replace(/[–/]/g, "-")}.${transparent ? "png" : "jpg"}`);
     toast("Đã tải xuống");
   }
 
@@ -136,18 +143,20 @@ export function BookletMockupTab({ pages, bg, bgPicker, onChangePackage }: {
     );
   }
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {bgPicker}
-      <div className="relative mx-auto w-full max-w-[640px] overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-cover bg-center px-[3%] py-[4%]" style={{ backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
+      <div className="relative mx-auto w-full overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-cover bg-center px-[3%] py-[4%]" style={{ maxWidth: "min(640px, max(300px, calc((100dvh - var(--header-h) - 230px) * 1.7)))", backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
         <div ref={host} className="mx-auto w-full [filter:drop-shadow(0_16px_24px_rgba(0,0,0,0.18))]" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="secondary" size="sm" icon={<ChevronLeft size={16} />} onClick={() => flip.current?.flipPrev()} disabled={cur === 0}>Trước</Button>
         <span className="min-w-[120px] text-center text-[13px] tabular-nums text-[#3f3f46]">{label}</span>
         <Button variant="secondary" size="sm" onClick={() => flip.current?.flipNext()} disabled={spread[spread.length - 1] >= n - 1}>Sau <ChevronRight size={16} /></Button>
-        <Button size="sm" className="ml-auto" icon={<Download size={16} />} onClick={downloadSpread}>Tải ảnh trang đang mở</Button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" icon={<ImageIcon size={16} />} onClick={() => downloadSpread(true)} title="Ảnh PNG nền trong suốt">PNG trong suốt</Button>
+          <Button size="sm" icon={<Download size={16} />} onClick={() => downloadSpread()} title="Bấm mép trang, kéo góc hoặc dùng phím ← → để lật">Tải JPG</Button>
+        </div>
       </div>
-      <p className="text-[12px] text-[#a1a1aa]">Bấm vào mép trang, kéo góc trang, dùng phím ← → hoặc vuốt để lật.</p>
     </div>
   );
 }
