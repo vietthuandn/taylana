@@ -42,18 +42,41 @@ function cover(x: CanvasRenderingContext2D, im: Src, r: { x: number; y: number; 
   if (!im) { x.fillStyle = "#fbfbfa"; x.fillRect(r.x - n, r.y - n, r.w + n * 2, r.h + n * 2); return; }
   x.drawImage(coverCrop(im, (r.w + n * 2) / (r.h + n * 2), 2400), r.x - n, r.y - n, r.w + n * 2, r.h + n * 2);
 }
-// Tray card 15 × 11.7: phần giữa 13.8 cm nằm trong ô, 2 dải gáy 0.6 cm nằm dưới 2 mép nhựa
+// Tray card 15 × 11.7: phủ kín ô theo đúng tỉ lệ ảnh (không méo), phần dư 2 bên (gáy) nằm dưới mép nhựa
 function card(x: CanvasRenderingContext2D, im: Src, r: { x: number; y: number; w: number; h: number }) {
   x.fillStyle = "rgba(255,255,255,0.04)"; x.fillRect(r.x, r.y, r.w, r.h);
   if (im === undefined) return;
-  const cw = r.w * (BACK_W_CM / (BACK_W_CM - 2 * BACK_SPINE_CM)), ch = cw * (BACK_H_CM / BACK_W_CM);
-  const X = r.x + r.w / 2 - cw / 2, Y = r.y + r.h / 2 - ch / 2;
-  if (!im) { x.fillStyle = "#fbfbfa"; x.fillRect(X, Y, cw, ch); return; }
-  x.drawImage(coverCrop(im, BACK_W_CM / BACK_H_CM, 2400), X, Y, cw, ch);
+  const n = NUDGE, X = r.x - n, Y = r.y - n, w = r.w + n * 2, h = r.h + n * 2;
+  if (!im) { x.fillStyle = "#fbfbfa"; x.fillRect(X, Y, w, h); return; }
+  const ar = BACK_W_CM / BACK_H_CM, sc = Math.max(w / ar, h); // cao của tray card khi phủ kín ô
+  const ch = sc, cw = ch * ar;
+  x.save(); x.beginPath(); x.rect(X, Y, w, h); x.clip();
+  x.drawImage(coverCrop(im, ar, 2400), X + w / 2 - cw / 2, Y + h / 2 - ch / 2, cw, ch);
+  x.restore();
 }
-// Mặt đĩa: ảnh khách cắt vành khuyên (vùng in trong → bán kính ngoài − 1.5%), giữ hub + viền của PNG, phủ highlight cầu vồng mờ
-function printDisc(x: CanvasRenderingContext2D, im: Src, cx: number, cy: number, r: number, rIn: number, sp: Sprites) {
-  if (!im) return; // chưa có ảnh → giữ đĩa bạc cầu vồng của PNG
+// Bìa trước thật 12 × 12 trong ô hộp đóng (ô rộng hơn ~128 × 120 mm): bìa vuông theo chiều cao ô, căn giữa,
+// 2 mép còn lại lộ tray card mặt trong phía sau (như nhìn xuyên hộp thật)
+function squareCover(x: CanvasRenderingContext2D, im: Src, r: { x: number; y: number; w: number; h: number }) {
+  if (im === undefined) return;
+  const n = NUDGE, h = r.h + n * 2, w = Math.min(r.w + n * 2, h);
+  const X = r.x + r.w / 2 - w / 2, Y = r.y - n;
+  if (!im) { x.fillStyle = "#fbfbfa"; x.fillRect(X, Y, w, h); return; }
+  x.drawImage(coverCrop(im, w / h, 2400), X, Y, w, h);
+}
+// Mặt đĩa: ảnh khách cắt vành khuyên (lỗ in 2,3 cm trên đĩa 12 cm → bán kính ngoài − 1.5%), che luôn vòng hub đen của PNG,
+// giữ viền ngoài, phủ highlight cầu vồng mờ
+const HOLE_RATIO = 2.3 / 12;
+function printDisc(x: CanvasRenderingContext2D, im: Src, cx: number, cy: number, r: number, _rIn: number, sp: Sprites) {
+  const rIn = r * HOLE_RATIO;
+  const hubOut = sp.sheet.disc.printIn / sp.sheet.disc.r * r + 1; // mép ngoài vòng hub xám đậm của PNG
+  if (!im) {
+    // chưa có ảnh: giữ đĩa bạc của PNG, chỉ phủ vòng hub đen bằng màu bạc nhạt
+    const g = x.createRadialGradient(cx, cy, rIn, cx, cy, hubOut);
+    g.addColorStop(0, "#e6e8ec"); g.addColorStop(1, "#cfd3da");
+    x.beginPath(); x.arc(cx, cy, hubOut, 0, Math.PI * 2); x.arc(cx, cy, rIn, 0, Math.PI * 2, true);
+    x.fillStyle = g; x.fill("evenodd");
+    return;
+  }
   x.save();
   x.beginPath(); x.arc(cx, cy, r * 0.985, 0, Math.PI * 2); x.arc(cx, cy, rIn, 0, Math.PI * 2, true); x.clip("evenodd");
   x.drawImage(coverCrop(im, 1, 2400), cx - r, cy - r, r * 2, r * 2);
@@ -80,10 +103,12 @@ export type SpriteOut = { c: HTMLCanvasElement; ax: number; ay: number }; // ax,
 const anchor = (cs: Rect, W: number, H: number) => ({ ax: ((cs.x0 + cs.x1) / 2) * W, ay: ((cs.y0 + cs.y1) / 2) * H });
 
 /** k = px đầu ra / px sprite */
-export function spriteClosed(sp: Sprites, k: number, front: Src, g: GlassSettings): SpriteOut {
+export function spriteClosed(sp: Sprites, k: number, front: Src, backIn: Src, g: GlassSettings): SpriteOut {
   const s = sp.sheet.closed, W = s.width * k, H = s.height * k;
   const { c, x } = canvas(W, H);
-  cover(x, front, R(s.cover, W, H));
+  const win = R(s.cover, W, H);
+  if (front === undefined) cover(x, undefined, win); // không có bìa: nhựa hơi đục
+  else { card(x, backIn, win); squareCover(x, front, win); } // tray card mặt trong phía sau + bìa trước 12 × 12
   x.drawImage(sp.closed, 0, 0, W, H);
   glass(x, R(s.case, W, H), g);
   return { c, ...anchor(s.case, W, H) };

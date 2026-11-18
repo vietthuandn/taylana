@@ -60,7 +60,7 @@ function objectCanvas(kind: Kind, s: number, inp: SystemInput, o: SystemOptions)
   // ảnh hộp thật (PNG): phóng theo tỉ lệ chung px/mm — k = px đầu ra / px sprite
   if (sp && kind !== "spread" && kind !== "fan") {
     const k = s * mmPerPx(sp, CASE_W);
-    if (kind === "closed") c = spriteClosed(sp, k, inp.frontOut, o.glass);
+    if (kind === "closed") c = spriteClosed(sp, k, inp.frontOut, inp.backIn, o.glass);
     else if (kind === "back") c = spriteBack(sp, k, inp.backOut, o.glass);
     else if (kind === "disc") c = spriteDisc(sp, k, inp.disc ?? null);
     else c = spriteOpen(sp, k, inp.frontIn, inp.backIn, inp.disc ?? null, o.glass); // ảnh PNG luôn có đĩa trong khay
