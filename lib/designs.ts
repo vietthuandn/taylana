@@ -15,7 +15,7 @@ export type DesignData = {
   guides?: boolean; // trạng thái "Hiển thị guideline"
   pkg?: string; // gói đang chọn ("custom" = Tuỳ chỉnh)
 };
-export type DesignRow = { id: string; name: string; thumbnail: string | null; created_at: string; updated_at: string; data?: DesignData };
+export type DesignRow = { id: string; name: string; thumbnail: string | null; created_at: string; updated_at: string; data?: DesignData; kind?: string | null };
 
 const uploaded = new Map<string, string>(); // idb:... → sb:...
 
@@ -61,7 +61,7 @@ export async function saveDesign(data: DesignData, opts: { id?: string | null; n
 }
 
 export async function listDesigns(): Promise<DesignRow[]> {
-  const { data, error } = await createClient().from("designs").select("id, name, thumbnail, created_at, updated_at").order("updated_at", { ascending: false });
+  const { data, error } = await createClient().from("designs").select("id, name, thumbnail, created_at, updated_at, kind:data->>kind").order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as DesignRow[];
 }
