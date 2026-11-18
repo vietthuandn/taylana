@@ -13,6 +13,7 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
   ] },
   { title: "Nội dung", links: [
     { href: "/admin/trang-chu", label: "Trang chủ", icon: "home", group: "Nội dung" },
+    { href: "/admin/giao-dien", label: "Giao diện trang chủ", icon: "layout", group: "Nội dung" },
     { href: "/admin/huong-dan", label: "Hướng dẫn", icon: "book", group: "Nội dung" },
     { href: "/admin/lien-he", label: "Liên hệ", icon: "phone", group: "Nội dung" },
   ] },
