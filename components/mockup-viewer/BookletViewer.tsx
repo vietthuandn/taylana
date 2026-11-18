@@ -5,6 +5,7 @@
    Khi chỉ 1 trang: khung ngoài rộng đúng 1 trang (overflow hidden), sách trượt ±½ để giấu nửa trống. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { coverCrop } from "@/lib/mockup/coverCrop";
 import { paintBackground, type BgChoice } from "@/lib/mockup/backgrounds";
 import { Button } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
@@ -33,8 +34,7 @@ function pageImage(img: HTMLImageElement | null, no: number, side: "left" | "rig
   const x = c.getContext("2d")!;
   x.fillStyle = "#fbf8f1"; x.fillRect(0, 0, PX, PX);
   if (img) {
-    const s = Math.max(PX / img.naturalWidth, PX / img.naturalHeight);
-    x.drawImage(img, (PX - img.naturalWidth * s) / 2, (PX - img.naturalHeight * s) / 2, img.naturalWidth * s, img.naturalHeight * s);
+    x.drawImage(coverCrop(img, 1, PX), 0, 0, PX, PX); // trang 12 × 12: phủ kín
   } else {
     x.fillStyle = "#d4d4d8"; x.font = "600 48px Inter, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(`Trang ${no}`, PX / 2, PX / 2);
   }
@@ -65,6 +65,8 @@ export function BookletViewer({ pages, back, bg }: { pages: (HTMLImageElement | 
 
   const canvases = useMemo(() => pages.map((img, i) => pageImage(img, i + 1, i % 2 === 0 ? "right" : "left")), [pages]);
   const urls = useMemo(() => canvases.map((c) => c.toDataURL("image/jpeg", 0.9)), [canvases]);
+  // Bìa Sau - Mặt Ngoài: cắt phủ kín đúng 15 × 11.7
+  const backUrl = useMemo(() => (back ? coverCrop(back, BACK_RATIO, 1600).toDataURL("image/jpeg", 0.9) : ""), [back]);
 
   useEffect(() => {
     const el = box.current;
@@ -135,7 +137,7 @@ export function BookletViewer({ pages, back, bg }: { pages: (HTMLImageElement | 
           {back && (
             <div className={cx("absolute inset-0 transition-opacity duration-500", onBack ? "opacity-100" : "pointer-events-none opacity-0")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={back.src} alt="Mặt sau hộp CD" className="h-full w-full object-cover" />
+              <img src={backUrl} alt="Mặt sau hộp CD" className="h-full w-full" />
             </div>
           )}
         </div>

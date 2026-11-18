@@ -3,7 +3,8 @@
 /* Dựng 1 khung mockup CD. Thứ tự lớp:
    (nền: vẽ ở scene) → các lớp theo thứ tự admin xếp (ảnh khách kéo giãn vào từng vùng + ảnh khung PNG) → lớp kính.
    Mặc định ảnh khung nằm trên tất cả các vùng. */
-import { BACK_SPINE_CM, BACK_W_CM } from "@/lib/cdSpecs";
+import { BACK_H_CM, BACK_SPINE_CM, BACK_W_CM } from "@/lib/cdSpecs";
+import { coverCrop, solidFill } from "./coverCrop";
 import { warpToQuad } from "./warp";
 import { DEFAULT_DISC_HOLE, REGION_LABELS, frameOrderOf, rectPts, type GlassSettings, type Region, type RegionType } from "./types";
 
@@ -12,30 +13,44 @@ type Img = CanvasImageSource & { width: number; height: number };
 
 const canvas = (w: number, h: number) => { const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h)); return c; };
 
-// Mặt đĩa: cắt tròn + khoét lỗ giữa trước khi kéo giãn (nghiêng thành elip đúng phối cảnh)
-function discSource(img: Img, hole: number) {
-  const n = Math.min(2048, Math.min(img.width, img.height));
+// Tỉ lệ THẬT của từng vùng (cm, từ lib/cdSpecs) — không lấy theo tứ giác trên ảnh khung vì phối cảnh làm sai tỉ lệ
+const FRONT_CM = 12, DISC_CM = 12;
+function aspectOf(r: Region) {
+  if (r.type === "back_out" || r.type === "back_in") return r.spine === "trim" ? (BACK_W_CM - 2 * BACK_SPINE_CM) / BACK_H_CM : BACK_W_CM / BACK_H_CM;
+  return r.type === "disc" ? DISC_CM / DISC_CM : FRONT_CM / FRONT_CM;
+}
+
+// Mặt đĩa: ảnh đã cắt vuông 12 × 12 → cắt tròn + khoét lỗ giữa (kéo giãn sau sẽ nghiêng thành elip đúng phối cảnh)
+function discSource(sq: HTMLCanvasElement, hole: number) {
+  const n = sq.width;
   const c = canvas(n, n), x = c.getContext("2d")!;
-  const s = Math.max(n / img.width, n / img.height);
   x.beginPath(); x.arc(n / 2, n / 2, n / 2, 0, Math.PI * 2); x.closePath(); x.clip();
-  x.drawImage(img, (n - img.width * s) / 2, (n - img.height * s) / 2, img.width * s, img.height * s);
+  x.drawImage(sq, 0, 0, n, n);
   x.globalCompositeOperation = "destination-out";
   x.beginPath(); x.arc(n / 2, n / 2, (n / 2) * Math.max(0, Math.min(0.6, hole)), 0, Math.PI * 2); x.fill();
   return c;
 }
-// Bìa sau: bỏ 2 dải gáy ở 2 bên (số đo từ lib/cdSpecs)
-function trimSpines(img: Img) {
+// Bìa sau bỏ gáy: ảnh đã cắt đúng 15 × 11.7 → bỏ 2 dải gáy 0.6 cm ở 2 bên → (15 − 1.2) × 11.7
+function trimSpines(img: HTMLCanvasElement) {
   const cut = (BACK_SPINE_CM / BACK_W_CM) * img.width;
   const c = canvas(img.width - cut * 2, img.height);
   c.getContext("2d")!.drawImage(img, cut, 0, img.width - cut * 2, img.height, 0, 0, c.width, c.height);
   return c;
 }
-// Vùng không có ảnh: không thuộc gói (undefined) → trắng trơn như bìa giấy · thuộc gói nhưng chưa có ảnh (null) → xám rất nhạt. Không chữ.
-function placeholder(type: RegionType, inPack: boolean) {
-  const c = canvas(64, 64), x = c.getContext("2d")!;
-  x.fillStyle = inPack ? "#f4f4f5" : "#ffffff"; x.fillRect(0, 0, 64, 64);
-  if (type === "disc") return discSource(c, DEFAULT_DISC_HOLE);
-  return c;
+// Ảnh nguồn của 1 vùng, đã cắt PHỦ KÍN đúng tỉ lệ thật.
+// Không có ảnh: không thuộc gói (undefined) → trắng · thuộc gói nhưng chưa có ảnh (null) → xám rất nhạt. Không chữ.
+function regionSource(r: Region, raw: Img | null, inPack: boolean): HTMLCanvasElement {
+  const color = inPack ? "#f4f4f5" : "#ffffff";
+  if (r.type === "disc") return discSource(raw ? coverCrop(raw, 1) : solidFill(color, 1), r.hole ?? DEFAULT_DISC_HOLE);
+  if ((r.type === "back_out" || r.type === "back_in") && r.spine === "trim") {
+    return raw ? trimSpines(coverCrop(raw, BACK_W_CM / BACK_H_CM)) : solidFill(color, aspectOf(r));
+  }
+  return raw ? coverCrop(raw, aspectOf(r)) : solidFill(color, aspectOf(r));
+}
+// Nới 4 góc ra ngoài ~0.5% (tính từ tâm) để không còn khe hở mảnh ở mép do khử răng cưa — phần nới nằm dưới khung PNG
+function grow(q: [number, number][], k = 0.005): [number, number][] {
+  const cx = q.reduce((t, p) => t + p[0], 0) / q.length, cy = q.reduce((t, p) => t + p[1], 0) / q.length;
+  return q.map(([x, y]) => [x + (x - cx) * k * 2, y + (y - cy) * k * 2]);
 }
 
 export type RenderInput = {
@@ -59,19 +74,18 @@ export function renderFrame({ frame, regions, images, masks = {}, glass, maxW = 
   for (const r of layers) {
     if (r === "frame") { ctx.globalCompositeOperation = "source-over"; ctx.drawImage(frame, 0, 0, W, H); continue; }
     const raw = images[r.type] ?? null;
-    let src: Img = raw ?? placeholder(r.type, images[r.type] !== undefined);
-    if (raw && r.type === "disc") src = discSource(raw, r.hole ?? DEFAULT_DISC_HOLE);
-    if (raw && (r.type === "back_out" || r.type === "back_in") && r.spine === "trim") src = trimSpines(raw);
+    const src = regionSource(r, raw, images[r.type] !== undefined);
     let layer: HTMLCanvasElement;
     if (r.fit) {
-      // Fit hình: không kéo giãn — ảnh vừa khít chiều ngang hoặc dọc của hình chữ nhật, căn giữa
-      const [[x0, y0], , [x1, y1]] = rectPts(r.pts).map(([x, y]) => [x * W, y * H]);
-      const rw = x1 - x0, rh = y1 - y0, sc = Math.min(rw / src.width, rh / src.height);
+      // Fit hình: vùng là hình chữ nhật, không méo — ảnh (đã cắt đúng tỉ lệ) phủ kín hình chữ nhật, cắt dư căn giữa
+      const [[x0, y0], , [x1, y1]] = grow(rectPts(r.pts).map(([x, y]) => [x * W, y * H] as [number, number]));
+      const rw = x1 - x0, rh = y1 - y0;
+      const fitted = coverCrop(src, rw / rh, Math.max(rw, rh) * 1.5);
       layer = canvas(W, H);
       const lx = layer.getContext("2d")!;
       lx.imageSmoothingQuality = "high";
-      lx.drawImage(src, x0 + (rw - src.width * sc) / 2, y0 + (rh - src.height * sc) / 2, src.width * sc, src.height * sc);
-    } else layer = warpToQuad(src, quadPx(r), W, H);
+      lx.drawImage(fitted, x0, y0, rw, rh);
+    } else layer = warpToQuad(src, grow(quadPx(r)), W, H);
     const mask = r.mask_url ? masks[r.mask_url] : undefined;
     if (mask) { const lx = layer.getContext("2d")!; lx.globalCompositeOperation = "destination-in"; lx.drawImage(mask, 0, 0, W, H); }
     ctx.globalCompositeOperation = r.blend === "multiply" ? "multiply" : "source-over";
