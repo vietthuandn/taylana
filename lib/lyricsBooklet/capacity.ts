@@ -9,5 +9,4 @@ export function minLyricPages(songs: Song[], longLines: number) {
 }
 export const packFits = (n: number, songs: Song[], longLines: number) => n - 1 >= minLyricPages(songs, longLines);
 export const smallestPack = (songs: Song[], longLines: number) => PACKS.find((n) => packFits(n, songs, longLines)) ?? null;
-/** Dọn lyrics: bỏ khoảng trắng cuối dòng, giữ tối đa 1 dòng trống liên tiếp, giữ ngắt dòng của khách */
-export const cleanLyrics = (t: string) => t.replace(/\r/g, "").split("\n").map((l) => l.replace(/\s+$/, "")).join("\n").replace(/\n{3,}/g, "\n\n").replace(/^\n+|\n+$/g, "");
+export { cleanLyrics } from "./clean";

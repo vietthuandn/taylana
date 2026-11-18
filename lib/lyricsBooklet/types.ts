@@ -8,7 +8,12 @@ export const PT = 0.3528; // 1 pt = 0.3528 mm
 export const PACKS = [4, 8, 12, 16] as const;
 export const MAX_SONGS = 20;
 
-export type Song = { id: string; title: string; duration: string; lyrics: string; note: string; titleOnly: boolean };
+export type Song = {
+  id: string; title: string; duration: string; lyrics: string; note: string; titleOnly: boolean;
+  artist?: string; // ca sĩ (tìm lời gợi ý) — trống thì dùng Tên nghệ sĩ của album
+  alt?: string; // dòng "A - B" nhập từ danh sách: phía còn lại (tìm lời thử cả 2 chiều)
+  pending?: boolean; // có lời gợi ý nhưng khách chưa mở xem + cam kết + Lưu → chưa dàn vào booklet
+};
 export type Album = { title: string; artist: string; year: string; credit: string };
 export type Palette = { id: string; name: string; bg: string; ink: string; accent: string };
 export type LayoutId = "minimal" | "alternate" | "magazine" | "cinema" | "polaroid";

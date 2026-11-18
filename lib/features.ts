@@ -12,3 +12,6 @@ export const FEATURE_REVIEWS = false;
 // Mẫu khung mockup do admin tạo (ảnh khung PNG + vùng chọn) ở trang Xem Mockup: TẠM ẨN.
 // Trang Xem Mockup chỉ dùng mẫu hệ thống (Lưới · Chồng · Một) + 3D. Admin ẩn mục "Khung CD". Đổi thành true để mở lại.
 export const FEATURE_MOCKUP_FRAMES = false;
+
+// Booklet Lyrics: "Tìm lời gợi ý" (API công khai LRCLIB, gọi thẳng từ trình duyệt). Đổi thành false để ẩn mọi nút / tuỳ chọn liên quan.
+export const FEATURE_LYRICS_SUGGEST = true;
