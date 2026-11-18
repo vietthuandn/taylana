@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/kit";
 
 export type DownloadItem = { label: string; icon: React.ReactNode; onClick: () => void };
 
-export function DownloadMenu({ items, busy }: { items: DownloadItem[]; busy?: boolean }) {
+export function DownloadMenu({ items, busy, up }: { items: DownloadItem[]; busy?: boolean; up?: boolean }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -24,7 +24,7 @@ export function DownloadMenu({ items, busy }: { items: DownloadItem[]; busy?: bo
         Tải về <ChevronDown size={14} />
       </Button>
       {open && (
-        <div role="menu" className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-[10px] border border-[#e5e5e7] bg-white py-1 shadow-lg">
+        <div role="menu" className={`absolute right-0 z-30 w-56 ${up ? "bottom-full mb-1" : "top-full mt-1"} overflow-hidden rounded-[10px] border border-[#e5e5e7] bg-white py-1 shadow-lg`}>
           {items.map((it) => (
             <button key={it.label} type="button" role="menuitem" onClick={() => { setOpen(false); it.onClick(); }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] text-[#18181b] hover:bg-[#fff0f6] hover:text-[#ff5fa2]">

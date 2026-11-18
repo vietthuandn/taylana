@@ -13,9 +13,9 @@ import { ACCEPT, PINK, type Picked, type SlotDef } from "./cdSlots";
 
 export type ExistingFile = { name: string; url: string | null; pdf: boolean };
 
-export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, variant = "grid", onPick, onRemove }: {
+export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, variant = "grid", onPick, onRemove, onPreview }: {
   slots: SlotDef[]; layout: PackLayout; files: Record<string, Picked>; existing?: Record<string, ExistingFile>;
-  readOnly?: boolean; variant?: "grid" | "list" | "compact"; onPick: (s: SlotDef, f: File) => void; onRemove: (s: SlotDef) => void;
+  readOnly?: boolean; variant?: "grid" | "list" | "compact"; onPick: (s: SlotDef, f: File) => void; onRemove: (s: SlotDef) => void; onPreview?: () => void;
 }) {
   const [multiOpen, setMultiOpen] = useState(false);
   const groups = (["front", "back", "disc"] as const).map((g) => ({ g, list: slots.filter((s) => s.group === g) })).filter((x) => x.list.length);
@@ -44,12 +44,21 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
         {groups.map(({ g, list }) => (
           <section key={g}>
             <div className="mb-2 flex items-baseline justify-between gap-2">
-              <p className="text-[14px] font-semibold text-[#18181b]">{g === "front" ? "Bìa trước" : title(g)}</p>
-              <span className="text-[12px] text-[#71717a]">{size(g)}</span>
+              <p className="text-[14px] font-semibold text-[#18181b]" title={g === "front" ? size(g) : undefined}>{g === "front" ? "Bìa trước" : title(g)}</p>
+              {g === "front"
+                ? layout.front >= 4 && onPreview && <button type="button" onClick={onPreview} className="text-[13px] font-medium hover:underline" style={{ color: PINK }}>Xem preview ›</button>
+                : <span className="text-[12px] text-[#71717a]">{size(g)}</span>}
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              {list.map((s) => <CompactTile key={s.id} slot={s} booklet={layout.front >= 4} picked={files[s.id]} onFile={(f) => onPick(s, f)} onRemove={() => onRemove(s)} />)}
-            </div>
+            {g === "back" ? (
+              // Bìa sau: cao bằng 1 ô Bìa trước, rộng theo 15 : 11.7, căn trái
+              <div className="flex gap-2">
+                {list.map((s) => <CompactTile key={s.id} slot={s} booklet={layout.front >= 4} picked={files[s.id]} onFile={(f) => onPick(s, f)} onRemove={() => onRemove(s)} />)}
+              </div>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {list.map((s) => <CompactTile key={s.id} slot={s} booklet={layout.front >= 4} picked={files[s.id]} onFile={(f) => onPick(s, f)} onRemove={() => onRemove(s)} />)}
+              </div>
+            )}
           </section>
         ))}
         {multi}
@@ -107,7 +116,7 @@ function CompactTile({ slot, booklet, picked, onFile, onRemove }: { slot: SlotDe
   const open = () => input.current?.click();
   return (
     <div title={picked?.file.name ?? slot.full}
-      className={cx("group relative rounded-[8px]", slot.group === "back" ? "col-span-2 aspect-[15/11.7]" : "aspect-square", over && "ring-2 ring-[#ff5fa2]")}
+      className={cx("group relative shrink-0 rounded-[8px]", slot.group === "back" ? "aspect-[15/11.7] w-[calc((100%-24px)/4*15/11.7)]" : "aspect-square", over && "ring-2 ring-[#ff5fa2]")}
       onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}>
       {has ? (

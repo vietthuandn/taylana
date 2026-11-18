@@ -80,12 +80,17 @@ export function MockupAdmin() {
     await after("Đã thêm nền.");
   }
   if (!ready) return <p className="text-[13px] text-[#71717a]">Đang tải...</p>;
-  const full = frames.length >= 5;
+  const regular = frames.filter((f) => !f.is_default_box);
+  const full = regular.length >= 5; // mẫu mặc định CD + Hộp không tính
+  const hasBox = frames.some((f) => f.is_default_box);
   return (
     <div className="space-y-6">
-      <Card title={`Khung CD (${frames.length}/5)`} description="Ảnh PNG hộp CD có các vùng trong suốt để chèn ảnh khách. Kéo thả để sắp xếp."
-        actions={full ? <Button size="sm" disabled title="Đã đủ 5 mẫu">Tạo mẫu mới</Button>
-          : <Link href="/admin/mockup/moi" className={btnClass("primary", "sm")}><Plus size={16} /> Tạo mẫu mới</Link>}>
+      <Card title={`Khung CD (${regular.length}/5)`} description="Ảnh PNG hộp CD có các vùng trong suốt để chèn ảnh khách. Kéo thả để sắp xếp."
+        actions={<div className="flex flex-wrap gap-2">
+          {!hasBox && <Link href="/admin/mockup/moi?box=1" className={btnClass("secondary", "sm")}><Plus size={16} /> Mẫu mặc định CD + Hộp</Link>}
+          {full ? <Button size="sm" disabled title="Đã đủ 5 mẫu">Tạo mẫu mới</Button>
+            : <Link href="/admin/mockup/moi" className={btnClass("primary", "sm")}><Plus size={16} /> Tạo mẫu mới</Link>}
+        </div>}>
         {frames.length ? (
           <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {frames.map((f, i) => (
@@ -100,7 +105,7 @@ export function MockupAdmin() {
                 <div className="flex items-center gap-2 p-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] font-medium">{f.name}</p>
-                    <p className="text-[12px] text-[#71717a]">{f.regions.length} vùng · {f.is_active ? <Badge tone="green">Đang bật</Badge> : <Badge>Đang tắt</Badge>}</p>
+                    <p className="text-[12px] text-[#71717a]">{f.is_default_box && <><Badge tone="pink">Mặc định CD + Hộp</Badge> · </>}{f.regions.length} vùng · {f.is_active ? <Badge tone="green">Đang bật</Badge> : <Badge>Đang tắt</Badge>}</p>
                   </div>
                   <Toggle checked={f.is_active} onChange={(v) => toggle("mockup_frames", f.id, v)} label="" />
                   <Link href={`/admin/mockup/${f.id}`} className={btnClass("ghost", "sm")} aria-label="Sửa"><Pencil size={16} /></Link>

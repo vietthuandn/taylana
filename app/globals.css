@@ -254,6 +254,20 @@
   border: 3px solid var(--color-lime-500);
 }
 
+/* Thanh cuộn toàn app (kiểu Facebook): mảnh 8px, ẩn mặc định, hiện khi hover vùng cuộn */
+@layer base {
+  *::-webkit-scrollbar { width: 8px; height: 8px; }
+  *::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: transparent; border-radius: 9999px; }
+  *:hover::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.18); }
+  *::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.3); }
+  /* Firefox (chỉ áp cho Firefox để Chrome vẫn dùng kiểu webkit ở trên) */
+  @supports (-moz-appearance: none) {
+    * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+    *:hover { scrollbar-color: rgba(0, 0, 0, 0.18) transparent; }
+  }
+}
+
 /* Ẩn thanh cuộn ngang ở các dải cuộn */
 @utility no-scrollbar {
   scrollbar-width: none;

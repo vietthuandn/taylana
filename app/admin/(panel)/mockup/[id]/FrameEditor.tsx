@@ -106,6 +106,8 @@ export function FrameEditor({ id }: { id: string }) {
       setF({ ...(data as MockupFrame), regions, glass: { ...defaultGlass, ...(data.glass ?? {}) } });
     });
   }, [id, isNew]);
+  // tạo mẫu mặc định "CD + Hộp" từ trang danh sách (?box=1)
+  useEffect(() => { if (isNew && new URLSearchParams(window.location.search).get("box") === "1") setF((x) => ({ ...x, name: "CD + Hộp", is_default_box: true })); }, [isNew]);
   useEffect(() => {
     if (!f.image_url) { setImg(null); return; }
     setImgErr("");
@@ -212,8 +214,14 @@ export function FrameEditor({ id }: { id: string }) {
     if (!f.name.trim()) return setMsg({ type: "err", text: "Cần đặt tên mẫu." });
     if (!f.image_url) return setMsg({ type: "err", text: "Cần ảnh khung (link hoặc upload)." });
     setSaving(true);
-    const payload = { name: f.name.trim(), image_url: f.image_url, source: f.image_url.includes("/storage/v1/object/public/mockups/") ? "storage" : "url", regions: f.regions, glass: f.glass, is_active: f.is_active };
+    const payload = { name: f.name.trim(), image_url: f.image_url, source: f.image_url.includes("/storage/v1/object/public/mockups/") ? "storage" : "url", regions: f.regions, glass: f.glass, is_active: f.is_active,
+      ...(f.is_default_box !== undefined ? { is_default_box: !!f.is_default_box } : {}) };
     const sb = createClient();
+    // chỉ 1 mẫu mặc định CD + Hộp: bỏ cờ ở các mẫu khác trước khi lưu
+    if (f.is_default_box) {
+      const q = sb.from("mockup_frames").update({ is_default_box: false }).eq("is_default_box", true);
+      await (isNew ? q : q.neq("id", f.id));
+    }
     const res = isNew
       ? await sb.from("mockup_frames").insert({ ...payload, sort_order: Date.now() % 100000 }).select("id").single()
       : await sb.from("mockup_frames").update(payload).eq("id", f.id).select("id").single();
@@ -445,6 +453,7 @@ export function FrameEditor({ id }: { id: string }) {
           </section>
 
           <Toggle checked={f.is_active} onChange={(v) => setF({ ...f, is_active: v })} label="Hiện cho khách" />
+          <Toggle checked={!!f.is_default_box} onChange={(v) => setF({ ...f, is_default_box: v })} label="Mẫu mặc định cho gói CD + Hộp" />
         </aside>
       </div>
       <Message msg={msg} />

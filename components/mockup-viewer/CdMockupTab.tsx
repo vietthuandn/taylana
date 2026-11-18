@@ -1,20 +1,22 @@
 "use client";
 
-/* Tab "CD Mockup": chọn khung (admin tạo, tối đa 5) → nền → kéo / thu phóng khung trên nền → tải JPG. */
+/* Panel phải "CD Mockup": ảnh căn giữa tuyệt đối · cột mẫu bên phải · thanh đáy: Nền + Tải về. Kéo để di chuyển, +/− phóng to, nhấp đúp về mặc định. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Crosshair, Download, Files, Image as ImageIcon, Package } from "lucide-react";
+import { Download, Files, Image as ImageIcon, Minus, Package, Plus } from "lucide-react";
 import { paintBackground, bgRatio, type BgChoice } from "@/lib/mockup/backgrounds";
 import { loadImg, proxied } from "@/lib/mockup/images";
 import { composeScene, renderFrame, type SourceImage } from "@/lib/mockup/render";
 import type { MockupFrame, RegionType } from "@/lib/mockup/types";
 import { saveBlob, saveZip } from "@/lib/imageTools";
-import { Button, toast } from "@/components/ui/kit";
+import { toast } from "@/components/ui/kit";
 import { DownloadMenu } from "./DownloadMenu";
 import { useFitBox } from "./useFitBox";
 import { cx } from "@/components/ui/styles";
 
-type Pos = { x: number; y: number; scale: number };
-const DEFAULT_POS: Pos = { x: 0.5, y: 0.5, scale: 0.96 }; // khung chiếm ~96% chiều cao nền
+type Pos = { x: number; y: number; scale: number }; // scale = mức phóng 0.5 – 1.5 (1 = 100%)
+const BASE = 0.96; // 100% = khung chiếm ~96% chiều cao nền
+const DEFAULT_POS: Pos = { x: 0.5, y: 0.5, scale: 1 };
+const scene = (p: Pos) => ({ ...p, scale: p.scale * BASE });
 
 async function buildFrame(f: MockupFrame, images: Partial<Record<RegionType, SourceImage>>, maxW: number) {
   const frame = await loadImg(f.image_url);
@@ -24,8 +26,8 @@ async function buildFrame(f: MockupFrame, images: Partial<Record<RegionType, Sou
 }
 const toJpeg = (c: HTMLCanvasElement) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Không xuất được ảnh"))), "image/jpeg", 0.92));
 
-export function CdMockupTab({ frames, images, bg, bgPicker, tabs }: {
-  frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; bg: BgChoice; bgPicker: React.ReactNode; tabs: React.ReactNode;
+export function CdMockupTab({ frames, images, bg, bgPicker, hidePicker }: {
+  frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; bg: BgChoice; bgPicker: React.ReactNode; hidePicker?: boolean;
 }) {
   const [idx, setIdx] = useState(0);
   const [pos, setPos] = useState<Pos>(DEFAULT_POS);
@@ -34,7 +36,7 @@ export function CdMockupTab({ frames, images, bg, bgPicker, tabs }: {
   const [busy, setBusy] = useState(false);
   const view = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ x: number; y: number; p: Pos } | null>(null);
-  const frame = frames[idx];
+  const frame = frames[idx] ?? frames[0];
   const ratio = bgRatio(bg);
   const { area, width } = useFitBox(ratio);
   const vw = width || 800;
@@ -54,17 +56,17 @@ export function CdMockupTab({ frames, images, bg, bgPicker, tabs }: {
     const c = view.current;
     if (!c) return;
     c.width = W; c.height = Math.round(W * ratio);
-    composeScene(c, (ctx, w, h) => paintBackground(ctx, w, h, bg), built, pos, false);
+    composeScene(c, (ctx, w, h) => paintBackground(ctx, w, h, bg), built, scene(pos), false);
   }, [W, ratio, bg, built, pos]);
 
   async function exportFrame(f: MockupFrame) {
     const EW = 2400, EH = Math.round(2400 * ratio);
     const fr = await loadImg(f.image_url);
-    const need = Math.ceil(EH * pos.scale * (fr.width / fr.height));
+    const need = Math.ceil(EH * scene(pos).scale * (fr.width / fr.height));
     const c = await buildFrame(f, images, Math.min(fr.width, Math.max(need, 800)));
     const out = document.createElement("canvas");
     out.width = EW; out.height = EH;
-    composeScene(out, (ctx, w, h) => paintBackground(ctx, w, h, bg), c, pos, false);
+    composeScene(out, (ctx, w, h) => paintBackground(ctx, w, h, bg), c, scene(pos), false);
     return toJpeg(out);
   }
   async function downloadOne() {
@@ -98,58 +100,63 @@ export function CdMockupTab({ frames, images, bg, bgPicker, tabs }: {
     setBusy(false);
   }
 
+  const zoom = (d: number) => setPos((p) => ({ ...p, scale: Math.round(Math.min(1.5, Math.max(0.5, p.scale + d)) * 10) / 10 }));
   const menu = (
-    <DownloadMenu busy={busy} items={[
+    <DownloadMenu busy={busy} up items={[
       { label: "Tải ảnh này (JPG)", icon: <Download size={16} />, onClick: downloadOne },
-      { label: "Tải tất cả mẫu (.zip)", icon: <Files size={16} />, onClick: downloadAll },
+      ...(frames.length > 1 ? [{ label: "Tải tất cả mẫu (.zip)", icon: <Files size={16} />, onClick: downloadAll }] : []),
       { label: "Tải PNG nền trong suốt", icon: <ImageIcon size={16} />, onClick: downloadPng },
     ]} />
   );
 
-  if (!frames.length) {
-    return (
-      <div className="space-y-3">
-        {tabs}
-        <div className="grid h-64 place-items-center rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]"><span><Package size={24} className="mx-auto mb-2" />Tiệm chưa có mẫu khung CD.</span></div>
-      </div>
-    );
-  }
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center gap-2">{tabs}<div className="ml-auto">{menu}</div></div>
-      {/* xem trước: căn giữa cả 2 chiều, chiếm tối đa vùng còn lại; kéo để di chuyển khung */}
-      <div ref={area} className="flex min-h-[240px] flex-1 items-center justify-center md:min-h-0">
-        <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white" style={{ width: width || "100%" }}>
-          <canvas ref={view} className="block h-auto w-full cursor-grab touch-none active:cursor-grabbing"
-            onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, p: pos }; }}
-            onPointerMove={(e) => {
-              const d = drag.current, el = view.current;
-              if (!d || !el) return;
-              const r = el.getBoundingClientRect();
-              setPos({ ...d.p, x: d.p.x + (e.clientX - d.x) / r.width, y: d.p.y + (e.clientY - d.y) / r.height });
-            }}
-            onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} />
-          {!built && !err && <p className="absolute inset-0 grid place-items-center text-[13px] text-[#71717a]">Đang dựng mockup...</p>}
-          {err && <p className="absolute inset-x-0 top-2 text-center text-[13px] text-[#dc2626]">{err}</p>}
-        </div>
+    <div className="relative flex min-h-0 flex-1 flex-col md:block">
+      {/* ảnh mockup: căn giữa tuyệt đối trong panel (chừa đều 2 bên cho cột mẫu và thanh đáy) */}
+      <div ref={area} className="relative flex min-h-[240px] flex-1 items-center justify-center p-3 md:absolute md:inset-x-[72px] md:inset-y-[64px] md:min-h-0 md:p-0">
+        {!frame ? (
+          <div className="grid h-64 w-full place-items-center rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]"><span><Package size={24} className="mx-auto mb-2" />Tiệm chưa có mẫu khung CD.</span></div>
+        ) : (
+          <div className="group relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white" style={{ width: width || "100%" }}>
+            <canvas ref={view} className="block h-auto w-full cursor-grab touch-none active:cursor-grabbing"
+              onDoubleClick={() => setPos(DEFAULT_POS)}
+              onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, p: pos }; }}
+              onPointerMove={(e) => {
+                const d = drag.current, el = view.current;
+                if (!d || !el) return;
+                const r = el.getBoundingClientRect();
+                setPos({ ...d.p, x: d.p.x + (e.clientX - d.x) / r.width, y: d.p.y + (e.clientY - d.y) / r.height });
+              }}
+              onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} />
+            {/* hover: +/− phóng to / thu nhỏ khung CD (50% – 150%) */}
+            <div className="absolute bottom-2 right-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+              <button type="button" onClick={() => zoom(-0.1)} disabled={pos.scale <= 0.5} aria-label="Thu nhỏ" title="Thu nhỏ"
+                className="grid h-7 w-7 place-items-center rounded-full bg-white text-[#18181b] shadow-[0_1px_4px_rgba(0,0,0,0.18)] disabled:opacity-40"><Minus size={14} /></button>
+              <button type="button" onClick={() => zoom(0.1)} disabled={pos.scale >= 1.5} aria-label="Phóng to" title="Phóng to"
+                className="grid h-7 w-7 place-items-center rounded-full bg-white text-[#18181b] shadow-[0_1px_4px_rgba(0,0,0,0.18)] disabled:opacity-40"><Plus size={14} /></button>
+            </div>
+            {!built && !err && <p className="absolute inset-0 grid place-items-center text-[13px] text-[#71717a]">Đang dựng mockup...</p>}
+            {err && <p className="absolute inset-x-0 top-2 text-center text-[13px] text-[#dc2626]">{err}</p>}
+          </div>
+        )}
       </div>
-      {/* thanh công cụ đáy: 1 hàng, nhiều quá thì cuộn ngang */}
-      <div className="no-scrollbar flex shrink-0 items-center gap-3 overflow-x-auto whitespace-nowrap py-1">
-        <input type="range" min={0.2} max={1.4} step={0.01} value={pos.scale} onChange={(e) => setPos({ ...pos, scale: Number(e.target.value) })} className="w-28 shrink-0 accent-[#ff5fa2]" aria-label="Kích thước khung" title="Kích thước khung" />
-        <Button variant="ghost" size="sm" className="shrink-0" icon={<Crosshair size={16} />} onClick={() => setPos({ ...pos, x: 0.5, y: 0.5 })}>Căn giữa</Button>
-        <span className="h-6 w-px shrink-0 bg-[#e5e5e7]" />
-        <div className="flex shrink-0 items-center gap-1.5">
-          <span className="text-[13px] font-semibold text-[#18181b]">Mẫu</span>
+
+      {/* Mẫu: cột thumbnail dọc ở mép phải, căn giữa dọc, nằm đè vùng trống */}
+      {!hidePicker && frames.length > 0 && (
+        <div className="no-scrollbar flex gap-2 overflow-auto px-3 md:absolute md:right-3 md:top-1/2 md:max-h-[calc(100%-128px)] md:-translate-y-1/2 md:flex-col md:px-0">
           {frames.map((f, i) => (
             <button key={f.id} type="button" onClick={() => setIdx(i)} title={f.name}
-              className={cx("h-10 w-10 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", i === idx ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+              className={cx("h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", f.id === frame?.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={proxied(f.image_url)} alt={f.name} className="h-full w-full object-contain" loading="lazy" />
             </button>
           ))}
         </div>
-        <span className="h-6 w-px shrink-0 bg-[#e5e5e7]" />
-        {bgPicker}
+      )}
+
+      {/* thanh đáy: trái Nền · phải Tải về */}
+      <div className="flex h-14 shrink-0 items-center gap-3 px-4 md:absolute md:inset-x-0 md:bottom-0">
+        <div className="min-w-0 flex-1">{bgPicker}</div>
+        <div className="shrink-0">{menu}</div>
       </div>
     </div>
   );

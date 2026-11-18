@@ -28,6 +28,7 @@ export const frameOrderOf = (regions: { order: number }[], glass: GlassSettings)
 export type MockupFrame = {
   id: string; name: string; image_url: string; source: "url" | "storage";
   regions: Region[]; glass: GlassSettings; is_active: boolean; sort_order: number;
+  is_default_box?: boolean; // mẫu mặc định cho gói "CD + Hộp" (không tính vào 5 mẫu, khách không chọn)
 };
 export type MockupBackground = { id: string; name: string; url: string; is_active: boolean; sort_order: number };
 export type MockupSettings = { watermark: boolean };
