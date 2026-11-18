@@ -10,9 +10,10 @@ export function useLeaveGuard(active: boolean) {
     const before = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = LEAVE_MSG; return LEAVE_MSG; };
     const click = (e: MouseEvent) => {
       const a = (e.target as HTMLElement)?.closest?.("a");
-      if (!a || a.target === "_blank" || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey) return;
+      // bỏ qua link tải xuống (a[download], blob:/data:) — không phải rời trang
+      if (!a || a.hasAttribute("download") || /^(blob|data):/i.test(a.href) || a.target === "_blank" || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey) return;
       const url = new URL(a.href, location.href);
-      if (url.origin !== location.origin || url.pathname === location.pathname) return;
+      if (!/^https?:$/.test(url.protocol) || url.origin !== location.origin || url.pathname === location.pathname) return;
       if (!window.confirm(LEAVE_MSG)) { e.preventDefault(); e.stopPropagation(); }
     };
     window.addEventListener("beforeunload", before);
