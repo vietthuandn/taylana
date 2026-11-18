@@ -5,7 +5,7 @@
    variant "grid": ô lớn có mockup (Gửi file) · "list": danh sách dọc gọn, booklet thành lưới 4 cột (Mockup). */
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Check, FileCheck2, RefreshCw, Trash2 } from "lucide-react";
+import { Check, FileCheck2, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
 import { matchFileName, type PackLayout } from "@/lib/matchFileName";
 import { PrintArea } from "@/components/mockup/Mockups";
 import { btnClass, cx, inputClass } from "@/components/ui/styles";
@@ -15,12 +15,47 @@ export type ExistingFile = { name: string; url: string | null; pdf: boolean };
 
 export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, variant = "grid", onPick, onRemove }: {
   slots: SlotDef[]; layout: PackLayout; files: Record<string, Picked>; existing?: Record<string, ExistingFile>;
-  readOnly?: boolean; variant?: "grid" | "list"; onPick: (s: SlotDef, f: File) => void; onRemove: (s: SlotDef) => void;
+  readOnly?: boolean; variant?: "grid" | "list" | "compact"; onPick: (s: SlotDef, f: File) => void; onRemove: (s: SlotDef) => void;
 }) {
   const [multiOpen, setMultiOpen] = useState(false);
   const groups = (["front", "back", "disc"] as const).map((g) => ({ g, list: slots.filter((s) => s.group === g) })).filter((x) => x.list.length);
   const title = (g: string) => (g === "front" ? (layout.front >= 4 ? "Bìa trước · Booklet" : "Bìa trước") : g === "back" ? "Bìa sau" : "Mặt đĩa");
   const size = (g: string) => (g === "front" ? "12 × 12 cm" : g === "back" ? "15 × 11.7 cm" : "Tròn 12 cm");
+
+  const multi = multiOpen && (
+    <MultiUpload slots={slots} layout={layout} onCancel={() => setMultiOpen(false)}
+      onConfirm={async (rows) => {
+        setMultiOpen(false);
+        for (const r of rows) {
+          const s = slots.find((x) => x.id === r.slot);
+          if (s) onPick(s, r.file);
+        }
+      }} />
+  );
+
+  // compact (trang Mockup): nút hồng full → các section, mọi section chung lưới 4 cột
+  if (variant === "compact") {
+    return (
+      <div className="space-y-6">
+        <button type="button" onClick={() => setMultiOpen(true)}
+          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[8px] text-[14px] font-semibold text-white transition-opacity hover:opacity-90" style={{ background: PINK }}>
+          <Upload size={16} /> Tải nhiều ảnh
+        </button>
+        {groups.map(({ g, list }) => (
+          <section key={g}>
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <p className="text-[14px] font-semibold text-[#18181b]">{g === "front" ? "Bìa trước" : title(g)}</p>
+              <span className="text-[12px] text-[#71717a]">{size(g)}</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {list.map((s) => <CompactTile key={s.id} slot={s} booklet={layout.front >= 4} picked={files[s.id]} onFile={(f) => onPick(s, f)} onRemove={() => onRemove(s)} />)}
+            </div>
+          </section>
+        ))}
+        {multi}
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -54,21 +89,60 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
         </div>
       ))}
 
-      {multiOpen && (
-        <MultiUpload slots={slots} layout={layout} onCancel={() => setMultiOpen(false)}
-          onConfirm={async (rows) => {
-            setMultiOpen(false);
-            for (const r of rows) {
-              const s = slots.find((x) => x.id === r.slot);
-              if (s) onPick(s, r.file);
-            }
-          }} />
-      )}
+      {multi}
     </div>
   );
 }
 
 const warnOf = (p?: Picked) => (p?.error ? [p.error] : p?.check && p.check.level !== "ok" ? p.check.messages : []);
+
+// Ô ảnh kiểu compact: trước/đĩa vuông 1 cột · bìa sau 2 cột 15:11.7 · badge góc trái · hover: Thay / Xoá
+function CompactTile({ slot, booklet, picked, onFile, onRemove }: { slot: SlotDef; booklet: boolean; picked?: Picked; onFile: (f: File) => void; onRemove: () => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [over, setOver] = useState(false);
+  const has = !!picked && !picked.error && !!picked.preview;
+  const warn = warnOf(picked);
+  const disc = slot.group === "disc";
+  const badge = disc ? "CD" : booklet && slot.group === "front" ? slot.label : slot.label === "Mặt Trong" ? "Trong" : "Ngoài";
+  const open = () => input.current?.click();
+  return (
+    <div title={picked?.file.name ?? slot.full}
+      className={cx("group relative rounded-[8px]", slot.group === "back" ? "col-span-2 aspect-[15/11.7]" : "aspect-square", over && "ring-2 ring-[#ff5fa2]")}
+      onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+      onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}>
+      {has ? (
+        <div className={cx("absolute inset-0 overflow-hidden rounded-[8px] border border-[#e5e5e7]", disc && "bg-[#fafafa]")}>
+          {disc ? (
+            <div className="absolute inset-[6%] overflow-hidden rounded-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={picked!.preview!} alt="" className="h-full w-full object-cover" />
+              <span className="absolute left-1/2 top-1/2 h-[19%] w-[19%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#e5e5e7] bg-[#fafafa]" />
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={picked!.preview!} alt="" className="h-full w-full object-cover" />
+          )}
+          {/* hover (desktop): phủ đen + 2 nút giữa · điện thoại: 2 nút nhỏ góc dưới phải */}
+          <div className="absolute bottom-1 right-1 flex gap-1 transition-opacity md:inset-0 md:items-center md:justify-center md:gap-2 md:bg-black/40 md:opacity-0 md:group-hover:opacity-100">
+            <button type="button" onClick={open} aria-label="Thay ảnh" title="Thay ảnh"
+              className="grid h-6 w-6 place-items-center rounded-full bg-white text-[#18181b] shadow md:h-8 md:w-8"><RefreshCw size={14} /></button>
+            <button type="button" onClick={onRemove} aria-label="Xoá" title="Xoá"
+              className="grid h-6 w-6 place-items-center rounded-full bg-white text-[#dc2626] shadow md:h-8 md:w-8"><Trash2 size={14} /></button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={open} aria-label={`Chọn ảnh ${slot.full}`}
+          className="absolute inset-0 grid place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] text-[#a1a1aa] transition-colors hover:border-[#ff5fa2] hover:text-[#ff5fa2]">
+          <Plus size={18} />
+        </button>
+      )}
+      <span className="pointer-events-none absolute left-1 top-1 rounded-[4px] bg-black/70 px-1.5 py-px text-[11px] font-medium leading-[16px] text-white">{badge}</span>
+      {warn.length > 0 && <span title={warn.join(" · ")} aria-label={warn.join(" · ")} className="absolute right-1.5 top-1.5 h-2.5 w-2.5 rounded-full bg-[#f97316] ring-2 ring-white" />}
+      <input ref={input} type="file" accept={ACCEPT} className="sr-only" tabIndex={-1}
+        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
+    </div>
+  );
+}
 
 // 1 dòng gọn (trang Mockup): ảnh 56px · tên ô · đổi / xoá
 function SlotRow({ slot, picked, onFile, onRemove }: { slot: SlotDef; picked?: Picked; onFile: (f: File) => void; onRemove: () => void }) {

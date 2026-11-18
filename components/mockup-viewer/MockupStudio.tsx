@@ -3,7 +3,7 @@
 /* Trang "Xem Mockup CD": trái 40% = khu tải ảnh (dùng chung với Gửi file CD), phải 60% = tab CD Mockup / Booklet Mockup.
    Ảnh của khách chỉ xử lý trên trình duyệt, KHÔNG upload. */
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Disc3 } from "lucide-react";
+import { BookOpen, ChevronDown, Disc3 } from "lucide-react";
 import type { Package } from "@/lib/types";
 import { GRADIENTS, type BgChoice } from "@/lib/mockup/backgrounds";
 import { loadImg } from "@/lib/mockup/images";
@@ -11,7 +11,6 @@ import { takeHandoff } from "@/lib/mockup/handoff";
 import type { MockupBackground, MockupFrame, RegionType } from "@/lib/mockup/types";
 import { CdUploadPanel } from "@/components/cd/CdUploadPanel";
 import { layoutOf, readPicked, slotsOf, type Picked } from "@/components/cd/cdSlots";
-import { Select } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 import { BgPicker } from "./BgPicker";
 import { CdMockupTab } from "./CdMockupTab";
@@ -69,11 +68,19 @@ export function MockupStudio({ packages, frames, backgrounds }: {
     });
   }
 
-  const regionImages = useMemo<Partial<Record<RegionType, HTMLImageElement | null>>>(() => ({
-    front_out: imgs.f1 ?? null, front_in: imgs.f2 ?? null, back_out: imgs.b1 ?? null, back_in: imgs.b2 ?? null, disc: imgs.d ?? null,
-  }), [imgs]);
+  // chỉ vùng thuộc gói mới có khoá (null = chưa có ảnh); vùng ngoài gói bỏ trống → vẽ trắng trơn
+  const regionImages = useMemo<Partial<Record<RegionType, HTMLImageElement | null>>>(() => {
+    const out: Partial<Record<RegionType, HTMLImageElement | null>> = {};
+    if (!layout) return out;
+    if (layout.front >= 1) out.front_out = imgs.f1 ?? null;
+    if (layout.front >= 2) out.front_in = imgs.f2 ?? null;
+    if (layout.back >= 1) out.back_out = imgs.b1 ?? null;
+    if (layout.back >= 2) out.back_in = imgs.b2 ?? null;
+    if (layout.disc) out.disc = imgs.d ?? null;
+    return out;
+  }, [imgs, layout?.front, layout?.back, layout?.disc]); // eslint-disable-line react-hooks/exhaustive-deps
   const bookletPages = useMemo(() => (layout && layout.front >= 4 ? Array.from({ length: layout.front }, (_, i) => imgs[`f${i + 1}`] ?? null) : null), [layout, imgs]);
-  const picker = <BgPicker value={bg} onChange={setBg} shop={backgrounds} className="ml-auto max-w-full" />;
+  const picker = <BgPicker value={bg} onChange={setBg} shop={backgrounds} className="shrink-0" />;
 
   const tabs = (
         <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
@@ -91,25 +98,24 @@ export function MockupStudio({ packages, frames, backgrounds }: {
      {/* giới hạn bề ngang như các trang khác (1200px) */}
      <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col md:min-h-0 md:flex-row md:border-x md:border-[#e5e5e7]">
       {/* ---------- Trái 40%: khu tải ảnh ---------- */}
-      <aside className="relative border-[#e5e5e7] bg-white p-4 md:w-[38%] md:shrink-0 md:overflow-y-auto md:border-r">
-        <h1 className="font-sans text-[20px] font-bold normal-case tracking-[-0.02em] text-[#18181b]">Xem Mockup CD</h1>
-        <p className="mt-1 text-[13px] text-[#71717a]">Ảnh chỉ hiển thị trên máy bạn, không tải lên server.</p>
-        <label className="mt-4 block">
-          <span className="mb-1.5 block text-[13px] font-semibold text-[#18181b]">Gói CD</span>
-          <Select value={pkg?.id ?? ""} onChange={(e) => setPkgId(e.target.value)}>
+      <aside className="relative space-y-6 border-[#e5e5e7] bg-white p-6 md:w-[38%] md:shrink-0 md:overflow-y-auto md:border-r">
+        {/* chọn gói: floating label */}
+        <label className="relative block h-14 rounded-[10px] border border-[#e5e5e7] bg-white transition-colors focus-within:border-[#ff5fa2]">
+          <span className="pointer-events-none absolute left-3 top-2 text-[12px] leading-none text-[#71717a]">Gói CD</span>
+          <select value={pkg?.id ?? ""} onChange={(e) => setPkgId(e.target.value)} aria-label="Gói CD"
+            className="h-full w-full cursor-pointer appearance-none truncate rounded-[10px] bg-transparent pl-3 pr-9 pt-4 text-[15px] text-[#18181b] outline-none">
             {packages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </Select>
+          </select>
+          <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
         </label>
         {layout && (
-          <div className="mt-4">
-            <CdUploadPanel variant="list" slots={slots} layout={layout} files={files}
-              onPick={async (s, f) => setSlot(s.id, await readPicked(f, s.spec))} onRemove={(s) => setSlot(s.id, null)} />
-          </div>
+          <CdUploadPanel variant="compact" slots={slots} layout={layout} files={files}
+            onPick={async (s, f) => setSlot(s.id, await readPicked(f, s.spec))} onRemove={(s) => setSlot(s.id, null)} />
         )}
       </aside>
 
       {/* ---------- Phải 60%: mockup ---------- */}
-      <section className="no-scrollbar relative min-w-0 flex-1 p-3 md:overflow-y-auto md:px-4">
+      <section className="no-scrollbar relative flex min-w-0 flex-1 flex-col p-3 md:min-h-0 md:overflow-y-auto md:px-4">
         {tab === "cd"
           ? <CdMockupTab frames={frames} images={regionImages} bg={bg} bgPicker={picker} tabs={tabs} />
           : <BookletMockupTab pages={bookletPages} bg={bg} bgPicker={picker} tabs={tabs} />}

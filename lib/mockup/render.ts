@@ -30,13 +30,10 @@ function trimSpines(img: Img) {
   c.getContext("2d")!.drawImage(img, cut, 0, img.width - cut * 2, img.height, 0, 0, c.width, c.height);
   return c;
 }
-// Vùng chưa có ảnh: xám nhạt + tên vùng
-function placeholder(type: RegionType) {
-  const c = canvas(600, 600), x = c.getContext("2d")!;
-  x.fillStyle = "#e4e4e7"; x.fillRect(0, 0, 600, 600);
-  x.fillStyle = "#a1a1aa"; x.font = "600 34px Inter, system-ui, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
-  const words = REGION_LABELS[type].split(" - ");
-  words.forEach((w, i) => x.fillText(w, 300, 300 + (i - (words.length - 1) / 2) * 44));
+// Vùng không có ảnh: không thuộc gói (undefined) → trắng trơn như bìa giấy · thuộc gói nhưng chưa có ảnh (null) → xám rất nhạt. Không chữ.
+function placeholder(type: RegionType, inPack: boolean) {
+  const c = canvas(64, 64), x = c.getContext("2d")!;
+  x.fillStyle = inPack ? "#f4f4f5" : "#ffffff"; x.fillRect(0, 0, 64, 64);
   if (type === "disc") return discSource(c, DEFAULT_DISC_HOLE);
   return c;
 }
@@ -62,7 +59,7 @@ export function renderFrame({ frame, regions, images, masks = {}, glass, maxW = 
   for (const r of layers) {
     if (r === "frame") { ctx.globalCompositeOperation = "source-over"; ctx.drawImage(frame, 0, 0, W, H); continue; }
     const raw = images[r.type] ?? null;
-    let src: Img = raw ?? placeholder(r.type);
+    let src: Img = raw ?? placeholder(r.type, images[r.type] !== undefined);
     if (raw && r.type === "disc") src = discSource(raw, r.hole ?? DEFAULT_DISC_HOLE);
     if (raw && (r.type === "back_out" || r.type === "back_in") && r.spine === "trim") src = trimSpines(raw);
     let layer: HTMLCanvasElement;

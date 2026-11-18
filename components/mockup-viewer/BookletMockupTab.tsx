@@ -8,6 +8,7 @@ import { paintBackground, type BgChoice } from "@/lib/mockup/backgrounds";
 import { saveBlob } from "@/lib/imageTools";
 import { Button, toast } from "@/components/ui/kit";
 import { DownloadMenu } from "./DownloadMenu";
+import { useFitBox } from "./useFitBox";
 
 const PX = 1000; // kích thước ảnh 1 trang khi dựng
 
@@ -59,6 +60,7 @@ export function BookletMockupTab({ pages, bg, bgPicker, tabs, onChangePackage }:
   const [cur, setCur] = useState(0);
   const [bgUrl, setBgUrl] = useState("");
   const n = pages?.length ?? 0;
+  const { area, width } = useFitBox(0.55, 48); // khung = sách 2 trang vuông + lề
 
   const canvases = useMemo(() => (pages ? pages.map((img, i) => pageImage(img, i + 1, i % 2 === 0 ? "right" : "left")) : []), [pages]);
   const urls = useMemo(() => canvases.map((c) => c.toDataURL("image/jpeg", 0.9)), [canvases]);
@@ -146,8 +148,10 @@ export function BookletMockupTab({ pages, bg, bgPicker, tabs, onChangePackage }:
       </div>
     );
   }
+  // sách đóng (bìa đầu / bìa cuối) → trượt ±½ trang để 1 trang luôn nằm giữa
+  const shift = spread.length === 1 ? (spread[0] === 0 ? -25 : 25) : 0;
   return (
-    <div className="space-y-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex items-center gap-2">
         {tabs}
         <div className="ml-auto">
@@ -157,15 +161,20 @@ export function BookletMockupTab({ pages, bg, bgPicker, tabs, onChangePackage }:
           ]} />
         </div>
       </div>
-      <div className="relative mx-auto w-full overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-cover bg-center px-[3%] py-[4%]" style={{ maxWidth: "min(900px, max(300px, calc((100dvh - var(--header-h) - 140px) * 1.75)))", backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
-        <div ref={host} className="mx-auto w-full [filter:drop-shadow(0_16px_24px_rgba(0,0,0,0.18))]" />
+      <div ref={area} className="flex min-h-[200px] flex-1 flex-col items-center justify-center gap-3 md:min-h-0">
+        <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-cover bg-center px-[3%] py-[4%]"
+          style={{ width: width ? Math.min(width, 1100) : "100%", backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
+          <div className="transition-transform duration-500 ease-out" style={{ transform: `translateX(${shift}%)` }}>
+            <div ref={host} className="mx-auto w-full [filter:drop-shadow(0_16px_24px_rgba(0,0,0,0.18))]" />
+          </div>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+          <Button variant="secondary" size="sm" icon={<ChevronLeft size={16} />} onClick={() => flip.current?.flipPrev()} disabled={cur === 0} title="Bấm mép trang, kéo góc hoặc dùng phím ← → để lật">Trước</Button>
+          <span className="min-w-[110px] text-center text-[13px] tabular-nums text-[#3f3f46]">{label}</span>
+          <Button variant="secondary" size="sm" onClick={() => flip.current?.flipNext()} disabled={spread[spread.length - 1] >= n - 1}>Sau <ChevronRight size={16} /></Button>
+        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" size="sm" icon={<ChevronLeft size={16} />} onClick={() => flip.current?.flipPrev()} disabled={cur === 0} title="Bấm mép trang, kéo góc hoặc dùng phím ← → để lật">Trước</Button>
-        <span className="min-w-[110px] text-center text-[13px] tabular-nums text-[#3f3f46]">{label}</span>
-        <Button variant="secondary" size="sm" onClick={() => flip.current?.flipNext()} disabled={spread[spread.length - 1] >= n - 1}>Sau <ChevronRight size={16} /></Button>
-        {bgPicker}
-      </div>
+      <div className="no-scrollbar flex shrink-0 items-center justify-end overflow-x-auto py-1">{bgPicker}</div>
     </div>
   );
 }

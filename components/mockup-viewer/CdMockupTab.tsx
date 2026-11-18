@@ -10,6 +10,7 @@ import type { MockupFrame, RegionType } from "@/lib/mockup/types";
 import { saveBlob, saveZip } from "@/lib/imageTools";
 import { Button, toast } from "@/components/ui/kit";
 import { DownloadMenu } from "./DownloadMenu";
+import { useFitBox } from "./useFitBox";
 import { cx } from "@/components/ui/styles";
 
 type Pos = { x: number; y: number; scale: number };
@@ -31,20 +32,12 @@ export function CdMockupTab({ frames, images, bg, bgPicker, tabs }: {
   const [built, setBuilt] = useState<HTMLCanvasElement | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const wrap = useRef<HTMLDivElement>(null);
   const view = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ x: number; y: number; p: Pos } | null>(null);
-  const [vw, setVw] = useState(800);
   const frame = frames[idx];
   const ratio = bgRatio(bg);
-
-  useEffect(() => {
-    const el = wrap.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setVw(el.clientWidth));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  const { area, width } = useFitBox(ratio);
+  const vw = width || 800;
 
   // dựng lại khung khi đổi mẫu / ảnh (xem trước tối đa 1600px)
   useEffect(() => {
@@ -122,12 +115,11 @@ export function CdMockupTab({ frames, images, bg, bgPicker, tabs }: {
     );
   }
   return (
-    <div className="space-y-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <div className="flex items-center gap-2">{tabs}<div className="ml-auto">{menu}</div></div>
-      <div className="flex items-start gap-3">
-        {/* xem trước: kéo để di chuyển khung */}
-        <div ref={wrap} className="relative mx-auto w-full min-w-0 overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white"
-          style={{ maxWidth: `min(820px, max(260px, calc((100dvh - var(--header-h) - 140px) / ${ratio})))` }}>
+      {/* xem trước: căn giữa cả 2 chiều, chiếm tối đa vùng còn lại; kéo để di chuyển khung */}
+      <div ref={area} className="flex min-h-[240px] flex-1 items-center justify-center md:min-h-0">
+        <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white" style={{ width: width || "100%" }}>
           <canvas ref={view} className="block h-auto w-full cursor-grab touch-none active:cursor-grabbing"
             onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, p: pos }; }}
             onPointerMove={(e) => {
@@ -140,20 +132,23 @@ export function CdMockupTab({ frames, images, bg, bgPicker, tabs }: {
           {!built && !err && <p className="absolute inset-0 grid place-items-center text-[13px] text-[#71717a]">Đang dựng mockup...</p>}
           {err && <p className="absolute inset-x-0 top-2 text-center text-[13px] text-[#dc2626]">{err}</p>}
         </div>
-        {/* chọn mẫu khung: cột bên phải */}
-        <div className="no-scrollbar flex max-h-[calc(100dvh-var(--header-h)-140px)] shrink-0 flex-col gap-2 overflow-y-auto p-0.5">
+      </div>
+      {/* thanh công cụ đáy: 1 hàng, nhiều quá thì cuộn ngang */}
+      <div className="no-scrollbar flex shrink-0 items-center gap-3 overflow-x-auto whitespace-nowrap py-1">
+        <input type="range" min={0.2} max={1.4} step={0.01} value={pos.scale} onChange={(e) => setPos({ ...pos, scale: Number(e.target.value) })} className="w-28 shrink-0 accent-[#ff5fa2]" aria-label="Kích thước khung" title="Kích thước khung" />
+        <Button variant="ghost" size="sm" className="shrink-0" icon={<Crosshair size={16} />} onClick={() => setPos({ ...pos, x: 0.5, y: 0.5 })}>Căn giữa</Button>
+        <span className="h-6 w-px shrink-0 bg-[#e5e5e7]" />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="text-[13px] font-semibold text-[#18181b]">Mẫu</span>
           {frames.map((f, i) => (
             <button key={f.id} type="button" onClick={() => setIdx(i)} title={f.name}
-              className={cx("h-14 w-14 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", i === idx ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+              className={cx("h-10 w-10 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", i === idx ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={proxied(f.image_url)} alt={f.name} className="h-full w-full object-contain" loading="lazy" />
             </button>
           ))}
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <input type="range" min={0.2} max={1.4} step={0.01} value={pos.scale} onChange={(e) => setPos({ ...pos, scale: Number(e.target.value) })} className="w-28 accent-[#ff5fa2]" aria-label="Kích thước khung" title="Kích thước khung" />
-        <Button variant="ghost" size="sm" icon={<Crosshair size={16} />} onClick={() => setPos({ ...pos, x: 0.5, y: 0.5 })}>Căn giữa</Button>
+        <span className="h-6 w-px shrink-0 bg-[#e5e5e7]" />
         {bgPicker}
       </div>
     </div>
