@@ -13,6 +13,7 @@ import type { Cd3DHandle, Cd3DImages } from "./Cd3D";
 import { can3D } from "./can3d";
 import { itemsOf, renderSystem, type SystemArrange, type SystemInput, type SystemItem } from "@/lib/mockup/system/compose";
 import { defaultGlass } from "@/lib/mockup/types";
+import { loadSprites } from "@/lib/mockup/system/sprites";
 import { saveBlob, saveZip } from "@/lib/imageTools";
 import { toast } from "@/components/ui/kit";
 import { DownloadMenu } from "./DownloadMenu";
@@ -78,7 +79,8 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
   useEffect(() => {
     let off = false;
     setSysBusy(true);
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
+      await loadSprites(); // ảnh hộp CD thật (tải 1 lần)
       if (off) return;
       const c = renderSystem(1200, system, sysOpts, (ctx, w, h) => paintBackground(ctx, w, h, bg));
       const v = sysView.current;
@@ -164,6 +166,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
   async function downloadSystem(transparent: boolean) {
     setBusy(true);
     try {
+      await loadSprites();
       await new Promise((r) => setTimeout(r, 20));
       const c = renderSystem(2400, system, sysOpts, transparent ? null : (ctx, w, h) => paintBackground(ctx, w, h, bg));
       if (watermark && !transparent) {

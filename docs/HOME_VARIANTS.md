@@ -19,3 +19,16 @@ hoặc bằng nút "Mẫu: … ▾" trên trang chủ khi đang đăng nhập ad
 3. KHÔNG import hay sửa mẫu khác. Mỗi mẫu tự chứa giao diện của mình.
 
 Mẫu đang chọn không tồn tại hoặc bị lỗi khi dựng → tự dùng `v1-hien-tai`.
+
+## Ảnh hộp CD của "Mẫu hệ thống" (Auto) ở trang Xem Mockup
+
+Mẫu Auto dùng ảnh hộp CD thật `public/mockup/system/cd-sheet.png` (nền trong suốt, các ô bìa trong suốt, gồm 3 vật thể:
+hộp đóng A · hộp đóng B · hộp mở có đĩa). Script `scripts/slice-cd-sheet.mjs` cắt ảnh này thành `closed.png`, `open.png`,
+`disc.png` và ghi toạ độ các ô bìa / khay / đĩa vào `sheet.json` (dò theo kênh alpha).
+
+Bản gốc chỉ ~430px mỗi hộp nên ảnh tải về 2400px sẽ hơi mềm (không làm nét giả). Muốn nét hơn: thay `cd-sheet.png`
+bằng bản độ phân giải cao hơn, GIỮ NGUYÊN bố cục 3 vật thể, rồi chạy lại:
+
+```bash
+node scripts/slice-cd-sheet.mjs
+```

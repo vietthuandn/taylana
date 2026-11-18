@@ -5,6 +5,7 @@
    Mỗi đồ vật vẽ sẵn 1 lần ra canvas phụ (cache theo ảnh + tỉ lệ), chỉ vẽ lại khi ảnh tương ứng đổi. */
 import type { GlassSettings, TrayStyle } from "@/lib/mockup/types";
 import { CASE_H, CASE_W, COVER, DISC_R, drawBack, drawClosed, drawDisc, drawFan, drawOpen, drawSpread, idOf, type Src } from "./objects";
+import { mmPerPx, spriteBack, spriteClosed, spriteDisc, spriteOpen, sprites, type SpriteOut } from "./sprites";
 
 export type SystemPack = "box" | "combo1" | "combo2" | "booklet";
 export type SystemArrange = "grid" | "stack" | "single";
@@ -30,29 +31,54 @@ function rng(seed: number) {
 }
 
 type Kind = "closed" | "open" | "openBare" | "back" | "spread" | "fan" | "disc";
-const SIZE: Record<Kind, [number, number]> = {
+const DRAWN: Record<Kind, [number, number]> = {
   closed: [CASE_W, CASE_H], open: [CASE_W * 2, CASE_H], openBare: [CASE_W * 2, CASE_H], back: [CASE_W, CASE_H],
   spread: [COVER * 2, COVER + 4], fan: [COVER * 1.5, COVER * 1.32], disc: [DISC_R * 2, DISC_R * 2],
 };
+// kích thước (mm) dùng để sắp bố cục: theo thân hộp trong ảnh PNG thật (đã tải) hoặc hộp vẽ bằng code
+function sizeOf(kind: Kind): [number, number] {
+  const sp = sprites();
+  if (!sp || kind === "spread" || kind === "fan") return DRAWN[kind];
+  const m = mmPerPx(sp, CASE_W), sh = sp.sheet;
+  const cw = (r: { x0: number; x1: number }, W: number) => (r.x1 - r.x0) * W * m, chh = (r: { y0: number; y1: number }, H: number) => (r.y1 - r.y0) * H * m;
+  if (kind === "closed" || kind === "back") return [cw(sh.closed.case, sh.closed.width), chh(sh.closed.case, sh.closed.height)];
+  if (kind === "disc") return [sh.disc.r * 2 * sh.disc.width * m, sh.disc.r * 2 * sh.disc.width * m];
+  return [cw(sh.open.case, sh.open.width), chh(sh.open.case, sh.open.height)];
+}
 // đồ vật đặt trong cảnh (đơn vị mm, tâm so với tâm cảnh)
 type Placed = { kind: Kind; x: number; y: number; rot: number };
 
 // ---------- cache canvas từng đồ vật ----------
-const cache = new Map<string, HTMLCanvasElement>();
-function objectCanvas(kind: Kind, s: number, inp: SystemInput, o: SystemOptions) {
+const cache = new Map<string, SpriteOut>();
+const centered = (c: HTMLCanvasElement): SpriteOut => ({ c, ax: c.width / 2, ay: c.height / 2 });
+function objectCanvas(kind: Kind, s: number, inp: SystemInput, o: SystemOptions): SpriteOut {
   const g = `${o.glass.strength}|${o.glass.angle}`;
-  const key = [kind, s.toFixed(3), o.tray, g, idOf(inp.frontOut), idOf(inp.frontIn), idOf(inp.backOut), idOf(inp.backIn), idOf(inp.disc), inp.pages.map(idOf).join(",")].join("|");
+  const sp = sprites();
+  const key = [kind, sp ? "png" : "code", s.toFixed(3), o.tray, g, idOf(inp.frontOut), idOf(inp.frontIn), idOf(inp.backOut), idOf(inp.backIn), idOf(inp.disc), inp.pages.map(idOf).join(",")].join("|");
   let c = cache.get(key);
   if (c) return c;
-  switch (kind) {
-    case "closed": c = drawClosed(s, inp.frontOut, inp.disc, o.glass); break;
-    case "back": c = drawBack(s, inp.backOut, o.glass); break;
-    case "open": c = drawOpen(s, inp.frontIn, inp.backIn, inp.disc, o.tray, o.glass, true); break;
-    case "openBare": c = drawOpen(s, inp.frontIn, inp.backIn, inp.disc, o.tray, o.glass, false); break;
-    case "spread": c = drawSpread(s, inp.pages[1] ?? null, inp.pages[2] ?? null); break;
-    case "fan": c = drawFan(s, inp.pages.slice(0, 3)); break;
-    case "disc": c = drawDisc(s, inp.disc ?? null); break;
+  // ảnh hộp thật (PNG): phóng theo tỉ lệ chung px/mm — k = px đầu ra / px sprite
+  if (sp && kind !== "spread" && kind !== "fan") {
+    const k = s * mmPerPx(sp, CASE_W);
+    if (kind === "closed") c = spriteClosed(sp, k, inp.frontOut, o.glass);
+    else if (kind === "back") c = spriteBack(sp, k, inp.backOut, o.glass);
+    else if (kind === "disc") c = spriteDisc(sp, k, inp.disc ?? null);
+    else c = spriteOpen(sp, k, inp.frontIn, inp.backIn, inp.disc ?? null, o.glass); // ảnh PNG luôn có đĩa trong khay
+    if (cache.size > 40) cache.clear();
+    cache.set(key, c);
+    return c;
   }
+  let d: HTMLCanvasElement;
+  switch (kind) {
+    case "closed": d = drawClosed(s, inp.frontOut, inp.disc, o.glass); break;
+    case "back": d = drawBack(s, inp.backOut, o.glass); break;
+    case "open": d = drawOpen(s, inp.frontIn, inp.backIn, inp.disc, o.tray, o.glass, true); break;
+    case "openBare": d = drawOpen(s, inp.frontIn, inp.backIn, inp.disc, o.tray, o.glass, false); break;
+    case "spread": d = drawSpread(s, inp.pages[1] ?? null, inp.pages[2] ?? null); break;
+    case "fan": d = drawFan(s, inp.pages.slice(0, 3)); break;
+    case "disc": d = drawDisc(s, inp.disc ?? null); break;
+  }
+  c = centered(d);
   if (cache.size > 40) cache.clear();
   cache.set(key, c);
   return c;
@@ -61,14 +87,14 @@ function objectCanvas(kind: Kind, s: number, inp: SystemInput, o: SystemOptions)
 // ---------- bố cục ----------
 const GAP = 16; // mm giữa các đồ vật
 function rows(list: Kind[][]): Placed[] {
-  const hs = list.map((r) => Math.max(...r.map((k) => SIZE[k][1])));
+  const hs = list.map((r) => Math.max(...r.map((k) => sizeOf(k)[1])));
   const total = hs.reduce((a, b) => a + b, 0) + GAP * (list.length - 1);
   const out: Placed[] = [];
   let y = -total / 2;
   list.forEach((r, i) => {
-    const w = r.reduce((a, k) => a + SIZE[k][0], 0) + GAP * (r.length - 1);
+    const w = r.reduce((a, k) => a + sizeOf(k)[0], 0) + GAP * (r.length - 1);
     let x = -w / 2;
-    for (const k of r) { out.push({ kind: k, x: x + SIZE[k][0] / 2, y: y + hs[i] / 2, rot: 0 }); x += SIZE[k][0] + GAP; }
+    for (const k of r) { out.push({ kind: k, x: x + sizeOf(k)[0] / 2, y: y + hs[i] / 2, rot: 0 }); x += sizeOf(k)[0] + GAP; }
     y += hs[i] + GAP;
   });
   return out;
@@ -98,14 +124,14 @@ function layout(inp: SystemInput, o: SystemOptions): Placed[] {
 function bounds(list: Placed[]) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const it of list) {
-    const [w, h] = SIZE[it.kind], a = (Math.abs(it.rot) * Math.PI) / 180;
+    const [w, h] = sizeOf(it.kind), a = (Math.abs(it.rot) * Math.PI) / 180;
     const bw = w * Math.cos(a) + h * Math.sin(a), bh = w * Math.sin(a) + h * Math.cos(a);
     x0 = Math.min(x0, it.x - bw / 2); x1 = Math.max(x1, it.x + bw / 2); y0 = Math.min(y0, it.y - bh / 2); y1 = Math.max(y1, it.y + bh / 2);
   }
   return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
 }
 
-// bóng đổ 2 lớp của 1 đồ vật (chỉ bóng, không có hình — hình đặt ngoài khung, bóng dịch vào): cache cùng đồ vật
+// bóng đổ 2 lớp của 1 đồ vật (≈60% độ đậm cũ, vì ảnh PNG đã có bóng sẵn) (chỉ bóng, không có hình — hình đặt ngoài khung, bóng dịch vào): cache cùng đồ vật
 const shadows = new WeakMap<HTMLCanvasElement, { c: HTMLCanvasElement; pad: number }>();
 function shadowOf(obj: HTMLCanvasElement, s: number) {
   const hit = shadows.get(obj);
@@ -114,10 +140,10 @@ function shadowOf(obj: HTMLCanvasElement, s: number) {
   const c = document.createElement("canvas"); c.width = obj.width + pad * 2; c.height = obj.height + pad * 2;
   const x = c.getContext("2d")!;
   // bóng xa: nhạt, rộng, lệch xuống dưới phải
-  x.shadowColor = "rgba(0,0,0,0.16)"; x.shadowBlur = 22 * s; x.shadowOffsetX = FAR + 6 * s; x.shadowOffsetY = 10 * s;
+  x.shadowColor = "rgba(0,0,0,0.096)"; x.shadowBlur = 22 * s; x.shadowOffsetX = FAR + 6 * s; x.shadowOffsetY = 10 * s;
   x.drawImage(obj, pad - FAR, pad);
   // bóng tiếp xúc: đậm, sát cạnh
-  x.shadowColor = "rgba(0,0,0,0.32)"; x.shadowBlur = 2.2 * s; x.shadowOffsetX = FAR + 0.4 * s; x.shadowOffsetY = 1 * s;
+  x.shadowColor = "rgba(0,0,0,0.19)"; x.shadowBlur = 2.2 * s; x.shadowOffsetX = FAR + 0.4 * s; x.shadowOffsetY = 1 * s;
   x.drawImage(obj, pad - FAR, pad);
   const v = { c, pad };
   shadows.set(obj, v);
@@ -149,14 +175,13 @@ export function renderSystem(N: number, inp: SystemInput, o: SystemOptions, pain
   x.imageSmoothingQuality = "high";
   if (paintBg) paintBg(x, N, N);
   for (const it of list) {
-    const c = objectCanvas(it.kind, s, inp, o);
-    const w = c.width, h = c.height;
+    const { c, ax, ay } = objectCanvas(it.kind, s, inp, o);
     x.save();
     x.translate(cx + it.x * s, cy + it.y * s); x.rotate((it.rot * Math.PI) / 180);
     // bóng đổ (đổ lên cả đồ vật nằm dưới) rồi tới đồ vật
     const sh = shadowOf(c, s);
-    x.drawImage(sh.c, -w / 2 - sh.pad, -h / 2 - sh.pad);
-    x.drawImage(c, -w / 2, -h / 2);
+    x.drawImage(sh.c, -ax - sh.pad, -ay - sh.pad);
+    x.drawImage(c, -ax, -ay);
     x.restore();
   }
   // grain 3%
