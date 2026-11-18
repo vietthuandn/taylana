@@ -44,10 +44,13 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
         {groups.map(({ g, list }) => (
           <section key={g}>
             <div className="mb-2 flex items-baseline justify-between gap-2">
-              <p className="text-[14px] font-semibold text-[#18181b]" title={g === "front" ? size(g) : undefined}>{g === "front" ? "Bìa trước" : title(g)}</p>
-              {g === "front"
-                ? layout.front >= 4 && onPreview && <button type="button" onClick={onPreview} className="text-[13px] font-medium text-[#ff5fa2] hover:text-[#e0468a]">{previewing ? "Xem CD Mockup ›" : "Xem preview ›"}</button>
-                : <span className="text-[12px] text-[#71717a]">{size(g)}</span>}
+              {/* tên + kích thước cùng hàng: "Bìa trước (12 × 12 cm)" — kích thước giữ cỡ chữ / màu xám nhỏ */}
+              <p className="text-[14px] font-semibold text-[#18181b]">
+                {g === "front" ? "Bìa trước" : title(g)} <span className="text-[12px] font-normal text-[#71717a]">({size(g)})</span>
+              </p>
+              {g === "front" && layout.front >= 4 && onPreview && (
+                <button type="button" onClick={onPreview} className="text-[13px] font-medium text-[#ff5fa2] hover:text-[#e0468a]">{previewing ? "Xem CD Mockup ›" : "Xem preview ›"}</button>
+              )}
             </div>
             {g === "back" ? (
               // Bìa sau: cao bằng 1 ô Bìa trước, rộng theo 15 : 11.7, căn trái
