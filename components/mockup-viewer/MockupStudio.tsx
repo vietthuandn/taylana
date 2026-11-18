@@ -10,6 +10,7 @@ import { loadImg } from "@/lib/mockup/images";
 import { takeHandoff } from "@/lib/mockup/handoff";
 import type { MockupBackground, MockupFrame, RegionType, TrayStyle } from "@/lib/mockup/types";
 import type { Cd3DImages } from "./Cd3D";
+import type { SystemInput } from "@/lib/mockup/system/compose";
 import { CdUploadPanel } from "@/components/cd/CdUploadPanel";
 import { layoutOf, readPicked, slotsOf, type Picked } from "@/components/cd/cdSlots";
 import { BgPicker } from "./BgPicker";
@@ -110,6 +111,23 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
     };
   }, [imgs, box, layout?.front, layout?.back]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Mẫu hệ thống: ảnh theo gói (undefined = không có giấy · null = giấy trắng)
+  const system = useMemo<SystemInput>(() => {
+    const l = layout ?? { front: 0, back: 0, disc: true };
+    const booklet = l.front >= 4;
+    const pack: SystemInput["pack"] = box || (!l.front && !l.back) ? "box" : booklet ? "booklet" : l.front >= 2 || l.back >= 2 ? "combo2" : "combo1";
+    if (pack === "box") return { pack, disc: imgs.d ?? null, pages: [] };
+    return {
+      pack,
+      frontOut: l.front ? imgs.f1 ?? null : undefined,
+      frontIn: booklet ? imgs[`f${l.front}`] ?? null : l.front >= 2 ? imgs.f2 ?? null : l.front ? null : undefined,
+      backOut: l.back ? imgs.b1 ?? null : undefined,
+      backIn: l.back >= 2 ? imgs.b2 ?? null : l.back ? null : undefined,
+      disc: imgs.d ?? null,
+      pages: booklet ? Array.from({ length: l.front }, (_, i) => imgs[`f${i + 1}`] ?? null) : [],
+    };
+  }, [imgs, box, layout?.front, layout?.back]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
      {/* giới hạn bề ngang như các trang khác (1200px) */}
@@ -137,7 +155,7 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
       <section className={`relative flex min-w-0 flex-1 flex-col md:min-h-0 ${showBooklet ? "md:overflow-visible" : "md:overflow-hidden"}`}>
         {showBooklet && bookletPages
           ? <BookletViewer pages={bookletPages} back={layout && layout.back >= 1 ? imgs.b1 ?? null : null} bg={bg} bgPicker={picker} onExit={() => setPreviewing(false)} />
-          : <CdMockupTab frames={viewFrames} images={regionImages} images3d={images3d} tray={tray} finish={finish} modelUrl={modelUrl} bg={bg} bgPicker={picker} />}
+          : <CdMockupTab frames={viewFrames} images={regionImages} images3d={images3d} system={system} tray={tray} finish={finish} modelUrl={modelUrl} bg={bg} bgPicker={picker} />}
       </section>
      </div>
     </div>

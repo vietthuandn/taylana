@@ -4,13 +4,15 @@
    Kéo để di chuyển, +/− phóng to, nhấp đúp về mặc định. Thẻ 3D: cảnh three.js, chỉ tải thư viện khi được chọn. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { Box, Download, Files, Image as ImageIcon, Minus, Plus } from "lucide-react";
+import { Box, Dices, Download, Files, Image as ImageIcon, Minus, Plus } from "lucide-react";
 import { paintBackground, bgRatio, type BgChoice } from "@/lib/mockup/backgrounds";
 import { loadImg, proxied } from "@/lib/mockup/images";
 import { composeScene, renderFrame, type SourceImage } from "@/lib/mockup/render";
 import type { MockupFrame, RegionType, TrayStyle } from "@/lib/mockup/types";
 import type { Cd3DHandle, Cd3DImages } from "./Cd3D";
 import { can3D } from "./can3d";
+import { itemsOf, renderSystem, type SystemArrange, type SystemInput, type SystemItem } from "@/lib/mockup/system/compose";
+import { defaultGlass } from "@/lib/mockup/types";
 import { saveBlob, saveZip } from "@/lib/imageTools";
 import { toast } from "@/components/ui/kit";
 import { DownloadMenu } from "./DownloadMenu";
@@ -31,31 +33,62 @@ async function buildFrame(f: MockupFrame, images: Partial<Record<RegionType, Sou
 // Cảnh 3D: chỉ tải three / @react-three khi khách chọn thẻ 3D
 const Cd3D = dynamic(() => import("./Cd3D"), { ssr: false, loading: () => <p className="absolute inset-0 grid place-items-center text-[13px] text-[#71717a]">Đang tải 3D...</p> });
 const THREE_D = -1;
+const SYSTEM = -2; // "Mẫu hệ thống" (Auto): tự vẽ bằng code, mặc định khi mở trang
+const ARRANGE: [SystemArrange, string][] = [["grid", "Lưới"], ["stack", "Xếp chồng"], ["single", "Một món"]];
+const ITEM_LABEL: Record<SystemItem, string> = { closed: "Hộp đóng", open: "Hộp mở", back: "Mặt sau", booklet: "Booklet", disc: "Đĩa" };
 const ratioOf = (bg: BgChoice) => bgRatio(bg);
 
 const toJpeg = (c: HTMLCanvasElement) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Không xuất được ảnh"))), "image/jpeg", 0.92));
 
-export function CdMockupTab({ frames, images, images3d, tray, finish, modelUrl, watermark = false, bg, bgPicker }: {
-  frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; images3d: Cd3DImages; tray: TrayStyle; finish?: "matte" | "gloss"; modelUrl?: string | null; watermark?: boolean;
+export function CdMockupTab({ frames, images, images3d, system, tray, finish, modelUrl, watermark = false, bg, bgPicker }: {
+  frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; images3d: Cd3DImages; system: SystemInput; tray: TrayStyle; finish?: "matte" | "gloss"; modelUrl?: string | null; watermark?: boolean;
   bg: BgChoice; bgPicker: React.ReactNode;
 }) {
-  const [idx, setIdx] = useState(frames.length ? 0 : THREE_D);
+  const [idx, setIdx] = useState(SYSTEM);
   const three = useRef<Cd3DHandle | null>(null);
   const is3d = idx === THREE_D;
+  const isSys = idx === SYSTEM;
   const [pos, setPos] = useState<Pos>(DEFAULT_POS);
   const [built, setBuilt] = useState<HTMLCanvasElement | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const view = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ x: number; y: number; p: Pos } | null>(null);
-  const frame = is3d ? undefined : frames[idx] ?? frames[0];
+  const frame = idx < 0 ? undefined : frames[idx] ?? frames[0];
 
-  // đổi gói → danh sách mẫu đổi: về mẫu đầu, không có mẫu 2D thì tự chọn 3D
-  useEffect(() => { setIdx((i) => (i === THREE_D || !frames.length ? THREE_D : 0)); }, [frames]);
+  // đổi gói → danh sách mẫu đổi: giữ Auto / 3D; đang ở mẫu khung thì về mẫu đầu (không còn mẫu khung → Auto)
+  useEffect(() => { setIdx((i) => (i < 0 ? i : frames.length ? 0 : SYSTEM)); }, [frames]);
   // không xem được 3D → báo và quay về mẫu 2D đầu tiên
   useEffect(() => {
-    if (is3d && !can3D()) { toast("Thiết bị không hỗ trợ xem 3D", "err"); if (frames.length) setIdx(0); }
+    if (is3d && !can3D()) { toast("Thiết bị không hỗ trợ xem 3D", "err"); setIdx(frames.length ? 0 : SYSTEM); }
   }, [is3d, frames.length]);
+
+  // ---------- Mẫu hệ thống ----------
+  const [arrange, setArrange] = useState<SystemArrange>("grid");
+  const [single, setSingle] = useState<SystemItem>("closed");
+  const [seed, setSeed] = useState(1);
+  const [sysBusy, setSysBusy] = useState(true);
+  const [thumb, setThumb] = useState("");
+  const sysView = useRef<HTMLCanvasElement>(null);
+  const glass = frames[0]?.glass ?? defaultGlass; // cùng cài đặt kính với mẫu khung
+  const singles = useMemo(() => itemsOf(system), [system]);
+  const one = singles.includes(single) ? single : singles[0];
+  const sysOpts = useMemo(() => ({ arrange, single: one, seed, tray, glass }), [arrange, one, seed, tray, glass]);
+  // bản xem trước 1200px (vẽ lại khi ảnh / tuỳ chọn / nền đổi); thumbnail thẻ Auto lấy từ chính cảnh này
+  useEffect(() => {
+    let off = false;
+    setSysBusy(true);
+    const t = setTimeout(() => {
+      if (off) return;
+      const c = renderSystem(1200, system, sysOpts, (ctx, w, h) => paintBackground(ctx, w, h, bg));
+      const v = sysView.current;
+      if (v) { v.width = c.width; v.height = c.height; v.getContext("2d")!.drawImage(c, 0, 0); }
+      const tc = document.createElement("canvas"); tc.width = tc.height = 96; tc.getContext("2d")!.drawImage(c, 0, 0, 96, 96);
+      setThumb(tc.toDataURL("image/jpeg", 0.8));
+      setSysBusy(false);
+    }, 30);
+    return () => { off = true; clearTimeout(t); };
+  }, [system, sysOpts, bg, isSys]);
   // nền 3D: vẽ nền đang chọn thành ảnh CSS phía sau canvas trong suốt
   const [bgUrl, setBgUrl] = useState("");
   useEffect(() => {
@@ -64,7 +97,7 @@ export function CdMockupTab({ frames, images, images3d, tray, finish, modelUrl, 
     paintBackground(c.getContext("2d")!, c.width, c.height, bg);
     setBgUrl(c.toDataURL("image/jpeg", 0.88));
   }, [is3d, bg]);
-  const ratio = bgRatio(bg);
+  const ratio = isSys ? 1 : bgRatio(bg); // Mẫu hệ thống: canvas vuông
   const { area, width } = useFitBox(ratio);
   const vw = width || 800;
 
@@ -127,6 +160,24 @@ export function CdMockupTab({ frames, images, images3d, tray, finish, modelUrl, 
     setBusy(false);
   }
 
+  // Mẫu hệ thống: tải về vẽ lại ở 2400px
+  async function downloadSystem(transparent: boolean) {
+    setBusy(true);
+    try {
+      await new Promise((r) => setTimeout(r, 20));
+      const c = renderSystem(2400, system, sysOpts, transparent ? null : (ctx, w, h) => paintBackground(ctx, w, h, bg));
+      if (watermark && !transparent) {
+        const x = c.getContext("2d")!;
+        x.font = `600 ${Math.round(c.width * 0.018)}px Inter, system-ui, sans-serif`;
+        x.fillStyle = "rgba(24,24,27,0.35)"; x.textAlign = "right"; x.textBaseline = "bottom";
+        x.fillText("Taylana", c.width * 0.975, c.height * 0.975);
+      }
+      const blob = transparent ? await new Promise<Blob | null>((r) => c.toBlob(r, "image/png")) : await toJpeg(c);
+      if (!blob) throw new Error("Xuất ảnh thất bại");
+      saveBlob(blob, `Mockup-Auto.${transparent ? "png" : "jpg"}`); toast("Đã tải xuống");
+    } catch (e) { toast(e instanceof Error ? e.message : "Xuất ảnh thất bại", "err"); }
+    setBusy(false);
+  }
   async function download3d() {
     const shot = three.current?.capture(2400);
     if (!shot) return toast("Chưa dựng xong cảnh 3D", "err");
@@ -145,7 +196,10 @@ export function CdMockupTab({ frames, images, images3d, tray, finish, modelUrl, 
   }
   const zoom = (d: number) => setPos((p) => ({ ...p, scale: Math.round(Math.min(1.5, Math.max(0.5, p.scale + d)) * 10) / 10 }));
   const menu = (
-    <DownloadMenu busy={busy} up items={is3d ? [{ label: "Tải ảnh góc nhìn này", icon: <Download size={16} />, onClick: download3d }] : [
+    <DownloadMenu busy={busy} up items={is3d ? [{ label: "Tải ảnh góc nhìn này", icon: <Download size={16} />, onClick: download3d }] : isSys ? [
+      { label: "Tải ảnh này (JPG)", icon: <Download size={16} />, onClick: () => downloadSystem(false) },
+      { label: "Tải PNG nền trong suốt", icon: <ImageIcon size={16} />, onClick: () => downloadSystem(true) },
+    ] : [
       { label: "Tải ảnh này (JPG)", icon: <Download size={16} />, onClick: downloadOne },
       ...(frames.length > 1 ? [{ label: "Tải tất cả mẫu (.zip)", icon: <Files size={16} />, onClick: downloadAll }] : []),
       { label: "Tải PNG nền trong suốt", icon: <ImageIcon size={16} />, onClick: downloadPng },
@@ -155,8 +209,14 @@ export function CdMockupTab({ frames, images, images3d, tray, finish, modelUrl, 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col md:block">
       {/* ảnh mockup: căn giữa tuyệt đối trong panel (chừa đều 2 bên cho cột mẫu và thanh đáy) */}
-      <div ref={area} className="relative flex min-h-[240px] flex-1 items-center justify-center p-3 md:absolute md:inset-x-[72px] md:inset-y-[64px] md:min-h-0 md:p-0">
-        {is3d ? (
+      <div ref={area} className={`relative flex min-h-[240px] flex-1 items-center justify-center p-3 md:absolute md:inset-x-[72px] md:min-h-0 md:p-0 ${isSys ? "md:inset-y-[96px]" : "md:inset-y-[64px]"}`}>
+        {isSys ? (
+          <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white" style={{ width: width || "100%", aspectRatio: "1 / 1" }}>
+            <canvas ref={sysView} className="block h-full w-full" />
+            {/* khung chờ trong lúc dựng */}
+            {sysBusy && <div className="absolute inset-0 animate-pulse bg-[linear-gradient(110deg,#f4f4f5_30%,#fafafa_50%,#f4f4f5_70%)]" />}
+          </div>
+        ) : is3d ? (
           <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white bg-cover bg-center"
             style={{ width: width || "100%", aspectRatio: `1 / ${ratio}`, backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
             <Cd3D images={images3d} tray={tray} finish={finish} modelUrl={modelUrl} handle={three} />
@@ -188,9 +248,16 @@ export function CdMockupTab({ frames, images, images3d, tray, finish, modelUrl, 
 
       {/* Mẫu: cột thumbnail dọc ở mép phải, căn giữa dọc, nằm đè vùng trống · thẻ "3D" cố định ở cuối */}
       <div className="no-scrollbar flex gap-2 overflow-auto px-3 md:absolute md:right-3 md:top-1/2 md:max-h-[calc(100%-128px)] md:-translate-y-1/2 md:flex-col md:px-0">
+        {/* thẻ Auto (Mẫu hệ thống) luôn trên cùng — thumbnail dựng từ chính ảnh của khách */}
+        <button type="button" onClick={() => setIdx(SYSTEM)} title="Mẫu hệ thống (tự sắp theo gói)" aria-label="Mẫu hệ thống"
+          className={cx("relative h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", isSys ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {thumb && <img src={thumb} alt="" className="h-full w-full object-cover" />}
+          <span className="absolute inset-x-0 bottom-0 bg-black/55 text-center text-[9px] font-bold leading-[13px] text-white">Auto</span>
+        </button>
         {frames.map((f, i) => (
           <button key={f.id} type="button" onClick={() => setIdx(i)} title={f.name}
-            className={cx("h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", !is3d && f.id === frame?.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+            className={cx("h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", idx >= 0 && f.id === frame?.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={proxied(f.image_url)} alt={f.name} className="h-full w-full object-contain" loading="lazy" />
           </button>
@@ -202,11 +269,36 @@ export function CdMockupTab({ frames, images, images3d, tray, finish, modelUrl, 
         </button>
       </div>
 
+      {/* Mẫu hệ thống: chip bố cục ngay trên thanh đáy */}
+      {isSys && (
+        <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto whitespace-nowrap px-4 pt-2 md:absolute md:inset-x-0 md:bottom-14 md:pt-0">
+          <span className="shrink-0 text-[12px] font-semibold text-[#18181b]">Bố cục:</span>
+          {ARRANGE.map(([k, t]) => <Chip key={k} on={arrange === k} onClick={() => setArrange(k)}>{t}</Chip>)}
+          {arrange === "single" && (
+            <>
+              <span className="mx-1 h-4 w-px shrink-0 bg-[#e5e5e7]" />
+              {singles.map((k) => <Chip key={k} on={one === k} onClick={() => setSingle(k)}>{ITEM_LABEL[k]}</Chip>)}
+            </>
+          )}
+          <button type="button" onClick={() => setSeed((v) => v + 1)} title="Xáo trộn" aria-label="Xáo trộn"
+            className="ml-1 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /></button>
+        </div>
+      )}
+
       {/* thanh đáy: trái Nền · phải Tải về */}
       <div className="flex h-14 shrink-0 items-center gap-3 px-4 md:absolute md:inset-x-0 md:bottom-0">
         <div className="min-w-0 flex-1">{bgPicker}</div>
         <div className="shrink-0">{menu}</div>
       </div>
     </div>
+  );
+}
+
+function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>
+      {children}
+    </button>
   );
 }
