@@ -1,9 +1,9 @@
 "use client";
 
-/* Trang "Xem Mockup CD": trái 36% = khu tải ảnh (hoặc trình xem Booklet khi bấm "Xem preview"), phải = CD Mockup.
+/* Trang "Xem Mockup CD": trái 36% = khu tải ảnh, phải = CD Mockup (hoặc trình xem Booklet khi bấm "Xem preview").
    Ảnh của khách chỉ xử lý trên trình duyệt, KHÔNG upload. */
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { Package } from "@/lib/types";
 import { GRADIENTS, type BgChoice } from "@/lib/mockup/backgrounds";
 import { loadImg } from "@/lib/mockup/images";
@@ -86,6 +86,7 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
   const picker = <BgPicker value={bg} onChange={setBg} shop={backgrounds} />;
   // gói "CD + Hộp": dùng mẫu mặc định, ẩn cột chọn mẫu
   const box = !!pkg && isCdBox(pkg) && !!boxFrame;
+  const showBooklet = previewing && !!bookletPages;
   const viewFrames = useMemo(() => (box && boxFrame ? [boxFrame] : frames), [box, boxFrame, frames]);
 
   return (
@@ -94,14 +95,6 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
      <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col md:min-h-0 md:flex-row md:border-x md:border-[#e5e5e7]">
       {/* ---------- Trái 36%: khu tải ảnh / trình xem Booklet ---------- */}
       <aside className="relative space-y-6 border-[#e5e5e7] bg-white p-6 md:w-[36%] md:min-w-[360px] md:shrink-0 md:overflow-y-auto md:border-r">
-        {previewing && bookletPages ? (
-          <>
-            <button type="button" onClick={() => setPreviewing(false)} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-[#18181b] hover:text-[#ff5fa2]">
-              <ArrowLeft size={16} /> Quay lại
-            </button>
-            <BookletViewer pages={bookletPages} back={layout && layout.back >= 1 ? imgs.b1 ?? null : null} bg={bg} />
-          </>
-        ) : (
           <>
             {/* chọn gói: floating label kiểu outlined (nhãn đè lên viền trên) */}
             <label className="group relative block">
@@ -113,16 +106,17 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
               <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
             </label>
             {layout && (
-              <CdUploadPanel variant="compact" slots={slots} layout={layout} files={files} onPreview={() => setPreviewing(true)}
+              <CdUploadPanel variant="compact" slots={slots} layout={layout} files={files} previewing={showBooklet} onPreview={() => setPreviewing((v) => !v)}
                 onPick={async (s, f) => setSlot(s.id, await readPicked(f, s.spec))} onRemove={(s) => setSlot(s.id, null)} />
             )}
           </>
-        )}
       </aside>
 
       {/* ---------- Phải: CD Mockup ---------- */}
-      <section className="relative flex min-w-0 flex-1 flex-col md:min-h-0 md:overflow-hidden">
-        <CdMockupTab frames={viewFrames} images={regionImages} bg={bg} bgPicker={picker} hidePicker={box} />
+      <section className={`relative flex min-w-0 flex-1 flex-col md:min-h-0 ${showBooklet ? "md:overflow-visible" : "md:overflow-hidden"}`}>
+        {showBooklet && bookletPages
+          ? <BookletViewer pages={bookletPages} back={layout && layout.back >= 1 ? imgs.b1 ?? null : null} bg={bg} bgPicker={picker} onExit={() => setPreviewing(false)} />
+          : <CdMockupTab frames={viewFrames} images={regionImages} bg={bg} bgPicker={picker} hidePicker={box} />}
       </section>
      </div>
     </div>

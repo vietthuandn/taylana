@@ -13,9 +13,9 @@ import { ACCEPT, PINK, type Picked, type SlotDef } from "./cdSlots";
 
 export type ExistingFile = { name: string; url: string | null; pdf: boolean };
 
-export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, variant = "grid", onPick, onRemove, onPreview }: {
+export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, variant = "grid", onPick, onRemove, onPreview, previewing }: {
   slots: SlotDef[]; layout: PackLayout; files: Record<string, Picked>; existing?: Record<string, ExistingFile>;
-  readOnly?: boolean; variant?: "grid" | "list" | "compact"; onPick: (s: SlotDef, f: File) => void; onRemove: (s: SlotDef) => void; onPreview?: () => void;
+  readOnly?: boolean; variant?: "grid" | "list" | "compact"; onPick: (s: SlotDef, f: File) => void; onRemove: (s: SlotDef) => void; onPreview?: () => void; previewing?: boolean;
 }) {
   const [multiOpen, setMultiOpen] = useState(false);
   const groups = (["front", "back", "disc"] as const).map((g) => ({ g, list: slots.filter((s) => s.group === g) })).filter((x) => x.list.length);
@@ -46,7 +46,7 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <p className="text-[14px] font-semibold text-[#18181b]" title={g === "front" ? size(g) : undefined}>{g === "front" ? "Bìa trước" : title(g)}</p>
               {g === "front"
-                ? layout.front >= 4 && onPreview && <button type="button" onClick={onPreview} className="text-[13px] font-medium hover:underline" style={{ color: PINK }}>Xem preview ›</button>
+                ? layout.front >= 4 && onPreview && <button type="button" onClick={onPreview} className="text-[13px] font-medium hover:underline" style={{ color: PINK }}>{previewing ? "Xem CD Mockup ›" : "Xem preview ›"}</button>
                 : <span className="text-[12px] text-[#71717a]">{size(g)}</span>}
             </div>
             {g === "back" ? (

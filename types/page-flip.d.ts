@@ -8,6 +8,7 @@ declare module "page-flip" {
   export class PageFlip {
     constructor(el: HTMLElement, setting: FlipSetting);
     loadFromImages(images: string[]): void;
+    loadFromHTML(items: NodeListOf<HTMLElement> | HTMLElement[]): void;
     updateFromImages(images: string[]): void;
     flipNext(corner?: "top" | "bottom"): void;
     flipPrev(corner?: "top" | "bottom"): void;
