@@ -9,6 +9,7 @@ import { proxied } from "@/lib/mockup/images";
 import type { MockupBackground, MockupFrame } from "@/lib/mockup/types";
 import { revalidatePublic } from "@/app/admin/actions";
 import { uploadMockupModel } from "@/lib/upload";
+import { FEATURE_MOCKUP_FRAMES } from "@/lib/features";
 import { Badge, Button, Card, EmptyState, Field, Input, Message, Select, Toggle, confirmDialog } from "@/components/admin/ui";
 import { btnClass, cx } from "@/components/admin/styles";
 
@@ -117,7 +118,7 @@ export function MockupAdmin() {
   const hasBox = frames.some((f) => f.is_default_box);
   return (
     <div className="space-y-6">
-      <Card title={`Khung CD (${regular.length}/5)`} description="Ảnh PNG hộp CD có các vùng trong suốt để chèn ảnh khách. Kéo thả để sắp xếp."
+      {FEATURE_MOCKUP_FRAMES && <Card title={`Khung CD (${regular.length}/5)`} description="Ảnh PNG hộp CD có các vùng trong suốt để chèn ảnh khách. Kéo thả để sắp xếp."
         actions={<div className="flex flex-wrap gap-2">
           {!hasBox && <Link href="/admin/mockup/moi?box=1" className={btnClass("secondary", "sm")}><Plus size={16} /> Mẫu mặc định CD + Hộp</Link>}
           {full ? <Button size="sm" disabled title="Đã đủ 5 mẫu">Tạo mẫu mới</Button>
@@ -147,7 +148,7 @@ export function MockupAdmin() {
             ))}
           </ul>
         ) : <EmptyState>Chưa có mẫu khung nào.</EmptyState>}
-      </Card>
+      </Card>}
 
       <Card title="Nền của tiệm" description="Chỉ nhận LINK ảnh (không lưu file). Khách chọn ở trang Xem Mockup.">
         <form onSubmit={addBg} className="mb-4 grid gap-3 sm:grid-cols-[200px_1fr_auto] sm:items-end">

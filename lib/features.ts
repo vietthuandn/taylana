@@ -8,3 +8,7 @@ export const isPhotostripItem = (name: string) => /photo\s*-?\s*strip/i.test(nam
 
 // Đánh giá phía khách: tạm ẩn. Admin vẫn giữ mục Đánh giá và dữ liệu. Đổi thành true để mở lại.
 export const FEATURE_REVIEWS = false;
+
+// Mẫu khung mockup do admin tạo (ảnh khung PNG + vùng chọn) ở trang Xem Mockup: TẠM ẨN.
+// Trang Xem Mockup chỉ dùng mẫu hệ thống (Lưới · Chồng · Một) + 3D. Admin ẩn mục "Khung CD". Đổi thành true để mở lại.
+export const FEATURE_MOCKUP_FRAMES = false;

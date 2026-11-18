@@ -4,6 +4,7 @@
    Ảnh của khách chỉ xử lý trên trình duyệt, KHÔNG upload. */
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { FEATURE_MOCKUP_FRAMES } from "@/lib/features";
 import type { Package } from "@/lib/types";
 import { GRADIENTS, type BgChoice } from "@/lib/mockup/backgrounds";
 import { loadImg } from "@/lib/mockup/images";
@@ -19,6 +20,7 @@ import { BookletViewer } from "./BookletViewer";
 
 // so tên đã chuẩn hoá Unicode (NFC) — chữ "ộ", "ẻ" có thể được lưu dạng tổ hợp (NFD) khiến so khớp trượt
 const norm = (s: string) => s.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
+const NO_FRAMES: MockupFrame[] = []; // mẫu khung admin đang tạm ẩn (FEATURE_MOCKUP_FRAMES)
 const isSingleCd = (p: Package) => /^cd lẻ/.test(norm(p.name));
 // gói "CD + Hộp": theo tên, hoặc gói có hộp nhưng không có bìa nào (chỉ mặt đĩa) và không phải CD lẻ
 const isCdBox = (p: Package) => {
@@ -97,7 +99,7 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
   // gói "CD + Hộp": chỉ dùng mẫu mặc định (+ thẻ 3D); chưa có mẫu mặc định → tự chọn 3D
   const box = !!pkg && isCdBox(pkg);
   const showBooklet = previewing && !!bookletPages;
-  const viewFrames = useMemo(() => (box ? (boxFrame ? [boxFrame] : []) : frames), [box, boxFrame, frames]);
+  const viewFrames = useMemo(() => (!FEATURE_MOCKUP_FRAMES ? NO_FRAMES : box ? (boxFrame ? [boxFrame] : NO_FRAMES) : frames), [box, boxFrame, frames]);
   // ảnh cho hộp 3D: undefined = không có giấy · null = giấy trắng (thuộc gói nhưng chưa có ảnh / mặt trong của gói 1 mặt)
   const images3d = useMemo<Cd3DImages>(() => {
     if (!layout || box) return { disc: imgs.d ?? null };

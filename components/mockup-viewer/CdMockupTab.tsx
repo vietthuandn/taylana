@@ -35,7 +35,7 @@ async function buildFrame(f: MockupFrame, images: Partial<Record<RegionType, Sou
 const Cd3D = dynamic(() => import("./Cd3D"), { ssr: false, loading: () => <p className="absolute inset-0 grid place-items-center text-[13px] text-[#71717a]">Đang tải 3D...</p> });
 const THREE_D = -1;
 const SYSTEM = -2; // "Mẫu hệ thống" (Auto): tự vẽ bằng code, mặc định khi mở trang
-const ARRANGE: [SystemArrange, string][] = [["grid", "Lưới"], ["stack", "Xếp chồng"], ["single", "Một món"]];
+const ARRANGE: [SystemArrange, string][] = [["grid", "Lưới"], ["stack", "Chồng"], ["single", "Một"]];
 const ITEM_LABEL: Record<SystemItem, string> = { closed: "Hộp đóng", open: "Hộp mở", back: "Mặt sau", booklet: "Booklet", disc: "Đĩa" };
 const ratioOf = (bg: BgChoice) => bgRatio(bg);
 
@@ -69,7 +69,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
   const [single, setSingle] = useState<SystemItem>("closed");
   const [seed, setSeed] = useState(1);
   const [sysBusy, setSysBusy] = useState(true);
-  const [thumb, setThumb] = useState("");
+  const [thumbs, setThumbs] = useState<Partial<Record<SystemArrange, string>>>({});
   const sysView = useRef<HTMLCanvasElement>(null);
   const glass = frames[0]?.glass ?? defaultGlass; // cùng cài đặt kính với mẫu khung
   const singles = useMemo(() => itemsOf(system), [system]);
@@ -85,9 +85,17 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
       const c = renderSystem(1200, system, sysOpts, (ctx, w, h) => paintBackground(ctx, w, h, bg));
       const v = sysView.current;
       if (v) { v.width = c.width; v.height = c.height; v.getContext("2d")!.drawImage(c, 0, 0); }
-      const tc = document.createElement("canvas"); tc.width = tc.height = 96; tc.getContext("2d")!.drawImage(c, 0, 0, 96, 96);
-      setThumb(tc.toDataURL("image/jpeg", 0.8));
       setSysBusy(false);
+      // thumbnail 3 lựa chọn (Lưới · Chồng · Một) dựng từ chính ảnh của khách → đổi theo ảnh tải lên
+      const next: Partial<Record<SystemArrange, string>> = {};
+      for (const [k] of ARRANGE) {
+        if (off) return;
+        const tc = k === arrange ? c : renderSystem(400, system, { ...sysOpts, arrange: k }, (ctx, w, h) => paintBackground(ctx, w, h, bg));
+        const t = document.createElement("canvas"); t.width = t.height = 112;
+        const tx = t.getContext("2d")!; tx.imageSmoothingQuality = "high"; tx.drawImage(tc, 0, 0, 112, 112);
+        next[k] = t.toDataURL("image/jpeg", 0.82);
+      }
+      if (!off) setThumbs(next);
     }, 30);
     return () => { off = true; clearTimeout(t); };
   }, [system, sysOpts, bg, isSys]);
@@ -250,13 +258,18 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
 
       {/* Mẫu: cột thumbnail dọc ở mép phải, căn giữa dọc, nằm đè vùng trống · thẻ "3D" cố định ở cuối */}
       <div className="no-scrollbar flex gap-2 overflow-auto px-3 md:absolute md:right-3 md:top-1/2 md:max-h-[calc(100%-128px)] md:-translate-y-1/2 md:flex-col md:px-0">
-        {/* thẻ Auto (Mẫu hệ thống) luôn trên cùng — thumbnail dựng từ chính ảnh của khách */}
-        <button type="button" onClick={() => setIdx(SYSTEM)} title="Mẫu hệ thống (tự sắp theo gói)" aria-label="Mẫu hệ thống"
-          className={cx("relative h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", isSys ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {thumb && <img src={thumb} alt="" className="h-full w-full object-cover" />}
-          <span className="absolute inset-x-0 bottom-0 bg-black/55 text-center text-[9px] font-bold leading-[13px] text-white">Auto</span>
-        </button>
+        {/* mẫu hệ thống: 3 lựa chọn bố cục (Lưới · Chồng · Một), thumbnail dựng từ chính ảnh của khách */}
+        {ARRANGE.map(([k, t]) => {
+          const on = isSys && arrange === k;
+          return (
+            <button key={k} type="button" onClick={() => { setIdx(SYSTEM); setArrange(k); }} title={`Mockup: ${t}`} aria-label={`Mockup ${t}`}
+              className={cx("relative h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", on ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {thumbs[k] && <img src={thumbs[k]} alt="" className="h-full w-full object-cover" />}
+              <span className="absolute inset-x-0 bottom-0 bg-black/55 text-center text-[9px] font-bold leading-[13px] text-white">{t}</span>
+            </button>
+          );
+        })}
         {frames.map((f, i) => (
           <button key={f.id} type="button" onClick={() => setIdx(i)} title={f.name}
             className={cx("h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", idx >= 0 && f.id === frame?.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
@@ -274,16 +287,10 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
       {/* Mẫu hệ thống: chip bố cục ngay trên thanh đáy */}
       {isSys && (
         <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto whitespace-nowrap px-4 pt-2 md:absolute md:inset-x-0 md:bottom-14 md:pt-0">
-          <span className="shrink-0 text-[12px] font-semibold text-[#18181b]">Bố cục:</span>
-          {ARRANGE.map(([k, t]) => <Chip key={k} on={arrange === k} onClick={() => setArrange(k)}>{t}</Chip>)}
-          {arrange === "single" && (
-            <>
-              <span className="mx-1 h-4 w-px shrink-0 bg-[#e5e5e7]" />
-              {singles.map((k) => <Chip key={k} on={one === k} onClick={() => setSingle(k)}>{ITEM_LABEL[k]}</Chip>)}
-            </>
-          )}
+          {/* "Một": chọn món · nút xáo trộn */}
+          {arrange === "single" && singles.map((k) => <Chip key={k} on={one === k} onClick={() => setSingle(k)}>{ITEM_LABEL[k]}</Chip>)}
           <button type="button" onClick={() => setSeed((v) => v + 1)} title="Xáo trộn" aria-label="Xáo trộn"
-            className="ml-1 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /></button>
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /></button>
         </div>
       )}
 
