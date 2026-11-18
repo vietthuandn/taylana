@@ -2,7 +2,7 @@
 /* Tách tờ sticker (trình duyệt): đọc ảnh → thu nhỏ ≤ 4000px → Web Worker xoá nền + tách món → các món (mặt nạ riêng) để duyệt.
    Mỗi món giữ 1 mặt nạ trong khung bao: 0 = bỏ · 1 = giữ pixel đã xoá nền · 2 = khôi phục pixel gốc (cọ khôi phục). */
 import { TONES } from "@/lib/scrapbook/types";
-import type { SliceParams, SliceResult } from "./core";
+import { slice, type SliceParams, type SliceResult } from "./core";
 
 export const MAX_SIDE = 4000;
 export type Sheet = { w: number; h: number; orig: Uint8ClampedArray; res: SliceResult };
@@ -20,7 +20,11 @@ export async function readSheet(src: Blob): Promise<{ w: number; h: number; data
 }
 export function runSlice(data: Uint8ClampedArray, w: number, h: number, params: SliceParams): Promise<SliceResult> {
   return new Promise((res, rej) => {
-    const wk = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+    // Web Worker tạo từ mã nguồn (đã biên dịch) của hàm slice — không phụ thuộc cách bundler xử lý file worker
+    const code = `const slice = ${slice.toString()};\nself.onmessage = (e) => { try { const { data, w, h, params } = e.data; const r = slice(data, w, h, params); self.postMessage({ ok: true, ...r }, [r.rgba.buffer, r.labels.buffer]); } catch (err) { self.postMessage({ ok: false, error: String(err && err.message || err) }); } };`;
+    const url = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+    const wk = new Worker(url);
+    URL.revokeObjectURL(url);
     wk.onmessage = (e) => { wk.terminate(); if (e.data.ok) res(e.data as SliceResult); else rej(new Error(e.data.error)); };
     wk.onerror = (e) => { wk.terminate(); rej(new Error(e.message || "Lỗi xử lý ảnh")); };
     const copy = new Uint8ClampedArray(data);

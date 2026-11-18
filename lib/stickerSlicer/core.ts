@@ -7,39 +7,39 @@ export type SliceParams = { tolerance: number; minAreaPct: number; close: number
 export type Comp = { id: number; x0: number; y0: number; x1: number; y1: number; area: number };
 export type SliceResult = { w: number; h: number; rgba: Uint8ClampedArray; labels: Int32Array; comps: Comp[]; hadAlpha: boolean; bg: [number, number, number] };
 
-function hasAlpha(d: Uint8ClampedArray) {
-  let n = 0;
-  for (let i = 3; i < d.length; i += 4 * 7) if (d[i] < 250 && ++n > 50) return true;
-  return false;
-}
-function sampleBg(d: Uint8ClampedArray, w: number, h: number): [number, number, number] {
-  const pts: [number, number][] = [];
-  const step = Math.max(1, Math.floor(Math.min(w, h) / 40));
-  for (let x = 0; x < w; x += step) pts.push([x, 0], [x, h - 1]);
-  for (let y = 0; y < h; y += step) pts.push([0, y], [w - 1, y]);
-  const ch = [0, 1, 2].map((c) => pts.map(([x, y]) => d[(y * w + x) * 4 + c]).sort((a, b) => a - b)[Math.floor(pts.length / 2)]);
-  return [ch[0], ch[1], ch[2]];
-}
-// lọc max / min 1 chiều (cửa sổ 2r + 1) — dùng cho giãn / co hình vuông tách theo trục
-function pass1d(src: Uint8Array, w: number, h: number, r: number, horiz: boolean, max: boolean) {
-  const out = new Uint8Array(src.length);
-  const L = horiz ? w : h, M = horiz ? h : w;
-  for (let m = 0; m < M; m++) for (let l = 0; l < L; l++) {
-    let v = max ? 0 : 1;
-    for (let k = -r; k <= r && (max ? v === 0 : v === 1); k++) {
-      const q = l + k;
-      if (q < 0 || q >= L) { if (!max) v = 0; continue; }
-      const s = horiz ? src[m * w + q] : src[q * w + m];
-      v = max ? Math.max(v, s) : Math.min(v, s);
-    }
-    out[horiz ? m * w + l : l * w + m] = v;
-  }
-  return out;
-}
-const dilate = (m: Uint8Array, w: number, h: number, r: number) => pass1d(pass1d(m, w, h, r, true, true), w, h, r, false, true);
-const erode = (m: Uint8Array, w: number, h: number, r: number) => pass1d(pass1d(m, w, h, r, true, false), w, h, r, false, false);
-
+/** TỰ ĐỦ (không dùng biến ngoài hàm) — worker được tạo từ mã nguồn của chính hàm này. */
 export function slice(src: Uint8ClampedArray, w: number, h: number, p: SliceParams): SliceResult {
+  function hasAlpha(d: Uint8ClampedArray) {
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4 * 7) if (d[i] < 250 && ++n > 50) return true;
+    return false;
+  }
+  function sampleBg(d: Uint8ClampedArray, w: number, h: number): [number, number, number] {
+    const pts: [number, number][] = [];
+    const step = Math.max(1, Math.floor(Math.min(w, h) / 40));
+    for (let x = 0; x < w; x += step) pts.push([x, 0], [x, h - 1]);
+    for (let y = 0; y < h; y += step) pts.push([0, y], [w - 1, y]);
+    const ch = [0, 1, 2].map((c) => pts.map(([x, y]) => d[(y * w + x) * 4 + c]).sort((a, b) => a - b)[Math.floor(pts.length / 2)]);
+    return [ch[0], ch[1], ch[2]];
+  }
+  // lọc max / min 1 chiều (cửa sổ 2r + 1) — dùng cho giãn / co hình vuông tách theo trục
+  function pass1d(src: Uint8Array, w: number, h: number, r: number, horiz: boolean, max: boolean) {
+    const out = new Uint8Array(src.length);
+    const L = horiz ? w : h, M = horiz ? h : w;
+    for (let m = 0; m < M; m++) for (let l = 0; l < L; l++) {
+      let v = max ? 0 : 1;
+      for (let k = -r; k <= r && (max ? v === 0 : v === 1); k++) {
+        const q = l + k;
+        if (q < 0 || q >= L) { if (!max) v = 0; continue; }
+        const s = horiz ? src[m * w + q] : src[q * w + m];
+        v = max ? Math.max(v, s) : Math.min(v, s);
+      }
+      out[horiz ? m * w + l : l * w + m] = v;
+    }
+    return out;
+  }
+  const dilate = (m: Uint8Array, w: number, h: number, r: number) => pass1d(pass1d(m, w, h, r, true, true), w, h, r, false, true);
+  const erode = (m: Uint8Array, w: number, h: number, r: number) => pass1d(pass1d(m, w, h, r, true, false), w, h, r, false, false);
   const d = new Uint8ClampedArray(src);
   const N = w * h;
   const alpha = hasAlpha(d);
