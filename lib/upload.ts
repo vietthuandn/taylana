@@ -69,3 +69,14 @@ export async function uploadMockupModel(file: File) {
   if (!error) return supabase.storage.from("mockups").getPublicUrl(path).data.publicUrl;
   throw new Error("Tải mô hình thất bại: " + error.message + (/mime|type/i.test(error.message) ? " (cần chạy supabase/migration_mockup_glb.sql)" : ""));
 }
+
+// Chất liệu CD Scrapbook (PNG trong suốt…) → bucket công khai "scrapbook" (chỉ admin)
+export async function uploadScrapbookAsset(file: File) {
+  if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.type)) throw new Error("Chỉ nhận PNG, JPG, WEBP hoặc SVG");
+  if (file.size > 10 * 1024 * 1024) throw new Error("Ảnh tối đa 10MB");
+  const supabase = createClient();
+  const path = `assets/${randomName(file)}`;
+  const { error } = await supabase.storage.from("scrapbook").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
+  if (error) throw new Error("Tải ảnh thất bại: " + error.message + (/bucket not found/i.test(error.message) ? " (cần chạy supabase/migration_scrapbook.sql)" : ""));
+  return supabase.storage.from("scrapbook").getPublicUrl(path).data.publicUrl;
+}

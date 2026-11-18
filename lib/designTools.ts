@@ -4,5 +4,6 @@ export type ToolLink = { href: string; title: string; label: string; desc: strin
 
 export const designTools: ToolLink[] = [
   { href: "/thiet-ke/cd", label: "CD", title: "Thiết kế CD", desc: "Tự thiết kế bìa trước, bìa sau, booklet và mặt đĩa.", kind: "cd" },
+  { href: "/thiet-ke/scrapbook", label: "Scrapbook", title: "CD Scrapbook", desc: "Tải 5–10 ảnh, web tự làm mặt đĩa kiểu scrapbook xé dán.", kind: "cd-scrapbook" },
   { href: "/thiet-ke/mockup", label: "Mockup", title: "Xem Mockup CD", desc: "Xem ảnh của bạn trên hộp CD, mặt đĩa và cuốn booklet.", kind: "cd-mockup" },
 ];

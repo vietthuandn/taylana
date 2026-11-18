@@ -17,6 +17,7 @@ import { discountValue, subtotalOf, toCode, valueLabel, type CartItem, type Disc
 import { shippingFor, type ShippingSettings } from "@/lib/shipping";
 import type { PaymentSettings } from "@/lib/payment/settings";
 import { PaymentView } from "../thanh-toan/[code]/PaymentView";
+import { attachPendingDisc } from "@/lib/scrapbook/pending";
 import { Button, Field, Input, Textarea } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 
@@ -473,6 +474,8 @@ export async function submitOrder(lines: Line[], form: Form, opts: { code: strin
   });
   if (error || !data?.[0]) throw new Error(error?.message ?? "Gửi đơn thất bại, bạn thử lại nhé.");
   saveOrderCode(data[0].order_code);
+  // CD Scrapbook: file in mặt đĩa đang chờ trên máy khách → tải lên + gắn vào đơn vừa tạo (lỗi thì bỏ qua, khách gửi sau được)
+  if (data[0].order_id) await attachPendingDisc(data[0].order_id as string);
   return { code: data[0].order_code as string, total: data[0].order_total as number };
 }
 
