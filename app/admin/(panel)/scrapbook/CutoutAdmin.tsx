@@ -1,8 +1,8 @@
 "use client";
 
 /* Admin → Chất liệu Scrapbook → tab "Font cut-out": bộ font chữ cắt dán (mỗi ký tự nhiều biến thể).
-   Tải tờ chữ → tách từng mảnh (lib/stickerSlicer, giữ nền giấy của mảnh) → gán ký tự bằng OCR (tesseract.js, PSM 10,
-   chỉ tải khi mở tab này) hoặc "Theo thứ tự" (chuỗi ký tự đọc trái → phải, trên → dưới) → duyệt / sửa → lưu vào cutout_glyphs. */
+   Tải tờ chữ → tách từng mảnh (lib/stickerSlicer, giữ nền giấy của mảnh) → gán ký tự bằng nhận diện (lib/cutoutOcr:
+   tiền xử lý + Tesseract + font mẫu + dữ liệu học, chạy trong Web Worker) hoặc "Theo thứ tự" (chuỗi ký tự đọc trái → phải, trên → dưới) → duyệt / sửa → lưu vào cutout_glyphs. */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Combine, Link2, Plus, Square, Trash2, Upload, Wand2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -13,6 +13,17 @@ import { DIACRITICS, SECTIONS, TONES, charLabel, drawCutout, keyToChar, kindOf, 
 import { revalidatePublic } from "@/app/admin/actions";
 import { Badge, Button, Card, EmptyState, Input, Message, Toggle, confirmDialog, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
+import { addTraining, closeTesseract, fixCase, initRefs, prepCanvas, rawToUrl, recognize, type Recog } from "@/lib/cutoutOcr";
+import { OCR_CONFIG } from "@/lib/cutoutOcr/config";
+// font mẫu cho so khớp ký tự (lib/cutoutOcr/config.ts → TEMPLATE_FONTS)
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/800.css";
+import "@fontsource/be-vietnam-pro/700.css";
+import "@fontsource/oswald/500.css";
+import "@fontsource/anton/400.css";
+import "@fontsource/lora/400.css";
+import "@fontsource/playfair-display/700.css";
+import "@fontsource/roboto-slab/700.css";
 
 type Msg = { type: "ok" | "err"; text: string } | null;
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
@@ -79,6 +90,17 @@ export function CutoutAdmin() {
     const sb = createClient();
     await Promise.all([sb.from("cutout_fonts").update({ sort_order: fonts[j].sort_order }).eq("id", fonts[i].id), sb.from("cutout_fonts").update({ sort_order: fonts[i].sort_order }).eq("id", fonts[j].id)]);
     await after("Đã đổi thứ tự.");
+  }
+  async function editGlyph(g: Glyph) {
+    const v = window.prompt(`Ký tự của mảnh này (hiện tại: ${charLabel(g.ch)})`, g.ch);
+    if (v === null) return;
+    const ch = keyToChar([...v.trim()].pop() ?? "");
+    if (!ch || ch === g.ch) return;
+    const sb = createClient();
+    const { error } = await sb.from("cutout_glyphs").update({ ch, kind: kindOf(ch) }).eq("id", g.id);
+    if (error) return setMsg({ type: "err", text: error.message });
+    await sb.from("cutout_training").update({ ch }).eq("glyph_id", g.id);
+    await after(`Đã đổi ký tự thành “${charLabel(ch)}”.`);
   }
   async function removeGlyph(g: Glyph) {
     const sb = createClient();
@@ -161,8 +183,8 @@ export function CutoutAdmin() {
                               {vs.map((g) => (
                                 <span key={g.id} className={cx("group relative grid h-9 w-9 place-items-center overflow-hidden rounded-[4px]", checker)}>
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={g.url} alt="" className="max-h-full max-w-full" loading="lazy" />
-                                  <button type="button" onClick={() => removeGlyph(g)} aria-label="Xoá biến thể" className="absolute inset-0 hidden place-items-center bg-black/45 text-white group-hover:grid"><X size={14} /></button>
+                                  <img src={g.url} alt="" title="Bấm để sửa ký tự" onClick={() => editGlyph(g)} className="max-h-full max-w-full cursor-pointer" loading="lazy" />
+                                  <button type="button" onClick={() => removeGlyph(g)} aria-label="Xoá biến thể" className="absolute right-0 top-0 hidden h-4 w-4 place-items-center rounded-bl-[4px] bg-black/55 text-white group-hover:grid"><X size={10} /></button>
                                 </span>
                               ))}
                             </div>
@@ -183,7 +205,8 @@ export function CutoutAdmin() {
 }
 
 // ---------- tải tờ chữ → tách mảnh → gán ký tự (OCR / theo thứ tự) → lưu ----------
-type GItem = Item & { sheet: number; ch: string; conf: number | null };
+type GItem = Item & { sheet: number; ch: string; conf: number | null; recog?: Recog | null; confirmed?: boolean; unsure?: boolean };
+const needsReview = (i: GItem) => !i.confirmed && (!i.ch || !!i.unsure || (i.conf !== null && i.conf < OCR_CONFIG.reviewBelow * 100));
 function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void }) {
   const [sheets, setSheets] = useState<Sheet[]>([]);
   const [items, setItems] = useState<GItem[]>([]);
@@ -196,6 +219,9 @@ function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void })
   const [view, setView] = useState(0);
   const [rectMode, setRectMode] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [filter, setFilter] = useState<"all" | "review" | "done">("all");
+  const [showPrep, setShowPrep] = useState(false);
+  const [preps, setPreps] = useState<Record<string, string>>({});
   const fileIn = useRef<HTMLInputElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const draw = useRef<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
@@ -257,58 +283,91 @@ function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void })
     items.forEach((it) => {
       if (it.sheet !== view) return;
       x.lineWidth = picked.includes(it.key) ? lw * 2 : lw;
-      x.strokeStyle = picked.includes(it.key) ? "#2563eb" : it.conf !== null && it.conf < 70 ? "#f97316" : "#ff5fa2";
+      x.strokeStyle = picked.includes(it.key) ? "#2563eb" : it.conf !== null && needsReview(it) ? "#f97316" : "#ff5fa2";
       x.strokeRect(it.x0, it.y0, it.x1 - it.x0, it.y1 - it.y0);
     });
     const d = draw.current;
     if (d) { x.strokeStyle = "#2563eb"; x.setLineDash([lw * 4, lw * 3]); x.strokeRect(d.x0, d.y0, d.x1 - d.x0, d.y1 - d.y0); x.setLineDash([]); }
   }, [sheets, view, items, picked, busy]);
+  const visible = items.map((it, i) => ({ it, i })).filter(({ it }) => (filter === "all" ? true : filter === "review" ? it.conf !== null ? needsReview(it) : !it.ch : !!it.confirmed));
 
-  // OCR từng mảnh (tesseract.js tự chạy trong Web Worker; chỉ tải khi bấm)
+  // nhận diện từng mảnh: tiền xử lý + Tesseract + font mẫu + dữ liệu học (tất cả trên trình duyệt)
   async function ocr() {
     setBusy("Đang tải bộ nhận diện chữ..."); setProgress(0);
     try {
-      const { createWorker } = await import("tesseract.js");
-      const w = await createWorker(["eng", "vie"]);
-      await w.setParameters({ tessedit_pageseg_mode: "10" as never });
-      const out = [...items];
+      await initRefs();
+      let out = [...items];
       for (const [i, it] of out.entries()) {
+        if (it.confirmed) continue;
         setBusy(`Đang nhận diện ${i + 1} / ${out.length}...`); setProgress((i + 1) / out.length);
         const c = itemCanvas(sheets[it.sheet], it);
         if (!c) continue;
-        // nền trắng giúp OCR đọc mảnh trong suốt
-        const b = document.createElement("canvas"); b.width = c.width + 20; b.height = c.height + 20;
-        const bx = b.getContext("2d")!; bx.fillStyle = "#fff"; bx.fillRect(0, 0, b.width, b.height); bx.drawImage(c, 10, 10);
-        const r = await w.recognize(b);
-        const t = r.data.text.replace(/\s/g, "");
-        out[i] = { ...it, ch: t ? [...t][0] : it.ch, conf: Math.round(r.data.confidence) };
+        out[i] = { ...it, recog: await recognize(c) };
       }
-      await w.terminate();
+      out = fixCase(out).map((it) => {
+        const r = it.recog;
+        if (!r || it.confirmed) return it;
+        const top = r.cands[0];
+        const unsure = r.unsure || !top || top.score < 0.3;
+        return { ...it, ch: unsure ? "" : top.ch, conf: top ? Math.round(top.score * 100) : 0, unsure };
+      });
       setItems(out);
+      setPreps(Object.fromEntries(out.filter((i) => i.recog?.previewUrl).map((i) => [i.key, i.recog!.previewUrl])));
     } catch (e) { toast("Nhận diện chữ thất bại: " + (e instanceof Error ? e.message : String(e)), "err"); }
+    await closeTesseract().catch(() => {});
     setBusy("");
   }
+  // xem bản đen trắng đã xử lý (tính cho các mảnh chưa có)
+  async function togglePrep() {
+    const on = !showPrep; setShowPrep(on);
+    if (!on) return;
+    const next = { ...preps };
+    for (const it of items) {
+      if (next[it.key]) continue;
+      const c = itemCanvas(sheets[it.sheet], it);
+      if (!c) continue;
+      const p = await prepCanvas(c);
+      if (p.preview) next[it.key] = rawToUrl(p.preview);
+    }
+    setPreps(next);
+  }
+  const assign = (i: number, ch: string) => setItems((c) => c.map((x, j) => (j === i ? { ...x, ch, conf: 100, confirmed: true, unsure: false } : x)));
+  const next = (i: number) => { const L = visible.map((v) => v.i), k = L.indexOf(i); setFocus(L[k + 1] ?? L[k] ?? null); };
   // gán theo thứ tự đọc
   function assignOrder() {
     const chars = [...order.replace(/\s/g, "")];
     if (!chars.length) return toast("Nhập chuỗi ký tự theo đúng thứ tự trên tờ.", "err");
     const L = reading(items);
-    setItems(L.map((it, i) => (i < chars.length ? { ...it, ch: chars[i], conf: 100 } : it)));
+    setItems(L.map((it, i) => (i < chars.length ? { ...it, ch: chars[i], conf: 100, confirmed: true, unsure: false } : it)));
     if (chars.length !== L.length) toast(`Chuỗi có ${chars.length} ký tự, tờ có ${L.length} mảnh — kiểm tra lại các mảnh cuối.`, "err");
   }
-  // gán nhanh bằng bàn phím: chọn mảnh → gõ phím → nhảy sang mảnh tiếp
+  // gán nhanh bằng bàn phím: chọn mảnh → gõ phím → nhảy sang mảnh tiếp.
+  // 1 / 2 / 3: chọn ứng viên gợi ý · Enter: xác nhận gợi ý đầu tiên (số 1, 2, 3 gõ vào ô ký tự bên dưới mảnh)
   function onKey(e: React.KeyboardEvent) {
     if (focus === null || (e.target as HTMLElement).tagName === "INPUT") return;
-    if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); setItems((c) => c.map((x, j) => (j === focus ? { ...x, ch: "" } : x))); return; }
+    const it = items[focus];
+    if (!it) return;
+    if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); setItems((c) => c.map((x, j) => (j === focus ? { ...x, ch: "", confirmed: false } : x))); return; }
     if (e.key === "ArrowRight") return setFocus(Math.min(items.length - 1, focus + 1));
     if (e.key === "ArrowLeft") return setFocus(Math.max(0, focus - 1));
+    const cands = it.recog?.cands ?? [];
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const ch = it.ch || cands[0]?.ch;
+      if (ch) { assign(focus, ch); next(focus); }
+      return;
+    }
     if (e.key.length !== 1 || e.ctrlKey || e.metaKey) return;
     e.preventDefault();
-    const ch = keyToChar(e.key);
-    setItems((c) => c.map((x, j) => (j === focus ? { ...x, ch, conf: 100 } : x)));
-    setFocus(Math.min(items.length - 1, focus + 1));
+    if (cands.length && "123".includes(e.key)) {
+      const c = cands[Number(e.key) - 1];
+      if (c) { assign(focus, c.ch); next(focus); }
+      return;
+    }
+    assign(focus, keyToChar(e.key));
+    next(focus);
   }
-  const setMark = (ch: string) => { if (focus === null) return; setItems((c) => c.map((x, j) => (j === focus ? { ...x, ch, conf: 100 } : x))); setFocus(Math.min(items.length - 1, focus + 1)); };
+  const setMark = (ch: string) => { if (focus === null) return; assign(focus, ch); next(focus); };
   function merge() {
     const list = items.filter((i) => picked.includes(i.key));
     if (list.length < 2 || new Set(list.map((i) => i.sheet)).size > 1) return toast("Chọn từ 2 mảnh cùng 1 tờ (giữ Ctrl / Shift khi bấm).", "err");
@@ -324,6 +383,7 @@ function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void })
     const sb = createClient();
     setBusy("Đang lưu..."); setProgress(0);
     let ok = 0;
+    const train: { glyph_id: string; ch: string; vec: number[]; font_id: string }[] = [];
     for (const [i, it] of list.entries()) {
       const c = itemCanvas(sheets[it.sheet], it);
       if (!c) continue;
@@ -333,10 +393,13 @@ function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void })
       const up = await sb.storage.from("scrapbook").upload(path, blob, { contentType: "image/png", cacheControl: "31536000", upsert: false });
       if (up.error) { toast("Tải ảnh thất bại: " + up.error.message, "err"); break; }
       const url = sb.storage.from("scrapbook").getPublicUrl(path).data.publicUrl;
-      const ins = await sb.from("cutout_glyphs").insert({ font_id: fontId, ch: it.ch, kind: kindOf(it.ch), url, w: c.width, h: c.height, sort_order: i });
+      const ins = await sb.from("cutout_glyphs").insert({ font_id: fontId, ch: it.ch, kind: kindOf(it.ch), url, w: c.width, h: c.height, sort_order: i }).select("id").single();
       if (ins.error) { toast(ins.error.message, "err"); break; }
+      // dữ liệu học: vector đặc trưng của mảnh + ký tự admin đã gán
+      try { const vec = it.recog?.prep.vec ?? (await prepCanvas(c, true)).vec; train.push({ glyph_id: ins.data.id, ch: it.ch, vec, font_id: fontId }); } catch { /* bỏ qua mảnh lỗi */ }
       ok++; setProgress((i + 1) / list.length);
     }
+    if (train.length) { setBusy("Đang cập nhật dữ liệu học..."); try { await addTraining(train); } catch (e) { toast("Chưa lưu được dữ liệu học: " + (e instanceof Error ? e.message : String(e)), "err"); } }
     setBusy("");
     if (ok) { toast(`Đã lưu ${ok} mảnh chữ`); setSheets([]); setItems([]); onDone(); }
   }
@@ -357,7 +420,7 @@ function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void })
       </div>
     );
   }
-  const low = items.filter((i) => i.conf !== null && i.conf < 70).length;
+  const low = items.filter((i) => i.conf !== null && needsReview(i)).length;
   return (
     <div className="space-y-3" onKeyDown={onKey}>
       <div className="flex flex-wrap items-center gap-2 rounded-[10px] border border-[#e5e5e7] bg-[#fafafa] p-2">
@@ -396,23 +459,40 @@ function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void })
             <span className="text-[12px] text-[#71717a]">Gán dấu cho mảnh đang chọn:</span>
             {[...TONES, ...DIACRITICS].map((m) => <button key={m.ch} type="button" onClick={() => setMark(m.ch)} className="h-7 rounded-full border border-[#e5e5e7] px-2 text-[11px] hover:border-[#ff5fa2]">{m.name}</button>)}
           </div>
+          <div className="mb-2 flex flex-wrap items-center gap-1">
+            {([["all", "Tất cả", items.length], ["review", "Cần kiểm tra", items.filter((i) => (i.conf !== null ? needsReview(i) : !i.ch)).length], ["done", "Đã xác nhận", items.filter((i) => i.confirmed).length]] as const).map(([k, l, n]) => (
+              <button key={k} type="button" onClick={() => setFilter(k)} className={cx("h-7 rounded-full border px-3 text-[12px]", filter === k ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7]")}>{l} ({n})</button>
+            ))}
+            <button type="button" onClick={togglePrep} className={cx("ml-auto h-7 rounded-full border px-3 text-[12px]", showPrep ? "border-[#2563eb] bg-[#eff6ff] text-[#2563eb]" : "border-[#e5e5e7]")}>Xem bản đã xử lý</button>
+          </div>
           <div ref={grid} tabIndex={0} className="grid max-h-[60vh] grid-cols-4 gap-2 overflow-y-auto rounded-[10px] p-1 outline-none sm:grid-cols-6">
-            {items.map((it, i) => (
+            {visible.map(({ it, i }) => (
               <div key={it.key} onClick={(e) => { setFocus(i); grid.current?.focus(); if (e.ctrlKey || e.metaKey || e.shiftKey) setPicked((p) => (p.includes(it.key) ? p.filter((k) => k !== it.key) : [...p, it.key])); else setPicked([it.key]); }}
-                className={cx("rounded-[8px] border-2 p-1", focus === i ? "border-[#2563eb]" : it.conf !== null && it.conf < 70 ? "border-[#f97316]" : "border-[#e5e5e7]")}>
-                <div className={cx("relative grid aspect-square place-items-center overflow-hidden rounded-[4px]", checker)}>
+                className={cx("rounded-[8px] border-2 p-1", focus === i ? "border-[#2563eb]" : it.confirmed ? "border-[#86efac]" : it.conf !== null && needsReview(it) ? "border-[#f97316]" : "border-[#e5e5e7]")}>
+                <div className={cx("relative grid aspect-square place-items-center overflow-hidden rounded-[4px]", checker, showPrep && preps[it.key] && "grid-cols-2 gap-0.5")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {thumbs[it.key] && <img src={thumbs[it.key]} alt="" className="max-h-full max-w-full" />}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {showPrep && preps[it.key] && <img src={preps[it.key]} alt="Bản đã xử lý" className="max-h-full max-w-full border border-[#e5e5e7] bg-white" />}
                   <button type="button" onClick={(e) => { e.stopPropagation(); setItems((c) => c.filter((x) => x.key !== it.key)); }} aria-label="Xoá mảnh" className="absolute right-0.5 top-0.5 grid h-4 w-4 place-items-center rounded-full bg-white text-[#dc2626] shadow"><X size={10} /></button>
                 </div>
-                <input value={it.ch ? charLabel(it.ch) : ""} onChange={(e) => { const v = [...e.target.value].pop() ?? ""; setItems((c) => c.map((x, j) => (j === i ? { ...x, ch: keyToChar(v), conf: 100 } : x))); }}
+                <input value={it.ch ? charLabel(it.ch) : ""} onChange={(e) => { const v = [...e.target.value].pop() ?? ""; setItems((c) => c.map((x, j) => (j === i ? { ...x, ch: keyToChar(v), conf: 100, confirmed: !!v, unsure: false } : x))); }}
                   onClick={(e) => e.stopPropagation()} placeholder="?" aria-label="Ký tự"
                   className="mt-1 h-6 w-full rounded-[4px] border border-[#e5e5e7] text-center text-[12px] font-semibold" />
-                {it.conf !== null && <p className={cx("text-center text-[10px]", it.conf < 70 ? "text-[#ea580c]" : "text-[#71717a]")}>{it.conf}%</p>}
+                {it.recog && it.recog.cands.length > 0 ? (
+                  <div className="mt-0.5 flex flex-wrap justify-center gap-0.5">
+                    {it.recog.cands.map((c, k) => (
+                      <button key={c.ch + k} type="button" title={`Phím ${k + 1}`} onClick={(e) => { e.stopPropagation(); assign(i, c.ch); }}
+                        className={cx("rounded-[4px] border px-1 text-[10px] leading-4", it.ch === c.ch ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#ff5fa2]")}>
+                        <b>{charLabel(c.ch)}</b> {Math.round(c.score * 100)}%
+                      </button>
+                    ))}
+                  </div>
+                ) : it.conf !== null && !it.confirmed && <p className={cx("text-center text-[10px]", needsReview(it) ? "text-[#ea580c]" : "text-[#71717a]")}>{it.conf}%</p>}
               </div>
             ))}
           </div>
-          <p className="mt-1 text-[11px] text-[#a1a1aa]">Bấm 1 mảnh rồi gõ phím để gán ký tự (phân biệt hoa / thường) — tự nhảy sang mảnh kế tiếp. Dấu: ´ sắc · ` huyền · ~ ngã · ^ mũ, hoặc dùng các nút ở trên.</p>
+          <p className="mt-1 text-[11px] text-[#a1a1aa]">Bấm 1 mảnh rồi gõ phím để gán ký tự (phân biệt hoa / thường) — tự nhảy sang mảnh kế tiếp. Phím 1 / 2 / 3 chọn ứng viên gợi ý, Enter xác nhận gợi ý đầu (số 1, 2, 3 thì gõ vào ô bên dưới mảnh). Dấu: ´ sắc · ` huyền · ~ ngã · ^ mũ, hoặc dùng các nút ở trên.</p>
         </div>
       </div>
       <div className="flex justify-end gap-2">
