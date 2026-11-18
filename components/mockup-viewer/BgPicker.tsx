@@ -21,17 +21,15 @@ export function BgPicker({ value, onChange, shop }: { value: BgChoice; onChange:
   const on = (k: string) => (value.kind === "gradient" ? value.g.id === k : value.name === k);
   const sw = (active: boolean) => cx("relative h-10 w-10 shrink-0 overflow-hidden rounded-[8px] border bg-white", active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]");
 
+  // 1 hàng duy nhất: gradient → nền của tiệm → nền của bạn → ô cuối là nút tải ảnh lên
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="w-16 shrink-0 text-[12px] text-[#71717a]">Gradient</span>
-        {GRADIENTS.map((g, i) => (
-          <button key={g.id} type="button" title={g.name} aria-label={g.name} className={sw(on(g.id))} onClick={() => onChange({ kind: "gradient", g })}><GradThumb i={i} /></button>
-        ))}
-      </div>
-      {shop.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="w-16 shrink-0 text-[12px] text-[#71717a]">Của tiệm</span>
+    <div>
+      <div className="flex items-center gap-2">
+        <span className="shrink-0 text-[13px] font-semibold text-[#18181b]">Nền</span>
+        <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1 pl-1">
+          {GRADIENTS.map((g, i) => (
+            <button key={g.id} type="button" title={g.name} aria-label={g.name} className={sw(on(g.id))} onClick={() => onChange({ kind: "gradient", g })}><GradThumb i={i} /></button>
+          ))}
           {shop.map((b) => (
             <button key={b.id} type="button" title={b.name} aria-label={b.name} className={sw(on(`shop:${b.id}`))}
               onClick={async () => { try { setErr(""); onChange({ kind: "image", img: await loadImg(b.url), name: `shop:${b.id}` }); } catch { setErr(`Không tải được nền "${b.name}".`); } }}>
@@ -39,19 +37,17 @@ export function BgPicker({ value, onChange, shop }: { value: BgChoice; onChange:
               <img src={proxied(b.url)} alt="" className="h-full w-full object-cover" loading="lazy" />
             </button>
           ))}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="w-16 shrink-0 text-[12px] text-[#71717a]">Của bạn</span>
-        {mine && (
-          <button type="button" className={sw(on("mine"))} onClick={() => onChange({ kind: "image", img: mine.img, name: "mine" })} aria-label="Nền của bạn">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={mine.url} alt="" className="h-full w-full object-cover" />
+          {mine && (
+            <button type="button" title="Nền của bạn" aria-label="Nền của bạn" className={sw(on("mine"))} onClick={() => onChange({ kind: "image", img: mine.img, name: "mine" })}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mine.url} alt="" className="h-full w-full object-cover" />
+            </button>
+          )}
+          <button type="button" onClick={() => input.current?.click()} title="Tải nền của bạn" aria-label="Tải nền của bạn"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] border border-dashed border-[#d4d4d8] bg-white text-[#71717a] hover:border-[#ff5fa2] hover:text-[#ff5fa2]">
+            <ImagePlus size={18} />
           </button>
-        )}
-        <button type="button" onClick={() => input.current?.click()} className="inline-flex h-10 items-center gap-1.5 rounded-[8px] border border-dashed border-[#d4d4d8] bg-white px-3 text-[13px] text-[#3f3f46] hover:border-[#ff5fa2] hover:text-[#ff5fa2]">
-          <ImagePlus size={16} /> Tải nền của bạn
-        </button>
+        </div>
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={async (e) => {
           const f = e.target.files?.[0]; e.target.value = "";
           if (!f) return;
@@ -60,7 +56,7 @@ export function BgPicker({ value, onChange, shop }: { value: BgChoice; onChange:
           catch { setErr("Không đọc được ảnh nền."); }
         }} />
       </div>
-      {err && <p className="text-[12px] text-[#dc2626]">{err}</p>}
+      {err && <p className="mt-1 text-[12px] text-[#dc2626]">{err}</p>}
     </div>
   );
 }

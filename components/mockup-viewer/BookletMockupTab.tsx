@@ -138,8 +138,8 @@ export function BookletMockupTab({ pages, bg, bgPicker, onChangePackage }: {
   return (
     <div className="space-y-4">
       {bgPicker}
-      <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-cover bg-center px-[6%] py-[6%]" style={{ backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
-        <div ref={host} className="mx-auto w-full max-w-[900px] [filter:drop-shadow(0_16px_24px_rgba(0,0,0,0.18))]" />
+      <div className="relative mx-auto w-full max-w-[640px] overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-cover bg-center px-[3%] py-[4%]" style={{ backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
+        <div ref={host} className="mx-auto w-full [filter:drop-shadow(0_16px_24px_rgba(0,0,0,0.18))]" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="secondary" size="sm" icon={<ChevronLeft size={16} />} onClick={() => flip.current?.flipPrev()} disabled={cur === 0}>Trước</Button>

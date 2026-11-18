@@ -12,7 +12,7 @@ import { Button, toast } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 
 type Pos = { x: number; y: number; scale: number };
-const DEFAULT_POS: Pos = { x: 0.5, y: 0.5, scale: 0.8 };
+const DEFAULT_POS: Pos = { x: 0.5, y: 0.5, scale: 0.9 }; // khung chiếm ~90% chiều cao nền
 
 async function buildFrame(f: MockupFrame, images: Partial<Record<RegionType, SourceImage>>, maxW: number) {
   const frame = await loadImg(f.image_url);
@@ -108,7 +108,7 @@ export function CdMockupTab({ frames, images, bg, watermark, bgPicker }: {
       </div>
       {bgPicker}
       {/* xem trước: kéo để di chuyển khung */}
-      <div ref={wrap} className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white">
+      <div ref={wrap} className="relative mx-auto w-full max-w-[560px] overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white">
         <canvas ref={view} className="block h-auto w-full cursor-grab touch-none active:cursor-grabbing"
           onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, p: pos }; }}
           onPointerMove={(e) => {

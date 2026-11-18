@@ -12,7 +12,7 @@ import { uploadMockupImage } from "@/lib/upload";
 import { loadImg, proxied } from "@/lib/mockup/images";
 import { renderFrame, sampleImage } from "@/lib/mockup/render";
 import { apply, squareToQuad } from "@/lib/mockup/homography";
-import { DEFAULT_DISC_HOLE, DISC_CM, MAX_REGIONS, REGION_LABELS, defaultGlass, frameOrderOf, newRegion, type GlassSettings, type MockupFrame, type Pt, type Region, type RegionType } from "@/lib/mockup/types";
+import { DEFAULT_DISC_HOLE, DISC_CM, MAX_REGIONS, REGION_LABELS, defaultGlass, frameOrderOf, rectPts, newRegion, type GlassSettings, type MockupFrame, type Pt, type Region, type RegionType } from "@/lib/mockup/types";
 import { revalidatePublic } from "@/app/admin/actions";
 import { Button, Field, Input, Message, Select, Toggle } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
@@ -133,6 +133,12 @@ export function FrameEditor({ id }: { id: string }) {
   }
   const zoomStep = (dir: 1 | -1) => zoomTo(dir > 0 ? ZOOMS.find((z) => z > zoom + 1e-6) ?? 3 : [...ZOOMS].reverse().find((z) => z < zoom - 1e-6) ?? 0.5);
   const cur = f.regions.find((r) => r.id === sel) ?? null;
+  // Vùng Fit hình: kéo 1 góc thì 2 góc kề tự theo để luôn là hình chữ nhật thẳng (góc đối diện đứng yên)
+  const keepRect = (pts: Region["pts"], ci: number): Region["pts"] => {
+    const p = pts[ci], o = pts[(ci + 2) % 4];
+    const x0 = Math.min(p[0], o[0]), x1 = Math.max(p[0], o[0]), y0 = Math.min(p[1], o[1]), y1 = Math.max(p[1], o[1]);
+    return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+  };
   const setRegion = (rid: string, p: Partial<Region>) => setF((x) => ({ ...x, regions: x.regions.map((r) => (r.id === rid ? { ...r, ...p } : r)) }));
 
   // xem trước trực tiếp bằng ảnh mẫu (lưới màu có số) hoặc ảnh thử
@@ -196,7 +202,7 @@ export function FrameEditor({ id }: { id: string }) {
       const st = e.shiftKey ? 10 : 1;
       const pts = cur.pts.map((p) => [...p]) as Region["pts"];
       pts[corner] = [Math.min(1, Math.max(0, pts[corner][0] + (d[0] * st) / iw)), Math.min(1, Math.max(0, pts[corner][1] + (d[1] * st) / ih))];
-      setRegion(cur.id, { pts });
+      setRegion(cur.id, { pts: cur.fit ? keepRect(pts, corner) : pts });
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
@@ -265,6 +271,14 @@ export function FrameEditor({ id }: { id: string }) {
             }
             const pts = cur.pts.map((q) => [...q]) as Region["pts"];
             pts[drag.ci] = p;
+            if (cur.fit) {
+              // giữ hình chữ nhật: góc đối diện (lúc bắt đầu kéo) đứng yên
+              const o = (drag.pts0 ?? cur.pts)[(drag.ci + 2) % 4];
+              const x0 = Math.min(p[0], o[0]), x1 = Math.max(p[0], o[0]), y0 = Math.min(p[1], o[1]), y1 = Math.max(p[1], o[1]);
+              setRegion(cur.id, { pts: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]] });
+              setDrag({ ...drag, x: p[0], y: p[1] });
+              return;
+            }
             setRegion(cur.id, { pts });
             setDrag({ ...drag, x: p[0], y: p[1] });
           }}
@@ -372,6 +386,8 @@ export function FrameEditor({ id }: { id: string }) {
                   <option value="normal">Thường</option><option value="multiply">Multiply</option>
                 </Select>
               </Field>
+              <Toggle checked={!!cur.fit} onChange={(v) => setRegion(cur.id, v ? { fit: true, pts: rectPts(cur.pts) } : { fit: false })} label="Fit hình (giữ tỉ lệ ảnh)" />
+              {cur.fit && <p className="-mt-1 text-[12px] text-[#71717a]">Vùng luôn là hình chữ nhật thẳng. Ảnh không bị kéo giãn: vừa khít chiều ngang hoặc chiều dọc của vùng và căn giữa.</p>}
               <Toggle checked={cur.glass} onChange={(v) => setRegion(cur.id, { glass: v })} label="Có lớp kính" />
               {(cur.type === "back_out" || cur.type === "back_in") && (
                 <Field label="Gáy bìa sau">
@@ -478,7 +494,7 @@ function LayerList({ regions, glass, sel, onSelect, onChange }: {
               <GripVertical size={16} className="shrink-0 text-[#a1a1aa]" />
               {it.frame ? <ImageIcon size={16} className="shrink-0 text-[#71717a]" /> : null}
               <span className="min-w-0 flex-1 truncate">{it.frame ? "Ảnh khung" : REGION_LABELS[it.r!.type]}</span>
-              {it.frame ? <Lock size={14} className="shrink-0 text-[#a1a1aa]" /> : it.r!.glass && <span className="shrink-0 text-[11px] text-[#71717a]">kính</span>}
+              {it.frame ? <Lock size={14} className="shrink-0 text-[#a1a1aa]" /> : <span className="shrink-0 text-[11px] text-[#71717a]">{[it.r!.fit && "fit", it.r!.glass && "kính"].filter(Boolean).join(" · ")}</span>}
             </div>
           </li>
         ))}

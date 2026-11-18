@@ -15,6 +15,9 @@ export type Region = {
   mask_url?: string | null; // mặt nạ PNG (không bắt buộc)
   spine?: "show" | "trim"; // bìa sau: hiện cả gáy / bỏ 2 dải gáy
   hole?: number; // mặt đĩa: tỉ lệ đường kính lỗ / đường kính đĩa
+  // Fit hình: vùng luôn là hình chữ nhật thẳng (không kéo lệch góc); ảnh giữ nguyên tỉ lệ,
+  // vừa khít chiều ngang hoặc chiều dọc của vùng (không kéo giãn, không phối cảnh)
+  fit?: boolean;
 };
 // strength 0..100, angle độ. frame_order: vị trí lớp của ảnh khung trong danh sách lớp (cùng thang với region.order;
 // trống = trên cùng). Lưu chung trong cột glass (jsonb) của mockup_frames.
@@ -43,3 +46,10 @@ export const newRegion = (type: RegionType = "front_out", order = 1): Region => 
   pts: [[0.3, 0.3], [0.7, 0.3], [0.7, 0.7], [0.3, 0.7]],
   glass: type !== "disc", blend: "normal", spine: "show", hole: DEFAULT_DISC_HOLE,
 });
+
+// 4 góc của hình chữ nhật bao quanh vùng (dùng khi bật Fit hình)
+export const rectPts = (pts: Pt[]): [Pt, Pt, Pt, Pt] => {
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  return [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
+};

@@ -5,7 +5,7 @@
    Mặc định ảnh khung nằm trên tất cả các vùng. */
 import { BACK_SPINE_CM, BACK_W_CM } from "@/lib/cdSpecs";
 import { warpToQuad } from "./warp";
-import { DEFAULT_DISC_HOLE, REGION_LABELS, frameOrderOf, type GlassSettings, type Region, type RegionType } from "./types";
+import { DEFAULT_DISC_HOLE, REGION_LABELS, frameOrderOf, rectPts, type GlassSettings, type Region, type RegionType } from "./types";
 
 export type SourceImage = (CanvasImageSource & { width: number; height: number }) | null;
 type Img = CanvasImageSource & { width: number; height: number };
@@ -65,7 +65,16 @@ export function renderFrame({ frame, regions, images, masks = {}, glass, maxW = 
     let src: Img = raw ?? placeholder(r.type);
     if (raw && r.type === "disc") src = discSource(raw, r.hole ?? DEFAULT_DISC_HOLE);
     if (raw && (r.type === "back_out" || r.type === "back_in") && r.spine === "trim") src = trimSpines(raw);
-    const layer = warpToQuad(src, quadPx(r), W, H);
+    let layer: HTMLCanvasElement;
+    if (r.fit) {
+      // Fit hình: không kéo giãn — ảnh vừa khít chiều ngang hoặc dọc của hình chữ nhật, căn giữa
+      const [[x0, y0], , [x1, y1]] = rectPts(r.pts).map(([x, y]) => [x * W, y * H]);
+      const rw = x1 - x0, rh = y1 - y0, sc = Math.min(rw / src.width, rh / src.height);
+      layer = canvas(W, H);
+      const lx = layer.getContext("2d")!;
+      lx.imageSmoothingQuality = "high";
+      lx.drawImage(src, x0 + (rw - src.width * sc) / 2, y0 + (rh - src.height * sc) / 2, src.width * sc, src.height * sc);
+    } else layer = warpToQuad(src, quadPx(r), W, H);
     const mask = r.mask_url ? masks[r.mask_url] : undefined;
     if (mask) { const lx = layer.getContext("2d")!; lx.globalCompositeOperation = "destination-in"; lx.drawImage(mask, 0, 0, W, H); }
     ctx.globalCompositeOperation = r.blend === "multiply" ? "multiply" : "source-over";
