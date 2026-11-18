@@ -95,7 +95,9 @@ export function FrameEditor({ id }: { id: string }) {
     if (isNew) return;
     createClient().from("mockup_frames").select("*").eq("id", id).maybeSingle().then(({ data, error }) => {
       if (error || !data) return setMsg({ type: "err", text: error?.message ?? "Không tìm thấy mẫu" });
-      setF({ ...(data as MockupFrame), regions: data.regions ?? [], glass: { ...defaultGlass, ...(data.glass ?? {}) } });
+      // vùng đĩa lưu với tỉ lệ lỗ cũ (12,5%) → đổi sang mặc định 2,3 / 12 cm
+      const regions = ((data.regions ?? []) as Region[]).map((r) => (r.type === "disc" && (r.hole == null || r.hole === 0.125) ? { ...r, hole: DEFAULT_DISC_HOLE } : r));
+      setF({ ...(data as MockupFrame), regions, glass: { ...defaultGlass, ...(data.glass ?? {}) } });
     });
   }, [id, isNew]);
   useEffect(() => {
