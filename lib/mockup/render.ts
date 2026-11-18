@@ -1,10 +1,11 @@
 "use client";
 
 /* Dựng 1 khung mockup CD. Thứ tự lớp:
-   (nền: vẽ ở scene) → ảnh khách kéo giãn phối cảnh vào từng vùng → ảnh khung PNG (có sẵn bóng) → lớp kính. */
+   (nền: vẽ ở scene) → các lớp theo thứ tự admin xếp (ảnh khách kéo giãn vào từng vùng + ảnh khung PNG) → lớp kính.
+   Mặc định ảnh khung nằm trên tất cả các vùng. */
 import { BACK_SPINE_CM, BACK_W_CM } from "@/lib/cdSpecs";
 import { warpToQuad } from "./warp";
-import { DEFAULT_DISC_HOLE, REGION_LABELS, type GlassSettings, type Region, type RegionType } from "./types";
+import { DEFAULT_DISC_HOLE, REGION_LABELS, frameOrderOf, type GlassSettings, type Region, type RegionType } from "./types";
 
 export type SourceImage = (CanvasImageSource & { width: number; height: number }) | null;
 type Img = CanvasImageSource & { width: number; height: number };
@@ -53,7 +54,13 @@ export function renderFrame({ frame, regions, images, masks = {}, glass, maxW = 
   ctx.imageSmoothingQuality = "high";
   const quadPx = (r: Region) => r.pts.map(([x, y]) => [x * W, y * H] as [number, number]);
 
-  for (const r of [...regions].sort((a, b) => a.order - b.order)) {
+  // Lớp: các vùng + ảnh khung xếp theo thứ tự (nhỏ vẽ trước = nằm dưới). Kính luôn trên cùng.
+  const fo = frameOrderOf(regions, glass);
+  const layers: (Region | "frame")[] = [...regions].sort((a, b) => a.order - b.order);
+  const at = layers.findIndex((l) => l !== "frame" && l.order > fo);
+  layers.splice(at < 0 ? layers.length : at, 0, "frame");
+  for (const r of layers) {
+    if (r === "frame") { ctx.globalCompositeOperation = "source-over"; ctx.drawImage(frame, 0, 0, W, H); continue; }
     const raw = images[r.type] ?? null;
     let src: Img = raw ?? placeholder(r.type);
     if (raw && r.type === "disc") src = discSource(raw, r.hole ?? DEFAULT_DISC_HOLE);
@@ -65,7 +72,6 @@ export function renderFrame({ frame, regions, images, masks = {}, glass, maxW = 
     ctx.drawImage(layer, 0, 0);
   }
   ctx.globalCompositeOperation = "source-over";
-  ctx.drawImage(frame, 0, 0, W, H);
 
   // Lớp kính: dải sáng chéo mờ + chút bóng ở mép
   const s = Math.max(0, Math.min(100, glass.strength)) / 100;

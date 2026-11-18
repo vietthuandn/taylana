@@ -6,13 +6,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, Minus, Plus, ScanSearch, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, GripVertical, ImageIcon, Lock, Minus, Plus, ScanSearch, Trash2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadMockupImage } from "@/lib/upload";
 import { loadImg, proxied } from "@/lib/mockup/images";
 import { renderFrame, sampleImage } from "@/lib/mockup/render";
 import { apply, squareToQuad } from "@/lib/mockup/homography";
-import { DEFAULT_DISC_HOLE, DISC_CM, MAX_REGIONS, REGION_LABELS, defaultGlass, newRegion, type GlassSettings, type MockupFrame, type Pt, type Region, type RegionType } from "@/lib/mockup/types";
+import { DEFAULT_DISC_HOLE, DISC_CM, MAX_REGIONS, REGION_LABELS, defaultGlass, frameOrderOf, newRegion, type GlassSettings, type MockupFrame, type Pt, type Region, type RegionType } from "@/lib/mockup/types";
 import { revalidatePublic } from "@/app/admin/actions";
 import { Button, Field, Input, Message, Select, Toggle } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
@@ -222,7 +222,7 @@ export function FrameEditor({ id }: { id: string }) {
     let found: Region[] = [];
     try { found = detectRegions(img); } catch { return setMsg({ type: "err", text: "Không đọc được kênh trong suốt của ảnh (ảnh bị chặn CORS). Lưu mẫu rồi thử lại." }); }
     if (!found.length) return setMsg({ type: "err", text: "Không tìm thấy vùng trong suốt nào bên trong ảnh. Hãy bấm “Thêm vùng” và kéo 4 góc." });
-    setF((x) => ({ ...x, regions: found }));
+    setF((x) => ({ ...x, regions: found, glass: { ...x.glass, frame_order: found.length + 1 } }));
     setSel(found[0].id);
     setMsg({ type: "ok", text: `Tìm thấy ${found.length} vùng — kiểm tra lại loại vùng và 4 góc.` });
   }
@@ -346,19 +346,17 @@ export function FrameEditor({ id }: { id: string }) {
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" size="sm" icon={<ScanSearch size={16} />} onClick={autoDetect} disabled={!img}>Tự nhận diện vùng</Button>
               <Button variant="secondary" size="sm" icon={<Plus size={16} />} disabled={f.regions.length >= MAX_REGIONS}
-                onClick={() => { const r = newRegion(TYPES[f.regions.length % TYPES.length], f.regions.length + 1); setF({ ...f, regions: [...f.regions, r] }); setSel(r.id); }}>Thêm vùng</Button>
+                onClick={() => {
+                  const fo = frameOrderOf(f.regions, f.glass);
+                  const below = f.regions.filter((r) => r.order < fo).length; // thêm vào ngay dưới ảnh khung
+                  const r = newRegion(TYPES[f.regions.length % TYPES.length], below + 1);
+                  const regions = [...f.regions.map((x) => (x.order >= below + 1 ? { ...x, order: x.order + 1 } : x)), r];
+                  setF({ ...f, regions, glass: { ...f.glass, frame_order: fo + 1 } }); setSel(r.id);
+                }}>Thêm vùng</Button>
             </div>
             <p className="text-[12px] text-[#71717a]">Tối đa {MAX_REGIONS} vùng. Kéo 4 góc để chỉnh từng góc, giữ <b>Shift</b> khi kéo góc để thu / phóng cả vùng, kéo bên trong vùng để di chuyển. Phím mũi tên dịch góc đang chọn 1px (Shift: 10px). Ctrl + cuộn chuột hoặc nút −/+ ở góc để thu phóng.</p>
-            <ul className="space-y-1">
-              {f.regions.map((r) => (
-                <li key={r.id}>
-                  <button type="button" onClick={() => setSel(r.id)}
-                    className={cx("flex w-full items-center justify-between rounded-[8px] border px-3 py-2 text-left", r.id === sel ? "border-[#ff5fa2] bg-[#fff5f9]" : "border-[#e5e5e7] hover:bg-[#fafafa]")}>
-                    <span>{REGION_LABELS[r.type]}</span><span className="text-[12px] text-[#71717a]">Lớp {r.order}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <LayerList regions={f.regions} glass={f.glass} sel={sel} onSelect={setSel}
+              onChange={(regions, frame_order) => setF((x) => ({ ...x, regions, glass: { ...x.glass, frame_order } }))} />
           </section>
 
           {cur && (
@@ -369,14 +367,11 @@ export function FrameEditor({ id }: { id: string }) {
                   {TYPES.map((t) => <option key={t} value={t}>{REGION_LABELS[t]}</option>)}
                 </Select>
               </Field>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label="Thứ tự lớp"><Input type="number" min={1} max={MAX_REGIONS * 2} value={cur.order} onChange={(e) => setRegion(cur.id, { order: Number(e.target.value) })} /></Field>
-                <Field label="Hoà trộn">
-                  <Select value={cur.blend} onChange={(e) => setRegion(cur.id, { blend: e.target.value as Region["blend"] })}>
-                    <option value="normal">Thường</option><option value="multiply">Multiply</option>
-                  </Select>
-                </Field>
-              </div>
+              <Field label="Hoà trộn">
+                <Select value={cur.blend} onChange={(e) => setRegion(cur.id, { blend: e.target.value as Region["blend"] })}>
+                  <option value="normal">Thường</option><option value="multiply">Multiply</option>
+                </Select>
+              </Field>
               <Toggle checked={cur.glass} onChange={(v) => setRegion(cur.id, { glass: v })} label="Có lớp kính" />
               {(cur.type === "back_out" || cur.type === "back_in") && (
                 <Field label="Gáy bìa sau">
@@ -437,6 +432,57 @@ export function FrameEditor({ id }: { id: string }) {
         </aside>
       </div>
       <Message msg={msg} />
+    </div>
+  );
+}
+
+// ---------- Bảng lớp: kéo thả để đổi thứ tự (trên cùng = nằm trên). "Ảnh khung" cũng là 1 lớp. ----------
+function LayerList({ regions, glass, sel, onSelect, onChange }: {
+  regions: Region[]; glass: GlassSettings; sel: string | null; onSelect: (id: string) => void;
+  onChange: (regions: Region[], frameOrder: number) => void;
+}) {
+  const [drag, setDrag] = useState<number | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+  const fo = frameOrderOf(regions, glass);
+  // danh sách từ trên xuống (lớp trên cùng đứng đầu)
+  type L = { key: string; frame?: true; r?: Region; order: number };
+  const items: L[] = ([...regions.map((r) => ({ key: r.id, r, order: r.order })), { key: "__frame__", frame: true as const, order: fo }] as L[])
+    .sort((a, b) => b.order - a.order || (a.frame ? -1 : 1));
+  function drop(to: number) {
+    if (drag === null || drag === to) return;
+    const next = [...items];
+    const [x] = next.splice(drag, 1);
+    next.splice(to, 0, x);
+    // đánh lại thứ tự: dưới cùng = 1
+    const n = next.length;
+    let frameOrder = n;
+    const out = regions.map((r) => ({ ...r }));
+    next.forEach((it, i) => {
+      const order = n - i;
+      if (it.frame) frameOrder = order;
+      else { const t = out.find((r) => r.id === it.key); if (t) t.order = order; }
+    });
+    onChange(out, frameOrder);
+  }
+  return (
+    <div>
+      <p className="mb-1 text-[12px] text-[#71717a]">Lớp (trên cùng = nằm trên) — kéo thả để đổi thứ tự</p>
+      <ul className="space-y-1">
+        {items.map((it, i) => (
+          <li key={it.key} draggable onDragStart={() => setDrag(i)} onDragEnd={() => { setDrag(null); setOver(null); }}
+            onDragOver={(e) => { e.preventDefault(); setOver(i); }} onDrop={(e) => { e.preventDefault(); drop(i); setDrag(null); setOver(null); }}
+            className={cx(drag === i && "opacity-40", over === i && drag !== null && drag !== i && "rounded-[8px] ring-2 ring-[#ff5fa2]/40")}>
+            <div role="button" tabIndex={0} onClick={() => it.r && onSelect(it.r.id)} onKeyDown={(e) => e.key === "Enter" && it.r && onSelect(it.r.id)}
+              className={cx("flex w-full cursor-grab items-center gap-2 rounded-[8px] border px-2 py-2 text-left active:cursor-grabbing",
+                it.frame ? "border-dashed border-[#d4d4d8] bg-[#fafafa]" : it.r && it.r.id === sel ? "border-[#ff5fa2] bg-[#fff5f9]" : "border-[#e5e5e7] bg-white hover:bg-[#fafafa]")}>
+              <GripVertical size={16} className="shrink-0 text-[#a1a1aa]" />
+              {it.frame ? <ImageIcon size={16} className="shrink-0 text-[#71717a]" /> : null}
+              <span className="min-w-0 flex-1 truncate">{it.frame ? "Ảnh khung" : REGION_LABELS[it.r!.type]}</span>
+              {it.frame ? <Lock size={14} className="shrink-0 text-[#a1a1aa]" /> : it.r!.glass && <span className="shrink-0 text-[11px] text-[#71717a]">kính</span>}
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

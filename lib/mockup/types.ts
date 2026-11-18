@@ -16,7 +16,12 @@ export type Region = {
   spine?: "show" | "trim"; // bìa sau: hiện cả gáy / bỏ 2 dải gáy
   hole?: number; // mặt đĩa: tỉ lệ đường kính lỗ / đường kính đĩa
 };
-export type GlassSettings = { strength: number; angle: number }; // strength 0..100, angle độ
+// strength 0..100, angle độ. frame_order: vị trí lớp của ảnh khung trong danh sách lớp (cùng thang với region.order;
+// trống = trên cùng). Lưu chung trong cột glass (jsonb) của mockup_frames.
+export type GlassSettings = { strength: number; angle: number; frame_order?: number };
+// Thứ tự lớp ảnh khung (mặc định nằm trên tất cả các vùng)
+export const frameOrderOf = (regions: { order: number }[], glass: GlassSettings) =>
+  glass.frame_order ?? Math.max(0, ...regions.map((r) => r.order)) + 1;
 export type MockupFrame = {
   id: string; name: string; image_url: string; source: "url" | "storage";
   regions: Region[]; glass: GlassSettings; is_active: boolean; sort_order: number;
