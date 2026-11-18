@@ -211,7 +211,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
   return (
     <div className="relative flex min-h-0 flex-1 flex-col md:block">
       {/* ảnh mockup: căn giữa tuyệt đối trong panel (chừa đều 2 bên cho cột mẫu và thanh đáy) */}
-      <div ref={area} className={`relative flex min-h-[240px] flex-1 items-center justify-center p-3 md:absolute md:inset-x-[72px] md:min-h-0 md:p-0 ${isSys ? "md:inset-y-[96px]" : "md:inset-y-[64px]"}`}>
+      <div ref={area} className={`relative flex min-h-[240px] flex-1 items-center justify-center p-3 md:absolute md:inset-x-[72px] md:min-h-0 md:p-0 ${isSys ? "md:bottom-[100px] md:top-4" : "md:inset-y-[64px]"}`}>
         {isSys ? (
           <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white" style={{ width: width || "100%", aspectRatio: "1 / 1" }}>
             <canvas ref={sysView} className="block h-full w-full" />
