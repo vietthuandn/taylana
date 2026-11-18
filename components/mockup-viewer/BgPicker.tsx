@@ -14,19 +14,19 @@ function GradThumb({ i }: { i: number }) {
   return <canvas ref={ref} width={64} height={64} className="h-full w-full" />;
 }
 
-export function BgPicker({ value, onChange, shop }: { value: BgChoice; onChange: (b: BgChoice) => void; shop: MockupBackground[] }) {
+export function BgPicker({ value, onChange, shop, className }: { value: BgChoice; onChange: (b: BgChoice) => void; shop: MockupBackground[]; className?: string }) {
   const input = useRef<HTMLInputElement>(null);
   const [mine, setMine] = useState<{ url: string; img: HTMLImageElement } | null>(null);
   const [err, setErr] = useState("");
   const on = (k: string) => (value.kind === "gradient" ? value.g.id === k : value.name === k);
-  const sw = (active: boolean) => cx("relative h-10 w-10 shrink-0 overflow-hidden rounded-[8px] border bg-white", active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]");
+  const sw = (active: boolean) => cx("relative h-8 w-8 shrink-0 overflow-hidden rounded-[8px] border bg-white", active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]");
 
   // 1 hàng duy nhất: gradient → nền của tiệm → nền của bạn → ô cuối là nút tải ảnh lên
   return (
-    <div>
+    <div className={cx("min-w-0", className)}>
       <div className="flex items-center gap-2">
         <span className="shrink-0 text-[13px] font-semibold text-[#18181b]">Nền</span>
-        <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-1 pl-1">
+        <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1 pl-1">
           {GRADIENTS.map((g, i) => (
             <button key={g.id} type="button" title={g.name} aria-label={g.name} className={sw(on(g.id))} onClick={() => onChange({ kind: "gradient", g })}><GradThumb i={i} /></button>
           ))}
@@ -44,8 +44,8 @@ export function BgPicker({ value, onChange, shop }: { value: BgChoice; onChange:
             </button>
           )}
           <button type="button" onClick={() => input.current?.click()} title="Tải nền của bạn" aria-label="Tải nền của bạn"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-[8px] border border-dashed border-[#d4d4d8] bg-white text-[#71717a] hover:border-[#ff5fa2] hover:text-[#ff5fa2]">
-            <ImagePlus size={18} />
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] border border-dashed border-[#d4d4d8] bg-white text-[#71717a] hover:border-[#ff5fa2] hover:text-[#ff5fa2]">
+            <ImagePlus size={15} />
           </button>
         </div>
         <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={async (e) => {

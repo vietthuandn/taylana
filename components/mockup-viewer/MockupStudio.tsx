@@ -17,8 +17,8 @@ import { BgPicker } from "./BgPicker";
 import { CdMockupTab } from "./CdMockupTab";
 import { BookletMockupTab } from "./BookletMockupTab";
 
-export function MockupStudio({ packages, frames, backgrounds, watermark }: {
-  packages: Package[]; frames: MockupFrame[]; backgrounds: MockupBackground[]; watermark: boolean;
+export function MockupStudio({ packages, frames, backgrounds }: {
+  packages: Package[]; frames: MockupFrame[]; backgrounds: MockupBackground[]; watermark?: boolean;
 }) {
   const [pkgId, setPkgId] = useState(packages[0]?.id ?? "");
   const [files, setFiles] = useState<Record<string, Picked>>({});
@@ -73,7 +73,18 @@ export function MockupStudio({ packages, frames, backgrounds, watermark }: {
     front_out: imgs.f1 ?? null, front_in: imgs.f2 ?? null, back_out: imgs.b1 ?? null, back_in: imgs.b2 ?? null, disc: imgs.d ?? null,
   }), [imgs]);
   const bookletPages = useMemo(() => (layout && layout.front >= 4 ? Array.from({ length: layout.front }, (_, i) => imgs[`f${i + 1}`] ?? null) : null), [layout, imgs]);
-  const picker = <BgPicker value={bg} onChange={setBg} shop={backgrounds} />;
+  const picker = <BgPicker value={bg} onChange={setBg} shop={backgrounds} className="ml-auto max-w-full" />;
+
+  const tabs = (
+        <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
+          {([["cd", "CD Mockup", Disc3], ["booklet", "Booklet Mockup", BookOpen]] as const).map(([k, t, Icon]) => (
+            <button key={k} type="button" onClick={() => setTab(k)}
+              className={cx("inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[13px] font-medium", tab === k ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>
+              <Icon size={16} /> {t}
+            </button>
+          ))}
+        </div>
+  );
 
   return (
     <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0 md:flex-row">
@@ -97,17 +108,9 @@ export function MockupStudio({ packages, frames, backgrounds, watermark }: {
 
       {/* ---------- Phải 60%: mockup ---------- */}
       <section className="no-scrollbar relative min-w-0 flex-1 p-3 md:overflow-y-auto md:px-4">
-        <div className="mb-3 inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
-          {([["cd", "CD Mockup", Disc3], ["booklet", "Booklet Mockup", BookOpen]] as const).map(([k, t, Icon]) => (
-            <button key={k} type="button" onClick={() => setTab(k)}
-              className={cx("inline-flex items-center gap-1.5 rounded-[6px] px-3 py-1.5 text-[13px] font-medium", tab === k ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>
-              <Icon size={16} /> {t}
-            </button>
-          ))}
-        </div>
         {tab === "cd"
-          ? <CdMockupTab frames={frames} images={regionImages} bg={bg} watermark={watermark} bgPicker={picker} />
-          : <BookletMockupTab pages={bookletPages} bg={bg} bgPicker={picker} />}
+          ? <CdMockupTab frames={frames} images={regionImages} bg={bg} bgPicker={picker} tabs={tabs} />
+          : <BookletMockupTab pages={bookletPages} bg={bg} bgPicker={picker} tabs={tabs} />}
       </section>
     </div>
   );

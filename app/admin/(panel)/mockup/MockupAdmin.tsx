@@ -1,6 +1,6 @@
 "use client";
 
-/* Admin → Mẫu mockup: 4a Khung CD (tối đa 5) · 4b Nền của tiệm (chỉ link) · watermark. */
+/* Admin → Mẫu mockup: 4a Khung CD (tối đa 5) · 4b Nền của tiệm (chỉ link) */
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
@@ -33,7 +33,6 @@ function useSortable<T extends { id: string; sort_order: number }>(table: string
 export function MockupAdmin() {
   const [frames, setFrames] = useState<MockupFrame[]>([]);
   const [bgs, setBgs] = useState<MockupBackground[]>([]);
-  const [watermark, setWatermark] = useState(true);
   const [msg, setMsg] = useState<Msg>(null);
   const [ready, setReady] = useState(false);
   const [name, setName] = useState("");
@@ -42,15 +41,13 @@ export function MockupAdmin() {
 
   const load = useCallback(async () => {
     const sb = createClient();
-    const [f, b, s] = await Promise.all([
+    const [f, b] = await Promise.all([
       sb.from("mockup_frames").select("*").order("sort_order").order("created_at"),
       sb.from("mockup_backgrounds").select("*").order("sort_order").order("created_at"),
-      sb.from("site_settings").select("value").eq("key", "mockup").maybeSingle(),
     ]);
     if (f.error) setMsg({ type: "err", text: "Chưa có bảng mockup — cần chạy supabase/migration_mockups.sql." });
     setFrames((f.data ?? []) as MockupFrame[]);
     setBgs((b.data ?? []) as MockupBackground[]);
-    setWatermark((s.data?.value as { watermark?: boolean } | undefined)?.watermark !== false);
     setReady(true);
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -82,13 +79,6 @@ export function MockupAdmin() {
     setName(""); setUrl("");
     await after("Đã thêm nền.");
   }
-  async function saveWatermark(v: boolean) {
-    setWatermark(v);
-    const { error } = await createClient().from("site_settings").upsert({ key: "mockup", value: { watermark: v }, updated_at: new Date().toISOString() });
-    if (error) return setMsg({ type: "err", text: error.message });
-    await after(v ? "Đã bật watermark." : "Đã tắt watermark.");
-  }
-
   if (!ready) return <p className="text-[13px] text-[#71717a]">Đang tải...</p>;
   const full = frames.length >= 5;
   return (
@@ -149,9 +139,6 @@ export function MockupAdmin() {
         ) : <EmptyState>Chưa có nền nào.</EmptyState>}
       </Card>
 
-      <Card title="Ảnh tải về">
-        <Toggle checked={watermark} onChange={saveWatermark} label="Thêm chữ “Taylana” nhỏ, mờ ở góc ảnh mockup khách tải về" />
-      </Card>
       <Message msg={msg} />
     </div>
   );

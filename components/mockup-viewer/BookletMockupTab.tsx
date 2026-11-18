@@ -7,6 +7,7 @@ import { BookOpen, ChevronLeft, ChevronRight, Download, Image as ImageIcon } fro
 import { paintBackground, type BgChoice } from "@/lib/mockup/backgrounds";
 import { saveBlob } from "@/lib/imageTools";
 import { Button, toast } from "@/components/ui/kit";
+import { DownloadMenu } from "./DownloadMenu";
 
 const PX = 1000; // kích thước ảnh 1 trang khi dựng
 
@@ -50,8 +51,8 @@ function pageImage(img: HTMLImageElement | null, no: number, side: "left" | "rig
   return c;
 }
 
-export function BookletMockupTab({ pages, bg, bgPicker, onChangePackage }: {
-  pages: (HTMLImageElement | null)[] | null; bg: BgChoice; bgPicker: React.ReactNode; onChangePackage?: () => void;
+export function BookletMockupTab({ pages, bg, bgPicker, tabs, onChangePackage }: {
+  pages: (HTMLImageElement | null)[] | null; bg: BgChoice; bgPicker: React.ReactNode; tabs: React.ReactNode; onChangePackage?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const flip = useRef<import("page-flip").PageFlip | null>(null);
@@ -134,28 +135,36 @@ export function BookletMockupTab({ pages, bg, bgPicker, onChangePackage }: {
 
   if (!pages) {
     return (
-      <div className="grid h-64 place-items-center rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]">
-        <span>
-          <BookOpen size={24} className="mx-auto mb-2" />Gói này không có booklet.
-          <span className="mt-1 block text-[13px]">Chọn gói có Booklet 4, 8 hoặc 12 trang ở panel bên trái{onChangePackage ? "" : ""}.</span>
-        </span>
+      <div className="space-y-3">
+        {tabs}
+        <div className="grid h-64 place-items-center rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]">
+          <span>
+            <BookOpen size={24} className="mx-auto mb-2" />Gói này không có booklet.
+            <span className="mt-1 block text-[13px]">Chọn gói có Booklet 4, 8 hoặc 12 trang ở panel bên trái{onChangePackage ? "" : ""}.</span>
+          </span>
+        </div>
       </div>
     );
   }
   return (
     <div className="space-y-3">
-      {bgPicker}
-      <div className="relative mx-auto w-full overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-cover bg-center px-[3%] py-[4%]" style={{ maxWidth: "min(640px, max(300px, calc((100dvh - var(--header-h) - 230px) * 1.7)))", backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
+      <div className="flex items-center gap-2">
+        {tabs}
+        <div className="ml-auto">
+          <DownloadMenu items={[
+            { label: "Tải ảnh này (JPG)", icon: <Download size={16} />, onClick: () => downloadSpread() },
+            { label: "Tải PNG nền trong suốt", icon: <ImageIcon size={16} />, onClick: () => downloadSpread(true) },
+          ]} />
+        </div>
+      </div>
+      <div className="relative mx-auto w-full overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-cover bg-center px-[3%] py-[4%]" style={{ maxWidth: "min(900px, max(300px, calc((100dvh - var(--header-h) - 140px) * 1.75)))", backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
         <div ref={host} className="mx-auto w-full [filter:drop-shadow(0_16px_24px_rgba(0,0,0,0.18))]" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" size="sm" icon={<ChevronLeft size={16} />} onClick={() => flip.current?.flipPrev()} disabled={cur === 0}>Trước</Button>
-        <span className="min-w-[120px] text-center text-[13px] tabular-nums text-[#3f3f46]">{label}</span>
+        <Button variant="secondary" size="sm" icon={<ChevronLeft size={16} />} onClick={() => flip.current?.flipPrev()} disabled={cur === 0} title="Bấm mép trang, kéo góc hoặc dùng phím ← → để lật">Trước</Button>
+        <span className="min-w-[110px] text-center text-[13px] tabular-nums text-[#3f3f46]">{label}</span>
         <Button variant="secondary" size="sm" onClick={() => flip.current?.flipNext()} disabled={spread[spread.length - 1] >= n - 1}>Sau <ChevronRight size={16} /></Button>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Button variant="secondary" size="sm" icon={<ImageIcon size={16} />} onClick={() => downloadSpread(true)} title="Ảnh PNG nền trong suốt">PNG trong suốt</Button>
-          <Button size="sm" icon={<Download size={16} />} onClick={() => downloadSpread()} title="Bấm mép trang, kéo góc hoặc dùng phím ← → để lật">Tải JPG</Button>
-        </div>
+        {bgPicker}
       </div>
     </div>
   );
