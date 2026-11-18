@@ -21,6 +21,10 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
     { href: "/admin/mau-cd", label: "Mẫu Custom CD", icon: "disc", group: "Thiết kế" },
     { href: "/admin/photostrip", label: "Khung Photostrip", icon: "strip", group: "Thiết kế" },
   ] },
+  { title: "Công cụ", links: [
+    { href: "/admin/cong-cu/dan-trang", label: "Dàn trang booklet", icon: "book2", group: "Công cụ" },
+    { href: "/admin/cong-cu/cat-kho", label: "Cắt đúng khổ", icon: "crop", group: "Công cụ" },
+  ] },
   { title: "Hệ thống", links: [
     { href: "/admin/thanh-toan", label: "Thanh toán", icon: "card", group: "Hệ thống" },
     { href: "/admin/van-chuyen", label: "Vận chuyển", icon: "truck", group: "Hệ thống" },
