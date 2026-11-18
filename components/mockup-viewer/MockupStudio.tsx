@@ -87,9 +87,11 @@ export function MockupStudio({ packages, frames, backgrounds }: {
   );
 
   return (
-    <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0 md:flex-row">
+    <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
+     {/* giới hạn bề ngang như các trang khác (1200px) */}
+     <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col md:min-h-0 md:flex-row md:border-x md:border-[#e5e5e7]">
       {/* ---------- Trái 40%: khu tải ảnh ---------- */}
-      <aside className="relative border-[#e5e5e7] bg-white p-4 md:w-[40%] md:shrink-0 md:overflow-y-auto md:border-r">
+      <aside className="relative border-[#e5e5e7] bg-white p-4 md:w-[38%] md:shrink-0 md:overflow-y-auto md:border-r">
         <h1 className="font-sans text-[20px] font-bold normal-case tracking-[-0.02em] text-[#18181b]">Xem Mockup CD</h1>
         <p className="mt-1 text-[13px] text-[#71717a]">Ảnh chỉ hiển thị trên máy bạn, không tải lên server.</p>
         <label className="mt-4 block">
@@ -112,6 +114,7 @@ export function MockupStudio({ packages, frames, backgrounds }: {
           ? <CdMockupTab frames={frames} images={regionImages} bg={bg} bgPicker={picker} tabs={tabs} />
           : <BookletMockupTab pages={bookletPages} bg={bg} bgPicker={picker} tabs={tabs} />}
       </section>
+     </div>
     </div>
   );
 }
