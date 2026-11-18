@@ -94,13 +94,20 @@ export type SpriteOut = { c: HTMLCanvasElement; ax: number; ay: number }; // ax,
 const anchor = (cs: Rect, W: number, H: number) => ({ ax: ((cs.x0 + cs.x1) / 2) * W, ay: ((cs.y0 + cs.y1) / 2) * H });
 
 /** k = px đầu ra / px sprite */
-export function spriteClosed(sp: Sprites, k: number, front: Src, backIn: Src, g: GlassSettings): SpriteOut {
+export function spriteClosed(sp: Sprites, k: number, front: Src, backIn: Src, disc: Src, g: GlassSettings): SpriteOut {
   const s = sp.sheet.closed, W = s.width * k, H = s.height * k;
   const { c, x } = canvas(W, H);
   const win = R(s.cover, W, H), cs = R(s.case, W, H);
   // tray card mặt trong kéo sang trái tới hết vùng bản lề (không để trống), bìa trước 12 × 12 đặt lên trên
   const behind = { x: cs.x + 3 * k, y: win.y, w: win.x + win.w - (cs.x + 3 * k), h: win.h };
-  if (front === undefined) cover(x, undefined, win); // không có bìa: nhựa hơi đục
+  if (front === undefined) {
+    // không có bìa (CD + Hộp): nhựa hơi đục + đĩa CD nằm trong hộp, nhìn xuyên qua nắp
+    cover(x, undefined, win);
+    const d = sp.sheet.disc, rPx = (60 / mmPerPx(sp, 142)) * k; // đĩa 120 mm
+    const dk = rPx / (d.r * d.width), cx = win.x + win.w / 2, cy = win.y + win.h / 2;
+    x.drawImage(sp.disc, cx - d.cx * d.width * dk, cy - d.cy * d.height * dk, d.width * dk, d.height * dk);
+    printDisc(x, disc, cx, cy, rPx, 0, sp);
+  }
   else { card(x, backIn, behind); cover(x, front, win); } // bìa trước phủ kín cả ô (kéo sang 2 bên, cắt phủ kín không méo)
   x.drawImage(sp.closed, 0, 0, W, H);
   glass(x, R(s.case, W, H), g);

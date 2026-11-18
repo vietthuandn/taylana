@@ -60,7 +60,7 @@ function objectCanvas(kind: Kind, s: number, inp: SystemInput, o: SystemOptions)
   // ảnh hộp thật (PNG): phóng theo tỉ lệ chung px/mm — k = px đầu ra / px sprite
   if (sp && kind !== "spread" && kind !== "fan") {
     const k = s * mmPerPx(sp, CASE_W);
-    if (kind === "closed") c = spriteClosed(sp, k, inp.frontOut, inp.backIn, o.glass);
+    if (kind === "closed") c = spriteClosed(sp, k, inp.frontOut, inp.backIn, inp.disc ?? null, o.glass);
     else if (kind === "back") c = spriteBack(sp, k, inp.backOut, o.glass);
     else if (kind === "disc") c = spriteDisc(sp, k, inp.disc ?? null);
     else c = spriteOpen(sp, k, inp.frontIn, inp.backIn, inp.disc ?? null, o.glass); // ảnh PNG luôn có đĩa trong khay
@@ -107,16 +107,14 @@ function layout(inp: SystemInput, o: SystemOptions): Placed[] {
   }
   if (o.arrange === "stack") {
     // flat-lay: chồng lệch ở giữa, hộp đóng trên cùng, đĩa rời trồi ra 1 bên
-    if (p === "box") return [
-      { kind: "openBare", x: -10, y: -26, rot: 0 }, { kind: "disc", x: 70, y: 40, rot: 0 }, { kind: "closed", x: -28, y: 34, rot: 0 },
-    ];
+    if (p === "box") return [{ kind: "open", x: 0, y: 0, rot: 0 }]; // CD + Hộp: chỉ hộp mở có đĩa
     const l: Placed[] = [{ kind: "open", x: -34, y: -44, rot: 0 }, { kind: "back", x: 70, y: 18, rot: 0 }];
     if (p === "booklet") l.push({ kind: "fan", x: 40, y: -40, rot: 0 });
     l.push({ kind: "disc", x: -96, y: 40, rot: 0 }, { kind: "closed", x: -18, y: 46, rot: 0 });
     return l;
   }
   // Lưới (mặc định)
-  if (p === "box") return [{ kind: "open", x: -26, y: 0, rot: 0 }, { kind: "disc", x: 118, y: 34, rot: 0 }];
+  if (p === "box") return [{ kind: "open", x: 0, y: 0, rot: 0 }]; // CD + Hộp: chỉ hộp mở có đĩa (không đĩa rời)
   if (p === "booklet") return rows([["closed", "spread"], ["open", "back"]]);
   return rows([["closed", "back"], ["open"]]);
 }
