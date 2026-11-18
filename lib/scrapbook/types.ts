@@ -51,13 +51,19 @@ export type TemplateSetting = { n: number; style: Style; seed: number; is_active
 // ---------- cấu hình 1 mẫu (danh sách lớp) ----------
 export type PhotoShape = "rect" | "polaroid" | "torn" | "circle" | "heart" | "frame";
 export type StickerShape = "star" | "heart" | "flower" | "bow" | "sparkle";
-export type Layer =
+export type Layer = LayerBase & LayerFlags;
+export type LayerBase =
   | { k: "paper"; x: number; y: number; w: number; h: number; rot: number; paper: "grid" | "note" | "ticket" | "kraft"; color: string; torn: boolean; seed: number; asset?: string }
   | { k: "photo"; slot: number; x: number; y: number; w: number; h: number; rot: number; shape: PhotoShape; seed: number; asset?: string; border?: string }
   | { k: "tape"; x: number; y: number; w: number; h: number; rot: number; color: string; pattern: "stripe" | "dots" | "plain"; seed: number; asset?: string }
   | { k: "sticker"; x: number; y: number; s: number; rot: number; shape: StickerShape; color: string; asset?: string }
   | { k: "doodle"; x: number; y: number; s: number; rot: number; shape: "arrow" | "swirl" | "dash"; color: string; asset?: string }
-  | { k: "text"; role: "main" | "sub"; x: number; y: number; w: number; size: number; rot: number; font: "hand" | "marker" | "label"; color: string; arc?: { r: number; mid: number } };
+  | { k: "text"; role: "main" | "sub" | "custom"; x: number; y: number; w: number; size: number; rot: number; font: "hand" | "marker" | "label"; color: string; arc?: { r: number; mid: number };
+      value?: string; // nội dung riêng (lớp chữ khách thêm); main / sub lấy từ "Chữ trên đĩa"
+      family?: string; bold?: boolean; italic?: boolean; stroke?: boolean; // font thường (đè lên font mẫu)
+      cutout?: { font: string; curve: number; chaos: number; spacing: number; seed: number } }; // chữ cắt dán
+/** cờ chung của mọi lớp: user = khách tự thêm (giữ lại khi đổi mẫu) · locked = admin khoá (khách không chọn được) */
+export type LayerFlags = { user?: boolean; locked?: boolean };
 export type Template = {
   id: string; n: number; style: Style; seed: number;
   bg: { color: string; pattern: "dots" | "grid" | "plain" | "lines"; ink: string; asset?: string };

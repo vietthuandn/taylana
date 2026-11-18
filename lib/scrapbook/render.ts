@@ -5,16 +5,18 @@
    nền giấy có vân + grain. Ảnh khách phủ kín khung (cover), có thể dịch / phóng to theo chỉnh ô của khách.
    mode "print": nền ngoài đĩa + lỗ giữa (Ø 23 mm) trong suốt, không guideline. */
 import { rng } from "./generate";
+import { drawCutout, layoutCutout, type LoadedFont } from "./cutout";
 import { C, R_HOLE, R_HUB, R_OUT, R_PRINT_HOLE, R_SAFE, type Adjust, type DiscText, type Layer, type ScrapAsset, type Template } from "./types";
 
 type Img = CanvasImageSource & { width: number; height: number };
 export type PhotoSrc = Img | null;
 export type Hit = { slot: number; x: number; y: number; w: number; h: number; rot: number; shape: string };
-export type TextHit = { role: "main" | "sub"; x: number; y: number; w: number; h: number; rot: number };
+export type TextHit = { role: "main" | "sub" | "custom"; layer: number; x: number; y: number; w: number; h: number; rot: number };
 export type RenderOpts = {
   template: Template; photos: PhotoSrc[]; adjust?: Record<number, Adjust | undefined>; text: DiscText;
   assets?: Record<string, { img: Img; asset: ScrapAsset } | undefined>;
   size: number; mode?: "preview" | "print"; guides?: boolean; editSlot?: number | null; hoverSlot?: number | null;
+  cutoutFonts?: Record<string, LoadedFont | undefined>; // font cut-out đã tải ảnh
 };
 
 export const FONTS = { hand: '"Dancing Script", cursive', marker: '"Patrick Hand", "Itim", cursive', label: '"Pangolin", "Itim", sans-serif' } as const;
@@ -191,48 +193,74 @@ function drawDoodle(x: X, l: Extract<Layer, { k: "doodle" }>) {
 
 // ---------- chữ ----------
 function fontOf(l: Extract<Layer, { k: "text" }>, size: number) {
+  if (l.family) return `${l.italic ? "italic " : ""}${l.bold ? "700" : "400"} ${size}px "${l.family}", "Be Vietnam Pro", sans-serif`;
   return `${l.font === "hand" ? "700 " : ""}${size}px ${FONTS[l.font]}`;
 }
-function drawText(x: X, l: Extract<Layer, { k: "text" }>, value: string): TextHit | null {
-  const v = value.trim();
-  if (!v) return null;
+/** nội dung của lớp chữ: main / sub = "Chữ trên đĩa", custom = nội dung riêng */
+export const textOf = (l: Extract<Layer, { k: "text" }>, t: DiscText) => (l.role === "main" ? t.main : l.role === "sub" ? t.sub : l.value ?? "");
+function drawText(x: X, l: Extract<Layer, { k: "text" }>, value: string, idx: number, fonts?: RenderOpts["cutoutFonts"]): TextHit | null {
+  const v = value.replace(/\s+$/, "");
+  if (!v.trim()) return null;
   x.textAlign = "center"; x.textBaseline = "middle";
+  // chữ cắt dán: mỗi ký tự 1 mảnh giấy (bóng đổ nhẹ), thẳng hàng hoặc cong theo cung
+  if (l.cutout) {
+    const lines = v.split("\n");
+    const lh = l.size * 1.25;
+    x.save(); x.translate(l.x, l.y); x.rotate(rad(l.rot));
+    let X0 = Infinity, X1 = -Infinity, Y0 = Infinity, Y1 = -Infinity;
+    lines.forEach((ln, i) => {
+      const { pieces, bounds } = layoutCutout(ln, fonts?.[l.cutout!.font] ?? null, { size: l.size, curve: l.cutout!.curve, chaos: l.cutout!.chaos, spacing: l.cutout!.spacing, seed: l.cutout!.seed + i * 7919 });
+      const oy = (i - (lines.length - 1) / 2) * lh;
+      x.save(); x.translate(0, oy); drawCutout(x, pieces, px); x.restore();
+      X0 = Math.min(X0, bounds.x0); X1 = Math.max(X1, bounds.x1); Y0 = Math.min(Y0, bounds.y0 + oy); Y1 = Math.max(Y1, bounds.y1 + oy);
+    });
+    x.restore();
+    return { role: l.role, layer: idx, x: l.x + ((X0 + X1) / 2) * Math.cos(rad(l.rot)) - ((Y0 + Y1) / 2) * Math.sin(rad(l.rot)), y: l.y + ((X0 + X1) / 2) * Math.sin(rad(l.rot)) + ((Y0 + Y1) / 2) * Math.cos(rad(l.rot)), w: X1 - X0, h: Y1 - Y0, rot: l.rot };
+  }
   if (l.arc) {
     // chạy cong theo vòng tròn: phía trên đọc trái → phải theo chiều kim đồng hồ, phía dưới ngược lại (chữ luôn đứng)
     let size = l.size;
+    const one = v.replace(/\n/g, " ");
     x.font = fontOf(l, size);
     const maxArc = Math.PI * l.arc.r * 0.62;
-    if (x.measureText(v).width > maxArc) { size *= maxArc / x.measureText(v).width; x.font = fontOf(l, size); }
-    const top = l.arc.mid > 180, total = x.measureText(v).width, R0 = top ? l.arc.r : l.arc.r + size * 0.35;
+    if (x.measureText(one).width > maxArc) { size *= maxArc / x.measureText(one).width; x.font = fontOf(l, size); }
+    const top = l.arc.mid > 180, total = x.measureText(one).width, R0 = top ? l.arc.r : l.arc.r + size * 0.35;
     let a = rad(l.arc.mid) + ((top ? -1 : 1) * total) / (2 * R0);
     x.fillStyle = l.color;
-    for (const ch of v) {
+    for (const ch of one) {
       const cw = x.measureText(ch).width, half = cw / (2 * R0);
       a += top ? half : -half;
-      x.save(); x.translate(C + Math.cos(a) * R0, C + Math.sin(a) * R0); x.rotate(a + (top ? Math.PI / 2 : -Math.PI / 2)); x.fillText(ch, 0, 0); x.restore();
+      x.save(); x.translate(C + Math.cos(a) * R0, C + Math.sin(a) * R0); x.rotate(a + (top ? Math.PI / 2 : -Math.PI / 2));
+      if (l.stroke) { x.lineWidth = size * 0.22; x.strokeStyle = "#ffffff"; x.lineJoin = "round"; x.strokeText(ch, 0, 0); }
+      x.fillText(ch, 0, 0); x.restore();
       a += top ? half : -half;
     }
     const mx = C + Math.cos(rad(l.arc.mid)) * l.arc.r, my = C + Math.sin(rad(l.arc.mid)) * l.arc.r;
-    return { role: l.role, x: mx, y: my, w: Math.min(total, 90), h: size * 1.6, rot: 0 };
+    return { role: l.role, layer: idx, x: mx, y: my, w: Math.min(total, 90), h: size * 1.6, rot: 0 };
   }
+  // chữ thường (nhiều dòng): tự co cho vừa bề ngang khung
+  const lines = v.split("\n");
   let size = l.size;
   x.font = fontOf(l, size);
-  const tw = x.measureText(v).width;
-  if (tw > l.w) { size *= l.w / tw; x.font = fontOf(l, size); }
-  const w = x.measureText(v).width;
+  const widest = Math.max(...lines.map((ln) => x.measureText(ln).width));
+  if (l.w > 0 && widest > l.w) { size *= l.w / widest; x.font = fontOf(l, size); }
+  const w = Math.max(...lines.map((ln) => x.measureText(ln).width)), lh = size * 1.25;
   x.save(); x.translate(l.x, l.y); x.rotate(rad(l.rot));
-  if (l.font === "label") {
+  if (l.font === "label" && !l.family) {
     // nhãn dán: nền trắng bo tròn, viền màu
-    const pw = w + size * 1.1, ph = size * 1.5;
+    const pw = w + size * 1.1, ph = size * 1.5 + lh * (lines.length - 1);
     shadow(x, 0.9, 0.35, 0.2);
-    x.beginPath(); x.roundRect(-pw / 2, -ph / 2, pw, ph, ph / 2); x.fillStyle = "#ffffff"; x.fill();
+    x.beginPath(); x.roundRect(-pw / 2, -ph / 2, pw, ph, Math.min(ph / 2, size)); x.fillStyle = "#ffffff"; x.fill();
     noShadow(x); x.lineWidth = 0.5; x.strokeStyle = l.color; x.stroke();
-    x.fillStyle = l.color; x.fillText(v, 0, size * 0.04);
-  } else {
-    x.fillStyle = l.color; x.fillText(v, 0, 0);
   }
+  x.fillStyle = l.color;
+  lines.forEach((ln, i) => {
+    const y = (i - (lines.length - 1) / 2) * lh + (l.font === "label" && !l.family ? size * 0.04 : 0);
+    if (l.stroke) { x.lineWidth = size * 0.22; x.strokeStyle = "#ffffff"; x.lineJoin = "round"; x.strokeText(ln, 0, y); }
+    x.fillText(ln, 0, y);
+  });
   x.restore();
-  return { role: l.role, x: l.x, y: l.y, w: w + size, h: size * 1.6, rot: l.rot };
+  return { role: l.role, layer: idx, x: l.x, y: l.y, w: w + size, h: size * 1.6 + lh * (lines.length - 1), rot: l.rot };
 }
 
 /** Vẽ mặt đĩa. Trả về canvas + vị trí các ô ảnh / chữ (mm) để bấm chọn trên trang. */
@@ -248,9 +276,9 @@ export function renderDisc(o: RenderOpts) {
   background(x, o.template, o.assets);
   const hits: Hit[] = [], texts: TextHit[] = [];
 
-  for (const l of o.template.layers) {
+  for (const [li, l] of o.template.layers.entries()) {
     x.save();
-    if (l.k === "text") { const h = drawText(x, l, l.role === "main" ? o.text.main : o.text.sub); if (h) texts.push(h); x.restore(); continue; }
+    if (l.k === "text") { const h = drawText(x, l, textOf(l, o.text), li, o.cutoutFonts); if (h) texts.push(h); x.restore(); continue; }
     x.translate(l.x, l.y); x.rotate(rad(l.rot));
     if (l.k === "photo") {
       const img = o.photos[l.slot] ?? null, adj = o.adjust?.[l.slot];

@@ -190,7 +190,7 @@ export function TemplateEditor() {
       {/* ---------- mặt đĩa ---------- */}
       <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-3 border-b border-[#e5e5e7] bg-white px-4 py-2">
-          <Link href="/admin/scrapbook/mau" className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Xem mẫu</Link>
+          <Link href="/admin/scrapbook?tab=mau" className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Mẫu</Link>
           <p className="text-[14px] font-semibold">{STYLES.find((s) => s.id === style)?.name} · {n} ảnh</p>
           {row?.template && <span className="rounded-full bg-[#fff0f6] px-2 text-[12px] font-medium text-[#db2777]">Đã chỉnh</span>}
           <div className="ml-auto flex items-center gap-2">
@@ -309,6 +309,7 @@ export function TemplateEditor() {
                 {L.arc && <Row label="Bán kính vòng chữ"><input type="number" step={0.5} value={r1(L.arc.r)} onChange={(e) => update(sel, (l) => ({ ...l, arc: { ...(l as typeof L).arc!, r: Number(e.target.value) } }) as Layer)} className="h-7 w-20 rounded-[6px] border border-[#e5e5e7] px-1 text-[12px]" /></Row>}
               </>
             )}
+            <Row label="Khoá (khách không chọn / sửa được)"><input type="checkbox" checked={!!L.locked} onChange={(e) => update(sel, (l) => ({ ...l, locked: e.target.checked }) as Layer)} className="h-4 w-4 accent-[#ff5fa2]" /></Row>
             <p className="text-[11px] text-[#a1a1aa]">Kéo để di chuyển · kéo góc để đổi cỡ (Shift = tự do) · núm tròn để xoay · phím mũi tên dịch 0.5 mm.</p>
           </section>
         )}

@@ -12,5 +12,5 @@ const norm = (s: string) => s.normalize("NFC").toLowerCase().replace(/\s+/g, " "
 export default async function ScrapbookPage() {
   const [data, packages, mock] = await Promise.all([getScrapbookData(), getTypePackages(), getMockupData()]);
   const box = packages.find((p) => /^cd ?\+ ?hộp/.test(norm(p.name)));
-  return <ScrapbookLoader assets={data.assets} settings={data.settings} backgrounds={mock.backgrounds} boxPackageId={box?.id ?? null} />;
+  return <ScrapbookLoader assets={data.assets} settings={data.settings} fonts={data.fonts} glyphs={data.glyphs} backgrounds={mock.backgrounds} boxPackageId={box?.id ?? null} />;
 }

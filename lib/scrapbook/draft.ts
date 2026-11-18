@@ -1,11 +1,14 @@
 "use client";
 /* Bản nháp CD Scrapbook (IndexedDB trên máy khách): ảnh, thứ tự, mẫu, chữ, chỉnh ô — tải lại trang không mất. */
 import { getBlob, putBlob } from "@/lib/blobStore";
-import type { Adjust, DiscText, Style } from "./types";
+import type { Adjust, DiscText, Style, Template } from "./types";
 
 const META = "scrapbook-draft";
 export type DraftPhoto = { id: string; name: string; blob: Blob };
-export type DraftMeta = { ids: string[]; names: Record<string, string>; style: Style | null; text: DiscText; adjust: Record<string, Adjust>; seeds: Partial<Record<Style, number>> };
+export type DraftMeta = {
+  ids: string[]; names: Record<string, string>; style: Style | null; text: DiscText; adjust: Record<string, Adjust>; seeds: Partial<Record<Style, number>>;
+  work?: Template | null; edited?: boolean; // mẫu khách đã sửa tự do (lớp đã di chuyển / thêm sticker, chữ…)
+};
 
 export async function saveDraft(photos: DraftPhoto[], meta: Omit<DraftMeta, "ids" | "names">) {
   for (const p of photos) await putBlob(`scrapbook-photo-${p.id}`, p.blob);
