@@ -447,7 +447,12 @@ export default function Cd3D({ images, tray, finish = "matte", modelUrl, bgUrl, 
     <div className="absolute inset-0" onPointerDown={first} onWheel={first}>
       <Canvas shadows dpr={low ? 1 : [1, 2]} gl={{ alpha: false, antialias: true, preserveDrawingBuffer: true }}
         camera={{ position: p0.toArray(), fov: FOV, near: 1, far: 400 }}
-        onCreated={({ gl }) => { gl.toneMapping = THREE.NoToneMapping; }}>
+        onCreated={({ gl }) => {
+          gl.toneMapping = THREE.NoToneMapping;
+          // BẮT BUỘC alpha 0: ContactShadows vẽ bóng vào render target bằng màu xoá của renderer —
+          // để alpha 1 (mặc định khi canvas đục) thì cả tấm hứng bóng thành 1 hình vuông đen
+          gl.setClearColor(0x000000, 0);
+        }}>
         <SceneBg url={bgUrl} />
         <PerformanceMonitor onDecline={() => setLow(true)} />
         <ambientLight intensity={0.35} />
