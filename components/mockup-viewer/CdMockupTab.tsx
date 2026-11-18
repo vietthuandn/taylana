@@ -185,8 +185,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
     const k = 2400 / Math.max(shot.width, shot.height);
     out.width = Math.round(shot.width * k); out.height = Math.round(shot.height * k);
     const x = out.getContext("2d")!;
-    paintBackground(x, out.width, out.height, bg);
-    x.drawImage(shot, 0, 0, out.width, out.height);
+    x.drawImage(shot, 0, 0, out.width, out.height); // ảnh chụp đã gồm nền đang chọn
     if (watermark) {
       x.font = `600 ${Math.round(out.width * 0.018)}px Inter, system-ui, sans-serif`;
       x.fillStyle = "rgba(24,24,27,0.35)"; x.textAlign = "right"; x.textBaseline = "bottom";
@@ -217,9 +216,9 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
             {sysBusy && <div className="absolute inset-0 animate-pulse bg-[linear-gradient(110deg,#f4f4f5_30%,#fafafa_50%,#f4f4f5_70%)]" />}
           </div>
         ) : is3d ? (
-          <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white bg-cover bg-center"
-            style={{ width: width || "100%", aspectRatio: `1 / ${ratio}`, backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
-            <Cd3D images={images3d} tray={tray} finish={finish} modelUrl={modelUrl} handle={three} />
+          <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white"
+            style={{ width: width || "100%", aspectRatio: `1 / ${ratio}` }}>
+            <Cd3D images={images3d} tray={tray} finish={finish} modelUrl={modelUrl} bgUrl={bgUrl} handle={three} />
           </div>
         ) : !frame ? null : (
           <div className="group relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white" style={{ width: width || "100%" }}>

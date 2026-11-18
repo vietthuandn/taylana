@@ -7,7 +7,7 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { AccumulativeShadows, ContactShadows, Environment, Lightformer, OrbitControls, PerformanceMonitor, RandomizedLight, RoundedBox, useGLTF } from "@react-three/drei";
+import { ContactShadows, Environment, Lightformer, OrbitControls, PerformanceMonitor, RoundedBox, useGLTF } from "@react-three/drei";
 import { EffectComposer, N8AO, SMAA, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { ToneMappingMode, type EffectComposer as ComposerImpl } from "postprocessing";
 import type { OrbitControls as OrbitImpl } from "three-stdlib";
@@ -79,16 +79,16 @@ function splitTray(img: HTMLImageElement) {
 }
 
 // ---------- chất liệu ----------
-function plasticMaterial() {
+function plasticMaterial(side: THREE.Side = THREE.FrontSide) {
   const m = new THREE.MeshPhysicalMaterial({
     color: "#ffffff", transmission: 1, thickness: U(1.5), roughness: 1, roughnessMap: scratchMap(), ior: 1.49,
     clearcoat: 1, clearcoatRoughness: 0.03, attenuationColor: new THREE.Color("#f4fbff"), attenuationDistance: 80,
-    metalness: 0, specularIntensity: 1, envMapIntensity: 1.1, side: THREE.DoubleSide,
+    metalness: 0, specularIntensity: 1, envMapIntensity: 1.1, side,
   });
   return m; // roughnessMap: nền ≈ 0.04, vết xước nhám hơn
 }
-function Plastic() {
-  const m = useMemo(plasticMaterial, []);
+function Plastic({ double = false }: { double?: boolean }) {
+  const m = useMemo(() => plasticMaterial(double ? THREE.DoubleSide : THREE.FrontSide), [double]);
   return <primitive object={m} attach="material" />;
 }
 function Paper({ map, finish = "matte" }: { map: THREE.Texture | null; finish?: CoverFinish }) {
@@ -133,7 +133,7 @@ function Disc({ img }: { img: Src }) {
   const printOut = DR - U(1);
   return (
     <group>
-      <mesh castShadow receiveShadow><latheGeometry args={[profile, 160]} /><Plastic /></mesh>
+      <mesh castShadow receiveShadow><latheGeometry args={[profile, 160]} /><Plastic double /></mesh>
       {/* mặt in */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, DT / 2 + 0.002, 0]} receiveShadow>
         <ringGeometry args={[clearIn, printOut, 160, 1]} />
@@ -226,7 +226,7 @@ function BuiltCase({ images, tray, finish, open, lifted, onToggleOpen, onToggleL
         {/* khay đĩa: tấm khay + vòng gờ tròn + 4 lỗ góc + cụm ngàm (rosette) 12 cánh */}
         <RoundedBox args={[TW - U(3), U(0.8), TH - U(3)]} radius={U(0.35)} smoothness={2} position={[0, trayTop - U(0.4), 0]} castShadow receiveShadow>{trayMat}</RoundedBox>
         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, trayTop + U(0.3), 0]} castShadow>
-          <torusGeometry args={[DR + U(1.2), U(0.5), 10, 128]} />{trayMat}
+          <torusGeometry args={[DR + U(1.5), U(0.2), 8, 128]} />{trayMat}
         </mesh>
         {[[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([sx, sz]) => (
           <mesh key={`h${sx}${sz}`} rotation={[Math.PI / 2, 0, 0]} position={[sx * (TW / 2 - U(6)), trayTop + 0.002, sz * (TH / 2 - U(6))]}>
@@ -390,6 +390,18 @@ function Capturer({ handle, composer }: { handle: React.MutableRefObject<Cd3DHan
   return null;
 }
 
+// nền đang chọn vẽ thẳng vào cảnh (canvas đục) — để hậu kỳ không làm xám vùng nền như khi canvas trong suốt
+function SceneBg({ url }: { url?: string }) {
+  const { scene } = useThree();
+  useEffect(() => {
+    if (!url) { scene.background = new THREE.Color("#f4f4f5"); return; }
+    let t: THREE.Texture | null = null, off = false;
+    new THREE.TextureLoader().load(url, (tx) => { if (off) { tx.dispose(); return; } tx.colorSpace = THREE.SRGBColorSpace; t = tx; scene.background = tx; });
+    return () => { off = true; t?.dispose(); };
+  }, [url, scene]);
+  return null;
+}
+
 // môi trường studio: HDRI trong public/hdri nếu có, không thì Lightformer tự dựng (dải phản chiếu dài trên nhựa)
 function Studio({ hdr }: { hdr: boolean }) {
   if (hdr) return <Environment files={HDRI} environmentIntensity={0.9} />;
@@ -403,8 +415,8 @@ function Studio({ hdr }: { hdr: boolean }) {
   );
 }
 
-export default function Cd3D({ images, tray, finish = "matte", modelUrl, handle }: {
-  images: Cd3DImages; tray: TrayStyle; finish?: CoverFinish; modelUrl?: string | null; handle: React.MutableRefObject<Cd3DHandle | null>;
+export default function Cd3D({ images, tray, finish = "matte", modelUrl, bgUrl, handle }: {
+  images: Cd3DImages; tray: TrayStyle; finish?: CoverFinish; modelUrl?: string | null; bgUrl?: string; handle: React.MutableRefObject<Cd3DHandle | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [lifted, setLifted] = useState(false);
@@ -433,12 +445,13 @@ export default function Cd3D({ images, tray, finish = "matte", modelUrl, handle 
 
   return (
     <div className="absolute inset-0" onPointerDown={first} onWheel={first}>
-      <Canvas shadows dpr={low ? 1 : [1, 2]} gl={{ alpha: true, antialias: false, preserveDrawingBuffer: true }}
+      <Canvas shadows dpr={low ? 1 : [1, 2]} gl={{ alpha: false, antialias: true, preserveDrawingBuffer: true }}
         camera={{ position: p0.toArray(), fov: FOV, near: 1, far: 400 }}
-        onCreated={({ gl }) => { gl.setClearColor(0x000000, 0); gl.toneMapping = THREE.NoToneMapping; }}>
+        onCreated={({ gl }) => { gl.toneMapping = THREE.NoToneMapping; }}>
+        <SceneBg url={bgUrl} />
         <PerformanceMonitor onDecline={() => setLow(true)} />
-        <ambientLight intensity={0.15} />
-        <directionalLight position={[12, 26, 14]} intensity={1.4} castShadow shadow-mapSize={[2048, 2048]} shadow-radius={10} shadow-bias={-0.0004}
+        <ambientLight intensity={0.35} />
+        <directionalLight position={[12, 26, 14]} intensity={2} castShadow shadow-mapSize={[2048, 2048]} shadow-radius={10} shadow-bias={-0.0004}
           shadow-camera-left={-16} shadow-camera-right={16} shadow-camera-top={16} shadow-camera-bottom={-16} />
         <Suspense fallback={null}>
           <Studio hdr={hdr} />
@@ -448,29 +461,23 @@ export default function Cd3D({ images, tray, finish = "matte", modelUrl, handle 
             <Fallback fallback={built}><Suspense fallback={null}><GlbCase url={modelUrl} {...caseProps} /></Suspense></Fallback>
           ) : built}
         </group>
-        {/* bóng đổ dưới hộp: mềm tự nhiên (máy yếu → ContactShadows) */}
-        {low ? (
-          <ContactShadows position={[0, -0.01, 0]} opacity={0.35} scale={34} blur={2.5} far={6} />
-        ) : (
-          <AccumulativeShadows temporal frames={80} alphaTest={0.8} opacity={0.55} scale={36} position={[0, -0.005, 0]} color="#1f1f23">
-            <RandomizedLight amount={8} radius={7} ambient={0.55} intensity={1.1} position={[10, 24, 12]} bias={0.001} />
-          </AccumulativeShadows>
-        )}
+        {/* bóng đổ mềm dưới hộp (động: đổi theo nắp mở / đĩa nhấc) */}
+        <ContactShadows position={[0, -0.01, 0]} opacity={0.45} scale={40} blur={2.5} far={8} resolution={low ? 512 : 1024} color="#1f1f23" />
         <OrbitControls ref={controls as never} makeDefault enablePan={false} target={TARGET0.toArray()} minDistance={24} maxDistance={90}
           minPolarAngle={0.12} maxPolarAngle={Math.PI * 0.62} onStart={start} />
         <CameraRig open={open} idle={idle} />
         {/* hậu kỳ: AO nhẹ ở khe / mấu / gáy (tắt trên máy yếu) + SMAA + vignette rất nhẹ, không bloom */}
         {low ? (
-          <EffectComposer key="low" ref={composer as never} multisampling={0} enableNormalPass={false}>
+          <EffectComposer key="low" ref={composer as never} multisampling={low ? 0 : 4} enableNormalPass={false}>
             <SMAA />
-            <ToneMapping mode={ToneMappingMode.AGX} />
+            <ToneMapping mode={ToneMappingMode.NEUTRAL} />
             <Vignette offset={0.35} darkness={0.22} />
           </EffectComposer>
         ) : (
-          <EffectComposer key="high" ref={composer as never} multisampling={0} enableNormalPass={false}>
-            <N8AO aoRadius={0.6} intensity={1.4} distanceFalloff={0.6} quality="medium" halfRes />
+          <EffectComposer key="high" ref={composer as never} multisampling={low ? 0 : 4} enableNormalPass={false}>
+            <N8AO aoRadius={0.5} intensity={1} distanceFalloff={0.5} quality="medium" halfRes />
             <SMAA />
-            <ToneMapping mode={ToneMappingMode.AGX} />
+            <ToneMapping mode={ToneMappingMode.NEUTRAL} />
             <Vignette offset={0.35} darkness={0.22} />
           </EffectComposer>
         )}
