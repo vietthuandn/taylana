@@ -280,6 +280,18 @@ export function useCheckout({ lines, discounts, shipping, phone, initialCode = "
         {shipD && shipAmt > 0 && (
           <p className={cx(row, "text-[#ff5fa2]")}><span className="min-w-0 truncate">Giảm phí vận chuyển · {shipD.code || shipD.label}</span><span className={money}>−{formatVND(shipAmt)}</span></p>
         )}
+        {hasLines && (
+          <>
+            <div className="my-2 h-px bg-[#efeff1]" />
+            <p className="flex items-center justify-between gap-3 pt-1">
+              <span className="text-[15px] font-semibold text-[#18181b]">Tổng tiền</span>
+              <span className="flex items-baseline gap-2">
+                {savings > 0 && <span className="text-[13px] tabular-nums text-[#a1a1aa] line-through">{formatVND(total + savings)}</span>}
+                <span className="text-[20px] font-bold tabular-nums text-[#ff5fa2]">{formatVND(total)}</span>
+              </span>
+            </p>
+          </>
+        )}
       </div>
     </section>
   );
@@ -418,17 +430,16 @@ export function ActionBar({ sets, total, savings, label, onPrimary, disabled, on
   sets: number; total: number; savings: number; label: string; onPrimary: () => void; disabled?: boolean;
   onCart?: () => void; bump?: number;
 }) {
+  // 1 cụm căn PHẢI: [tổng tiền] → 16px → [giỏ] → 8px → [Đặt đơn]. Điện thoại: tổng tiền trái, nút phải, cùng 1 hàng.
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e7] bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.04)]">
-      <Wrap className="flex flex-col gap-2 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 lg:min-h-[72px] lg:flex-row lg:items-center lg:justify-between lg:gap-4">
-        <div className="min-w-0">
-          <p className="flex flex-wrap items-baseline gap-x-2">
-            <span className="text-[13px] text-[#71717a]">Tổng cộng ({sets} sản phẩm)</span>
-            <span className="text-[22px] font-bold leading-tight tabular-nums text-[#ff5fa2]">{formatVND(total)}</span>
-          </p>
+      <Wrap className="flex min-h-[72px] items-center justify-between gap-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 lg:justify-end">
+        <div className="min-w-0 lg:text-right">
+          <p className="truncate text-[13px] text-[#71717a]">Tổng cộng ({sets} sản phẩm)</p>
+          <p className="text-[22px] font-bold leading-tight tabular-nums text-[#ff5fa2]">{formatVND(total)}</p>
           {savings > 0 && <p className="text-[12px] tabular-nums text-[#71717a]">Tiết kiệm: {formatVND(savings)}</p>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {onCart && (
             <button key={bump} type="button" onClick={onCart} title="Thêm vào giỏ hàng" aria-label="Thêm vào giỏ hàng"
               className={cx("grid h-11 w-11 shrink-0 place-items-center rounded-[10px] border border-[#e5e5e7] bg-white text-[#18181b] hover:bg-[#f4f4f5]", bump > 0 && "animate-[cartBump_.45s_ease]")}>
@@ -436,7 +447,7 @@ export function ActionBar({ sets, total, savings, label, onPrimary, disabled, on
             </button>
           )}
           <button type="button" onClick={onPrimary} disabled={disabled}
-            className="h-11 flex-1 rounded-[10px] bg-[#ff5fa2] px-4 text-[15px] font-semibold text-white transition-colors hover:bg-[#f0468f] disabled:cursor-not-allowed disabled:opacity-50 lg:w-[180px] lg:flex-none">
+            className="h-11 min-w-[120px] rounded-[10px] bg-[#ff5fa2] px-4 text-[15px] font-semibold text-white transition-colors hover:bg-[#f0468f] disabled:cursor-not-allowed disabled:opacity-50 lg:w-[180px]">
             {label}
           </button>
         </div>
@@ -445,7 +456,7 @@ export function ActionBar({ sets, total, savings, label, onPrimary, disabled, on
   );
 }
 // Chừa chỗ cho thanh hành động: chiều cao thanh + 24px (điện thoại thanh cao hơn vì xếp 2 hàng)
-export const MOBILE_PAD = "pb-[calc(148px+env(safe-area-inset-bottom))] lg:pb-[calc(96px+env(safe-area-inset-bottom))]";
+export const MOBILE_PAD = "pb-[calc(112px+env(safe-area-inset-bottom))] lg:pb-[calc(96px+env(safe-area-inset-bottom))]";
 
 // ---------- Gửi đơn ----------
 export async function submitOrder(lines: Line[], form: Form, opts: { code: string; ids: string[] }) {

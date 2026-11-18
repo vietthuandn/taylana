@@ -3,10 +3,11 @@
 /* Trang Đặt đơn — sản phẩm "In CD theo yêu cầu" với các nhóm tuỳ chọn (Chọn 1 / Chọn nhiều).
    3 bước: 1. Chọn sản phẩm → 2. Thông tin nhận hàng → 3. Thanh toán. Đơn chỉ tạo khi bấm "Đặt hàng" ở bước 2.
    Bước 1–2 lưu tạm vào localStorage. Link mở lại đúng lựa chọn: /dat-don?sp=<slug>&chon=<id,id>&sl=<số lượng> (?goi=<id> vẫn nhận). */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { ChevronDown, Disc3 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Disc3 } from "lucide-react";
+import { ImageLightbox } from "@/components/site/ImageLightbox";
 import { formatVND } from "@/lib/format";
 import { cart } from "@/lib/cart";
 import { fromPrice, kindOf, type Product } from "@/lib/catalog";
@@ -68,8 +69,11 @@ function Inner({ products, discounts, shipping, payment, draft, productId, optio
   const co = useCheckout({ lines, discounts, shipping, phone: form.phone, initialCode: draft?.code ?? "", initialAutoOff: draft?.autoOff ?? false });
 
   // ảnh: ảnh riêng của lựa chọn đang chọn (nếu có) rồi đến ảnh sản phẩm
-  const images = useMemo(() => [...new Set([...sels.map((s) => s.opt.image_url).filter(Boolean) as string[], ...(product?.images ?? [])])], [sels, product]);
-  useEffect(() => { setImgIdx(0); }, [images.length, images[0]]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Hàng thumbnail = CHỈ ảnh sản phẩm. Chọn 1 chip có ảnh riêng → ảnh lớn tạm hiện ảnh đó (thumbnail không viền nào).
+  const images = useMemo(() => (product?.images ?? []).filter(Boolean), [product]);
+  const [override, setOverride] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<number | null>(null);
+  const big = override ?? images[imgIdx] ?? null;
 
   useEffect(() => {
     if (first.current) { first.current = false; return; }
@@ -102,6 +106,8 @@ function Inner({ products, discounts, shipping, payment, draft, productId, optio
     setError("");
     const g = product?.groups.find((x) => x.id === groupId);
     if (!g) return;
+    const o = g.options.find((x) => x.id === optId);
+    if (o?.image_url && !ids.includes(optId)) setOverride(o.image_url); // đang chọn (không phải bỏ chọn) lựa chọn có ảnh riêng
     setIds((cur) => {
       const inGroup = g.options.map((o) => o.id);
       if (g.select_type === "multi") return cur.includes(optId) ? cur.filter((x) => x !== optId) : [...cur, optId];
@@ -133,31 +139,25 @@ function Inner({ products, discounts, shipping, payment, draft, productId, optio
       <Wrap className={cx("pt-6", step !== 3 ? MOBILE_PAD : "pb-8")}>
         {step === 1 && (
           <div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
-            {/* Cột trái: ảnh (dính bằng CSS thuần) */}
-            <div className={cx("lg:col-span-7 lg:sticky lg:self-start lg:[transform:translateZ(0)]", STICKY_TOP)}>
-              <div className="relative aspect-square w-full overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white">
-                {images[imgIdx] ? (
-                  <Image key={images[imgIdx]} src={images[imgIdx]} alt={product.name} fill priority
-                    sizes="(min-width:1024px) 680px, 100vw" className="animate-[fadeIn_.35s_ease] object-cover" />
+            {/* Cột trái 5/12: ảnh lớn + hàng thumbnail (dính bằng CSS thuần) */}
+            <div className={cx("lg:col-span-5 lg:sticky lg:self-start lg:[transform:translateZ(0)]", STICKY_TOP)}>
+              <button type="button" onClick={() => big && setZoom(override ? -1 : imgIdx)} aria-label="Xem ảnh phóng to"
+                className="relative block aspect-square w-full cursor-zoom-in overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white">
+                {big ? (
+                  <Image key={big} src={big} alt={product.name} fill priority
+                    sizes="(min-width:1024px) 480px, 100vw" className="animate-[fadeIn_.35s_ease] object-cover" />
                 ) : (
                   <div className="grid h-full place-items-center bg-[#f4f4f5]"><Disc3 size={96} strokeWidth={1} className="text-[#d4d4d8]" /></div>
                 )}
-              </div>
+              </button>
               {images.length > 1 && (
-                <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto">
-                  {images.map((src, i) => (
-                    <button key={src} type="button" onClick={() => setImgIdx(i)} aria-label={`Ảnh ${i + 1}`}
-                      className={cx("relative h-16 w-16 shrink-0 overflow-hidden rounded-[8px] border bg-white", i === imgIdx ? "border-[#ff5fa2] shadow-[inset_0_0_0_1px_#ff5fa2]" : "border-[#e5e5e7] opacity-70 hover:opacity-100")}>
-                      <Image src={src} alt="" width={64} height={64} className="h-16 w-16 object-cover" />
-                    </button>
-                  ))}
-                </div>
+                <Thumbs images={images} active={override ? -1 : imgIdx} onPick={(i) => { setImgIdx(i); setOverride(null); }} />
               )}
               {desc && <div className="mt-6 hidden lg:block">{desc}</div>}
             </div>
 
             {/* Cột phải */}
-            <div className="flex min-w-0 flex-col gap-6 lg:col-span-5">
+            <div className="flex min-w-0 flex-col gap-6 lg:col-span-7">
               <div>
                 <h1 className="font-sans text-[22px] font-bold normal-case leading-tight tracking-[-0.02em] text-[#18181b]">{product.name}</h1>
                 <p className="mt-2 text-[22px] font-bold tabular-nums text-[#ff5fa2]">{priceText}</p>
@@ -189,6 +189,41 @@ function Inner({ products, discounts, shipping, payment, draft, productId, optio
 
         {step === 3 && result && <DoneStep result={result} payment={payment} />}
       </Wrap>
+      {zoom !== null && (zoom === -1 && override
+        ? <ImageLightbox images={[override]} index={0} onIndex={() => undefined} onClose={() => setZoom(null)} alt={product.name} />
+        : images.length > 0 && <ImageLightbox images={images} index={Math.max(0, zoom)} onIndex={(i) => { setZoom(i); setImgIdx(i); }} onClose={() => setZoom(null)} alt={product.name} />)}
+    </div>
+  );
+}
+
+// Hàng thumbnail 72px, cách 8px · nút ‹ › khi bị tràn · vuốt được trên điện thoại · hover/bấm để đổi ảnh lớn
+function Thumbs({ images, active, onPick }: { images: string[]; active: number; onPick: (i: number) => void }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [edge, setEdge] = useState({ l: false, r: false });
+  const measure = useCallback(() => {
+    const el = box.current;
+    if (!el) return;
+    setEdge({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+  }, []);
+  useEffect(() => {
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure, images.length]);
+  const scroll = (d: number) => box.current?.scrollBy({ left: d * 240, behavior: "smooth" });
+  const nav = "absolute top-1/2 z-10 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full border border-[#e5e5e7] bg-white text-[#18181b] shadow-sm hover:bg-[#f4f4f5]";
+  return (
+    <div className="relative mt-2">
+      {edge.l && <button type="button" aria-label="Ảnh trước" onClick={() => scroll(-1)} className={cx(nav, "-left-2")}><ChevronLeft size={16} /></button>}
+      <div ref={box} onScroll={measure} className="no-scrollbar flex snap-x gap-2 overflow-x-auto">
+        {images.map((src, i) => (
+          <button key={src} type="button" onClick={() => onPick(i)} onMouseEnter={() => onPick(i)} aria-label={`Ảnh ${i + 1}`}
+            className={cx("relative h-[72px] w-[72px] shrink-0 snap-start overflow-hidden rounded-[8px] border-2 bg-white", i === active ? "border-[#ff5fa2]" : "border-transparent")}>
+            <Image src={src} alt="" width={72} height={72} className="h-full w-full object-cover" />
+          </button>
+        ))}
+      </div>
+      {edge.r && <button type="button" aria-label="Ảnh sau" onClick={() => scroll(1)} className={cx(nav, "-right-2")}><ChevronRight size={16} /></button>}
     </div>
   );
 }

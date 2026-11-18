@@ -14,9 +14,7 @@ const nextConfig: NextConfig = {
   // Đường dẫn cũ → trang mới (giữ nguyên tham số, ví dụ ?don=<mã>, ?ma=<mã>, ?design=<id>)
   async redirects() {
     return [
-      { source: "/thiet-ke", destination: "/thiet-ke/cd", permanent: false },
       { source: "/custom-cd", destination: "/thiet-ke/cd", permanent: false },
-      { source: "/gui-file", destination: "/gui-file/cd", permanent: false },
       { source: "/gui-file-in", destination: "/gui-file/cd", permanent: false },
       { source: "/nop-file", destination: "/gui-file/cd", permanent: false },
     ];

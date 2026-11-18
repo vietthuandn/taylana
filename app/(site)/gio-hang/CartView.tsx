@@ -39,7 +39,7 @@ export function CartView({ products, discounts, shipping, payment }: { products:
     else if (sels.length < c.options.length) note = "Một số lựa chọn đã ngừng bán và được bỏ ra.";
     else if (c.unit_price && c.unit_price !== lineUnit(line)) note = `Giá đã đổi từ ${formatVND(c.unit_price)} thành ${formatVND(lineUnit(line))}`;
     const variation = product ? variationText(product, sels.map((s) => s.opt.id)) : "";
-    const href = product ? `/dat-don?sp=${encodeURIComponent(product.slug)}&chon=${sels.map((s) => s.opt.id).join(",")}&sl=${c.quantity}` : "/dat-don";
+    const href = product ? `/san-pham/${encodeURIComponent(product.slug)}?chon=${sels.map((s) => s.opt.id).join(",")}&sl=${c.quantity}` : "/dat-don";
     return { c, line, note, product, variation, href };
   }), [raw, products]);
   const chosen = rows.filter((r) => r.line && !off.has(r.c.id)).map((r) => r.line!);

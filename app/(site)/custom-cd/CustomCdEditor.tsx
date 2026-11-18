@@ -18,7 +18,8 @@ import { ColorSelect } from "@/components/cd-editor/ColorSelect";
 import { Icon } from "@/components/cd-editor/icons";
 import { SpineEditor, dirOf, emptySide, sideHasContent, type SpineSide, type SpineText, type Zone } from "@/components/designer/Spine";
 import { TemplateThumb } from "@/components/designer/TemplateThumb";
-import { OrderDialog, downloadBlob, type DesignFile } from "@/components/designer/OrderDialog";
+import { downloadBlob, type DesignFile } from "@/components/designer/OrderDialog";
+import { CD_SLUG } from "@/lib/catalog";
 import { useSize } from "@/components/designer/useSize";
 import { AuthDialog } from "@/components/site/AuthDialog";
 
@@ -121,7 +122,6 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
   const [panelTab, setPanelTab] = useState<"pack" | Part>("front");
   const [pendingPkg, setPendingPkg] = useState<{ id: string; removed: string } | null>(null);
   const [dlOpen, setDlOpen] = useState(false);
-  const [ordering, setOrdering] = useState(false);
   const [confirmSpread, setConfirmSpread] = useState(false);
   const [draftAsk, setDraftAsk] = useState<(DesignData & { designId?: string | null; designName?: string }) | null>(null);
   const [ready, setReady] = useState(false); // đã quyết định dùng nháp hay làm mới
@@ -669,7 +669,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                 </div>
               )}
             </div>
-            <button className="h-10 flex-[1.6] rounded-[8px] bg-[#ff5fa2] text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50" disabled={busy} onClick={() => setOrdering(true)}>
+            <button className="h-10 flex-[1.6] rounded-[8px] bg-[#ff5fa2] text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50" disabled={busy} onClick={() => { window.location.href = `/san-pham/${CD_SLUG}${pkgId ? `?goi=${encodeURIComponent(pkgId)}` : ""}`; }}>
               Đặt mua
             </button>
           </div>
@@ -684,12 +684,6 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
           text={`Gói này có ít trang hơn. Artwork ở các trang sau sẽ bị XOÁ: ${pendingPkg.removed}. Bạn có chắc muốn đổi?`}
           onOk={() => applyPkg(pendingPkg.id)} onCancel={() => setPendingPkg(null)} />
       )}
-      {ordering && (
-        <OrderDialog orderType="custom_cd" title="Đặt mua Custom CD" packages={packages} onClose={() => setOrdering(false)}
-          initialPackageId={pkg ? pkgId : undefined}
-          getFiles={async () => (await Promise.all(pages.map(exportPage))).filter((f): f is DesignFile => !!f)} />
-      )}
-
       {/* Hỏi tiếp tục nháp */}
       {draftAsk && (
         <Modal title="Tiếp tục thiết kế đang làm dở?" text="Tiệm tìm thấy bản thiết kế bạn đang làm dở trên máy này."
