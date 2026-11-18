@@ -6,6 +6,7 @@
    Mẫu tự chứa toàn bộ giao diện — không import mẫu khác. */
 import "@fontsource/pangolin/400.css";
 import Link from "next/link";
+import { FEATURE_UPLOAD_FILES } from "@/lib/features";
 import type { HomeVariantProps } from "@/lib/homeData";
 import type { HomeOption } from "@/lib/settings";
 
@@ -18,7 +19,9 @@ const JOURNEY: { keys: string[]; href: string; title: string; verb: string; desc
   { keys: ["huong-dan"], href: "/huong-dan", title: "Hướng dẫn làm file", verb: "Tìm hiểu", desc: "Đọc nhanh cách chuẩn bị ảnh & nhạc cho đúng khổ in." },
   { keys: ["thiet-ke", "custom-cd", "tu-thiet-ke"], href: "/thiet-ke", title: "Thiết Kế", verb: "Sáng tạo", desc: "Tự tay thiết kế bìa, booklet và mặt đĩa ngay trên web." },
   { keys: ["dat-don"], href: "/dat-don", title: "Đặt đơn", verb: "Chốt đơn", desc: "Chọn loại CD, mua kèm và đặt hàng chỉ trong 1 phút." },
-  { keys: ["gui-file", "nop-file"], href: "/gui-file", title: "Gửi file", verb: "Gửi file", desc: "Gửi ảnh in và link nhạc cho đơn của bạn." },
+  FEATURE_UPLOAD_FILES
+    ? { keys: ["gui-file", "nop-file"], href: "/gui-file", title: "Gửi file", verb: "Gửi file", desc: "Gửi ảnh in và link nhạc cho đơn của bạn." }
+    : { keys: ["mockup", "gui-file", "nop-file"], href: "/thiet-ke/mockup", title: "Lên mockup", verb: "Xem thử", desc: "Xem ảnh của bạn trên hộp CD, mặt đĩa và booklet." },
   { keys: ["ve-chung-toi", "san-pham", "danh-gia"], href: "/ve-chung-toi", title: "Đánh giá", verb: "Khoe thành quả", desc: "Xem những chiếc CD tiệm đã làm cùng khách." },
   { keys: ["lien-he"], href: "/lien-he", title: "Liên hệ", verb: "Trò chuyện", desc: "Cần gì cứ nhắn tiệm qua Zalo nhé!" },
 ];

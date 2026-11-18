@@ -13,7 +13,7 @@ import type { HomeVariantProps } from "@/lib/homeData";
 import { services } from "@/lib/services";
 import { designTools } from "@/lib/designTools";
 import { uploadTools } from "@/lib/uploadTools";
-import { FEATURE_PHOTOSTRIP } from "@/lib/features";
+import { FEATURE_PHOTOSTRIP, FEATURE_UPLOAD_FILES } from "@/lib/features";
 
 const PINK = "#ff5fa2";
 type Item = { href: string; title: string; desc: string; icon: React.ReactNode };
@@ -22,6 +22,9 @@ const plain = (s: string) => s.replace(/\[|\]/g, "");
 const svc = (href: string) => services.find((s) => s.href === href);
 
 function groups(): Group[] {
+  return allGroups().filter((g) => FEATURE_UPLOAD_FILES || g.id !== "gui-file");
+}
+function allGroups(): Group[] {
   return [
     {
       id: "dat-hang", title: "Đặt hàng", hint: "Chọn gói, thanh toán, theo dõi đơn", tone: "#fff0f6",
@@ -60,7 +63,7 @@ function groups(): Group[] {
 const STEPS = [
   { n: 1, title: "Chọn gói", href: "/dat-don", icon: <ShoppingBag size={16} /> },
   { n: 2, title: "Thiết kế / chuẩn bị file", href: "/thiet-ke", icon: <WandSparkles size={16} /> },
-  { n: 3, title: "Gửi file", href: "/gui-file", icon: <FileUp size={16} /> },
+  FEATURE_UPLOAD_FILES ? { n: 3, title: "Gửi file", href: "/gui-file", icon: <FileUp size={16} /> } : { n: 3, title: "Lên mockup", href: "/thiet-ke/mockup", icon: <Boxes size={16} /> },
   { n: 4, title: "Nhận CD", href: "/don-hang-cua-toi", icon: <Disc3 size={16} /> },
 ];
 

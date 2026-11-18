@@ -15,7 +15,7 @@ export default async function HomeVariantsAdmin() {
   const notes = Object.fromEntries(((n.data ?? []) as { variant_id: string; note: string }[]).map((x) => [x.variant_id, x.note]));
   return (
     <AdminPage>
-      <PageHeader title="Giao diện trang chủ" description="Chọn mẫu trang chủ cho khách. Mọi mẫu dùng chung nội dung ở Admin → Trang chủ." />
+      <PageHeader title="Giao diện trang chủ" />
       <VariantGrid variants={homeVariantMeta()} active={active} notes={notes} notesReady={!n.error} />
     </AdminPage>
   );

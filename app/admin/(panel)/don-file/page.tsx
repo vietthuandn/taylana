@@ -42,7 +42,7 @@ export default async function CleanupPage() {
 
   return (
     <AdminPage>
-      <PageHeader title="Dọn file" description="Xoá file gốc của các đơn đã giao để giải phóng dung lượng Storage." />
+      <PageHeader title="Dọn file" />
 
       <div className="space-y-6">
         <Card title="Dung lượng Storage đang dùng" description="Gói Supabase Free có 1GB.">

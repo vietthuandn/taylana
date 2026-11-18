@@ -18,7 +18,7 @@ export default async function ContactPage() {
 
   return (
     <>
-      <PageHeader title="Liên hệ" subtitle={contact.note || "Nhắn tiệm qua Zalo để được tư vấn nhanh nhất."} />
+      <PageHeader title="Liên hệ" />
       <div className="mx-auto w-full max-w-3xl px-4 pb-12">
         {rows.length ? (
           <ul className="divide-y divide-[#efeff1] overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white">

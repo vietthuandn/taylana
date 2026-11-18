@@ -15,7 +15,7 @@ export default async function DiscountsAdmin() {
 
   return (
     <AdminPage>
-      <PageHeader title="Giảm giá" description="Mã riêng tư (khách tự nhập) và chương trình toàn shop (tự áp dụng). Mỗi đơn dùng tối đa 1 giảm giá."
+      <PageHeader title="Giảm giá"
         actions={<Button href="/admin/giam-gia/moi" icon={<Plus size={16} />}>Tạo giảm giá</Button>} />
       {error && <p className="mb-3 text-[13px] text-[#dc2626]">{error.message.includes("discounts") ? "Chưa có bảng giảm giá — cần chạy supabase/migration_discounts.sql." : error.message}</p>}
       <Table head={["Tên", "Mã", "Loại", "Phạm vi", "Giá trị", "Thời gian", "Đã dùng", "Trạng thái", ""]}

@@ -2,11 +2,11 @@
 /* Bản nháp Booklet Lyrics (IndexedDB) + lưu vào "Thiết kế của tôi" (bảng designs, ảnh lên bucket riêng tư design-assets/<user_id>/). */
 import { getBlob, putBlob } from "@/lib/blobStore";
 import { createClient } from "@/lib/supabase/client";
-import type { Adjust, Album, BackId, LayoutId, Song } from "./types";
+import type { Adjust, Album, BackId, LayoutId, LyricsFormat, Song } from "./types";
 
 export type LyricsDoc = {
   v: 1; kind: "lyrics-booklet";
-  album: Album; songs: Song[]; pack: number; layout: LayoutId; back: BackId; paletteId: string;
+  album: Album; songs: Song[]; pack: number; layout: LayoutId; back: BackId; paletteId: string; fmt?: LyricsFormat;
   seeds: Partial<Record<LayoutId, number>>; adjust: Record<string, Adjust>; photoIds: string[]; backPhotoId: string | null;
   photoPaths?: Record<string, string>; // khi lưu lên tài khoản: id ảnh → đường dẫn trong design-assets
 };

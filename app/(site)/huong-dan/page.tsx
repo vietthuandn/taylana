@@ -21,7 +21,7 @@ export default async function GuidePage() {
   const audioIdx = sections.findIndex((s) => /audio|nhạc/i.test(s.title));
   return (
     <>
-      <PageHeader title="Hướng dẫn làm file" subtitle="Chuẩn bị file đúng chuẩn để CD in ra thật sắc nét." />
+      <PageHeader title="Hướng dẫn làm file" />
 
       {sections.length > 1 && (
         <nav className="no-scrollbar mx-auto mb-6 flex max-w-6xl gap-2 overflow-x-auto px-4">

@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Download, ImagePlus, RefreshCw, RotateCcw, Upload, X } from "lucide-react";
 import { BOOKLET_PAGE_CM, BOOKLET_SHEET, cmToPx } from "@/lib/printSpecs";
-import { impose, sideFileName, sideLabel } from "@/lib/imposition";
+import { impose, impositionZipName, printGuide, sideFileName, sideLabel } from "@/lib/imposition";
 import { ACCEPT_IMG, LOW_DPI, canvasToJpeg, drawFit, effectiveDpi, fitScale, loadImage, newCanvas, saveZip, type LoadedImage } from "@/lib/imageTools";
 import { Button, Card, Select, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
@@ -73,7 +73,8 @@ export function BookletImposer() {
         if (R) drawFit(ctx, R.el, half, 0, half, H, fit);
         files.push({ name: sideFileName(s), blob: await canvasToJpeg(c) });
       }
-      await saveZip(files, `Booklet-${n}-trang.zip`);
+      files.push({ name: "HUONG-DAN-IN.txt", blob: new Blob([printGuide(n)], { type: "text/plain;charset=utf-8" }) });
+      await saveZip(files, impositionZipName(n));
       toast("Đã tải xuống");
     } catch (e) { toast(e instanceof Error ? e.message : "Xuất file thất bại", "err"); }
     setBusy(false);

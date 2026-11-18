@@ -1,4 +1,4 @@
-import { FEATURE_PHOTOSTRIP } from "./features";
+import { FEATURE_PHOTOSTRIP, FEATURE_UPLOAD_FILES } from "./features";
 import { publicClient } from "./supabase/public";
 
 // ---------- Banner trang chủ (key "home" trong bảng site_settings) ----------
@@ -70,7 +70,7 @@ export const defaultOptions: HomeOption[] = [
   { title: "Đặt đơn ngay", href: "/dat-don", image_url: null, bg: "#fff0f6", text_v: "middle", text_h: "left", text_color: "ink" },
   { title: "Hướng dẫn làm file", href: "/huong-dan", image_url: null, bg: "#f4f4f5", text_v: "top", text_h: "center", text_color: "ink" },
   { title: "Thiết Kế", href: "/thiet-ke", image_url: null, bg: "#ffffff", text_v: "top", text_h: "left", text_color: "ink" },
-  { title: "Gửi file", href: "/gui-file", image_url: null, bg: "#ffffff", text_v: "middle", text_h: "center", text_color: "ink" },
+  { title: FEATURE_UPLOAD_FILES ? "Gửi file" : "Lên mockup", href: FEATURE_UPLOAD_FILES ? "/gui-file" : "/thiet-ke/mockup", image_url: null, bg: "#ffffff", text_v: "middle", text_h: "center", text_color: "ink" },
   { title: "Về chúng tôi", href: "/ve-chung-toi", image_url: null, bg: "#f4f4f5", text_v: "top", text_h: "center", text_color: "ink" },
   { title: "Liên hệ", href: "/lien-he", image_url: null, bg: "#fff0f6", text_v: "bottom", text_h: "right", text_color: "ink" },
 ];
@@ -96,6 +96,16 @@ export const defaultContact: ContactSettings = {
   note: "Nhắn tiệm để được tư vấn mẫu và báo giá nhé!",
 };
 
+function mergeOne(v: Record<string, unknown>, d: HomeOption): Omit<HomeOption, "title" | "href"> {
+  const pick = <K extends keyof HomeOption>(k: K, ok: (x: unknown) => boolean) => (ok(v[k]) ? (v[k] as HomeOption[K]) : d[k]);
+  return {
+    image_url: typeof v.image_url === "string" && v.image_url ? v.image_url : null,
+    bg: pick("bg", (x) => typeof x === "string" && /^#[0-9a-f]{6}$/i.test(x)),
+    text_v: pick("text_v", (x) => x === "top" || x === "middle" || x === "bottom"),
+    text_h: pick("text_h", (x) => x === "left" || x === "center" || x === "right"),
+    text_color: pick("text_color", (x) => x === "ink" || x === "brown" || x === "white" || x === "lilac"),
+  };
+}
 export function mergeOptions(value: unknown): HomeOption[] {
   const saved = Array.isArray(value) ? (value as Record<string, unknown>[]) : [];
   return defaultOptions.map((d, i) => {
@@ -107,6 +117,12 @@ export function mergeOptions(value: unknown): HomeOption[] {
     // "Tự tay thiết kế" giờ trỏ thẳng /custom-cd; link photostrip (đang tắt) cũng về /custom-cd
     const toCd = ["/tu-thiet-ke", "/custom-cd"].includes(String(v.href)) || (!FEATURE_PHOTOSTRIP && v.href === "/photostrip");
     const toUpload = ["/gui-file-in"].includes(String(v.href));
+    // Gửi file đang ẩn → ô Gửi file trỏ sang "Lên mockup" (tên mặc định cũng đổi; admin đặt tên khác thì giữ)
+    const upload = old || toUpload || /^\/gui-file/.test(String(v.href));
+    if (!FEATURE_UPLOAD_FILES && upload) {
+      const t = typeof v.title === "string" ? v.title : "";
+      return { ...mergeOne(v, d), title: !t || /^(gửi|nộp) file/i.test(t) ? "Lên mockup" : t, href: "/thiet-ke/mockup" };
+    }
     return {
       title: old && (!v.title || v.title === "Nộp file") ? "Gửi file in" : pick("title", str),
       href: old || toUpload ? "/gui-file" : toCd ? "/thiet-ke" : pick("href", str),

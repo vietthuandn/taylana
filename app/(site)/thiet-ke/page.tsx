@@ -8,7 +8,7 @@ export const metadata = { title: "Thiết Kế" };
 export default function DesignToolsPage() {
   return (
     <>
-      <PageHeader title="Thiết Kế" subtitle="Chọn sản phẩm bạn muốn tự thiết kế." />
+      <PageHeader title="Thiết Kế" />
       <div className="mx-auto w-full max-w-[1200px] px-4 lg:px-6"><ToolGrid tools={designTools} /></div>
     </>
   );

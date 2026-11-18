@@ -25,7 +25,7 @@ export default async function ProductListPage({ searchParams }: { searchParams: 
   }
   return (
     <>
-      <PageHeader title="Đặt đơn" subtitle="Chọn sản phẩm bạn muốn đặt." />
+      <PageHeader title="Đặt đơn" />
       <div className="mx-auto w-full max-w-[1200px] px-4 lg:px-6">
         {products.length ? (
           <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">

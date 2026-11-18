@@ -59,7 +59,7 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
 
   return (
     <AdminPage>
-      <PageHeader title="Đơn hàng" description={`${total} đơn${status ? ` · ${statusLabels[status]}` : ""}${pay ? ` · ${paymentLabels[pay as PaymentStatus]}` : ""}`} />
+      <PageHeader title="Đơn hàng" />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { FEATURE_UPLOAD_FILES } from "./lib/features";
 
 // Cho phép next/image tối ưu ảnh từ Supabase Storage (lấy đúng địa chỉ từ biến môi trường)
 const supabase = (() => {
@@ -15,8 +16,11 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/custom-cd", destination: "/thiet-ke/cd", permanent: false },
-      { source: "/gui-file-in", destination: "/gui-file/cd", permanent: false },
-      { source: "/nop-file", destination: "/gui-file/cd", permanent: false },
+      // Gửi file đang ẩn (lib/features.ts) → mọi đường dẫn Gửi file chuyển sang "Lên mockup"
+      ...(FEATURE_UPLOAD_FILES ? [
+        { source: "/gui-file-in", destination: "/gui-file/cd", permanent: false },
+        { source: "/nop-file", destination: "/gui-file/cd", permanent: false },
+      ] : ["/gui-file", "/gui-file/:path*", "/gui-file-in", "/gui-file-in/:path*", "/nop-file"].map((source) => ({ source, destination: "/thiet-ke/mockup", permanent: false }))),
     ];
   },
   images: {

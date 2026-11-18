@@ -15,3 +15,7 @@ export const FEATURE_MOCKUP_FRAMES = false;
 
 // Booklet Lyrics: "Tìm lời gợi ý" (API công khai LRCLIB, gọi thẳng từ trình duyệt). Đổi thành false để ẩn mọi nút / tuỳ chọn liên quan.
 export const FEATURE_LYRICS_SUGGEST = true;
+
+// Gửi file in (trang /gui-file, nút "Gửi file in", badge "Đã / Chưa gửi file"): TẠM ẨN — thay bằng "Lên mockup" (/thiet-ke/mockup).
+// Code Gửi file vẫn giữ (CdUploadPanel dùng chung cho trang Mockup). Admin vẫn xem file của đơn cũ. Đổi thành true để mở lại.
+export const FEATURE_UPLOAD_FILES = false;

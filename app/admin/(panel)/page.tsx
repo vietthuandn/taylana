@@ -31,7 +31,7 @@ export default async function AdminHome() {
 
   return (
     <AdminPage>
-      <PageHeader title="Tổng quan" description="Tình hình đơn hàng và dung lượng lưu trữ."
+      <PageHeader title="Tổng quan"
         actions={<Button href="/admin/don-hang" variant="secondary">Xem tất cả đơn</Button>} />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stat("Đơn mới", newOrders ?? 0, "Đang chờ xác nhận", "/admin/don-hang?status=new")}

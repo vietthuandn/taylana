@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { formatVND } from "@/lib/format";
 import { uploadHref } from "@/lib/uploadTools";
+import { FEATURE_UPLOAD_FILES } from "@/lib/features";
 import type { Package } from "@/lib/types";
 import { normalizePhone, PHONE_ERROR } from "@/lib/phone";
 import { saveOrderCode } from "@/lib/cart";
@@ -84,7 +85,7 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
             <p className="pop-sm mx-auto mt-2 inline-block rounded-2xl bg-white px-5 py-2 font-display text-3xl">{done.code}</p>
             <p className="mt-3 text-sm text-ink-600">Đã gửi {done.files} file thiết kế. Tiệm sẽ nhắn bạn qua Zalo/SĐT để xác nhận và báo giá.</p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {orderType === "custom_cd" && (
+              {orderType === "custom_cd" && FEATURE_UPLOAD_FILES && (
                 <Link href={uploadHref(done.code)} className="btn !text-base">Gửi link nhạc / file khác →</Link>
               )}
               <Link href="/don-hang-cua-toi" className="btn btn-ghost !text-base">Xem đơn hàng của tôi</Link>

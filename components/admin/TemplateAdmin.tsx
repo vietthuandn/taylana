@@ -113,7 +113,7 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
 
   return (
     <AdminPage>
-      <PageHeader title={info.title} description={info.desc}
+      <PageHeader title={info.title}
         actions={<Button icon={<Plus size={16} />} onClick={() => setEditing(blank())}>Tạo mẫu mới</Button>} />
       <Message msg={msg} />
       {!rows.length && (

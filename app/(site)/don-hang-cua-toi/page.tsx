@@ -6,7 +6,7 @@ export const metadata = { title: "Đơn hàng của tôi", robots: { index: fals
 export default function MyOrdersPage() {
   return (
     <>
-      <PageHeader title="Đơn hàng của tôi" subtitle="Theo dõi thanh toán, tình trạng sản xuất và gửi file in cho từng đơn." />
+      <PageHeader title="Đơn hàng của tôi" />
       <MyOrders />
     </>
   );

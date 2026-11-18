@@ -12,7 +12,7 @@ export default async function UploadToolsPage({ searchParams }: { searchParams: 
   if (code) redirect(uploadHref(code));
   return (
     <>
-      <PageHeader title="Gửi file" subtitle="Chọn sản phẩm bạn muốn gửi file in." />
+      <PageHeader title="Gửi file" />
       <div className="mx-auto w-full max-w-[1200px] px-4 lg:px-6"><ToolGrid tools={uploadTools} /></div>
     </>
   );

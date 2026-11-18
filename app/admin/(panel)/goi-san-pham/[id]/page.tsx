@@ -7,7 +7,7 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
   return (
     <AdminPage>
       <Link href="/admin/goi-san-pham" className="mb-3 inline-flex items-center gap-1 text-[13px] text-[#71717a] hover:text-[#18181b]">← Sản phẩm của tôi</Link>
-      <PageHeader title={id === "moi" ? "Tạo sản phẩm" : "Chi tiết sản phẩm"} description="Thông tin sản phẩm, các nhóm tuỳ chọn và lựa chọn." />
+      <PageHeader title={id === "moi" ? "Tạo sản phẩm" : "Chi tiết sản phẩm"} />
       <ProductEditor id={id} />
     </AdminPage>
   );

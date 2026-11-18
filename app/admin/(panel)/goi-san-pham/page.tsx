@@ -12,7 +12,7 @@ export default async function ProductsAdmin() {
   const products = (await getCatalog(supabase, true)).filter((p) => p.id !== "legacy");
   return (
     <AdminPage>
-      <PageHeader title="Sản phẩm của tôi" description="Mỗi sản phẩm có các nhóm tuỳ chọn (Loại, Mua kèm...). Khách chọn trên trang Đặt đơn."
+      <PageHeader title="Sản phẩm của tôi"
         actions={<Button href="/admin/goi-san-pham/moi" icon={<Plus size={16} />}>Tạo sản phẩm</Button>} />
       <Table head={["", "Tên", "Loại", "Giá từ", "Nhóm tuỳ chọn", "Trạng thái", ""]}
         empty={!products.length && <EmptyState>Chưa có sản phẩm. Nếu bạn vừa cập nhật web, hãy chạy supabase/migration_products.sql để chuyển gói & phụ kiện cũ sang.</EmptyState>}>

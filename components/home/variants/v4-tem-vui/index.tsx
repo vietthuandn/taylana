@@ -7,6 +7,7 @@
    Mẫu tự chứa toàn bộ giao diện — không import mẫu khác. */
 import "@fontsource/itim/400.css";
 import Link from "next/link";
+import { FEATURE_UPLOAD_FILES } from "@/lib/features";
 import type { HomeVariantProps } from "@/lib/homeData";
 
 const FUN = { fontFamily: '"Itim", "Pangolin", "Comic Sans MS", cursive' } as const;
@@ -18,7 +19,7 @@ const STICKERS: Def[] = [
   { keys: ["huong-dan"], href: "/huong-dan", title: "Hướng dẫn", tag: "Cú chỉ bạn nè!", bg: "#c2416b", ink: "#ffffff", art: "owl" },
   { keys: ["thiet-ke", "custom-cd", "tu-thiet-ke"], href: "/thiet-ke", title: "Thiết kế", tag: "Mèo-tuyệt vời!", bg: "#fbf3e6", ink: "#e6457a", art: "cat" },
   { keys: ["dat-don"], href: "/dat-don", title: "Đặt đơn", tag: "Dâu-tiên là chốt!", bg: "#ffd166", ink: "#3f6b3a", art: "strawberry" },
-  { keys: ["gui-file", "nop-file"], href: "/gui-file", title: "Gửi file", tag: "Nhảy phát tới liền!", bg: "#3fa7f0", ink: "#173a7a", art: "frog" },
+  { keys: FEATURE_UPLOAD_FILES ? ["gui-file", "nop-file"] : ["mockup", "gui-file", "nop-file"], href: FEATURE_UPLOAD_FILES ? "/gui-file" : "/thiet-ke/mockup", title: FEATURE_UPLOAD_FILES ? "Gửi file" : "Lên mockup", tag: "Nhảy phát tới liền!", bg: "#3fa7f0", ink: "#173a7a", art: "frog" },
   { keys: ["ve-chung-toi", "san-pham", "danh-gia"], href: "/ve-chung-toi", title: "Đánh giá", tag: "Bơ-ra-vô!", bg: "#82d39a", ink: "#ffffff", art: "avocado" },
   { keys: ["lien-he"], href: "/lien-he", title: "Liên hệ", tag: "Nho nhắn tiệm nha!", bg: "#4a7bd0", ink: "#ffffff", art: "grape" },
 ];

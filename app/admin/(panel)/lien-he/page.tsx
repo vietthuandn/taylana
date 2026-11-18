@@ -6,7 +6,7 @@ export default async function ContactAdminPage() {
   const { contact } = await loadAdminSettings();
   return (
     <AdminPage>
-      <PageHeader title="Liên hệ" description="Hiện ở trang Liên hệ và cuối các trang. Để trống ô nào thì ẩn ô đó." />
+      <PageHeader title="Liên hệ" />
       <ContactForm initial={contact} />
     </AdminPage>
   );

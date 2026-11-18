@@ -18,7 +18,7 @@ export default async function PhotostripPage() {
   }
   return (
     <>
-      <PageHeader eyebrow="2 x 6 inch" title="Làm photostrip" subtitle="Chọn khung 3 hoặc 4 ảnh, thả ảnh vào, thêm chữ, ngày tháng và sticker." />
+      <PageHeader eyebrow="2 x 6 inch" title="Làm photostrip" />
       <PhotostripLoader frames={frames} />
     </>
   );

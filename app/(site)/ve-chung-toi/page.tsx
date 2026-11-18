@@ -17,7 +17,7 @@ export default async function AboutPage() {
   }
   return (
     <>
-      <PageHeader title="Về chúng tôi" subtitle="Những chiếc CD tiệm đã thiết kế và thi công cùng khách." />
+      <PageHeader title="Về chúng tôi" />
       <div className="mx-auto w-full max-w-6xl px-4">
         <Suspense><Gallery items={items} /></Suspense>
       </div>

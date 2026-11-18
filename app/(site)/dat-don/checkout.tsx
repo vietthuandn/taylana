@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Brush, Check, ChevronRight, Copy, ListOrdered, Minus, Plus, ShoppingCart, Tag, Truck, Upload, X } from "lucide-react";
 import type { Option, OptionGroup, Product } from "@/lib/catalog";
 import { uploadHref } from "@/lib/uploadTools";
+import { FEATURE_UPLOAD_FILES } from "@/lib/features";
 import { formatVND } from "@/lib/format";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
@@ -547,7 +548,7 @@ function Success({ result }: { result: { code: string; total: number } }) {
         <div className="mt-6 border-t border-[#efeff1] pt-6">
           <p className="mb-3 text-[13px] font-semibold text-[#18181b]">Bước tiếp theo</p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <Button href={uploadHref(result.code)} icon={<Upload size={16} />}>Gửi file in</Button>
+            {FEATURE_UPLOAD_FILES && <Button href={uploadHref(result.code)} icon={<Upload size={16} />}>Gửi file in</Button>}
             <Button href="/thiet-ke/cd" variant="secondary" icon={<Brush size={16} />}>Tự thiết kế CD</Button>
             <Button href="/don-hang-cua-toi" variant="ghost" icon={<ListOrdered size={16} />} className="sm:col-span-2">Xem đơn hàng của tôi</Button>
           </div>

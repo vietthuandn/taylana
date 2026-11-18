@@ -4,12 +4,14 @@
    Lyrics chia 3 cột (khoảng cách 4 mm), cỡ chữ tự co 7.5pt → tối thiểu (mặc định 6.5pt), line-height 1.3, không tràn khung. */
 import { BACK_H_CM, BACK_SPINE_CM, BACK_W_CM, LEFT_SPINE_ROTATION, RIGHT_SPINE_ROTATION } from "@/lib/cdSpecs";
 import { contentBox } from "./layout";
-import { PAGE_MM as P, PT, type Adjust, type Album, type BackId, type Block, type Page, type Palette, type Song } from "./types";
+import { DEFAULT_FORMAT, FONT_SIZES, PAGE_MM as P, PT, type Adjust, type Album, type BackId, type Block, type LyricsFormat, type Page, type Palette, type Song } from "./types";
+import { collapseRepeats, toInline } from "./format";
 
 type Img = CanvasImageSource & { width: number; height: number };
 export type Ctx = {
   songs: Song[]; album: Album; photos: (Img | null)[]; adjust?: Record<number, Adjust | undefined>; palette: Palette;
   titleFont: string; bodyFont: string; minPt: number; mode?: "preview" | "print"; guides?: boolean; editSlot?: number | null; hoverSlot?: number | null;
+  fmt?: LyricsFormat; // cỡ chữ lời + kiểu lời (mặc định: Bình thường · Nguyên bản)
 };
 export type PageHit = { k: "photo"; slot: number; x: number; y: number; w: number; h: number; rot: number } | { k: "song"; song: number; x: number; y: number; w: number; h: number; rot: number };
 
@@ -49,19 +51,72 @@ function wrap(x: CanvasRenderingContext2D, text: string, maxW: number) {
   out.push(line.trimEnd());
   return out;
 }
-type Laid = { lines: string[]; size: number; lh: number; perCol: number; fits: boolean };
-function layLyrics(x: CanvasRenderingContext2D, lyrics: string, font: string, colW: number, bodyH: number, minPt: number): Laid {
-  const raw = lyrics.split("\n");
+// ---------- dàn lời 1 bài (dùng chung cho vẽ + tính sức chứa theo chiều cao thật) ----------
+type LLine = { t: string; justify: boolean; bold?: string }; // bold: tiền tố in đậm ở đầu dòng (tên bài liền dòng)
+type Laid = { lines: LLine[]; size: number; lh: number; perCol: number; fits: boolean; titleInline: boolean };
+const sizeOf = (fmt: LyricsFormat, minPt: number) => { const f = FONT_SIZES.find((x) => x.id === fmt.size) ?? FONT_SIZES[0]; return { pt: f.pt, min: fmt.size === "normal" ? Math.min(f.pt, minPt) : f.min }; };
+export const titleSizeOf = (fmt: LyricsFormat) => 11 * PT * ((FONT_SIZES.find((x) => x.id === fmt.size) ?? FONT_SIZES[0]).pt / 7.5);
+/** dòng hiển thị theo kiểu lời (không sửa lời gốc) */
+function displayOf(s: Song, fmt: LyricsFormat): { mode: "lines"; lines: string[] } | { mode: "inline"; paras: string[] } {
+  const style = s.style ?? fmt.style, o = { lang: fmt.lang, labels: s.labels, noMerge: s.noMerge };
+  if (style === "inline") return { mode: "inline", paras: toInline(s.lyrics, { ...o, paraBreak: fmt.paraBreak }) };
+  if (style === "collapse") {
+    const lines: string[] = [];
+    collapseRepeats(s.lyrics, o).forEach((bl, i) => {
+      if (i) lines.push("");
+      if (bl.kind === "ref") lines.push(`(${bl.label})`);
+      else { if (bl.label) lines.push(`[${bl.label}]`); lines.push(...bl.lines); }
+    });
+    return { mode: "lines", lines };
+  }
+  return { mode: "lines", lines: s.lyrics.split("\n") };
+}
+// ngắt dòng liền: " / " và " // " dính vào từ phía trước → không bao giờ đứng đầu dòng; dòng (trừ dòng cuối đoạn) căn đều 2 bên
+function wrapInline(x: CanvasRenderingContext2D, text: string, maxW: number, firstIndent: number): LLine[] {
+  const raw = text.split(/\s+/).filter(Boolean), words: string[] = [];
+  for (const w of raw) { if ((w === "/" || w === "//") && words.length) words[words.length - 1] += ` ${w}`; else words.push(w); }
+  const out: LLine[] = [];
+  let line = "", avail = maxW - firstIndent;
+  for (const w of words) {
+    const t = line ? `${line} ${w}` : w;
+    if (x.measureText(t).width <= avail || !line) line = t;
+    else { out.push({ t: line, justify: true }); line = w; avail = maxW; }
+  }
+  if (line) out.push({ t: line, justify: false });
+  return out;
+}
+function laySong(x: CanvasRenderingContext2D, s: Song, si: number, fmt: LyricsFormat, minPt: number, font: string, titleFont: string, colW: number, bodyH: number): Laid {
+  const d = displayOf(s, fmt), { pt, min } = sizeOf(fmt, minPt);
+  const inlineTitle = d.mode === "inline" && fmt.titleInline;
   let last: Laid | null = null;
-  for (let pt = 7.5; pt >= minPt - 1e-6; pt -= 0.25) {
-    const size = pt * PT, lh = size * 1.3;
+  for (let p = pt; p >= min - 1e-6; p -= 0.25) {
+    const size = p * PT, lh = size * 1.3;
     x.font = `400 ${size}px "${font}"`;
-    const lines = raw.flatMap((l) => (l.trim() ? wrap(x, l, colW) : [""]));
+    let lines: LLine[];
+    if (d.mode === "inline") {
+      const prefix = inlineTitle ? `${si + 1}. ${(s.title || `Bài ${si + 1}`).toUpperCase()} — ` : "";
+      x.font = `700 ${size}px "${titleFont}"`;
+      const pw = prefix ? x.measureText(prefix).width : 0;
+      x.font = `400 ${size}px "${font}"`;
+      lines = d.paras.flatMap((para, i) => { const L = wrapInline(x, para, colW, i === 0 ? pw : 0); if (i === 0 && prefix && L[0]) L[0].bold = prefix; return L; });
+      if (!lines.length && prefix) lines = [{ t: "", justify: false, bold: prefix }];
+    } else lines = d.lines.flatMap((l) => (l.trim() ? wrap(x, l, colW).map((t) => ({ t, justify: false })) : [{ t: "", justify: false }]));
     const perCol = Math.max(1, Math.floor(bodyH / lh));
-    last = { lines, size, lh, perCol, fits: lines.length <= perCol * 3 };
+    last = { lines, size, lh, perCol, fits: lines.length <= perCol * 3, titleInline: inlineTitle };
     if (last.fits) return last;
   }
   return last!;
+}
+let measureCtx: CanvasRenderingContext2D | null = null;
+/** Bài có vừa khung (w × h mm, gồm tên bài + 3 cột) ở cỡ chữ nhỏ nhất cho phép không — đo bằng canvas, đúng font / cỡ / độ rộng cột */
+export function songFits(s: Song, si: number, c: Pick<Ctx, "bodyFont" | "titleFont" | "minPt" | "fmt">, w: number, h: number) {
+  if (s.titleOnly || !s.lyrics.trim()) return true;
+  if (typeof document === "undefined") return true;
+  measureCtx ??= document.createElement("canvas").getContext("2d");
+  const fmt = c.fmt ?? DEFAULT_FORMAT, tSize = titleSizeOf(fmt), colW = (w - 8) / 3;
+  const inl = (s.style ?? fmt.style) === "inline" && fmt.titleInline;
+  const bodyH = h - (inl ? 0 : tSize * 1.5) - (s.note.trim() ? 3.4 : 0);
+  return laySong(measureCtx!, s, si, fmt, c.minPt, c.bodyFont, c.titleFont, colW, bodyH).fits;
 }
 function fitText(x: CanvasRenderingContext2D, text: string, weight: string, family: string, size: number, maxW: number) {
   let s = size;
@@ -81,22 +136,34 @@ function drawLyrics(x: CanvasRenderingContext2D, b: Extract<Block, { k: "lyrics"
     const s = c.songs[si];
     const h = b.songs.length === 1 ? b.h : Math.max(b.h * 0.3, Math.min(b.h * 0.7, (b.h - 4) * (need[k] / tot)));
     const top = y;
-    // tên bài + số thứ tự
-    const tSize = 11 * PT;
+    // tên bài + số thứ tự (co theo cỡ chữ lời); kiểu "Liền dòng" có thể đặt tên bài liền với lời
+    const fmt = c.fmt ?? DEFAULT_FORMAT, tSize = titleSizeOf(fmt);
+    const inlineTitle = (s.style ?? fmt.style) === "inline" && fmt.titleInline && !s.titleOnly && !!s.lyrics.trim();
     x.fillStyle = c.palette.accent; x.textAlign = "left"; x.textBaseline = "top";
-    fitText(x, `${si + 1}. ${s.title || `Bài ${si + 1}`}`, "700", c.titleFont, tSize, b.w);
-    x.fillText(`${si + 1}. ${s.title || `Bài ${si + 1}`}`, b.x, top);
+    if (!inlineTitle) {
+      fitText(x, `${si + 1}. ${s.title || `Bài ${si + 1}`}`, "700", c.titleFont, tSize, b.w);
+      x.fillText(`${si + 1}. ${s.title || `Bài ${si + 1}`}`, b.x, top);
+    }
     const noteH = s.note.trim() ? 3.4 : 0;
-    const bodyTop = top + tSize * 1.5, bodyH = h - tSize * 1.5 - noteH;
+    const bodyTop = top + (inlineTitle ? 0 : tSize * 1.5), bodyH = h - (inlineTitle ? 0 : tSize * 1.5) - noteH;
     if (!s.titleOnly && s.lyrics.trim()) {
-      const L = layLyrics(x, s.lyrics, c.bodyFont, colW, bodyH, c.minPt);
-      x.font = `400 ${L.size}px "${c.bodyFont}"`; x.fillStyle = c.palette.ink;
+      const L = laySong(x, s, si, fmt, c.minPt, c.bodyFont, c.titleFont, colW, bodyH);
       const max = L.perCol * 3;
       L.lines.slice(0, max).forEach((ln, i) => {
         const col = Math.floor(i / L.perCol), row = i % L.perCol;
-        let t = ln;
-        if (!L.fits && i === max - 1) t = `${ln.replace(/.{0,2}$/, "")}…`;
-        x.fillText(t, b.x + col * (colW + colGap), bodyTop + row * L.lh);
+        const X = b.x + col * (colW + colGap), Y = bodyTop + row * L.lh;
+        let t = ln.t;
+        if (!L.fits && i === max - 1) t = `${t.replace(/.{0,2}$/, "")}…`;
+        let ox = 0;
+        if (ln.bold) { x.font = `700 ${L.size}px "${c.titleFont}"`; x.fillStyle = c.palette.accent; x.fillText(ln.bold, X, Y); ox = x.measureText(ln.bold).width; }
+        x.font = `400 ${L.size}px "${c.bodyFont}"`; x.fillStyle = c.palette.ink;
+        const words = t.split(" ");
+        if (ln.justify && words.length > 1) {
+          // căn đều 2 bên trong cột
+          const wsum = words.reduce((a, w) => a + x.measureText(w).width, 0), gap = (colW - ox - wsum) / (words.length - 1);
+          let cx = X + ox;
+          for (const w of words) { x.fillText(w, cx, Y); cx += x.measureText(w).width + gap; }
+        } else x.fillText(t, X + ox, Y);
       });
     }
     if (noteH) { x.font = `italic 400 ${2.3}px "${c.bodyFont}"`; x.fillStyle = c.palette.ink; x.globalAlpha = 0.7; x.fillText(s.note.trim(), b.x, top + h - noteH + 0.6); x.globalAlpha = 1; }

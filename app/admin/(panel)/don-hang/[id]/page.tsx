@@ -53,7 +53,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   return (
     <AdminPage>
       <Link href="/admin/don-hang" className="mb-3 inline-flex items-center gap-1 text-[13px] text-[#71717a] hover:text-[#18181b]">← Danh sách đơn</Link>
-      <PageHeader title={`Đơn ${order.code}`} description={`${orderTypeLabels[order.order_type]} · đặt lúc ${formatDate(order.created_at)}`}
+      <PageHeader title={`Đơn ${order.code}`}
         actions={<Badge tone={statusTone[order.status]}>{statusLabels[order.status]}</Badge>} />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">

@@ -8,7 +8,7 @@ export default async function PaymentAdminPage() {
   const { data } = await supabase.from("site_settings").select("value").eq("key", "payment").maybeSingle();
   return (
     <AdminPage>
-      <PageHeader title="Thanh toán" description="Thanh toán bằng QR chuyển khoản (VietQR). Khách quét QR có sẵn số tiền, tiệm tự xác nhận khi nhận được tiền." />
+      <PageHeader title="Thanh toán" />
       <PaymentForm initial={mergePayment(data?.value)} />
     </AdminPage>
   );

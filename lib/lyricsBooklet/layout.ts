@@ -2,7 +2,7 @@
    Trang 1 = bìa (ảnh 1 tràn trang + tên album); trang lyrics tối đa 2 bài; chỗ trống lấp bằng ảnh
    (tràn trang · nửa trang · tràn 2 trang ở gáy · 1/3 trang · polaroid nghiêng nhẹ); trang cuối = credit hoặc ảnh. */
 import { rng } from "@/lib/scrapbook/generate";
-import { isLong } from "./capacity";
+import { isLong, type LongRule } from "./capacity";
 import { GUTTER_MM, PAGE_MM as P, SAFE_MM, type Album, type Block, type LayoutId, type Page, type Song } from "./types";
 
 /** Khung nội dung của trang (lề an toàn 5 mm, phía gáy 7 mm). Trang lẻ = trang phải → gáy bên trái. */
@@ -11,18 +11,18 @@ export function contentBox(no: number) {
   return { x: left, y: SAFE_MM, w: P - SAFE_MM - GUTTER_MM, h: P - SAFE_MM * 2 };
 }
 // nhóm bài vào trang lyrics: bài dài 1 trang, bài ngắn đi cặp đôi theo thứ tự
-export function groupSongs(songs: Song[], longLines: number) {
+export function groupSongs(songs: Song[], longLines: LongRule) {
   const out: number[][] = [];
   let pend: number | null = null;
   songs.forEach((s, i) => {
-    if (isLong(s, longLines)) { if (pend !== null) { out.push([pend]); pend = null; } out.push([i]); }
+    if (isLong(s, longLines, i)) { if (pend !== null) { out.push([pend]); pend = null; } out.push([i]); }
     else if (pend === null) pend = i; else { out.push([pend, i]); pend = null; }
   });
   if (pend !== null) out.push([pend]);
   return out;
 }
 
-export function buildBooklet(layout: LayoutId, n: number, songs: Song[], album: Album, seed: number, longLines: number) {
+export function buildBooklet(layout: LayoutId, n: number, songs: Song[], album: Album, seed: number, longLines: LongRule) {
   const r = rng(seed * 13 + n * 101 + layout.length * 7);
   const groups = groupSongs(songs, longLines).slice(0, n - 1);
   let free = n - 1 - groups.length;
@@ -58,7 +58,7 @@ export function buildBooklet(layout: LayoutId, n: number, songs: Song[], album: 
   let g = 0;
   const lyricPage = (no: number, grp: number[]): Block[] => {
     const b = contentBox(no);
-    const one = grp.length === 1 && !isLong(songs[grp[0]], longLines);
+    const one = grp.length === 1 && !isLong(songs[grp[0]], longLines, grp[0]);
     if (!one) return [{ k: "lyrics", songs: grp, ...b }];
     const flip = r() < 0.5;
     const half = b.h / 2 - 2;

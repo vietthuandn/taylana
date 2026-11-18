@@ -13,7 +13,20 @@ export type Song = {
   artist?: string; // ca sĩ (tìm lời gợi ý) — trống thì dùng Tên nghệ sĩ của album
   alt?: string; // dòng "A - B" nhập từ danh sách: phía còn lại (tìm lời thử cả 2 chiều)
   pending?: boolean; // có lời gợi ý nhưng khách chưa mở xem + cam kết + Lưu → chưa dàn vào booklet
+  style?: LyricStyle; // kiểu lời riêng của bài (trống = theo cài đặt chung)
+  labels?: Record<string, string>; // tên nhãn cho từng đoạn lặp (khoá đoạn → tên)
+  noMerge?: string[]; // các đoạn lặp KHÔNG gộp
 };
+export type LyricStyle = "original" | "collapse" | "inline";
+export type FontSizeId = "normal" | "small" | "xsmall";
+/** Cách trình bày lời cho cả booklet */
+export type LyricsFormat = { size: FontSizeId; style: LyricStyle; lang: "en" | "vi"; paraBreak: "slashes" | "newline"; titleInline: boolean };
+export const DEFAULT_FORMAT: LyricsFormat = { size: "normal", style: "original", lang: "en", paraBreak: "slashes", titleInline: false };
+export const FONT_SIZES: { id: FontSizeId; name: string; pt: number; min: number }[] = [
+  { id: "normal", name: "Bình thường", pt: 7.5, min: 6.5 },
+  { id: "small", name: "Nhỏ", pt: 6.5, min: 5.5 },
+  { id: "xsmall", name: "Rất nhỏ", pt: 5.5, min: 5 },
+];
 export type Album = { title: string; artist: string; year: string; credit: string };
 export type Palette = { id: string; name: string; bg: string; ink: string; accent: string };
 export type LayoutId = "minimal" | "alternate" | "magazine" | "cinema" | "polaroid";

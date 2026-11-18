@@ -19,7 +19,7 @@ import { Check, ClipboardList, ChevronLeft, ListMusic, Search, Undo2, X, Chevron
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { saveBlob, saveZip } from "@/lib/imageTools";
-import { impose, sideFileName } from "@/lib/imposition";
+import { impose, impositionZipName, printGuide, sideFileName } from "@/lib/imposition";
 import { cmToPx, JPG_QUALITY } from "@/lib/printSpecs";
 import { savePendingFiles, type PendingFile } from "@/lib/pendingOrderFiles";
 import { lineCount, minLyricPages, packFits, smallestPack } from "@/lib/lyricsBooklet/capacity";
@@ -28,9 +28,11 @@ import { bestMatch, fmtDuration, lyricsOf, norm, searchLyrics, type LrcResult } 
 import { parseTrackList, splitAlbumLyrics, type Segment, type TrackRow } from "@/lib/lyricsBooklet/parse";
 import { FEATURE_LYRICS_SUGGEST } from "@/lib/features";
 import { buildBooklet } from "@/lib/lyricsBooklet/layout";
+import { longRule } from "@/lib/lyricsBooklet/capacity";
+import { repeatGroups } from "@/lib/lyricsBooklet/format";
 import { inBox, loadBookletFonts, paletteFromImage, renderBack, renderPage, type Ctx, type PageHit } from "@/lib/lyricsBooklet/render";
 import { loadFromAccount, loadLocal, saveLocal, saveToAccount, type LyricsDoc } from "@/lib/lyricsBooklet/doc";
-import { BACKS, LAYOUTS, MAX_LINE_CHARS, MAX_SONGS, PACKS, type Adjust, type Album, type BackId, type LayoutId, type LyricsSettings, type Song } from "@/lib/lyricsBooklet/types";
+import { BACKS, LAYOUTS, MAX_LINE_CHARS, MAX_SONGS, PACKS, type Adjust, type Album, type BackId, type LayoutId, type LyricsSettings, type Song, DEFAULT_FORMAT, FONT_SIZES, type LyricsFormat, type LyricStyle } from "@/lib/lyricsBooklet/types";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
 import { Button, Toggle, toast } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
@@ -62,6 +64,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
   const [layout, setLayout] = useState<LayoutId>(layouts[0]?.id ?? "minimal");
   const [back, setBack] = useState<BackId>(backs[0]?.id ?? "classic");
   const [paletteId, setPaletteId] = useState("auto");
+  const [fmt, setFmt] = useState<LyricsFormat>(DEFAULT_FORMAT); // cỡ chữ lời + kiểu lời (cả booklet)
   const [seeds, setSeeds] = useState<Partial<Record<LayoutId, number>>>({});
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [backPhoto, setBackPhoto] = useState<Photo | null>(null);
@@ -105,7 +108,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
         setAlbum(doc.album); setSongs(doc.songs.length ? doc.songs : [newSong(0)]); setPack(doc.pack); setPackPicked(true);
         if (layouts.some((l) => l.id === doc.layout)) setLayout(doc.layout);
         if (backs.some((b) => b.id === doc.back)) setBack(doc.back);
-        setPaletteId(doc.paletteId); setSeeds(doc.seeds ?? {}); setAdjust(doc.adjust ?? {}); setPhotoPaths(doc.photoPaths ?? {});
+        setPaletteId(doc.paletteId); setFmt({ ...DEFAULT_FORMAT, ...(doc.fmt ?? {}) }); setSeeds(doc.seeds ?? {}); setAdjust(doc.adjust ?? {}); setPhotoPaths(doc.photoPaths ?? {});
         setPhotos(doc.photoIds.map((i) => map[i]).filter(Boolean));
         setBackPhoto(doc.backPhotoId ? map[doc.backPhotoId] ?? null : null);
       }
@@ -116,9 +119,9 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const doc = useMemo<LyricsDoc>(() => ({
-    v: 1, kind: "lyrics-booklet", album, songs, pack, layout, back, paletteId, seeds, adjust,
+    v: 1, kind: "lyrics-booklet", album, songs, pack, layout, back, paletteId, seeds, adjust, fmt,
     photoIds: photos.map((p) => p.id), backPhotoId: backPhoto?.id ?? null, photoPaths,
-  }), [album, songs, pack, layout, back, paletteId, seeds, adjust, photos, backPhoto, photoPaths]);
+  }), [album, songs, pack, layout, back, paletteId, seeds, adjust, fmt, photos, backPhoto, photoPaths]);
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => { saveLocal(doc, [...photos, ...(backPhoto ? [backPhoto] : [])].map((p) => ({ id: p.id, blob: p.blob }))).catch(() => {}); }, 800);
@@ -127,20 +130,21 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
 
   // bài "chờ duyệt" (lời gợi ý chưa được khách xem + Lưu) chưa dàn lyrics vào booklet
   const lay = useMemo(() => songs.map((x) => (x.pending ? { ...x, lyrics: "" } : x)), [songs]);
-  // ---------- sức chứa / gói ----------
-  const need = minLyricPages(lay, settings.longLines);
-  const auto = smallestPack(lay, settings.longLines);
+  // ---------- sức chứa / gói: bài dài đo theo CHIỀU CAO THẬT (font, cỡ chữ, kiểu lời, độ rộng cột) ----------
+  const rule = useMemo(() => longRule({ bodyFont: settings.bodyFont, titleFont: settings.titleFont, minPt: settings.minFontPt, fmt }), [settings.bodyFont, settings.titleFont, settings.minFontPt, fmt, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  const need = minLyricPages(lay, rule);
+  const auto = smallestPack(lay, rule);
   useEffect(() => { if (!packPicked && auto && auto !== pack) setPack(auto); }, [auto, pack, packPicked]);
-  const fits = packFits(pack, lay, settings.longLines);
+  const fits = packFits(pack, lay, rule);
   const setCount = (n: number) => setSongs((cur) => (n > cur.length ? [...cur, ...Array.from({ length: n - cur.length }, (_, i) => newSong(cur.length + i))] : cur.slice(0, n)));
 
   // ---------- dàn trang ----------
   const seed = seeds[layout] ?? 1;
-  const built = useMemo(() => buildBooklet(layout, pack, lay, album, seed, settings.longLines), [layout, pack, lay, album, seed, settings.longLines]);
+  const built = useMemo(() => buildBooklet(layout, pack, lay, album, seed, rule), [layout, pack, lay, album, seed, rule]);
   const palette = useMemo(() => (paletteId === "auto" ? paletteFromImage(photos[0]?.img ?? null) ?? settings.palettes[0] : settings.palettes.find((p) => p.id === paletteId) ?? settings.palettes[0]), [paletteId, photos, settings.palettes]);
   const slotImgs = useMemo(() => photos.map((p) => p.img), [photos]);
   const slotAdj = useMemo(() => Object.fromEntries(photos.map((p, i) => [i, adjust[p.id]])), [photos, adjust]);
-  const ctx: Ctx = useMemo(() => ({ songs: lay, album, photos: slotImgs, adjust: slotAdj, palette, titleFont: settings.titleFont, bodyFont: settings.bodyFont, minPt: settings.minFontPt }), [lay, album, slotImgs, slotAdj, palette, settings]);
+  const ctx: Ctx = useMemo(() => ({ songs: lay, album, photos: slotImgs, adjust: slotAdj, palette, titleFont: settings.titleFont, bodyFont: settings.bodyFont, minPt: settings.minFontPt, fmt }), [lay, album, slotImgs, slotAdj, palette, settings, fmt]);
   const spreads = useMemo(() => { const s: number[][] = [[1]]; for (let p = 2; p < pack; p += 2) s.push([p, p + 1]); s.push([pack]); return s; }, [pack]);
   const cur = spreads[Math.min(spread, spreads.length - 1)];
   useEffect(() => { if (spread > spreads.length - 1) setSpread(spreads.length - 1); }, [spread, spreads.length]);
@@ -181,7 +185,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
       const pages = built.pages.map((p) => renderPage(p, ctx, 110).canvas.toDataURL("image/jpeg", 0.8));
       const layThumbs: Record<string, string> = {};
       for (const l of layouts) {
-        const b = buildBooklet(l.id, pack, lay, album, seeds[l.id] ?? 1, settings.longLines);
+        const b = buildBooklet(l.id, pack, lay, album, seeds[l.id] ?? 1, rule);
         const c = document.createElement("canvas"); c.width = 240; c.height = 120;
         const x = c.getContext("2d")!;
         b.pages.filter((p) => p.no === 2 || p.no === 3).forEach((p) => x.drawImage(renderPage(p, ctx, 120).canvas, p.no === 2 ? 0 : 120, 0));
@@ -291,7 +295,8 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
       const x = c.getContext("2d")!; x.drawImage(canvases[s.left - 1], 0, 0); x.drawImage(canvases[s.right - 1], px, 0);
       files.push({ name: sideFileName(s), blob: await toBlob(c) });
     }
-    await saveZip(files, "Booklet-Lyrics-dan-trang-in.zip"); toast("Đã tải xuống");
+    files.push({ name: "HUONG-DAN-IN.txt", blob: new Blob([printGuide(pack)], { type: "text/plain;charset=utf-8" }) });
+    await saveZip(files, impositionZipName(pack)); toast("Đã tải xuống");
   });
   const dlBack = () => run(async () => { saveBlob(await backBlob(), "Bia-sau-tracklist-15x11.7cm.jpg"); toast("Đã tải xuống"); });
   const orderId = packIds[pack];
@@ -408,7 +413,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
             <div className="flex items-center gap-1.5">
               <span className="mr-1 text-[13px] text-[#52525b]">Số trang</span>
               {PACKS.map((n) => {
-                const ok = packFits(n, lay, settings.longLines);
+                const ok = packFits(n, lay, rule);
                 return (
                   <button key={n} type="button" disabled={!ok} title={ok ? `${n} trang` : `Không đủ chỗ để dàn trang cho ${songs.length} bài`} onClick={() => { setPack(n); setPackPicked(true); setSpread(0); }}
                     className={cx("h-8 min-w-[40px] rounded-full border px-3 text-[13px] font-medium", pack === n ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b]", !ok && "cursor-not-allowed opacity-40")}>{n}</button>
@@ -422,7 +427,34 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
               <button type="button" onClick={() => { setPack(minPack); setPackPicked(true); }} className="rounded-full border border-[#dc2626] px-2.5 py-0.5 text-[12px]">Đổi sang {minPack} trang</button>
             </p>
           )}
-          {!fits && !minPack && <p className="mt-2 text-[13px] font-medium text-[#dc2626]">Lyrics dài quá cho booklet 16 trang — bớt bài hoặc rút gọn lyrics.</p>}
+          {!fits && !minPack && <p className="mt-2 text-[13px] font-medium text-[#dc2626]">Lyrics dài quá cho booklet 16 trang — bớt bài, chọn cỡ chữ nhỏ hơn hoặc kiểu “Rút gọn lặp” / “Liền dòng”.</p>}
+          {/* cỡ chữ lời + kiểu lời (cả booklet) — đổi thì tính lại sức chứa */}
+          <div className="mt-3 space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[13px] text-[#52525b]">Cỡ chữ lời</span>
+              {FONT_SIZES.map((f) => <button key={f.id} type="button" onClick={() => setFmt({ ...fmt, size: f.id })} className={fchip(fmt.size === f.id)}>{f.name}</button>)}
+            </div>
+            {fmt.size === "xsmall" && <p className="text-[12px] text-[#ea7a12]">Chữ dưới 6pt có thể khó đọc khi in.</p>}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[13px] text-[#52525b]">Kiểu lời</span>
+              {LYRIC_STYLES.map(([k, t]) => <button key={k} type="button" onClick={() => setFmt({ ...fmt, style: k })} className={fchip(fmt.style === k)}>{t}</button>)}
+            </div>
+            {fmt.style !== "original" && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-[#52525b]">
+                <label className="flex items-center gap-1.5">Nhãn đoạn lặp
+                  <select value={fmt.lang} onChange={(e) => setFmt({ ...fmt, lang: e.target.value as "en" | "vi" })} className="h-7 rounded-[6px] border border-[#e5e5e7] px-1">
+                    <option value="en">English (Chorus…)</option><option value="vi">Tiếng Việt (Điệp khúc…)</option>
+                  </select>
+                </label>
+                {fmt.style === "inline" && (
+                  <>
+                    <label className="flex items-center gap-1.5"><input type="checkbox" checked={fmt.paraBreak === "newline"} onChange={(e) => setFmt({ ...fmt, paraBreak: e.target.checked ? "newline" : "slashes" })} className="accent-[#ff5fa2]" /> Xuống dòng giữa các đoạn</label>
+                    <label className="flex items-center gap-1.5"><input type="checkbox" checked={fmt.titleInline} onChange={(e) => setFmt({ ...fmt, titleInline: e.target.checked })} className="accent-[#ff5fa2]" /> Tên bài liền dòng với lời</label>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </Section>
 
         <Section title="Tracklist">
@@ -532,7 +564,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
       </aside>
      </div>
       {modal !== null && songs[modal] && (
-        <SongModal index={modal} song={songs[modal]} maxLines={settings.maxLines} defaultArtist={album.artist} onClose={() => setModal(null)}
+        <SongModal index={modal} song={songs[modal]} maxLines={settings.maxLines} defaultArtist={album.artist} lang={fmt.lang} globalStyle={fmt.style} onClose={() => setModal(null)}
           onSave={(s) => { setSongs((c) => c.map((x, i) => (i === modal ? { ...s, pending: false } : x))); setModal(null); }} />
       )}
       {importOpen && (
@@ -576,6 +608,8 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
   );
 }
 
+const LYRIC_STYLES: [LyricStyle, string][] = [["original", "Nguyên bản"], ["collapse", "Rút gọn lặp"], ["inline", "Liền dòng /"]];
+const fchip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
 const chip = "inline-flex h-8 items-center gap-1 rounded-full border border-[#e5e5e7] px-2.5 text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2] disabled:opacity-50";
 
 function Section({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
@@ -591,7 +625,7 @@ function In({ value, onChange, placeholder }: { value: string; onChange: (v: str
 }
 
 // ---------- Modal lyrics 1 bài ----------
-function SongModal({ index, song, maxLines, defaultArtist, onClose, onSave }: { index: number; song: Song; maxLines: number; defaultArtist: string; onClose: () => void; onSave: (s: Song) => void }) {
+function SongModal({ index, song, maxLines, defaultArtist, lang, globalStyle, onClose, onSave }: { index: number; song: Song; maxLines: number; defaultArtist: string; lang: "en" | "vi"; globalStyle: LyricStyle; onClose: () => void; onSave: (s: Song) => void }) {
   const [s, setS] = useState(song);
   const [agree, setAgree] = useState(!!song.lyrics.trim() && !song.pending); // lời gợi ý: vẫn phải tick cam kết
   const [err, setErr] = useState("");
@@ -633,6 +667,8 @@ function SongModal({ index, song, maxLines, defaultArtist, onClose, onSave }: { 
     setS({ ...s, lyrics: text, duration: s.duration || fmtDuration(r.duration) });
   }
   const hasLyrics = !!s.lyrics.trim() && !s.titleOnly;
+  const effStyle = s.style ?? globalStyle;
+  const groups = useMemo(() => (effStyle === "original" ? [] : repeatGroups(s.lyrics, { lang, labels: s.labels })), [effStyle, s.lyrics, s.labels, lang]);
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={onClose}>
       <div className="flex max-h-[92dvh] w-full max-w-[600px] flex-col overflow-hidden rounded-[14px] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -682,6 +718,32 @@ function SongModal({ index, song, maxLines, defaultArtist, onClose, onSave }: { 
           <label className="flex items-center gap-2 text-[13px] text-[#3f3f46]">
             <input type="checkbox" checked={s.titleOnly} onChange={(e) => setS({ ...s, titleOnly: e.target.checked })} className="h-4 w-4 accent-[#ff5fa2]" /> Chỉ in tên bài
           </label>
+          {/* kiểu lời riêng của bài + các đoạn lặp phát hiện được (chỉ đổi cách hiển thị, không sửa lời gốc) */}
+          <label className="flex items-center gap-2 text-[13px] text-[#3f3f46]">Kiểu lời
+            <select value={s.style ?? ""} onChange={(e) => setS({ ...s, style: (e.target.value || undefined) as LyricStyle | undefined })} className="h-8 rounded-[6px] border border-[#e5e5e7] px-1 text-[13px]">
+              <option value="">Theo cài đặt chung</option>
+              {LYRIC_STYLES.map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+            </select>
+          </label>
+          {groups.length > 0 && (
+            <div className="rounded-[8px] border border-[#e5e5e7] p-2">
+              <p className="mb-1 text-[12px] font-medium text-[#52525b]">Đoạn lặp phát hiện được</p>
+              <table className="w-full text-[12px]">
+                <tbody>
+                  {groups.map((g) => {
+                    const off = s.noMerge?.includes(g.key);
+                    return (
+                      <tr key={g.key} className="border-t border-[#efeff1]">
+                        <td className="py-1 pr-2"><input value={s.labels?.[g.key] ?? g.name} onChange={(e) => setS({ ...s, labels: { ...(s.labels ?? {}), [g.key]: e.target.value } })} className="h-7 w-28 rounded-[6px] border border-[#e5e5e7] px-1" aria-label="Tên nhãn" disabled={off} /></td>
+                        <td className="truncate py-1 text-[#71717a]">×{g.count} · {g.preview}</td>
+                        <td className="whitespace-nowrap py-1 pl-2"><label className="flex items-center gap-1"><input type="checkbox" checked={!!off} onChange={(e) => setS({ ...s, noMerge: e.target.checked ? [...(s.noMerge ?? []), g.key] : (s.noMerge ?? []).filter((k) => k !== g.key) })} className="accent-[#ff5fa2]" /> Không gộp đoạn này</label></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
           {hasLyrics && (
             <label className="flex items-start gap-2 text-[13px] text-[#3f3f46]">
               <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff5fa2]" />

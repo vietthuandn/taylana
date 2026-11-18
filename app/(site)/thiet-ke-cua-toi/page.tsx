@@ -6,7 +6,7 @@ export const metadata = { title: "Thiết kế của tôi", robots: { index: fal
 export default function MyDesignsPage() {
   return (
     <>
-      <PageHeader title="Thiết kế của tôi" subtitle="Các thiết kế Custom CD bạn đã lưu." />
+      <PageHeader title="Thiết kế của tôi" />
       <MyDesigns />
     </>
   );

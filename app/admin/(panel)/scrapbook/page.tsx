@@ -12,7 +12,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
   const tab = (await searchParams).tab ?? "chat-lieu";
   return (
     <AdminPage>
-      <PageHeader title="Chất liệu Scrapbook" description="Chất liệu, font chữ cắt dán và các mẫu mặt đĩa cho trang CD Scrapbook." />
+      <PageHeader title="Chất liệu Scrapbook" />
       <nav className="mb-6 inline-flex rounded-[10px] border border-[#e5e5e7] bg-white p-1">
         {TABS.map(([id, label]) => (
           <Link key={id} href={`/admin/scrapbook?tab=${id}`}

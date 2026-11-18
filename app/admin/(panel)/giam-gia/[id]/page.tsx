@@ -25,7 +25,7 @@ export default async function DiscountDetail({ params }: { params: Promise<{ id:
   return (
     <AdminPage>
       <Link href="/admin/giam-gia" className="mb-3 inline-flex items-center gap-1 text-[13px] text-[#71717a] hover:text-[#18181b]">← Danh sách giảm giá</Link>
-      <PageHeader title={isNew ? "Tạo giảm giá" : (d.data as Discount).name} description={isNew ? "Mã riêng tư hoặc chương trình toàn shop." : undefined} />
+      <PageHeader title={isNew ? "Tạo giảm giá" : (d.data as Discount).name} />
       <DiscountForm initial={{ ...(d.data as Discount), target: (d.data as Discount).target ?? "goods",
         option_ids: (d.data as Discount).option_ids?.length ? (d.data as Discount).option_ids : [...((d.data as Discount).package_ids ?? []), ...((d.data as Discount).addon_ids ?? [])] }}
         groups={pk.flatMap((p) => p.groups.map((g) => ({ id: g.id, name: pk.length > 1 ? `${p.name} · ${g.name}` : g.name, options: g.options.map((o) => ({ id: o.id, name: o.name })) })))} />

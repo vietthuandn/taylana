@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { formatDate, formatVND, statusLabels } from "@/lib/format";
 import { uploadHref } from "@/lib/uploadTools";
+import { FEATURE_UPLOAD_FILES } from "@/lib/features";
 import { normalizePhone, PHONE_ERROR } from "@/lib/phone";
 import { saveOrderCode, savedOrderCodes } from "@/lib/cart";
 import { paymentLabels, paymentTone, type PaymentStatus } from "@/lib/payment/settings";
@@ -29,7 +30,7 @@ function OrderCard({ o }: { o: OrderSummary }) {
             <span className="text-[15px] font-semibold text-[#18181b]">{o.code}</span>
             <Badge tone={paymentTone[ps]}>{paymentLabels[ps]}</Badge>
             <Badge tone={prodTone[o.status]}>{statusLabels[o.status]}</Badge>
-            <Badge tone={o.file_count ? "green" : "gray"}>{o.file_count ? "Đã gửi file" : "Chưa gửi file"}</Badge>
+            {FEATURE_UPLOAD_FILES && <Badge tone={o.file_count ? "green" : "gray"}>{o.file_count ? "Đã gửi file" : "Chưa gửi file"}</Badge>}
           </p>
           <p className="mt-1 truncate text-[13px] text-[#71717a]">
             {formatDate(o.created_at)} · {o.items.map((i) => `${i.package_name} × ${i.quantity}`).join(", ") || "—"}
@@ -56,7 +57,7 @@ function OrderCard({ o }: { o: OrderSummary }) {
           {o.amount_due != null && o.amount_due < o.total && <p className="mt-2 text-[12px] text-[#71717a]">Cần chuyển trước (đặt cọc): {formatVND(o.amount_due)}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             {canPay && <Button href={`/thanh-toan/${encodeURIComponent(o.code)}`} size="sm" icon={<CreditCard size={16} />}>Thanh toán</Button>}
-            <Button href={uploadHref(o.code)} size="sm" variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>
+            {FEATURE_UPLOAD_FILES && <Button href={uploadHref(o.code)} size="sm" variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>}
           </div>
         </div>
       )}

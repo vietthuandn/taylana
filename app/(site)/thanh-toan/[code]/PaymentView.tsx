@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Brush, Check, Clock, Copy, Download, ListOrdered, Upload } from "lucide-react";
 import { saveOrderCode } from "@/lib/cart";
 import { uploadHref } from "@/lib/uploadTools";
+import { FEATURE_UPLOAD_FILES } from "@/lib/features";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { formatVND } from "@/lib/format";
@@ -83,7 +84,7 @@ export function PaymentView({ code, settings }: { code: string; settings: Paymen
     <div className="mt-6 border-t border-[#efeff1] pt-5">
       <p className="mb-3 text-[13px] font-medium text-[#18181b]">Bước tiếp theo</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        <Button href={uploadHref(code)} variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>
+        {FEATURE_UPLOAD_FILES && <Button href={uploadHref(code)} variant="secondary" icon={<Upload size={16} />}>Gửi file in</Button>}
         <Button href="/thiet-ke/cd" variant="secondary" icon={<Brush size={16} />}>Tự thiết kế CD</Button>
         <Button href="/don-hang-cua-toi" variant="ghost" icon={<ListOrdered size={16} />} className="sm:col-span-2">Xem đơn hàng của tôi</Button>
       </div>

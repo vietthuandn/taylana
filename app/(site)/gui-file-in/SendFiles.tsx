@@ -246,7 +246,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
     );
   }
 
-  const header = <PageHeader inset={false} title="Gửi file" subtitle={orderCode ? undefined : "Chọn gói, tải ảnh vào đúng ô rồi gửi kèm link nhạc."} />;
+  const header = <PageHeader inset={false} title="Gửi file" />;
 
   // ---------- Đơn: đang tải / cần xác nhận SĐT ----------
   if (orderCode && orderState !== "ready") {

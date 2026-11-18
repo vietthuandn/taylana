@@ -95,12 +95,12 @@ export function SettingsSection({ title, description, children }: { title: strin
 }
 
 // ---------- Đầu trang ----------
-export function PageHeader({ title, description, actions }: { title: string; description?: React.ReactNode; actions?: React.ReactNode }) {
+// Tiêu đề trang admin: căn trái, không có dòng mô tả, cách nội dung bên dưới 16px
+export function PageHeader({ title, actions }: { title: string; actions?: React.ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
       <div className="min-w-0">
-        <h1 className="text-[20px] font-semibold tracking-[-0.01em] text-[#18181b]">{title}</h1>
-        {description && <p className="mt-1 max-w-2xl text-[14px] text-[#71717a]">{description}</p>}
+        <h1 className="text-left text-[20px] font-semibold tracking-[-0.01em] text-[#18181b]">{title}</h1>
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
