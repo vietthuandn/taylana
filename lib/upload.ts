@@ -48,6 +48,13 @@ export async function uploadMockupImage(file: File, folder = "frames") {
   const supabase = createClient();
   const path = `${folder}/${randomName(file)}`;
   const { error } = await supabase.storage.from("mockups").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
-  if (error) throw new Error("Tải ảnh thất bại: " + error.message);
-  return supabase.storage.from("mockups").getPublicUrl(path).data.publicUrl;
+  if (!error) return supabase.storage.from("mockups").getPublicUrl(path).data.publicUrl;
+  // Chưa có bucket "mockups" (chưa chạy migration_mockups.sql) → lưu tạm vào bucket công khai "public-assets"
+  if (/bucket not found/i.test(error.message)) {
+    const alt = `mockups/${path}`;
+    const r = await supabase.storage.from("public-assets").upload(alt, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
+    if (r.error) throw new Error("Tải ảnh thất bại: " + r.error.message);
+    return supabase.storage.from("public-assets").getPublicUrl(alt).data.publicUrl;
+  }
+  throw new Error("Tải ảnh thất bại: " + error.message);
 }
