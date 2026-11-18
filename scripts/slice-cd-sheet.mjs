@@ -7,6 +7,7 @@ import { writeFileSync } from "node:fs";
 
 const DIR = "public/mockup/system";
 const { data, info } = await sharp(`${DIR}/cd-sheet.png`).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+if (info.channels !== 4) throw new Error("cd-sheet.png cần có kênh alpha");
 const W = info.width, H = info.height, K = W / 1080; // hệ số so với bản gốc 1080px
 const A = (x, y) => data[(y * W + x) * 4 + 3];
 const L = (x, y) => { const i = (y * W + x) * 4; return (data[i] + data[i + 1] + data[i + 2]) / 3; };
@@ -81,9 +82,32 @@ const winTray = {
   y0: median([run(txL, tyTop, 0, -1), run(txR, tyTop, 0, -1)]) + 1, y1: median([run(txL, tyBot, 0, 1), run(txR, tyBot, 0, 1)]),
 };
 
+// ---------- hộp đóng: bỏ 4 mấu tròn ("bầu") ở mép trên / dưới ô bìa → viền thẳng ----------
+// dò các đoạn nhựa lồi vào ô trong suốt ngay dưới mép trên / trên mép dưới, rồi chép cột viền thẳng ở bên cạnh sang
+const clean = Buffer.from(data);
+function flattenTabs(probeY, y0, y1) {
+  let x = winA.x0 + S(2);
+  while (x < winA.x1 - S(2)) {
+    if (A(x, probeY) > 8) {
+      let e = x; while (e < winA.x1 && A(e, probeY) > 8) e++;
+      if (e - x < S(80)) { // mấu (không phải cả mép)
+        const a = x - S(4), b = e + S(4), ref = a - S(6);
+        for (let y = y0; y <= y1; y++) for (let xx = a; xx <= b; xx++) {
+          const d = (y * W + xx) * 4, r = (y * W + ref) * 4;
+          for (let c = 0; c < 4; c++) clean[d + c] = data[r + c];
+        }
+      }
+      x = e;
+    }
+    x++;
+  }
+}
+flattenTabs(winA.y0 + S(5), caseA.y0, winA.y0 + S(20));
+flattenTabs(winA.y1 - S(7), winA.y1 - S(20), caseA.y1);
+
 // ---------- xuất sprite ----------
 const src = sharp(`${DIR}/cd-sheet.png`);
-await src.clone().extract(cA).png().toFile(`${DIR}/closed.png`);
+await sharp(clean, { raw: { width: W, height: H, channels: 4 } }).extract(cA).png().toFile(`${DIR}/closed.png`);
 await src.clone().extract(cO).png().toFile(`${DIR}/open.png`);
 const dr = rOut + S(2), dSize = dr * 2;
 const mask = Buffer.from(`<svg width="${dSize}" height="${dSize}"><circle cx="${dr}" cy="${dr}" r="${rOut + 0.5}" fill="#fff"/></svg>`);
