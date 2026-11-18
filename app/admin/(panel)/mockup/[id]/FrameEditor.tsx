@@ -12,7 +12,7 @@ import { uploadMockupImage } from "@/lib/upload";
 import { loadImg, proxied } from "@/lib/mockup/images";
 import { renderFrame, sampleImage } from "@/lib/mockup/render";
 import { apply, squareToQuad } from "@/lib/mockup/homography";
-import { DEFAULT_DISC_HOLE, DISC_CM, REGION_LABELS, defaultGlass, newRegion, type GlassSettings, type MockupFrame, type Pt, type Region, type RegionType } from "@/lib/mockup/types";
+import { DEFAULT_DISC_HOLE, DISC_CM, MAX_REGIONS, REGION_LABELS, defaultGlass, newRegion, type GlassSettings, type MockupFrame, type Pt, type Region, type RegionType } from "@/lib/mockup/types";
 import { revalidatePublic } from "@/app/admin/actions";
 import { Button, Field, Input, Message, Select, Toggle } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
@@ -61,7 +61,7 @@ function detectRegions(img: HTMLImageElement): Region[] {
   found.sort((p, q) => q.area - p.area);
   const order: RegionType[] = ["front_out", "back_out", "front_in", "back_in"];
   let oi = 0;
-  return found.slice(0, 5).map((f, i) => {
+  return found.slice(0, MAX_REGIONS).map((f, i) => {
     const disc = f.fill > 0.66 && f.fill < 0.86 && f.aspect > 0.5 && f.aspect < 2;
     const r = newRegion(disc ? "disc" : order[oi++ % order.length], i + 1);
     r.pts = f.quad;
@@ -290,10 +290,10 @@ export function FrameEditor({ id }: { id: string }) {
           <section className="space-y-2">
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" size="sm" icon={<ScanSearch size={16} />} onClick={autoDetect} disabled={!img}>Tự nhận diện vùng</Button>
-              <Button variant="secondary" size="sm" icon={<Plus size={16} />} disabled={f.regions.length >= 5}
+              <Button variant="secondary" size="sm" icon={<Plus size={16} />} disabled={f.regions.length >= MAX_REGIONS}
                 onClick={() => { const r = newRegion(TYPES[f.regions.length % TYPES.length], f.regions.length + 1); setF({ ...f, regions: [...f.regions, r] }); setSel(r.id); }}>Thêm vùng</Button>
             </div>
-            <p className="text-[12px] text-[#71717a]">Tối đa 5 vùng. Kéo 4 góc để chỉnh, kéo bên trong vùng để di chuyển cả vùng; phím mũi tên dịch góc đang chọn 1px (Shift: 10px).</p>
+            <p className="text-[12px] text-[#71717a]">Tối đa {MAX_REGIONS} vùng. Kéo 4 góc để chỉnh, kéo bên trong vùng để di chuyển cả vùng; phím mũi tên dịch góc đang chọn 1px (Shift: 10px).</p>
             <ul className="space-y-1">
               {f.regions.map((r) => (
                 <li key={r.id}>
@@ -315,7 +315,7 @@ export function FrameEditor({ id }: { id: string }) {
                 </Select>
               </Field>
               <div className="grid grid-cols-2 gap-2">
-                <Field label="Thứ tự lớp"><Input type="number" min={1} max={9} value={cur.order} onChange={(e) => setRegion(cur.id, { order: Number(e.target.value) })} /></Field>
+                <Field label="Thứ tự lớp"><Input type="number" min={1} max={MAX_REGIONS * 2} value={cur.order} onChange={(e) => setRegion(cur.id, { order: Number(e.target.value) })} /></Field>
                 <Field label="Hoà trộn">
                   <Select value={cur.blend} onChange={(e) => setRegion(cur.id, { blend: e.target.value as Region["blend"] })}>
                     <option value="normal">Thường</option><option value="multiply">Multiply</option>

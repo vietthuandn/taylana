@@ -24,6 +24,9 @@ export type MockupFrame = {
 export type MockupBackground = { id: string; name: string; url: string; is_active: boolean; sort_order: number };
 export type MockupSettings = { watermark: boolean };
 
+// Số vùng chèn ảnh tối đa trong 1 mẫu khung
+export const MAX_REGIONS = 10;
+
 // Lỗ giữa đĩa mặc định: đường kính 2,3 cm trên đĩa 12 cm
 export const DISC_HOLE_CM = 2.3;
 export const DISC_CM = 12;
