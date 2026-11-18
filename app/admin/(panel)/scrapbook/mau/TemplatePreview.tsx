@@ -6,33 +6,19 @@ import "@fontsource/dancing-script/700.css";
 import "@fontsource/patrick-hand/400.css";
 import "@fontsource/pangolin/400.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Dices } from "lucide-react";
+import { Dices, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { revalidatePublic } from "@/app/admin/actions";
 import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { generate } from "@/lib/scrapbook/generate";
 import { loadFonts, renderDisc } from "@/lib/scrapbook/render";
 import { settingOf } from "@/lib/scrapbook/templates";
+import { samplePhotos } from "@/lib/scrapbook/samples";
 import { MAX_PHOTOS, MIN_PHOTOS, STYLES, type ScrapAsset, type Style, type TemplateSetting } from "@/lib/scrapbook/types";
 import { Badge, Button, Card, Message, Toggle } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
 
 type Msg = { type: "ok" | "err"; text: string } | null;
-
-// ảnh thử: dải màu có số để nhận ra ô nào là ảnh nào
-function samplePhotos() {
-  const hues = [340, 20, 45, 150, 200, 260, 300, 100, 180, 0];
-  return hues.map((h, i) => {
-    const c = document.createElement("canvas"); c.width = 600; c.height = 480;
-    const x = c.getContext("2d")!;
-    const g = x.createLinearGradient(0, 0, 600, 480);
-    g.addColorStop(0, `hsl(${h} 70% 78%)`); g.addColorStop(1, `hsl(${(h + 40) % 360} 65% 58%)`);
-    x.fillStyle = g; x.fillRect(0, 0, 600, 480);
-    x.fillStyle = "rgba(255,255,255,0.35)"; x.beginPath(); x.arc(420, 140, 90, 0, Math.PI * 2); x.fill();
-    x.fillStyle = "#ffffff"; x.font = "700 200px Inter, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText(String(i + 1), 300, 260);
-    return c;
-  });
-}
 
 export function TemplatePreview() {
   const [n, setN] = useState(MIN_PHOTOS);
@@ -62,7 +48,7 @@ export function TemplatePreview() {
     if (!ready) return;
     const out: Record<string, string> = {};
     for (const s of rows) {
-      const t = generate(n, s.style, s.seed, assets);
+      const t = s.template ? { ...s.template, n, style: s.style } : generate(n, s.style, s.seed, assets);
       out[s.style] = renderDisc({ template: t, photos, text: { main: "Happy Birthday", sub: "Taylana · 2026" }, assets: imgs, size: 420, guides: true }).canvas.toDataURL("image/png");
     }
     setThumbs(out);
@@ -70,7 +56,7 @@ export function TemplatePreview() {
 
   async function save(style: Style, v: Partial<TemplateSetting>, text: string) {
     const cur = settingOf(settings, n, style);
-    const row = { n, style, seed: v.seed ?? cur.seed, is_active: v.is_active ?? cur.is_active, updated_at: new Date().toISOString() };
+    const row = { n, style, seed: v.seed ?? cur.seed, is_active: v.is_active ?? cur.is_active, template: cur.template ?? null, updated_at: new Date().toISOString() };
     const { error } = await createClient().from("scrapbook_template_settings").upsert(row);
     if (error) return setMsg({ type: "err", text: error.message });
     setSettings((list) => [...list.filter((x) => !(x.n === n && x.style === style)), row]);
@@ -88,9 +74,9 @@ export function TemplatePreview() {
           ))}
         </div>
       </Card>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{/* nhãn "Đã chỉnh" = mẫu admin sửa tay, đè lên mẫu tạo bằng code */}
         {rows.map((s) => (
-          <Card key={s.style} title={STYLES.find((x) => x.id === s.style)?.name} actions={s.is_active ? <Badge tone="green">Đang hiện</Badge> : <Badge>Đang ẩn</Badge>}>
+          <Card key={s.style} title={STYLES.find((x) => x.id === s.style)?.name} actions={<div className="flex gap-1">{s.template && <Badge tone="pink">Đã chỉnh</Badge>}{s.is_active ? <Badge tone="green">Đang hiện</Badge> : <Badge>Đang ẩn</Badge>}</div>}>
             <div className={cx("mx-auto aspect-square w-full max-w-[300px]", !s.is_active && "opacity-40")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {thumbs[s.style] ? <img src={thumbs[s.style]} alt="" className="h-full w-full" /> : <div className="h-full w-full animate-pulse rounded-full bg-[#f4f4f5]" />}
@@ -98,7 +84,8 @@ export function TemplatePreview() {
             <div className="mt-3 flex items-center justify-between gap-2">
               <span className="text-[12px] tabular-nums text-[#71717a]">Seed {s.seed}</span>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="secondary" icon={<Dices size={14} />} onClick={() => save(s.style, { seed: Math.floor(Math.random() * 1e6) }, "Đã đổi seed.")}>Đổi seed</Button>
+                <Button size="sm" variant="secondary" href={`/admin/scrapbook/mau/sua?n=${n}&style=${s.style}`} icon={<Pencil size={14} />}>Sửa mẫu</Button>
+                <Button size="sm" variant="secondary" icon={<Dices size={14} />} disabled={!!s.template} title={s.template ? "Mẫu đã chỉnh tay — khôi phục mẫu gốc trong trình sửa để đổi seed" : undefined} onClick={() => save(s.style, { seed: Math.floor(Math.random() * 1e6) }, "Đã đổi seed.")}>Đổi seed</Button>
                 <Toggle checked={s.is_active} onChange={(v) => save(s.style, { is_active: v }, v ? "Đã hiện mẫu với khách." : "Đã ẩn mẫu.")} label="" />
               </div>
             </div>

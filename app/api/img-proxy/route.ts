@@ -1,9 +1,9 @@
 // Tải hộ ảnh từ link ngoài (khung / mặt nạ / nền mockup) để canvas xuất được file (tránh lỗi CORS).
-// CHỈ cho phép link admin đã lưu trong database (hoặc admin đang đăng nhập — để soạn mẫu), tối đa 10MB, chỉ image/*.
+// CHỈ cho phép link admin đã lưu trong database (hoặc admin đang đăng nhập — để soạn mẫu), tối đa 15MB, chỉ image/*.
 import { createClient } from "@/lib/supabase/server";
 import { publicClient } from "@/lib/supabase/public";
 
-const MAX = 10 * 1024 * 1024;
+const MAX = 15 * 1024 * 1024; // 15MB (tách tờ sticker ở admin)
 const bad = (msg: string, status = 400) => Response.json({ error: msg }, { status });
 
 async function isAdmin() {
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
   if (!res.ok) return bad(`Không tải được ảnh (${res.status})`, 502);
   const type = res.headers.get("content-type") ?? "";
   if (!type.startsWith("image/")) return bad("Link không phải ảnh", 415);
-  if (Number(res.headers.get("content-length") ?? 0) > MAX) return bad("Ảnh lớn hơn 10MB", 413);
+  if (Number(res.headers.get("content-length") ?? 0) > MAX) return bad("Ảnh lớn hơn 15MB", 413);
 
   // đọc có giới hạn 10MB
   const reader = res.body?.getReader();
@@ -43,7 +43,7 @@ export async function GET(req: Request) {
     const { done, value } = await reader.read();
     if (done) break;
     size += value.length;
-    if (size > MAX) { reader.cancel(); return bad("Ảnh lớn hơn 10MB", 413); }
+    if (size > MAX) { reader.cancel(); return bad("Ảnh lớn hơn 15MB", 413); }
     chunks.push(value);
   }
   return new Response(new Blob(chunks as BlobPart[], { type }), {

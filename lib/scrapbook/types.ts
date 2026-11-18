@@ -46,7 +46,7 @@ export type Rect01 = { x0: number; y0: number; x1: number; y1: number };
 export type ScrapAsset = {
   id: string; name: string; grp: AssetGroup; url: string; tone: string; region: Rect01 | null; is_active: boolean; sort_order: number;
 };
-export type TemplateSetting = { n: number; style: Style; seed: number; is_active: boolean };
+export type TemplateSetting = { n: number; style: Style; seed: number; is_active: boolean; template?: Template | null }; // template: mẫu admin chỉnh tay (đè lên mẫu tạo bằng code)
 
 // ---------- cấu hình 1 mẫu (danh sách lớp) ----------
 export type PhotoShape = "rect" | "polaroid" | "torn" | "circle" | "heart" | "frame";

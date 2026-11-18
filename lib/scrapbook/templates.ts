@@ -10,5 +10,6 @@ export function settingOf(settings: TemplateSetting[], n: number, style: Style):
 export function templatesFor(n: number, settings: TemplateSetting[], assets: ScrapAsset[], override: Partial<Record<Style, number>> = {}, all = false): Template[] {
   return STYLES.map((s) => settingOf(settings, n, s.id))
     .filter((s) => all || s.is_active)
-    .map((s) => generate(n, s.style, override[s.style] ?? s.seed, assets));
+    // mẫu admin đã chỉnh tay → dùng luôn (trừ khi khách bấm "Xáo trộn" cho phong cách đó)
+    .map((s) => (s.template && override[s.style] === undefined ? { ...s.template, id: `${n}-${s.style}`, n, style: s.style } : generate(n, s.style, override[s.style] ?? s.seed, assets)));
 }

@@ -41,4 +41,4 @@ export const activeAdminLink = (path: string) =>
   adminLinks.filter((l) => (l.href === "/admin" ? path === "/admin" : path.startsWith(l.href))).at(-1);
 
 // Trang cần workspace lớn (full màn hình, không padding)
-export const isWorkspacePath = (path: string) => path.startsWith("/admin/mau-cd") || path.startsWith("/admin/photostrip") || /^\/admin\/mockup\/.+/.test(path);
+export const isWorkspacePath = (path: string) => path.startsWith("/admin/mau-cd") || path.startsWith("/admin/photostrip") || /^\/admin\/mockup\/.+/.test(path) || path.startsWith("/admin/scrapbook/mau/sua");
