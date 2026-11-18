@@ -20,6 +20,7 @@ import { SpineEditor, dirOf, emptySide, sideHasContent, type SpineSide, type Spi
 import { TemplateThumb } from "@/components/designer/TemplateThumb";
 import { downloadBlob, type DesignFile } from "@/components/designer/OrderDialog";
 import { CD_SLUG } from "@/lib/catalog";
+import { saveHandoff, slotOfDesign } from "@/lib/mockup/handoff";
 import { useSize } from "@/components/designer/useSize";
 import { AuthDialog } from "@/components/site/AuthDialog";
 
@@ -357,6 +358,16 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
     } catch (e) { setMsg(e instanceof Error ? e.message : "Lỗi xuất file"); }
     setBusy(false);
   }
+  // Mở trang Xem Mockup với ảnh các trang đang thiết kế (qua bộ nhớ tạm trong trình duyệt, không upload)
+  async function openMockup() {
+    setBusy(true); setMsg("Đang chuẩn bị mockup...");
+    try {
+      const map: Record<string, Blob> = {};
+      for (const p of pages) { const f = await exportPage(p); if (f) map[slotOfDesign(f.kind, f.page ?? null)] = new File([f.blob], f.name, { type: "image/png" }); }
+      await saveHandoff(pkg ? pkgId : null, map);
+      window.location.href = "/thiet-ke/mockup";
+    } catch (e) { setMsg(e instanceof Error ? e.message : "Không mở được mockup"); setBusy(false); }
+  }
   async function downloadAll() {
     setBusy(true); setMsg("Đang đóng gói...");
     try {
@@ -666,6 +677,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                 <div className="absolute bottom-12 left-0 z-50 w-48 rounded-[8px] border border-[#e5e5e7] bg-white p-1 shadow-[0_8px_24px_rgba(20,20,20,.14)]">
                   <button className="block h-8 w-full rounded-[6px] px-2 text-left hover:bg-[#f4f4f5]" onClick={() => { setDlOpen(false); downloadThis(); }}>Tải trang này</button>
                   <button className="block h-8 w-full rounded-[6px] px-2 text-left hover:bg-[#f4f4f5]" onClick={() => { setDlOpen(false); downloadAll(); }}>Tải tất cả (.zip)</button>
+                  <button className="block h-8 w-full rounded-[6px] px-2 text-left hover:bg-[#f4f4f5]" onClick={() => { setDlOpen(false); openMockup(); }}>Xem mockup</button>
                 </div>
               )}
             </div>

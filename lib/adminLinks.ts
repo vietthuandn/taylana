@@ -20,6 +20,7 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
   { title: "Thiết kế", links: [
     { href: "/admin/mau-cd", label: "Mẫu Custom CD", icon: "disc", group: "Thiết kế" },
     { href: "/admin/photostrip", label: "Khung Photostrip", icon: "strip", group: "Thiết kế" },
+    { href: "/admin/mockup", label: "Mẫu mockup", icon: "frame", group: "Thiết kế" },
   ] },
   { title: "Công cụ", links: [
     { href: "/admin/cong-cu/dan-trang", label: "Dàn trang booklet", icon: "book2", group: "Công cụ" },
@@ -38,4 +39,4 @@ export const activeAdminLink = (path: string) =>
   adminLinks.filter((l) => (l.href === "/admin" ? path === "/admin" : path.startsWith(l.href))).at(-1);
 
 // Trang cần workspace lớn (full màn hình, không padding)
-export const isWorkspacePath = (path: string) => path.startsWith("/admin/mau-cd") || path.startsWith("/admin/photostrip");
+export const isWorkspacePath = (path: string) => path.startsWith("/admin/mau-cd") || path.startsWith("/admin/photostrip") || /^\/admin\/mockup\/.+/.test(path);

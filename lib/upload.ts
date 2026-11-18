@@ -40,3 +40,14 @@ export async function removePublicImage(url: string | null | undefined) {
   const path = publicPathFromUrl(url);
   if (path) await createClient().storage.from("public-assets").remove([path]);
 }
+
+// Tải ảnh khung / mặt nạ mockup lên bucket công khai "mockups" (chỉ admin)
+export async function uploadMockupImage(file: File, folder = "frames") {
+  if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Chỉ nhận ảnh PNG, JPG hoặc WEBP");
+  if (file.size > 15 * 1024 * 1024) throw new Error("Ảnh tối đa 15MB");
+  const supabase = createClient();
+  const path = `${folder}/${randomName(file)}`;
+  const { error } = await supabase.storage.from("mockups").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
+  if (error) throw new Error("Tải ảnh thất bại: " + error.message);
+  return supabase.storage.from("mockups").getPublicUrl(path).data.publicUrl;
+}

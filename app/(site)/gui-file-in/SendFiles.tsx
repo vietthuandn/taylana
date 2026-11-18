@@ -8,65 +8,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
-import { SPECS, type PrintSpec } from "@/lib/print";
 import { uploadHref } from "@/lib/uploadTools";
-import { checkImage, validateFile, type CheckResult } from "@/lib/imageCheck";
 import { randomName } from "@/lib/upload";
-import { matchFileName, type PackLayout } from "@/lib/matchFileName";
-import { PrintArea } from "@/components/mockup/Mockups";
+import type { PackLayout } from "@/lib/matchFileName";
+import { CdUploadPanel } from "@/components/cd/CdUploadPanel";
+import { saveHandoff } from "@/lib/mockup/handoff";
+import { PINK, describeLayout, describePkg, layoutOf, readPicked, slotsOf, type Picked, type SlotDef } from "@/components/cd/cdSlots";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { btnClass, inputClass } from "@/components/ui/styles";
 import type { Package } from "@/lib/types";
-import { Check, Disc3, FileCheck2 } from "lucide-react";
+import { Check, Disc3, Eye } from "lucide-react";
 import { normalizePhone, PHONE_ERROR } from "@/lib/phone";
 import { saveOrderCode, savedOrderCodes } from "@/lib/cart";
 import type { OrderSummary } from "@/lib/myOrders";
-
-const PINK = "#ff5fa2";
-const ACCEPT = "image/jpeg,image/png,application/pdf";
-
-type SlotDef = { id: string; group: "front" | "back" | "disc"; label: string; full: string; spec: PrintSpec; kind: string; page: number | null };
-type Picked = { file: File; preview: string | null; check?: CheckResult; error?: string };
-
-// Bố cục theo gói (dùng chung preset với Custom CD)
-function layoutOf(pk: Package): PackLayout {
-  if (pk.front_pages == null && pk.back_pages == null) return { front: 1, back: 1, disc: pk.has_disc !== false };
-  return { front: pk.front_pages ?? 0, back: pk.back_pages ?? 0, disc: pk.has_disc !== false };
-}
-const describePkg = (pk: Package) => describeLayout(layoutOf(pk));
-const describeLayout = (l: PackLayout) => {
-  return [
-    l.front ? (l.front >= 4 ? `Booklet ${l.front} trang` : `Bìa trước ${l.front} mặt`) : "",
-    l.back ? `Bìa sau ${l.back} mặt` : "",
-    l.disc ? "Mặt đĩa" : "",
-  ].filter(Boolean).join(" · ");
-};
-function slotsOf(l: PackLayout): SlotDef[] {
-  const out: SlotDef[] = [];
-  const booklet = l.front >= 4;
-  for (let i = 1; i <= l.front; i++) {
-    const label = booklet ? String(i) : i === 1 ? "Mặt Ngoài" : "Mặt Trong";
-    out.push({ id: `f${i}`, group: "front", label, full: `Bìa trước - ${booklet ? `Trang ${i}` : label}`,
-      spec: booklet ? SPECS.booklet : SPECS.front, kind: booklet ? "booklet" : "front", page: l.front > 1 ? i : null });
-  }
-  for (let i = 1; i <= l.back; i++) {
-    const label = i === 1 ? "Mặt Ngoài" : "Mặt Trong";
-    out.push({ id: `b${i}`, group: "back", label, full: `Bìa sau - ${label}`, spec: SPECS.back, kind: "back", page: l.back > 1 ? i : null });
-  }
-  if (l.disc) out.push({ id: "d", group: "disc", label: "Mặt đĩa", full: "Mặt đĩa", spec: SPECS.disc, kind: "disc", page: null });
-  return out;
-}
-
-async function readPicked(file: File, spec: PrintSpec): Promise<Picked> {
-  const invalid = validateFile(file);
-  if (invalid) return { file, preview: null, error: invalid };
-  const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
-  try {
-    return { file, preview, check: await checkImage(file, spec) };
-  } catch {
-    return { file, preview, error: "Không đọc được ảnh, file có thể bị lỗi." };
-  }
-}
 
 // ---------- Đơn hàng (từ RPC order_upload_info) ----------
 type UpFile = { id: string; kind: string; page: number | null; order_item_id: string | null; copy_no: number; file_name: string; mime_type: string; storage_path: string; created_at: string };
@@ -92,7 +46,6 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
   const [step, setStep] = useState<1 | 2>(1);
   const [allFiles, setAllFiles] = useState<Record<string, Record<string, Picked>>>({});
   const [pendingPkg, setPendingPkg] = useState<{ pk: Package; lost: SlotDef[] } | null>(null);
-  const [multiOpen, setMultiOpen] = useState(false);
   const [link, setLink] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -400,34 +353,18 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
 
           {step === 1 ? (
             <section className="mt-6">
-              {!readOnly && (
-                <>
-                  <p className="text-[13px] text-[#71717a]">
-                    Bạn chưa có ảnh? <Link href="/huong-dan" className="font-semibold underline" style={{ color: PINK }}>Nhấn vào đây</Link> để được hướng dẫn
-                  </p>
-                  <button className={`${btnClass("secondary")} mt-3`} onClick={() => setMultiOpen(true)}>⇪ Tải nhiều ảnh</button>
-                </>
+              {Object.values(files).some((p) => !p.error && p.preview) && (
+                <button type="button" className={`${btnClass("secondary", "sm")} mb-3`}
+                  onClick={async () => {
+                    const map: Record<string, File> = {};
+                    for (const [k, p] of Object.entries(files)) if (!p.error) map[k] = p.file;
+                    await saveHandoff(order ? line?.package_id ?? null : pkg?.id ?? null, map);
+                    window.location.href = "/thiet-ke/mockup";
+                  }}><Eye size={16} /> Xem mockup</button>
               )}
-
-              {(["front", "back", "disc"] as const).map((g) => {
-                const list = slots.filter((s) => s.group === g);
-                if (!list.length) return null;
-                return (
-                  <div key={g} className="mt-7">
-                    <p className="mb-3 text-[16px] font-semibold">{g === "front" ? "Bìa trước" : g === "back" ? "Bìa sau" : "Mặt đĩa"}
-                      <span className="ml-2 text-[12px] font-normal text-[#71717a]">{g === "front" ? "12 × 12 cm" : g === "back" ? "15 × 11.7 cm" : "Tròn 12 cm"}</span>
-                    </p>
-                    <div className={`grid gap-4 ${g === "back" ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"}`}>
-                      {list.map((s) => {
-                        const ex = existing[s.id];
-                        return <SlotTile key={s.id} slot={s} picked={files[s.id]} readOnly={readOnly}
-                          existing={ex ? { name: ex.file_name, url: previews[ex.storage_path] ?? null, pdf: ex.mime_type === "application/pdf" } : undefined}
-                          onFile={(f) => pickFor(s, f)} onRemove={() => setSlot(s.id, null)} />;
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+              <CdUploadPanel slots={slots} layout={layout!} files={files} readOnly={readOnly}
+                existing={Object.fromEntries(Object.entries(existing).map(([k, ex]) => [k, { name: ex.file_name, url: previews[ex.storage_path] ?? null, pdf: ex.mime_type === "application/pdf" }]))}
+                onPick={(s, f) => pickFor(s, f)} onRemove={(s) => setSlot(s.id, null)} />
 
               {!readOnly && (
                 <button className="mt-8 h-11 w-full rounded-[10px] text-[15px] font-semibold text-white sm:w-auto sm:px-10"
@@ -497,16 +434,6 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
         )
       )}
 
-      {multiOpen && layout && (
-        <MultiUpload slots={slots} layout={layout} onCancel={() => setMultiOpen(false)}
-          onConfirm={async (rows) => {
-            setMultiOpen(false);
-            for (const r of rows) {
-              const s = slots.find((x) => x.id === r.slot);
-              if (s) await pickFor(s, r.file);
-            }
-          }} />
-      )}
     </div>
   );
 }
@@ -552,171 +479,6 @@ function PackageCards({ packages, current, onPick }: { packages: Package[]; curr
           </span>
         </button>
       ))}
-    </div>
-  );
-}
-
-// ---------- 1 ô ảnh ----------
-function SlotTile({ slot, picked, existing, readOnly, onFile, onRemove }: {
-  slot: SlotDef; picked?: Picked; existing?: { name: string; url: string | null; pdf: boolean }; readOnly?: boolean;
-  onFile: (f: File) => void; onRemove: () => void;
-}) {
-  const input = useRef<HTMLInputElement>(null);
-  const [over, setOver] = useState(false);
-  const isDisc = slot.group === "disc";
-  const has = !!picked && !picked.error;
-  // file đã gửi trước đó (chưa chọn file mới thay thế)
-  if (!has && existing) {
-    return (
-      <div id={`slot-${slot.id}`} className="scroll-mt-24">
-        <p className="mb-1.5 flex items-center gap-1 text-[13px] font-medium">{slot.label} <Check size={13} className="text-[#16a34a]" /></p>
-        <div className={`group relative ${isDisc ? "rounded-full" : "rounded-[8px]"}`} style={{ aspectRatio: `${slot.spec.w} / ${slot.spec.h}` }}
-          onDragOver={(e) => { if (!readOnly) { e.preventDefault(); setOver(true); } }} onDragLeave={() => setOver(false)}
-          onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f && !readOnly) onFile(f); }}>
-          <div className={`absolute inset-0 overflow-hidden ${isDisc ? "rounded-full" : "rounded-[8px] shadow-[0_4px_12px_rgb(0_0_0/0.12)]"} ${over ? "ring-2 ring-[#ff5fa2]" : ""}`}>
-            {existing.url ? <PrintArea spec={slot.spec} src={existing.url} isPdf={existing.pdf} bg="#f7f7f8" /> : (
-              <div className="grid h-full place-items-center bg-[#ecfdf3] p-3 text-center text-[12px] text-[#15803d]">
-                <span><FileCheck2 size={22} className="mx-auto mb-1" />Đã gửi<br /><span className="break-all text-[11px] text-[#3f3f46]">{existing.name}</span></span>
-              </div>
-            )}
-          </div>
-          {!readOnly && (
-            <button type="button" onClick={() => input.current?.click()} aria-label="Thay file" className="absolute inset-0 grid place-items-center">
-              <span className="rounded-[8px] bg-white/95 px-2.5 py-1 text-[12px] font-medium text-[#18181b] opacity-0 shadow transition-opacity group-hover:opacity-100">Thay file</span>
-            </button>
-          )}
-          <input ref={input} type="file" accept={ACCEPT} className="sr-only" tabIndex={-1}
-            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
-        </div>
-        <p className="mt-1 truncate text-[11px] text-[#71717a]" title={existing.name}>{existing.name}</p>
-      </div>
-    );
-  }
-  const warn = picked?.error ? [picked.error] : picked?.check && picked.check.level !== "ok" ? picked.check.messages : [];
-  const open = () => input.current?.click();
-
-  return (
-    <div id={`slot-${slot.id}`} className="scroll-mt-24">
-      <p className="mb-1.5 text-[13px] font-medium">{slot.label}</p>
-      <div
-        className={`group relative ${isDisc ? "rounded-full" : "rounded-[8px]"} ${over ? "ring-2 ring-[#ff5fa2]" : ""}`}
-        style={{ aspectRatio: `${slot.spec.w} / ${slot.spec.h}` }}
-        onDragOver={(e) => { e.preventDefault(); setOver(true); }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}>
-        {has ? (
-          <>
-            <div className={`absolute inset-0 overflow-hidden ${isDisc ? "rounded-full" : "rounded-[8px] shadow-[0_4px_12px_rgb(0_0_0/0.12)]"}`}>
-              <PrintArea spec={slot.spec} src={picked!.preview} isPdf={picked!.file.type === "application/pdf"} bg="#f7f7f8" />
-            </div>
-            <button type="button" onClick={open} aria-label="Đổi ảnh"
-              className="absolute inset-0 grid place-items-center">
-              <span className="grid h-10 w-10 place-items-center rounded-full bg-white text-ink-900 opacity-35 shadow transition-opacity group-hover:opacity-100">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 12a9 9 0 0 1 15.5-6.2L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16" /><path d="M3 21v-5h5" />
-                </svg>
-              </span>
-            </button>
-            <button type="button" onClick={onRemove} aria-label="Xoá ảnh"
-              className={`absolute grid h-6 w-6 place-items-center rounded-full bg-ink-900/75 text-[15px] leading-none text-white hover:bg-ink-900 ${isDisc ? "right-[8%] top-[8%]" : "right-1.5 top-1.5"}`}>×</button>
-          </>
-        ) : (
-          <div className={`absolute inset-0 grid place-items-center border-2 border-dashed border-[#d4d4d8] bg-[#f4f4f5] ${isDisc ? "rounded-full" : "rounded-[8px]"}`}>
-            {isDisc && <span className="absolute left-1/2 top-1/2 h-[12.5%] w-[12.5%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-dashed border-[#d4d4d8] bg-[#f7f7f8]" />}
-            <button type="button" onClick={open} className={`${btnClass("secondary", "sm")} ${isDisc ? "relative mt-[45%]" : ""}`}>⇪ Tải lên</button>
-          </div>
-        )}
-        <input ref={input} type="file" accept={ACCEPT} className="sr-only" tabIndex={-1}
-          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onFile(f); }} />
-      </div>
-      {warn.map((m) => <p key={m} className="mt-1 text-[11px] leading-snug text-[#ea7a12]">⚠ {m}</p>)}
-    </div>
-  );
-}
-
-// ---------- Modal tải nhiều ảnh ----------
-type Row = { file: File; slot: string; auto: string | null; dup: boolean };
-function MultiUpload({ slots, layout, onCancel, onConfirm }: {
-  slots: SlotDef[]; layout: PackLayout; onCancel: () => void; onConfirm: (rows: Row[]) => void;
-}) {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [over, setOver] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
-
-  function add(list: FileList | null) {
-    if (!list) return;
-    setRows((cur) => {
-      const taken = new Set(cur.map((r) => r.slot).filter(Boolean));
-      const next = [...cur];
-      for (const file of Array.from(list)) {
-        const auto = matchFileName(file.name, layout);
-        const dup = !!auto && taken.has(auto);
-        if (auto && !dup) taken.add(auto);
-        next.push({ file, auto, dup, slot: auto && !dup ? auto : "" });
-      }
-      return next;
-    });
-  }
-  const count = (id: string) => rows.filter((r) => r.slot === id).length;
-
-  return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-ink-900/50 p-4" role="dialog" aria-modal>
-      <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-[14px] bg-white font-sans text-[14px] shadow-xl">
-        <div className="border-b border-[#ecebe7] px-5 py-3">
-          <p className="text-[16px] font-semibold">Tải nhiều ảnh</p>
-          <p className="text-[12px] text-[#71717a]">Đặt tên file như “bia truoc”, “bia sau trong”, “cd”, “trang 2”... để tự xếp vào đúng ô.</p>
-        </div>
-        <div className="flex-1 overflow-auto p-5">
-          <div
-            onClick={() => input.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); setOver(true); }}
-            onDragLeave={() => setOver(false)}
-            onDrop={(e) => { e.preventDefault(); setOver(false); add(e.dataTransfer.files); }}
-            className={`grid cursor-pointer place-items-center rounded-[10px] border-2 border-dashed px-4 py-8 text-center ${over ? "border-[#ff5fa2] bg-[#fff0f6]" : "border-[#cfcac2] bg-[#f6f4f0]"}`}>
-            <p className="font-medium">Kéo thả ảnh vào đây</p>
-            <p className="text-[12px] text-[#71717a]">hoặc bấm để chọn nhiều file (JPG, PNG, PDF ≤ 30MB)</p>
-          </div>
-          <input ref={input} type="file" multiple accept={ACCEPT} className="sr-only"
-            onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
-
-          {rows.length > 0 && (
-            <table className="mt-4 w-full text-[13px]">
-              <thead>
-                <tr className="text-left text-[12px] text-[#71717a]"><th className="py-1.5 font-medium">Tên file</th><th className="py-1.5 font-medium">Xếp vào ô</th><th /></tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => {
-                  const warn = !r.slot || count(r.slot) > 1;
-                  return (
-                    <tr key={i} className={`border-t border-[#ecebe7] ${warn ? "bg-[#fff6d6]" : ""}`}>
-                      <td className="max-w-[200px] truncate px-1.5 py-1.5" title={r.file.name}>
-                        {r.file.name}
-                        {warn && <span className="block text-[11px] text-[#a16207]">{r.dup && !r.slot ? "Trùng ô, chọn lại" : !r.slot ? "Không nhận ra, chọn ô" : "Trùng ô"}</span>}
-                      </td>
-                      <td className="px-1.5 py-1.5">
-                        <select className={inputClass} value={r.slot}
-                          onChange={(e) => setRows((cur) => cur.map((x, j) => (j === i ? { ...x, slot: e.target.value } : x)))}>
-                          <option value="">— Bỏ qua —</option>
-                          {slots.map((s) => <option key={s.id} value={s.id}>{s.full}</option>)}
-                        </select>
-                      </td>
-                      <td className="w-8 text-right">
-                        <button className="text-[16px] text-[#71717a] hover:text-ink-900" aria-label="Bỏ file"
-                          onClick={() => setRows((cur) => cur.filter((_, j) => j !== i))}>×</button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-        <div className="flex justify-end gap-2 border-t border-[#ecebe7] px-5 py-3">
-          <button className={`${btnClass("secondary")}`} onClick={onCancel}>Huỷ</button>
-          <button className="h-9 rounded-[8px] px-5 text-[14px] font-semibold text-white disabled:opacity-45" style={{ background: PINK }}
-            disabled={!rows.some((r) => r.slot)} onClick={() => onConfirm(rows.filter((r) => r.slot))}>Xác nhận</button>
-        </div>
-      </div>
     </div>
   );
 }

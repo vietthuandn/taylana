@@ -1,0 +1,158 @@
+"use client";
+
+/* Admin → Mẫu mockup: 4a Khung CD (tối đa 5) · 4b Nền của tiệm (chỉ link) · watermark. */
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { proxied } from "@/lib/mockup/images";
+import type { MockupBackground, MockupFrame } from "@/lib/mockup/types";
+import { revalidatePublic } from "@/app/admin/actions";
+import { Badge, Button, Card, EmptyState, Field, Input, Message, Toggle, confirmDialog } from "@/components/admin/ui";
+import { btnClass, cx } from "@/components/admin/styles";
+
+type Msg = { type: "ok" | "err"; text: string } | null;
+const PATHS = ["/thiet-ke/mockup"];
+
+// Kéo thả sắp xếp, lưu sort_order
+function useSortable<T extends { id: string; sort_order: number }>(table: string, onDone: () => void) {
+  const [drag, setDrag] = useState<number | null>(null);
+  const drop = async (list: T[], to: number, set: (l: T[]) => void) => {
+    if (drag === null || drag === to) return;
+    const next = [...list];
+    const [x] = next.splice(drag, 1);
+    next.splice(to, 0, x);
+    set(next);
+    const sb = createClient();
+    await Promise.all(next.map((r, i) => (r.sort_order === i + 1 ? null : sb.from(table).update({ sort_order: i + 1 }).eq("id", r.id))));
+    onDone();
+  };
+  return { drag, setDrag, drop };
+}
+
+export function MockupAdmin() {
+  const [frames, setFrames] = useState<MockupFrame[]>([]);
+  const [bgs, setBgs] = useState<MockupBackground[]>([]);
+  const [watermark, setWatermark] = useState(true);
+  const [msg, setMsg] = useState<Msg>(null);
+  const [ready, setReady] = useState(false);
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  const load = useCallback(async () => {
+    const sb = createClient();
+    const [f, b, s] = await Promise.all([
+      sb.from("mockup_frames").select("*").order("sort_order").order("created_at"),
+      sb.from("mockup_backgrounds").select("*").order("sort_order").order("created_at"),
+      sb.from("site_settings").select("value").eq("key", "mockup").maybeSingle(),
+    ]);
+    if (f.error) setMsg({ type: "err", text: "Chưa có bảng mockup — cần chạy supabase/migration_mockups.sql." });
+    setFrames((f.data ?? []) as MockupFrame[]);
+    setBgs((b.data ?? []) as MockupBackground[]);
+    setWatermark((s.data?.value as { watermark?: boolean } | undefined)?.watermark !== false);
+    setReady(true);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const after = async (text: string) => { setMsg({ type: "ok", text }); await revalidatePublic(PATHS); await load(); };
+  const fs = useSortable<MockupFrame>("mockup_frames", () => after("Đã đổi thứ tự."));
+  const bs = useSortable<MockupBackground>("mockup_backgrounds", () => after("Đã đổi thứ tự."));
+
+  async function toggle(table: string, id: string, v: boolean) {
+    const { error } = await createClient().from(table).update({ is_active: v }).eq("id", id);
+    if (error) return setMsg({ type: "err", text: error.message });
+    await after(v ? "Đã bật." : "Đã tắt.");
+  }
+  async function remove(table: string, id: string, label: string) {
+    if (!await confirmDialog(`Xoá "${label}"?`)) return;
+    const { error } = await createClient().from(table).delete().eq("id", id);
+    if (error) return setMsg({ type: "err", text: error.message });
+    await after("Đã xoá.");
+  }
+  async function addBg(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !/^https?:\/\//i.test(url.trim())) return setMsg({ type: "err", text: "Nhập tên và link ảnh (bắt đầu bằng https://)." });
+    setChecking(true);
+    // kiểm tra ảnh tải được không
+    const ok = await new Promise<boolean>((res) => { const im = new Image(); im.onload = () => res(im.naturalWidth > 0); im.onerror = () => res(false); im.src = url.trim(); });
+    if (!ok) { setChecking(false); return setMsg({ type: "err", text: "Không tải được ảnh từ link này. Kiểm tra lại link (phải là link trực tiếp tới file ảnh)." }); }
+    const { error } = await createClient().from("mockup_backgrounds").insert({ name: name.trim(), url: url.trim(), sort_order: (bgs.at(-1)?.sort_order ?? 0) + 1 });
+    setChecking(false);
+    if (error) return setMsg({ type: "err", text: error.message });
+    setName(""); setUrl("");
+    await after("Đã thêm nền.");
+  }
+  async function saveWatermark(v: boolean) {
+    setWatermark(v);
+    const { error } = await createClient().from("site_settings").upsert({ key: "mockup", value: { watermark: v }, updated_at: new Date().toISOString() });
+    if (error) return setMsg({ type: "err", text: error.message });
+    await after(v ? "Đã bật watermark." : "Đã tắt watermark.");
+  }
+
+  if (!ready) return <p className="text-[13px] text-[#71717a]">Đang tải...</p>;
+  const full = frames.length >= 5;
+  return (
+    <div className="space-y-6">
+      <Card title={`Khung CD (${frames.length}/5)`} description="Ảnh PNG hộp CD có các vùng trong suốt để chèn ảnh khách. Kéo thả để sắp xếp."
+        actions={full ? <Button size="sm" disabled title="Đã đủ 5 mẫu">Tạo mẫu mới</Button>
+          : <Link href="/admin/mockup/moi" className={btnClass("primary", "sm")}><Plus size={16} /> Tạo mẫu mới</Link>}>
+        {frames.length ? (
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {frames.map((f, i) => (
+              <li key={f.id} draggable onDragStart={() => fs.setDrag(i)} onDragEnd={() => fs.setDrag(null)} onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); fs.drop(frames, i, setFrames); fs.setDrag(null); }}
+                className={cx("overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white", fs.drag === i && "opacity-40")}>
+                <div className="relative aspect-[4/3] bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:16px_16px]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={proxied(f.image_url)} alt="" className="h-full w-full object-contain" loading="lazy" />
+                  <span className="absolute left-2 top-2 cursor-grab rounded-[6px] bg-white/90 p-1 text-[#71717a]"><GripVertical size={16} /></span>
+                </div>
+                <div className="flex items-center gap-2 p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[14px] font-medium">{f.name}</p>
+                    <p className="text-[12px] text-[#71717a]">{f.regions.length} vùng · {f.is_active ? <Badge tone="green">Đang bật</Badge> : <Badge>Đang tắt</Badge>}</p>
+                  </div>
+                  <Toggle checked={f.is_active} onChange={(v) => toggle("mockup_frames", f.id, v)} label="" />
+                  <Link href={`/admin/mockup/${f.id}`} className={btnClass("ghost", "sm")} aria-label="Sửa"><Pencil size={16} /></Link>
+                  <Button variant="ghost" size="sm" className="!text-[#dc2626]" aria-label="Xoá" onClick={() => remove("mockup_frames", f.id, f.name)}><Trash2 size={16} /></Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : <EmptyState>Chưa có mẫu khung nào.</EmptyState>}
+      </Card>
+
+      <Card title="Nền của tiệm" description="Chỉ nhận LINK ảnh (không lưu file). Khách chọn ở trang Xem Mockup.">
+        <form onSubmit={addBg} className="mb-4 grid gap-3 sm:grid-cols-[200px_1fr_auto] sm:items-end">
+          <Field label="Tên nền"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ví dụ: Bàn gỗ" /></Field>
+          <Field label="Link ảnh"><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." /></Field>
+          <Button type="submit" icon={<Plus size={16} />} loading={checking}>Thêm nền</Button>
+        </form>
+        {bgs.length ? (
+          <ul className="divide-y divide-[#efeff1] rounded-[12px] border border-[#e5e5e7]">
+            {bgs.map((b, i) => (
+              <li key={b.id} draggable onDragStart={() => bs.setDrag(i)} onDragEnd={() => bs.setDrag(null)} onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); bs.drop(bgs, i, setBgs); bs.setDrag(null); }}
+                className={cx("flex items-center gap-3 p-3", bs.drag === i && "opacity-40")}>
+                <GripVertical size={16} className="shrink-0 cursor-grab text-[#a1a1aa]" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={b.url} alt="" className="h-12 w-16 shrink-0 rounded-[6px] bg-[#f4f4f5] object-cover" loading="lazy" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-medium">{b.name}</p>
+                  <p className="truncate text-[12px] text-[#71717a]" title={b.url}>{b.url}</p>
+                </div>
+                <Toggle checked={b.is_active} onChange={(v) => toggle("mockup_backgrounds", b.id, v)} label="" />
+                <Button variant="ghost" size="sm" className="!text-[#dc2626]" aria-label="Xoá" onClick={() => remove("mockup_backgrounds", b.id, b.name)}><Trash2 size={16} /></Button>
+              </li>
+            ))}
+          </ul>
+        ) : <EmptyState>Chưa có nền nào.</EmptyState>}
+      </Card>
+
+      <Card title="Ảnh tải về">
+        <Toggle checked={watermark} onChange={saveWatermark} label="Thêm chữ “Taylana” nhỏ, mờ ở góc ảnh mockup khách tải về" />
+      </Card>
+      <Message msg={msg} />
+    </div>
+  );
+}
