@@ -64,7 +64,7 @@ export function HomeVariantSwitcher({ variants, current, active }: { variants: H
                 </span>
               </button>
             ))}
-            <a href="/admin/giao-dien" className="mt-1 block border-t border-[#efeff1] px-3 py-2 text-[13px] text-[#ff5fa2] hover:underline">Quản lý giao diện trang chủ →</a>
+            <a href="/admin/giao-dien" className="mt-1 block border-t border-[#efeff1] px-3 py-2 text-[13px] text-[#ff5fa2] hover:text-[#e0468a]">Quản lý giao diện trang chủ →</a>
           </div>
         )}
       </div>

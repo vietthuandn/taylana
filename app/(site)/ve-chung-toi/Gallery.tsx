@@ -19,7 +19,7 @@ export function Gallery({ items }: { items: ShowcaseItem[] }) {
     <>
       {q && (
         <p className="mb-4 text-[14px] text-[#71717a]">
-          Kết quả cho “<b className="text-[#18181b]">{q}</b>”: {shown.length} ảnh · <Link href="/ve-chung-toi" className="font-medium text-[#ff5fa2] hover:underline">Xem tất cả</Link>
+          Kết quả cho “<b className="text-[#18181b]">{q}</b>”: {shown.length} ảnh · <Link href="/ve-chung-toi" className="font-medium text-[#ff5fa2] hover:text-[#e0468a]">Xem tất cả</Link>
         </p>
       )}
       <ul className="columns-2 gap-2 lg:columns-3">

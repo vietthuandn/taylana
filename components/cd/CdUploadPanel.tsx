@@ -46,7 +46,7 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <p className="text-[14px] font-semibold text-[#18181b]" title={g === "front" ? size(g) : undefined}>{g === "front" ? "Bìa trước" : title(g)}</p>
               {g === "front"
-                ? layout.front >= 4 && onPreview && <button type="button" onClick={onPreview} className="text-[13px] font-medium hover:underline" style={{ color: PINK }}>{previewing ? "Xem CD Mockup ›" : "Xem preview ›"}</button>
+                ? layout.front >= 4 && onPreview && <button type="button" onClick={onPreview} className="text-[13px] font-medium text-[#ff5fa2] hover:text-[#e0468a]">{previewing ? "Xem CD Mockup ›" : "Xem preview ›"}</button>
                 : <span className="text-[12px] text-[#71717a]">{size(g)}</span>}
             </div>
             {g === "back" ? (
@@ -71,7 +71,7 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
       {!readOnly && (
         <>
           <p className="text-[13px] text-[#71717a]">
-            Bạn chưa có ảnh? <Link href="/huong-dan" className="font-semibold underline" style={{ color: PINK }}>Nhấn vào đây</Link> để được hướng dẫn
+            Bạn chưa có ảnh? <Link href="/huong-dan" className="font-semibold text-[#ff5fa2] hover:text-[#e0468a]">Nhấn vào đây</Link> để được hướng dẫn
           </p>
           <button className={`${btnClass("secondary")} mt-3`} onClick={() => setMultiOpen(true)}>⇪ Tải nhiều ảnh</button>
         </>

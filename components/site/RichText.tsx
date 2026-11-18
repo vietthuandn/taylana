@@ -7,7 +7,7 @@ export function RichText({ text, className = "" }: { text: string; className?: s
     <p className={`whitespace-pre-line ${className}`}>
       {parts.map((p, i) =>
         i % 2 === 1 ? (
-          <a key={i} href={p} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-violet-500 underline">{p}</a>
+          <a key={i} href={p} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-violet-500 hover:text-violet-600">{p}</a>
         ) : (
           p
         ),

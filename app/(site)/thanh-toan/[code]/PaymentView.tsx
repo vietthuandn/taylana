@@ -97,7 +97,7 @@ export function PaymentView({ code, settings }: { code: string; settings: Paymen
   const title = (t: string) => <h1 className="font-sans text-[22px] font-bold normal-case tracking-[-0.02em] text-[#18181b] sm:text-[28px]">{t}</h1>;
 
   if (info === undefined) return shell(<p className="py-8 text-center text-[#71717a]">{err || "Đang tải..."}</p>);
-  if (!info) return shell(<>{title("Không tìm thấy đơn")}<p className="mt-2 text-[15px] text-[#71717a]">Mã đơn “{code}” không đúng. Bạn kiểm tra lại link hoặc <Link href="/lien-he" className="font-medium text-[#ff5fa2] hover:underline">liên hệ tiệm</Link> nhé.</p></>);
+  if (!info) return shell(<>{title("Không tìm thấy đơn")}<p className="mt-2 text-[15px] text-[#71717a]">Mã đơn “{code}” không đúng. Bạn kiểm tra lại link hoặc <Link href="/lien-he" className="font-medium text-[#ff5fa2] hover:text-[#e0468a]">liên hệ tiệm</Link> nhé.</p></>);
 
   const st = info.payment_status;
   const deadline = info.payment_deadline ? new Date(info.payment_deadline).getTime() : null;
@@ -124,7 +124,7 @@ export function PaymentView({ code, settings }: { code: string; settings: Paymen
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#fffbeb] text-[#b45309]"><Clock size={24} /></span>
         <div className="mt-4">{title(st === "cancelled" ? "Thanh toán đã huỷ" : "Đơn đã hết hạn thanh toán")}</div>
         <p className="mt-2 text-[15px] text-[#71717a]">
-          {st === "cancelled" ? "Thanh toán của đơn này đã bị huỷ" : "Đơn đã hết hạn thanh toán"}, vui lòng <Link href="/lien-he" className="font-medium text-[#ff5fa2] hover:underline">liên hệ tiệm</Link>.
+          {st === "cancelled" ? "Thanh toán của đơn này đã bị huỷ" : "Đơn đã hết hạn thanh toán"}, vui lòng <Link href="/lien-he" className="font-medium text-[#ff5fa2] hover:text-[#e0468a]">liên hệ tiệm</Link>.
         </p>
         <p className="mt-1 text-[13px] text-[#a1a1aa]">Mã đơn: {info.order_code}</p>
       </div>,

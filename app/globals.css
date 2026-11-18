@@ -254,6 +254,23 @@
   border: 3px solid var(--color-lime-500);
 }
 
+/* Link: không gạch chân ở mọi trạng thái (hover chỉ đổi màu) */
+@layer base {
+  a, a:hover, a:focus, a:visited { text-decoration: none; }
+}
+
+/* Con trỏ bàn tay cho mọi thứ bấm được (ở @layer base để class cursor-grab / move / resize / text riêng vẫn ghi đè) */
+@layer base {
+  a[href], button, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="switch"], [role="checkbox"], [role="radio"],
+  label[for], select, summary,
+  input[type="checkbox"], input[type="radio"], input[type="file"], input[type="color"], input[type="range"], input[type="submit"], input[type="button"], input[type="reset"],
+  input[type="file"]::file-selector-button, [onclick], [draggable="true"] {
+    cursor: pointer;
+  }
+  label:has(> input[type="checkbox"], > input[type="radio"], > input[type="file"], > select) { cursor: pointer; }
+  :disabled, [aria-disabled="true"], :disabled + label, label:has(> :disabled) { cursor: not-allowed; }
+}
+
 /* Thanh cuộn toàn app (kiểu Facebook): mảnh 8px, ẩn mặc định, hiện khi hover vùng cuộn */
 @layer base {
   *::-webkit-scrollbar { width: 8px; height: 8px; }

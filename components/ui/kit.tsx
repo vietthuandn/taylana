@@ -194,7 +194,7 @@ export function ImageInput({ value, onChange, folder, label = "Ảnh", allowSvg 
               }} />
           </label>
           {value && (
-            <button type="button" className="text-[12px] text-[#dc2626] hover:underline" onClick={() => onChange(null)}>{removeLabel}</button>
+            <button type="button" className="text-[12px] text-[#dc2626] hover:text-[#b91c1c]" onClick={() => onChange(null)}>{removeLabel}</button>
           )}
         </div>
       </div>
@@ -306,7 +306,7 @@ export function AdminOverlays() {
             className="pointer-events-auto flex items-start gap-2.5 rounded-[10px] border border-[#e5e5e7] bg-white px-3.5 py-3 text-[14px] text-[#18181b] shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
             {t.type === "ok" ? <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[#16a34a]" /> : <AlertCircle size={16} className="mt-0.5 shrink-0 text-[#dc2626]" />}
             <span className="min-w-0 flex-1 break-words">{t.text}</span>
-            {t.action && <Link href={t.action.href} className="shrink-0 text-[13px] font-semibold text-[#ff5fa2] hover:underline">{t.action.label}</Link>}
+            {t.action && <Link href={t.action.href} className="shrink-0 text-[13px] font-semibold text-[#ff5fa2] hover:text-[#e0468a]">{t.action.label}</Link>}
             <button className="text-[#a1a1aa] hover:text-[#18181b]" aria-label="Đóng"
               onClick={() => { toasts = toasts.filter((x) => x.id !== t.id); emitToasts(); }}><X size={16} /></button>
           </div>

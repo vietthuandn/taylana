@@ -217,7 +217,7 @@ export function useCheckout({ lines, discounts, shipping, phone, initialCode = "
     <section>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-[13px] font-semibold text-[#18181b]">Mã giảm giá</p>
-        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center text-[13px] font-medium text-[#ff5fa2] hover:underline">
+        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center text-[13px] font-medium text-[#ff5fa2] hover:text-[#e0468a]">
           Nhập mã <ChevronRight size={16} />
         </button>
       </div>

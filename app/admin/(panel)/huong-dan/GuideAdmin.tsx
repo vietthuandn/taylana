@@ -137,7 +137,7 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
             </div>
           ))}
         </div>
-        <button type="button" className="mt-2 text-sm underline" onClick={() => setD({ ...d, images: [...d.images, { url: "", caption: "" }] })}>+ Thêm ảnh</button>
+        <button type="button" className="mt-2 text-sm hover:text-[#ff5fa2]" onClick={() => setD({ ...d, images: [...d.images, { url: "", caption: "" }] })}>+ Thêm ảnh</button>
       </div>
 
       <div>
@@ -152,7 +152,7 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
             </div>
           ))}
         </div>
-        <button type="button" className="mt-2 text-sm underline" onClick={() => setD({ ...d, links: [...d.links, { label: "", url: "" }] })}>+ Thêm link</button>
+        <button type="button" className="mt-2 text-sm hover:text-[#ff5fa2]" onClick={() => setD({ ...d, links: [...d.links, { label: "", url: "" }] })}>+ Thêm link</button>
       </div>
 
       <Toggle checked={d.is_active} onChange={(v) => setD({ ...d, is_active: v })} label="Hiện trên web" />

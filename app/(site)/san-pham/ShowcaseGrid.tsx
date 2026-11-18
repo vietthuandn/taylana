@@ -29,7 +29,7 @@ export function ShowcaseGrid({ items }: { items: ShowcaseItem[] }) {
       {q && (
         <p className="mb-4 text-[14px] text-[#71717a]">
           Kết quả cho “<b className="text-[#18181b]">{q}</b>”: {shown.length} sản phẩm ·{" "}
-          <Link href="/san-pham" className="font-medium text-[#ff5fa2] hover:underline">Xoá tìm kiếm</Link>
+          <Link href="/san-pham" className="font-medium text-[#ff5fa2] hover:text-[#e0468a]">Xoá tìm kiếm</Link>
         </p>
       )}
       {categories.length > 1 && (

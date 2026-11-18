@@ -265,7 +265,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
             <input className={`${inputClass} mt-3`} type="tel" inputMode="tel" placeholder="Số điện thoại" value={verifyPhone} onChange={(e) => setVerifyPhone(e.target.value)} />
             {verifyErr && <p className="mt-2 text-[12px] text-[#dc2626]">{verifyErr}</p>}
             <button className={`${btnClass("primary")} mt-3 w-full`}>Xác nhận</button>
-            <p className="mt-3 text-[12px] text-[#71717a]">Hoặc <Link href="/don-hang-cua-toi" className="font-medium text-[#ff5fa2] hover:underline">xem đơn hàng của tôi</Link>.</p>
+            <p className="mt-3 text-[12px] text-[#71717a]">Hoặc <Link href="/don-hang-cua-toi" className="font-medium text-[#ff5fa2] hover:text-[#e0468a]">xem đơn hàng của tôi</Link>.</p>
           </form>
         )}
       </div>
@@ -380,7 +380,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
                 Tải nhạc lên Google Drive, bấm <b>Chia sẻ → Bất kỳ ai có đường liên kết</b>, rồi dán link vào đây.
               </p>
               <p className="mb-2 rounded-[8px] bg-[#f4f4f5] px-3 py-2 text-[12px] text-[#52525b]">
-                ⓘ Bạn chưa tải được nhạc từ YouTube và Spotify? <Link href="/huong-dan#audio" className="font-semibold underline" style={{ color: PINK }}>Nhấn vào đây</Link> để xem hướng dẫn
+                ⓘ Bạn chưa tải được nhạc từ YouTube và Spotify? <Link href="/huong-dan#audio" className="font-semibold text-[#ff5fa2] hover:text-[#e0468a]">Nhấn vào đây</Link> để xem hướng dẫn
               </p>
               <input className={inputClass} type="url" inputMode="url" placeholder="https://drive.google.com/..." value={link} onChange={(e) => setLink(e.target.value)} />
 
@@ -400,7 +400,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
                     Còn {missing.length} ảnh chưa tải lên:{" "}
                     {missing.map((s, i) => (
                       <span key={s.id}>
-                        <button className="underline" onClick={() => goToSlot(s.id)}>{s.full}</button>{i < missing.length - 1 ? ", " : ""}
+                        <button className="font-medium hover:text-[#ff5fa2]" onClick={() => goToSlot(s.id)}>{s.full}</button>{i < missing.length - 1 ? ", " : ""}
                       </span>
                     ))}
                   </p>

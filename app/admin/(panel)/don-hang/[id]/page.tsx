@@ -62,7 +62,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
             {order.music_link && (
               <p className="mb-4 flex items-center gap-2 rounded-[8px] bg-[#fafafa] px-3 py-2 text-[13px]">
                 <span className="shrink-0 text-[#71717a]">File nhạc:</span>
-                <a className="break-all text-[#ff5fa2] hover:underline" href={order.music_link} target="_blank" rel="noreferrer">{order.music_link}</a>
+                <a className="break-all text-[#ff5fa2] hover:text-[#e0468a]" href={order.music_link} target="_blank" rel="noreferrer">{order.music_link}</a>
               </p>
             )}
             {files.length ? (
@@ -88,7 +88,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
                         <p className="font-medium text-[#18181b]">{kindLabels[f.kind] ?? f.kind}{f.page ? ` · trang ${f.page}` : ""}{outdated.has(f.id) ? " · bản cũ" : ""}</p>
                         <p className="truncate text-[#71717a]">{f.file_name}</p>
                         <p className="text-[#a1a1aa]">{formatBytes(f.size_bytes)}{f.width_px ? ` · ${f.width_px}×${f.height_px}px` : ""}</p>
-                        {url && <a className="mt-1 inline-block font-medium text-[#ff5fa2] hover:underline" href={`${url}&download=${encodeURIComponent(f.file_name)}`}>Tải file gốc</a>}
+                        {url && <a className="mt-1 inline-block font-medium text-[#ff5fa2] hover:text-[#e0468a]" href={`${url}&download=${encodeURIComponent(f.file_name)}`}>Tải file gốc</a>}
                       </div>
                     </li>
                   );
@@ -109,9 +109,9 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           <Card title="Khách hàng">
             <p className="font-medium text-[#18181b]">{order.customer_name}</p>
             <p className="mt-1 text-[14px]">
-              <a className="text-[#ff5fa2] hover:underline" href={`tel:${order.phone}`}>{order.phone}</a>
+              <a className="text-[#ff5fa2] hover:text-[#e0468a]" href={`tel:${order.phone}`}>{order.phone}</a>
               <span className="text-[#d4d4d8]"> · </span>
-              <a className="text-[#ff5fa2] hover:underline" href={`https://zalo.me/${order.phone.replace(/^\+84/, "0")}`} target="_blank" rel="noreferrer">Zalo</a>
+              <a className="text-[#ff5fa2] hover:text-[#e0468a]" href={`https://zalo.me/${order.phone.replace(/^\+84/, "0")}`} target="_blank" rel="noreferrer">Zalo</a>
             </p>
             {order.street || order.ward || order.province ? (
               <div className="mt-2 text-[13px] text-[#52525b]">
