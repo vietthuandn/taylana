@@ -7,7 +7,7 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { ContactShadows, Environment, Lightformer, OrbitControls, PerformanceMonitor, RoundedBox, useGLTF } from "@react-three/drei";
+import { Environment, Lightformer, OrbitControls, PerformanceMonitor, RoundedBox, useGLTF } from "@react-three/drei";
 import { EffectComposer, SMAA, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { ToneMappingMode, type EffectComposer as ComposerImpl } from "postprocessing";
 import type { OrbitControls as OrbitImpl } from "three-stdlib";
@@ -390,6 +390,42 @@ function Capturer({ handle, composer }: { handle: React.MutableRefObject<Cd3DHan
   return null;
 }
 
+// Bóng mềm dưới hộp: 1 tấm ảnh bóng tự vẽ (mờ dần về TRONG SUỐT hoàn toàn ở mép) — không dùng ContactShadows /
+// AccumulativeShadows (cả 2 dựng 1 tấm hứng bóng lớn bằng render target, từng lộ thành hình vuông tối trên nền).
+function blobTexture() {
+  const N = 512, c = document.createElement("canvas");
+  c.width = c.height = N;
+  const x = c.getContext("2d")!;
+  const draw = (w: number, h: number, blur: number, a: number, dy: number) => {
+    // vẽ hình ngoài canvas, chỉ để lại bóng mờ (shadowBlur chạy trên mọi trình duyệt)
+    x.save();
+    x.shadowColor = `rgba(0,0,0,${a})`; x.shadowBlur = blur; x.shadowOffsetX = N * 2; x.shadowOffsetY = dy;
+    x.beginPath(); x.roundRect(N / 2 - w / 2 - N * 2, N / 2 - h / 2, w, h, 18); x.fillStyle = "#000"; x.fill();
+    x.restore();
+  };
+  draw(N * 0.56, N * 0.5, 70, 0.55, 10); // bóng xa: rộng, nhạt
+  draw(N * 0.6, N * 0.54, 14, 0.5, 2); // bóng tiếp xúc: sát cạnh, đậm
+  // bảo đảm mép ngoài trong suốt tuyệt đối
+  const img = x.getImageData(0, 0, N, N), d = img.data;
+  for (let y = 0; y < N; y++) for (let i = 0; i < N; i++) {
+    const e = Math.min(i, y, N - 1 - i, N - 1 - y);
+    if (e < 24) d[(y * N + i) * 4 + 3] = Math.round(d[(y * N + i) * 4 + 3] * (e / 24));
+  }
+  x.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function BlobShadow() {
+  const map = useMemo(blobTexture, []);
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.004, 0]} renderOrder={-1}>
+      <planeGeometry args={[CW * 1.75, CH * 1.95]} />
+      <meshBasicMaterial map={map} transparent opacity={0.6} depthWrite={false} toneMapped={false} color="#ffffff" />
+    </mesh>
+  );
+}
+
 // nền đang chọn vẽ thẳng vào cảnh (canvas đục) — để hậu kỳ không làm xám vùng nền như khi canvas trong suốt
 function SceneBg({ url }: { url?: string }) {
   const { scene } = useThree();
@@ -449,8 +485,6 @@ export default function Cd3D({ images, tray, finish = "matte", modelUrl, bgUrl, 
         camera={{ position: p0.toArray(), fov: FOV, near: 1, far: 400 }}
         onCreated={({ gl }) => {
           gl.toneMapping = THREE.NoToneMapping;
-          // BẮT BUỘC alpha 0: ContactShadows vẽ bóng vào render target bằng màu xoá của renderer —
-          // để alpha 1 (mặc định khi canvas đục) thì cả tấm hứng bóng thành 1 hình vuông đen
           gl.setClearColor(0x000000, 0);
         }}>
         <SceneBg url={bgUrl} />
@@ -462,12 +496,12 @@ export default function Cd3D({ images, tray, finish = "matte", modelUrl, bgUrl, 
           <Studio hdr={hdr} />
         </Suspense>
         <group rotation={[0, -0.18, 0]}>
+          <BlobShadow />
           {modelUrl ? (
             <Fallback fallback={built}><Suspense fallback={null}><GlbCase url={modelUrl} {...caseProps} /></Suspense></Fallback>
           ) : built}
         </group>
         {/* bóng đổ mềm dưới hộp (động: đổi theo nắp mở / đĩa nhấc) */}
-        <ContactShadows position={[0, -0.01, 0]} opacity={0.4} scale={30} blur={2.4} far={4} resolution={low ? 512 : 1024} color="#1f1f23" depthWrite={false} />
         <OrbitControls ref={controls as never} makeDefault enablePan={false} target={TARGET0.toArray()} minDistance={24} maxDistance={90}
           minPolarAngle={0.12} maxPolarAngle={Math.PI * 0.62} onStart={start} />
         <CameraRig open={open} idle={idle} />
