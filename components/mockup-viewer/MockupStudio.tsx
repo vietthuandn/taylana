@@ -27,8 +27,8 @@ const isCdBox = (p: Package) => {
   return !isSingleCd(p) && l.front === 0 && l.back === 0 && /hộp/.test(n);
 };
 
-export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrounds, tray = "clear" }: {
-  packages: Package[]; frames: MockupFrame[]; boxFrame?: MockupFrame | null; backgrounds: MockupBackground[]; watermark?: boolean; tray?: TrayStyle;
+export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrounds, tray = "clear", finish = "matte", modelUrl = null }: {
+  packages: Package[]; frames: MockupFrame[]; boxFrame?: MockupFrame | null; backgrounds: MockupBackground[]; watermark?: boolean; tray?: TrayStyle; finish?: "matte" | "gloss"; modelUrl?: string | null;
 }) {
   // trang Mockup không có gói "CD lẻ"
   const packages = useMemo(() => allPackages.filter((p) => !isSingleCd(p)), [allPackages]);
@@ -137,7 +137,7 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
       <section className={`relative flex min-w-0 flex-1 flex-col md:min-h-0 ${showBooklet ? "md:overflow-visible" : "md:overflow-hidden"}`}>
         {showBooklet && bookletPages
           ? <BookletViewer pages={bookletPages} back={layout && layout.back >= 1 ? imgs.b1 ?? null : null} bg={bg} bgPicker={picker} onExit={() => setPreviewing(false)} />
-          : <CdMockupTab frames={viewFrames} images={regionImages} images3d={images3d} tray={tray} bg={bg} bgPicker={picker} />}
+          : <CdMockupTab frames={viewFrames} images={regionImages} images3d={images3d} tray={tray} finish={finish} modelUrl={modelUrl} bg={bg} bgPicker={picker} />}
       </section>
      </div>
     </div>

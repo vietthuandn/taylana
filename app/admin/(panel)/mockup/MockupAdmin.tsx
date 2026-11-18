@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { proxied } from "@/lib/mockup/images";
 import type { MockupBackground, MockupFrame } from "@/lib/mockup/types";
 import { revalidatePublic } from "@/app/admin/actions";
+import { uploadMockupModel } from "@/lib/upload";
 import { Badge, Button, Card, EmptyState, Field, Input, Message, Select, Toggle, confirmDialog } from "@/components/admin/ui";
 import { btnClass, cx } from "@/components/admin/styles";
 
@@ -82,12 +83,32 @@ export function MockupAdmin() {
     setName(""); setUrl("");
     await after("Đã thêm nền.");
   }
-  async function saveTray(v: string) {
-    const value = { ...mset, tray: v };
+  async function saveTray(v: string) { await saveSetting({ tray: v }); }
+  async function saveSetting(patch: Record<string, unknown>, okText = "Đã lưu cài đặt 3D.") {
+    const value = { ...mset, ...patch };
     setMset(value);
     const { error } = await createClient().from("site_settings").upsert({ key: "mockup", value, updated_at: new Date().toISOString() });
     if (error) return setMsg({ type: "err", text: error.message });
-    await after("Đã lưu cài đặt 3D.");
+    await after(okText);
+  }
+  // Mô hình 3D (.glb): tải lên bucket "mockups", kiểm tra tên mesh theo quy ước
+  const [modelBusy, setModelBusy] = useState(false);
+  const [modelInfo, setModelInfo] = useState<{ found: string[]; missing: string[] } | null>(null);
+  const modelUrl = (mset.model_url as string | null) || null;
+  useEffect(() => {
+    if (!modelUrl) { setModelInfo(null); return; }
+    let off = false;
+    import("@/lib/mockup3d/glb").then((m) => m.inspectGlb(modelUrl)).then((r) => { if (!off) setModelInfo(r); })
+      .catch(() => { if (!off) setModelInfo({ found: [], missing: ["(không đọc được file .glb)"] }); });
+    return () => { off = true; };
+  }, [modelUrl]);
+  async function uploadModel(file: File) {
+    setModelBusy(true);
+    try {
+      const url = await uploadMockupModel(file);
+      await saveSetting({ model_url: url }, "Đã tải mô hình 3D.");
+    } catch (e) { setMsg({ type: "err", text: e instanceof Error ? e.message : "Tải mô hình thất bại" }); }
+    setModelBusy(false);
   }
 
   if (!ready) return <p className="text-[13px] text-[#71717a]">Đang tải...</p>;
@@ -162,6 +183,31 @@ export function MockupAdmin() {
             <option value="black">Đen</option>
           </Select>
         </Field>
+        <Field label="Mặt ngoài bìa">
+          <Select value={mset.finish === "gloss" ? "gloss" : "matte"} onChange={(e) => saveSetting({ finish: e.target.value })} className="max-w-[240px]">
+            <option value="matte">Mờ</option>
+            <option value="gloss">Bóng</option>
+          </Select>
+        </Field>
+      </Card>
+
+      <Card title="Mô hình 3D" description="Tuỳ chọn: file .glb hộp CD thay cho hộp tự dựng. Tên mesh theo quy ước: lid, base, front_cover_outer, front_cover_inner, back_card_outer, back_card_inner, disc_top, disc_bottom + node hinge_lid (trục mở nắp = trục Z cục bộ). Thiếu mesh nào thì vùng đó không dán ảnh.">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className={btnClass("secondary", "sm")}>
+            <Plus size={16} /> {modelBusy ? "Đang tải..." : modelUrl ? "Thay file .glb" : "Tải file .glb"}
+            <input type="file" accept=".glb,model/gltf-binary" className="sr-only" disabled={modelBusy}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) uploadModel(f); }} />
+          </label>
+          {modelUrl && <Button variant="secondary" size="sm" onClick={() => saveSetting({ model_url: null }, "Đã quay về mô hình tự dựng.")}>Dùng mô hình tự dựng</Button>}
+          <span className="text-[13px] text-[#71717a]">{modelUrl ? "Đang dùng mô hình tải lên." : "Đang dùng mô hình tự dựng."}</span>
+        </div>
+        {modelUrl && modelInfo && (
+          <div className="mt-3 grid gap-3 text-[13px] sm:grid-cols-2">
+            <div><p className="mb-1 font-medium">Tìm thấy ({modelInfo.found.length})</p><p className="break-words text-[#52525b]">{modelInfo.found.join(", ") || "—"}</p></div>
+            <div><p className="mb-1 font-medium">Còn thiếu ({modelInfo.missing.length})</p>
+              <p className={cx("break-words", modelInfo.missing.length ? "text-[#b45309]" : "text-[#15803d]")}>{modelInfo.missing.join(", ") || "Đủ tất cả mesh quy ước"}</p></div>
+          </div>
+        )}
       </Card>
       <Message msg={msg} />
     </div>

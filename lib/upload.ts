@@ -58,3 +58,14 @@ export async function uploadMockupImage(file: File, folder = "frames") {
   }
   throw new Error("Tải ảnh thất bại: " + error.message);
 }
+
+// Mô hình 3D hộp CD (.glb) → bucket "mockups/models" (chỉ admin)
+export async function uploadMockupModel(file: File) {
+  if (!/\.glb$/i.test(file.name)) throw new Error("Chỉ nhận file .glb");
+  if (file.size > 30 * 1024 * 1024) throw new Error("File tối đa 30MB");
+  const supabase = createClient();
+  const path = `models/${randomName(file)}`;
+  const { error } = await supabase.storage.from("mockups").upload(path, file, { contentType: "model/gltf-binary", cacheControl: "31536000", upsert: false });
+  if (!error) return supabase.storage.from("mockups").getPublicUrl(path).data.publicUrl;
+  throw new Error("Tải mô hình thất bại: " + error.message + (/mime|type/i.test(error.message) ? " (cần chạy supabase/migration_mockup_glb.sql)" : ""));
+}

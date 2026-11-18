@@ -35,8 +35,8 @@ const ratioOf = (bg: BgChoice) => bgRatio(bg);
 
 const toJpeg = (c: HTMLCanvasElement) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Không xuất được ảnh"))), "image/jpeg", 0.92));
 
-export function CdMockupTab({ frames, images, images3d, tray, watermark = false, bg, bgPicker }: {
-  frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; images3d: Cd3DImages; tray: TrayStyle; watermark?: boolean;
+export function CdMockupTab({ frames, images, images3d, tray, finish, modelUrl, watermark = false, bg, bgPicker }: {
+  frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; images3d: Cd3DImages; tray: TrayStyle; finish?: "matte" | "gloss"; modelUrl?: string | null; watermark?: boolean;
   bg: BgChoice; bgPicker: React.ReactNode;
 }) {
   const [idx, setIdx] = useState(frames.length ? 0 : THREE_D);
@@ -159,7 +159,7 @@ export function CdMockupTab({ frames, images, images3d, tray, watermark = false,
         {is3d ? (
           <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white bg-cover bg-center"
             style={{ width: width || "100%", aspectRatio: `1 / ${ratio}`, backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
-            <Cd3D images={images3d} tray={tray} handle={three} />
+            <Cd3D images={images3d} tray={tray} finish={finish} modelUrl={modelUrl} handle={three} />
           </div>
         ) : !frame ? null : (
           <div className="group relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white" style={{ width: width || "100%" }}>
