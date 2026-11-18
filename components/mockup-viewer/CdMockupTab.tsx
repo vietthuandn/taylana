@@ -1,12 +1,16 @@
 "use client";
 
-/* Panel phải "CD Mockup": ảnh căn giữa tuyệt đối · cột mẫu bên phải · thanh đáy: Nền + Tải về. Kéo để di chuyển, +/− phóng to, nhấp đúp về mặc định. */
+/* Panel phải "CD Mockup": ảnh căn giữa tuyệt đối · cột mẫu bên phải (+ thẻ "3D" cố định ở cuối) · thanh đáy: Nền + Tải về.
+   Kéo để di chuyển, +/− phóng to, nhấp đúp về mặc định. Thẻ 3D: cảnh three.js, chỉ tải thư viện khi được chọn. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, Files, Image as ImageIcon, Minus, Package, Plus } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Box, Download, Files, Image as ImageIcon, Minus, Plus } from "lucide-react";
 import { paintBackground, bgRatio, type BgChoice } from "@/lib/mockup/backgrounds";
 import { loadImg, proxied } from "@/lib/mockup/images";
 import { composeScene, renderFrame, type SourceImage } from "@/lib/mockup/render";
-import type { MockupFrame, RegionType } from "@/lib/mockup/types";
+import type { MockupFrame, RegionType, TrayStyle } from "@/lib/mockup/types";
+import type { Cd3DHandle, Cd3DImages } from "./Cd3D";
+import { can3D } from "./can3d";
 import { saveBlob, saveZip } from "@/lib/imageTools";
 import { toast } from "@/components/ui/kit";
 import { DownloadMenu } from "./DownloadMenu";
@@ -24,19 +28,42 @@ async function buildFrame(f: MockupFrame, images: Partial<Record<RegionType, Sou
   for (const r of f.regions) if (r.mask_url && !masks[r.mask_url]) masks[r.mask_url] = await loadImg(r.mask_url).catch(() => undefined as unknown as HTMLImageElement);
   return renderFrame({ frame, regions: f.regions, images, masks, glass: f.glass, maxW });
 }
+// Cảnh 3D: chỉ tải three / @react-three khi khách chọn thẻ 3D
+const Cd3D = dynamic(() => import("./Cd3D"), { ssr: false, loading: () => <p className="absolute inset-0 grid place-items-center text-[13px] text-[#71717a]">Đang tải 3D...</p> });
+const THREE_D = -1;
+const ratioOf = (bg: BgChoice) => bgRatio(bg);
+
 const toJpeg = (c: HTMLCanvasElement) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Không xuất được ảnh"))), "image/jpeg", 0.92));
 
-export function CdMockupTab({ frames, images, bg, bgPicker, hidePicker }: {
-  frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; bg: BgChoice; bgPicker: React.ReactNode; hidePicker?: boolean;
+export function CdMockupTab({ frames, images, images3d, tray, watermark = false, bg, bgPicker }: {
+  frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; images3d: Cd3DImages; tray: TrayStyle; watermark?: boolean;
+  bg: BgChoice; bgPicker: React.ReactNode;
 }) {
-  const [idx, setIdx] = useState(0);
+  const [idx, setIdx] = useState(frames.length ? 0 : THREE_D);
+  const three = useRef<Cd3DHandle | null>(null);
+  const is3d = idx === THREE_D;
   const [pos, setPos] = useState<Pos>(DEFAULT_POS);
   const [built, setBuilt] = useState<HTMLCanvasElement | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const view = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ x: number; y: number; p: Pos } | null>(null);
-  const frame = frames[idx] ?? frames[0];
+  const frame = is3d ? undefined : frames[idx] ?? frames[0];
+
+  // đổi gói → danh sách mẫu đổi: về mẫu đầu, không có mẫu 2D thì tự chọn 3D
+  useEffect(() => { setIdx((i) => (i === THREE_D || !frames.length ? THREE_D : 0)); }, [frames]);
+  // không xem được 3D → báo và quay về mẫu 2D đầu tiên
+  useEffect(() => {
+    if (is3d && !can3D()) { toast("Thiết bị không hỗ trợ xem 3D", "err"); if (frames.length) setIdx(0); }
+  }, [is3d, frames.length]);
+  // nền 3D: vẽ nền đang chọn thành ảnh CSS phía sau canvas trong suốt
+  const [bgUrl, setBgUrl] = useState("");
+  useEffect(() => {
+    if (!is3d) return;
+    const c = document.createElement("canvas"); c.width = 1400; c.height = Math.round(1400 * ratioOf(bg));
+    paintBackground(c.getContext("2d")!, c.width, c.height, bg);
+    setBgUrl(c.toDataURL("image/jpeg", 0.88));
+  }, [is3d, bg]);
   const ratio = bgRatio(bg);
   const { area, width } = useFitBox(ratio);
   const vw = width || 800;
@@ -100,9 +127,25 @@ export function CdMockupTab({ frames, images, bg, bgPicker, hidePicker }: {
     setBusy(false);
   }
 
+  async function download3d() {
+    const shot = three.current?.capture(2400);
+    if (!shot) return toast("Chưa dựng xong cảnh 3D", "err");
+    const out = document.createElement("canvas");
+    const k = 2400 / Math.max(shot.width, shot.height);
+    out.width = Math.round(shot.width * k); out.height = Math.round(shot.height * k);
+    const x = out.getContext("2d")!;
+    paintBackground(x, out.width, out.height, bg);
+    x.drawImage(shot, 0, 0, out.width, out.height);
+    if (watermark) {
+      x.font = `600 ${Math.round(out.width * 0.018)}px Inter, system-ui, sans-serif`;
+      x.fillStyle = "rgba(24,24,27,0.35)"; x.textAlign = "right"; x.textBaseline = "bottom";
+      x.fillText("Taylana", out.width * 0.975, out.height - out.width * 0.025);
+    }
+    try { saveBlob(await toJpeg(out), "Mockup-3D.jpg"); toast("Đã tải xuống"); } catch { toast("Xuất ảnh thất bại", "err"); }
+  }
   const zoom = (d: number) => setPos((p) => ({ ...p, scale: Math.round(Math.min(1.5, Math.max(0.5, p.scale + d)) * 10) / 10 }));
   const menu = (
-    <DownloadMenu busy={busy} up items={[
+    <DownloadMenu busy={busy} up items={is3d ? [{ label: "Tải ảnh góc nhìn này", icon: <Download size={16} />, onClick: download3d }] : [
       { label: "Tải ảnh này (JPG)", icon: <Download size={16} />, onClick: downloadOne },
       ...(frames.length > 1 ? [{ label: "Tải tất cả mẫu (.zip)", icon: <Files size={16} />, onClick: downloadAll }] : []),
       { label: "Tải PNG nền trong suốt", icon: <ImageIcon size={16} />, onClick: downloadPng },
@@ -113,9 +156,12 @@ export function CdMockupTab({ frames, images, bg, bgPicker, hidePicker }: {
     <div className="relative flex min-h-0 flex-1 flex-col md:block">
       {/* ảnh mockup: căn giữa tuyệt đối trong panel (chừa đều 2 bên cho cột mẫu và thanh đáy) */}
       <div ref={area} className="relative flex min-h-[240px] flex-1 items-center justify-center p-3 md:absolute md:inset-x-[72px] md:inset-y-[64px] md:min-h-0 md:p-0">
-        {!frame ? (
-          <div className="grid h-64 w-full place-items-center rounded-[12px] border border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]"><span><Package size={24} className="mx-auto mb-2" />Tiệm chưa có mẫu khung CD.</span></div>
-        ) : (
+        {is3d ? (
+          <div className="relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white bg-cover bg-center"
+            style={{ width: width || "100%", aspectRatio: `1 / ${ratio}`, backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
+            <Cd3D images={images3d} tray={tray} handle={three} />
+          </div>
+        ) : !frame ? null : (
           <div className="group relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white" style={{ width: width || "100%" }}>
             <canvas ref={view} className="block h-auto w-full cursor-grab touch-none active:cursor-grabbing"
               onDoubleClick={() => setPos(DEFAULT_POS)}
@@ -140,18 +186,21 @@ export function CdMockupTab({ frames, images, bg, bgPicker, hidePicker }: {
         )}
       </div>
 
-      {/* Mẫu: cột thumbnail dọc ở mép phải, căn giữa dọc, nằm đè vùng trống */}
-      {!hidePicker && frames.length > 0 && (
-        <div className="no-scrollbar flex gap-2 overflow-auto px-3 md:absolute md:right-3 md:top-1/2 md:max-h-[calc(100%-128px)] md:-translate-y-1/2 md:flex-col md:px-0">
-          {frames.map((f, i) => (
-            <button key={f.id} type="button" onClick={() => setIdx(i)} title={f.name}
-              className={cx("h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", f.id === frame?.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={proxied(f.image_url)} alt={f.name} className="h-full w-full object-contain" loading="lazy" />
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Mẫu: cột thumbnail dọc ở mép phải, căn giữa dọc, nằm đè vùng trống · thẻ "3D" cố định ở cuối */}
+      <div className="no-scrollbar flex gap-2 overflow-auto px-3 md:absolute md:right-3 md:top-1/2 md:max-h-[calc(100%-128px)] md:-translate-y-1/2 md:flex-col md:px-0">
+        {frames.map((f, i) => (
+          <button key={f.id} type="button" onClick={() => setIdx(i)} title={f.name}
+            className={cx("h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", !is3d && f.id === frame?.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={proxied(f.image_url)} alt={f.name} className="h-full w-full object-contain" loading="lazy" />
+          </button>
+        ))}
+        <button type="button" onClick={() => setIdx(THREE_D)} title="Hộp CD 3D" aria-label="Hộp CD 3D"
+          className={cx("relative grid h-12 w-12 shrink-0 place-items-center rounded-[8px] border bg-white text-[#52525b]", is3d ? "border-[#ff5fa2] text-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+          <Box size={20} />
+          <span className="absolute bottom-0.5 right-1 text-[9px] font-bold leading-none">3D</span>
+        </button>
+      </div>
 
       {/* thanh đáy: trái Nền · phải Tải về */}
       <div className="flex h-14 shrink-0 items-center gap-3 px-4 md:absolute md:inset-x-0 md:bottom-0">

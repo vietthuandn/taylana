@@ -31,7 +31,8 @@ export type MockupFrame = {
   is_default_box?: boolean; // mẫu mặc định cho gói "CD + Hộp" (không tính vào 5 mẫu, khách không chọn)
 };
 export type MockupBackground = { id: string; name: string; url: string; is_active: boolean; sort_order: number };
-export type MockupSettings = { watermark: boolean };
+export type MockupSettings = { watermark: boolean; tray?: "clear" | "black" };
+export type TrayStyle = "clear" | "black"; // khay giữ đĩa trong mẫu 3D
 
 // Số vùng chèn ảnh tối đa trong 1 mẫu khung
 export const MAX_REGIONS = 10;

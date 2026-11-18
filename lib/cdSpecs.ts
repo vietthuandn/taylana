@@ -22,3 +22,18 @@ export const TRAY_DISC_HOLE_CM = 1.5;
 export const LEFT_SPINE_ROTATION = -90; // gáy trái
 export const INNER_SPINE_ROTATION = -90; // Spine (Bìa Sau - Mặt Trong)
 export const RIGHT_SPINE_ROTATION = -90; // gáy phải
+
+// ---------------------------------------------------------------------
+// MÔ HÌNH 3D HỘP CD (đơn vị mm) — trang Xem Mockup, thẻ "3D"
+// ---------------------------------------------------------------------
+export const CASE_W_MM = 142; // hộp jewel case: rộng (bản lề ở cạnh trái)
+export const CASE_H_MM = 125; // cao (chiều trên ↔ dưới của bìa trước)
+export const CASE_T_MM = 10.4; // dày
+export const COVER3D_MM = 120; // bìa trước 120 × 120
+export const TRAY_W_MM = 150; // bìa sau (tray card) 150 × 117
+export const TRAY_H_MM = 117;
+export const TRAY_FLOOR_MM = 138; // phần giữa = mặt đáy
+export const TRAY_SPINE_MM = 6; // 2 dải gáy gập lên 2 cạnh bên
+export const DISC3D_D_MM = 120; // đĩa: đường kính
+export const DISC3D_T_MM = 1.2; // dày
+export const DISC3D_HOLE_MM = 15; // lỗ giữa

@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { proxied } from "@/lib/mockup/images";
 import type { MockupBackground, MockupFrame } from "@/lib/mockup/types";
 import { revalidatePublic } from "@/app/admin/actions";
-import { Badge, Button, Card, EmptyState, Field, Input, Message, Toggle, confirmDialog } from "@/components/admin/ui";
+import { Badge, Button, Card, EmptyState, Field, Input, Message, Select, Toggle, confirmDialog } from "@/components/admin/ui";
 import { btnClass, cx } from "@/components/admin/styles";
 
 type Msg = { type: "ok" | "err"; text: string } | null;
@@ -38,6 +38,7 @@ export function MockupAdmin() {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
   const [checking, setChecking] = useState(false);
+  const [mset, setMset] = useState<Record<string, unknown>>({}); // site_settings "mockup" (khay 3D…)
 
   const load = useCallback(async () => {
     const sb = createClient();
@@ -45,6 +46,8 @@ export function MockupAdmin() {
       sb.from("mockup_frames").select("*").order("sort_order").order("created_at"),
       sb.from("mockup_backgrounds").select("*").order("sort_order").order("created_at"),
     ]);
+    const st = await sb.from("site_settings").select("value").eq("key", "mockup").maybeSingle();
+    setMset((st.data?.value as Record<string, unknown>) ?? {});
     if (f.error) setMsg({ type: "err", text: "Chưa có bảng mockup — cần chạy supabase/migration_mockups.sql." });
     setFrames((f.data ?? []) as MockupFrame[]);
     setBgs((b.data ?? []) as MockupBackground[]);
@@ -79,6 +82,14 @@ export function MockupAdmin() {
     setName(""); setUrl("");
     await after("Đã thêm nền.");
   }
+  async function saveTray(v: string) {
+    const value = { ...mset, tray: v };
+    setMset(value);
+    const { error } = await createClient().from("site_settings").upsert({ key: "mockup", value, updated_at: new Date().toISOString() });
+    if (error) return setMsg({ type: "err", text: error.message });
+    await after("Đã lưu cài đặt 3D.");
+  }
+
   if (!ready) return <p className="text-[13px] text-[#71717a]">Đang tải...</p>;
   const regular = frames.filter((f) => !f.is_default_box);
   const full = regular.length >= 5; // mẫu mặc định CD + Hộp không tính
@@ -144,6 +155,14 @@ export function MockupAdmin() {
         ) : <EmptyState>Chưa có nền nào.</EmptyState>}
       </Card>
 
+      <Card title="Mẫu 3D" description="Thẻ “3D” luôn có ở cuối cột chọn mẫu phía khách (không tính vào 5 mẫu).">
+        <Field label="Khay giữ đĩa">
+          <Select value={mset.tray === "black" ? "black" : "clear"} onChange={(e) => saveTray(e.target.value)} className="max-w-[240px]">
+            <option value="clear">Trong suốt</option>
+            <option value="black">Đen</option>
+          </Select>
+        </Field>
+      </Card>
       <Message msg={msg} />
     </div>
   );

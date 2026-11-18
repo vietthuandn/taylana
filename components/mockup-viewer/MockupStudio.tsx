@@ -8,18 +8,27 @@ import type { Package } from "@/lib/types";
 import { GRADIENTS, type BgChoice } from "@/lib/mockup/backgrounds";
 import { loadImg } from "@/lib/mockup/images";
 import { takeHandoff } from "@/lib/mockup/handoff";
-import type { MockupBackground, MockupFrame, RegionType } from "@/lib/mockup/types";
+import type { MockupBackground, MockupFrame, RegionType, TrayStyle } from "@/lib/mockup/types";
+import type { Cd3DImages } from "./Cd3D";
 import { CdUploadPanel } from "@/components/cd/CdUploadPanel";
 import { layoutOf, readPicked, slotsOf, type Picked } from "@/components/cd/cdSlots";
 import { BgPicker } from "./BgPicker";
 import { CdMockupTab } from "./CdMockupTab";
 import { BookletViewer } from "./BookletViewer";
 
-const isSingleCd = (p: Package) => /^\s*cd\s*lẻ/i.test(p.name);
-const isCdBox = (p: Package) => /^\s*cd\s*\+\s*hộp/i.test(p.name);
+// so tên đã chuẩn hoá Unicode (NFC) — chữ "ộ", "ẻ" có thể được lưu dạng tổ hợp (NFD) khiến so khớp trượt
+const norm = (s: string) => s.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
+const isSingleCd = (p: Package) => /^cd lẻ/.test(norm(p.name));
+// gói "CD + Hộp": theo tên, hoặc gói có hộp nhưng không có bìa nào (chỉ mặt đĩa) và không phải CD lẻ
+const isCdBox = (p: Package) => {
+  const n = norm(p.name);
+  if (/^cd ?\+ ?hộp/.test(n)) return true;
+  const l = layoutOf(p);
+  return !isSingleCd(p) && l.front === 0 && l.back === 0 && /hộp/.test(n);
+};
 
-export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrounds }: {
-  packages: Package[]; frames: MockupFrame[]; boxFrame?: MockupFrame | null; backgrounds: MockupBackground[]; watermark?: boolean;
+export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrounds, tray = "clear" }: {
+  packages: Package[]; frames: MockupFrame[]; boxFrame?: MockupFrame | null; backgrounds: MockupBackground[]; watermark?: boolean; tray?: TrayStyle;
 }) {
   // trang Mockup không có gói "CD lẻ"
   const packages = useMemo(() => allPackages.filter((p) => !isSingleCd(p)), [allPackages]);
@@ -84,10 +93,22 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
   }, [imgs, layout?.front, layout?.back, layout?.disc]); // eslint-disable-line react-hooks/exhaustive-deps
   const bookletPages = useMemo(() => (layout && layout.front >= 4 ? Array.from({ length: layout.front }, (_, i) => imgs[`f${i + 1}`] ?? null) : null), [layout, imgs]);
   const picker = <BgPicker value={bg} onChange={setBg} shop={backgrounds} />;
-  // gói "CD + Hộp": dùng mẫu mặc định, ẩn cột chọn mẫu
-  const box = !!pkg && isCdBox(pkg) && !!boxFrame;
+  // gói "CD + Hộp": chỉ dùng mẫu mặc định (+ thẻ 3D); chưa có mẫu mặc định → tự chọn 3D
+  const box = !!pkg && isCdBox(pkg);
   const showBooklet = previewing && !!bookletPages;
-  const viewFrames = useMemo(() => (box && boxFrame ? [boxFrame] : frames), [box, boxFrame, frames]);
+  const viewFrames = useMemo(() => (box ? (boxFrame ? [boxFrame] : []) : frames), [box, boxFrame, frames]);
+  // ảnh cho hộp 3D: undefined = không có giấy · null = giấy trắng (thuộc gói nhưng chưa có ảnh / mặt trong của gói 1 mặt)
+  const images3d = useMemo<Cd3DImages>(() => {
+    if (!layout || box) return { disc: imgs.d ?? null };
+    const booklet = layout.front >= 4;
+    return {
+      frontOut: layout.front ? imgs.f1 ?? null : undefined,
+      frontIn: layout.front ? (booklet ? imgs[`f${layout.front}`] : imgs.f2) ?? null : undefined,
+      backOut: layout.back ? imgs.b1 ?? null : undefined,
+      backIn: layout.back ? imgs.b2 ?? null : undefined,
+      disc: imgs.d ?? null,
+    };
+  }, [imgs, box, layout?.front, layout?.back]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
@@ -116,7 +137,7 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
       <section className={`relative flex min-w-0 flex-1 flex-col md:min-h-0 ${showBooklet ? "md:overflow-visible" : "md:overflow-hidden"}`}>
         {showBooklet && bookletPages
           ? <BookletViewer pages={bookletPages} back={layout && layout.back >= 1 ? imgs.b1 ?? null : null} bg={bg} bgPicker={picker} onExit={() => setPreviewing(false)} />
-          : <CdMockupTab frames={viewFrames} images={regionImages} bg={bg} bgPicker={picker} hidePicker={box} />}
+          : <CdMockupTab frames={viewFrames} images={regionImages} images3d={images3d} tray={tray} bg={bg} bgPicker={picker} />}
       </section>
      </div>
     </div>
