@@ -138,8 +138,7 @@ export function spriteOpen(sp: Sprites, k: number, frontIn: Src, backIn: Src, di
   const { c, x } = canvas(W, H);
   const lid = R(s.lid, W, H), tray = R(s.tray, W, H);
   cover(x, frontIn, lid);
-  // tray card mặt trong kéo sang trái tới hết vùng bản lề giữa 2 nửa (không để trống)
-  card(x, backIn, { x: lid.x + lid.w + 2 * k, y: tray.y, w: tray.x + tray.w - (lid.x + lid.w + 2 * k), h: tray.h });
+  card(x, backIn, tray); // tray card mặt trong chỉ trong ô khay (vùng bản lề giữa 2 nửa để nhựa trong)
   x.drawImage(sp.open, 0, 0, W, H);
   printDisc(x, disc, s.disc.cx * W, s.disc.cy * H, s.disc.r * W, s.disc.printIn * W, sp);
   glass(x, R(s.case, W, H), g);
