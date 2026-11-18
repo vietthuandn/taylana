@@ -230,6 +230,11 @@ function UploadModal({ n, pages, track, onClose, onDone }: {
     }
     setAssign(next);
     setPending((p) => [...p, ...left]);
+    // xếp đủ tất cả trang, không còn ảnh cần chọn số → tự đóng modal và hiện ở Bước 3
+    if (next.every(Boolean) && !left.length && !pending.length) {
+      toast(`Đã xếp đủ ${n} trang`);
+      onDone(next);
+    }
   }
   const empty = assign.map((x, i) => (x ? 0 : i + 1)).filter(Boolean) as number[];
   const extra = Math.max(0, pending.length - empty.length);
@@ -259,6 +264,22 @@ function UploadModal({ n, pages, track, onClose, onDone }: {
             onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; add(f); }} />
 
           <p className="mt-4 text-[13px] text-[#3f3f46]">Đã xếp {n - empty.length}/{n} trang.</p>
+          {/* ảnh đã xếp vào trang */}
+          <ul className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
+            {assign.map((img, i) => (
+              <li key={i} className="relative aspect-square overflow-hidden rounded-[8px] border border-[#e5e5e7] bg-[#fafafa]">
+                {img ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={img.url} alt="" className="h-full w-full object-cover" />
+                ) : <span className="absolute inset-0 grid place-items-center text-[11px] text-[#d4d4d8]">Trống</span>}
+                <span className="absolute left-1 top-1 rounded-[4px] bg-black/60 px-1.5 text-[11px] font-semibold text-white">{i + 1}</span>
+                {img && (
+                  <button type="button" aria-label={`Bỏ ảnh trang ${i + 1}`} onClick={() => setAssign((a) => a.map((x, k) => (k === i ? null : x)))}
+                    className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80"><X size={12} /></button>
+                )}
+              </li>
+            ))}
+          </ul>
           {empty.length > 0 && !pending.length && <p className="mt-1 text-[13px] text-[#b45309]">Còn thiếu trang: {empty.join(", ")}</p>}
           {extra > 0 && <p className="mt-1 text-[13px] text-[#b45309]">Có {extra} ảnh dư (nhiều hơn {n} trang) — các ảnh không được xếp sẽ bị bỏ.</p>}
           {errors.map((e) => <p key={e} className="mt-1 text-[13px] text-[#dc2626]">{e}</p>)}
@@ -284,7 +305,7 @@ function UploadModal({ n, pages, track, onClose, onDone }: {
         </div>
         <div className="flex justify-end gap-2 border-t border-[#e5e5e7] px-5 py-4">
           <Button variant="secondary" onClick={onClose}>Huỷ</Button>
-          <Button onClick={() => onDone(assign)}>Tiếp tục</Button>
+          <Button onClick={() => onDone(assign)}>Tiếp tục ({n - empty.length}/{n} trang)</Button>
         </div>
       </div>
     </div>
