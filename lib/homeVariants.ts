@@ -4,6 +4,7 @@ import type { HomeVariantProps } from "./homeData";
 import HomeV1 from "@/components/home/variants/v1-hien-tai";
 import HomeV2 from "@/components/home/variants/v2-co-ban";
 import HomeV3 from "@/components/home/variants/v3-ketnoi";
+import HomeV4 from "@/components/home/variants/v4-tem-vui";
 
 export type HomeVariantMeta = { id: string; name: string; description: string; createdAt: string };
 // component: hàm dựng giao diện (server component đồng bộ, không dùng hook)
@@ -13,6 +14,7 @@ export const homeVariants: HomeVariant[] = [
   { id: "v1-hien-tai", name: "Mẫu 1 · Hiện tại", description: "Banner + 6 ô vuông màu (trang chủ gốc).", createdAt: "2026-11-01", component: HomeV1 },
   { id: "v2-co-ban", name: "Mẫu 2 · Cơ bản", description: "Dòng chào căn giữa + 6 lựa chọn dạng thẻ ngang.", createdAt: "2026-11-18", component: HomeV2 },
   { id: "v3-ketnoi", name: "Mẫu 3 · Kết Nối", description: "6 mục nối thành 1 hành trình vẽ tay: Hướng dẫn → Thiết kế → Đặt đơn → Gửi file → Đánh giá → Liên hệ.", createdAt: "2026-11-18", component: HomeV3 },
+  { id: "v4-tem-vui", name: "Mẫu 4 · Tem Vui", description: "6 sticker tròn chữ uốn cong, mỗi mục 1 con vật / trái cây vẽ tay: Cú, Mèo, Dâu, Ếch, Bơ, Nho.", createdAt: "2026-11-18", component: HomeV4 },
 ];
 
 export const findHomeVariant = (id?: string | null) => homeVariants.find((v) => v.id === id);
