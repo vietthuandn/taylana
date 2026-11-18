@@ -54,15 +54,6 @@ function card(x: CanvasRenderingContext2D, im: Src, r: { x: number; y: number; w
   x.drawImage(coverCrop(im, ar, 2400), X + w / 2 - cw / 2, Y + h / 2 - ch / 2, cw, ch);
   x.restore();
 }
-// Bìa trước thật 12 × 12 trong ô hộp đóng (ô rộng hơn ~128 × 120 mm): bìa vuông theo chiều cao ô, căn giữa,
-// 2 mép còn lại lộ tray card mặt trong phía sau (như nhìn xuyên hộp thật)
-function squareCover(x: CanvasRenderingContext2D, im: Src, r: { x: number; y: number; w: number; h: number }) {
-  if (im === undefined) return;
-  const n = NUDGE, h = r.h + n * 2, w = Math.min(r.w + n * 2, h);
-  const X = r.x + r.w / 2 - w / 2, Y = r.y - n;
-  if (!im) { x.fillStyle = "#fbfbfa"; x.fillRect(X, Y, w, h); return; }
-  x.drawImage(coverCrop(im, w / h, 2400), X, Y, w, h);
-}
 // Mặt đĩa: ảnh khách cắt vành khuyên (lỗ in 2,3 cm trên đĩa 12 cm → bán kính ngoài − 1.5%), che luôn vòng hub đen của PNG,
 // giữ viền ngoài, phủ highlight cầu vồng mờ
 const HOLE_RATIO = 2.3 / 12;
@@ -110,7 +101,7 @@ export function spriteClosed(sp: Sprites, k: number, front: Src, backIn: Src, g:
   // tray card mặt trong kéo sang trái tới hết vùng bản lề (không để trống), bìa trước 12 × 12 đặt lên trên
   const behind = { x: cs.x + 3 * k, y: win.y, w: win.x + win.w - (cs.x + 3 * k), h: win.h };
   if (front === undefined) cover(x, undefined, win); // không có bìa: nhựa hơi đục
-  else { card(x, backIn, behind); squareCover(x, front, win); }
+  else { card(x, backIn, behind); cover(x, front, win); } // bìa trước phủ kín cả ô (kéo sang 2 bên, cắt phủ kín không méo)
   x.drawImage(sp.closed, 0, 0, W, H);
   glass(x, R(s.case, W, H), g);
   return { c, ...anchor(s.case, W, H) };
