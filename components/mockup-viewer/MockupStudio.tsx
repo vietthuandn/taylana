@@ -78,7 +78,7 @@ export function MockupStudio({ packages, frames, backgrounds, watermark }: {
   return (
     <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0 md:flex-row">
       {/* ---------- Trái 40%: khu tải ảnh ---------- */}
-      <aside className="border-[#e5e5e7] bg-white p-4 md:w-[40%] md:shrink-0 md:overflow-y-auto md:border-r">
+      <aside className="relative border-[#e5e5e7] bg-white p-4 md:w-[40%] md:shrink-0 md:overflow-y-auto md:border-r">
         <h1 className="font-sans text-[20px] font-bold normal-case tracking-[-0.02em] text-[#18181b]">Xem Mockup CD</h1>
         <p className="mt-1 text-[13px] text-[#71717a]">Ảnh chỉ hiển thị trên máy bạn, không tải lên server.</p>
         <label className="mt-4 block">
@@ -96,7 +96,7 @@ export function MockupStudio({ packages, frames, backgrounds, watermark }: {
       </aside>
 
       {/* ---------- Phải 60%: mockup ---------- */}
-      <section className="min-w-0 flex-1 p-4 md:overflow-y-auto">
+      <section className="relative min-w-0 flex-1 p-4 md:overflow-y-auto">
         <div className="mb-4 inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
           {([["cd", "CD Mockup", Disc3], ["booklet", "Booklet Mockup", BookOpen]] as const).map(([k, t, Icon]) => (
             <button key={k} type="button" onClick={() => setTab(k)}

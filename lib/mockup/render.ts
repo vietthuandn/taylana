@@ -4,7 +4,7 @@
    (nền: vẽ ở scene) → ảnh khách kéo giãn phối cảnh vào từng vùng → ảnh khung PNG (có sẵn bóng) → lớp kính. */
 import { BACK_SPINE_CM, BACK_W_CM } from "@/lib/cdSpecs";
 import { warpToQuad } from "./warp";
-import { REGION_LABELS, type GlassSettings, type Region, type RegionType } from "./types";
+import { DEFAULT_DISC_HOLE, REGION_LABELS, type GlassSettings, type Region, type RegionType } from "./types";
 
 export type SourceImage = (CanvasImageSource & { width: number; height: number }) | null;
 type Img = CanvasImageSource & { width: number; height: number };
@@ -36,7 +36,7 @@ function placeholder(type: RegionType) {
   x.fillStyle = "#a1a1aa"; x.font = "600 34px Inter, system-ui, sans-serif"; x.textAlign = "center"; x.textBaseline = "middle";
   const words = REGION_LABELS[type].split(" - ");
   words.forEach((w, i) => x.fillText(w, 300, 300 + (i - (words.length - 1) / 2) * 44));
-  if (type === "disc") return discSource(c, 0.125);
+  if (type === "disc") return discSource(c, DEFAULT_DISC_HOLE);
   return c;
 }
 
@@ -56,7 +56,7 @@ export function renderFrame({ frame, regions, images, masks = {}, glass, maxW = 
   for (const r of [...regions].sort((a, b) => a.order - b.order)) {
     const raw = images[r.type] ?? null;
     let src: Img = raw ?? placeholder(r.type);
-    if (raw && r.type === "disc") src = discSource(raw, r.hole ?? 0.125);
+    if (raw && r.type === "disc") src = discSource(raw, r.hole ?? DEFAULT_DISC_HOLE);
     if (raw && (r.type === "back_out" || r.type === "back_in") && r.spine === "trim") src = trimSpines(raw);
     const layer = warpToQuad(src, quadPx(r), W, H);
     const mask = r.mask_url ? masks[r.mask_url] : undefined;

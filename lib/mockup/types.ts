@@ -24,9 +24,14 @@ export type MockupFrame = {
 export type MockupBackground = { id: string; name: string; url: string; is_active: boolean; sort_order: number };
 export type MockupSettings = { watermark: boolean };
 
+// Lỗ giữa đĩa mặc định: đường kính 2,3 cm trên đĩa 12 cm
+export const DISC_HOLE_CM = 2.3;
+export const DISC_CM = 12;
+export const DEFAULT_DISC_HOLE = DISC_HOLE_CM / DISC_CM;
+
 export const defaultGlass: GlassSettings = { strength: 50, angle: -35 };
 export const newRegion = (type: RegionType = "front_out", order = 1): Region => ({
   id: Math.random().toString(36).slice(2, 9), type, order,
   pts: [[0.3, 0.3], [0.7, 0.3], [0.7, 0.7], [0.3, 0.7]],
-  glass: type !== "disc", blend: "normal", spine: "show", hole: 0.125,
+  glass: type !== "disc", blend: "normal", spine: "show", hole: DEFAULT_DISC_HOLE,
 });

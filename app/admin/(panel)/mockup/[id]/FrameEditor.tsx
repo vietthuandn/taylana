@@ -11,7 +11,8 @@ import { createClient } from "@/lib/supabase/client";
 import { uploadMockupImage } from "@/lib/upload";
 import { loadImg, proxied } from "@/lib/mockup/images";
 import { renderFrame, sampleImage } from "@/lib/mockup/render";
-import { REGION_LABELS, defaultGlass, newRegion, type GlassSettings, type MockupFrame, type Pt, type Region, type RegionType } from "@/lib/mockup/types";
+import { apply, squareToQuad } from "@/lib/mockup/homography";
+import { DEFAULT_DISC_HOLE, DISC_CM, REGION_LABELS, defaultGlass, newRegion, type GlassSettings, type MockupFrame, type Pt, type Region, type RegionType } from "@/lib/mockup/types";
 import { revalidatePublic } from "@/app/admin/actions";
 import { Button, Field, Input, Message, Select, Toggle } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
@@ -83,7 +84,8 @@ export function FrameEditor({ id }: { id: string }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [box, setBox] = useState({ w: 800, h: 600 });
-  const [drag, setDrag] = useState<{ ri: string; ci: number; x: number; y: number } | null>(null);
+  // ci = 0..3: kéo 1 góc · ci = -1: kéo cả vùng (start = điểm bấm, pts0 = 4 góc lúc bấm)
+  const [drag, setDrag] = useState<{ ri: string; ci: number; x: number; y: number; start?: Pt; pts0?: Region["pts"] } | null>(null);
   const area = useRef<HTMLDivElement>(null);
   const fileIn = useRef<HTMLInputElement>(null);
   const testIn = useRef<HTMLInputElement>(null);
@@ -133,7 +135,7 @@ export function FrameEditor({ id }: { id: string }) {
   // kính lúp ×4 khi kéo góc
   useEffect(() => {
     const c = lens.current;
-    if (!c || !drag || !img) return;
+    if (!c || !drag || drag.ci < 0 || !img) return;
     const x = c.getContext("2d")!, S = 160, Z = 4;
     x.clearRect(0, 0, S, S);
     x.imageSmoothingEnabled = false;
@@ -192,7 +194,7 @@ export function FrameEditor({ id }: { id: string }) {
 
   const handle = "cursor-grab fill-white stroke-[#ff5fa2]";
   return (
-    <div className="flex h-[calc(100dvh-56px)] flex-col bg-white">
+    <div className="relative flex h-[calc(100dvh-56px)] flex-col overflow-hidden bg-white">
       <div className="flex h-12 shrink-0 items-center gap-3 border-b border-[#e5e5e7] px-3">
         <Link href="/admin/mockup" className="inline-flex h-8 items-center gap-1 rounded-[8px] border border-[#e5e5e7] px-3 text-[13px] font-medium hover:bg-[#f4f4f5]"><ArrowLeft size={16} /> Danh sách mẫu</Link>
         <input className="h-8 min-w-0 flex-1 rounded-[6px] border border-transparent px-2 text-[14px] font-semibold hover:border-[#e5e5e7] focus:border-[#ff5fa2] focus:outline-none sm:max-w-sm"
@@ -205,6 +207,15 @@ export function FrameEditor({ id }: { id: string }) {
           onPointerMove={(e) => {
             if (!drag || !cur) return;
             const p = toFrac(e.clientX, e.clientY);
+            if (drag.ci === -1 && drag.start && drag.pts0) {
+              // di chuyển cả vùng, giữ trong khung ảnh
+              let dx = p[0] - drag.start[0], dy = p[1] - drag.start[1];
+              const xs = drag.pts0.map((q) => q[0]), ys = drag.pts0.map((q) => q[1]);
+              dx = Math.min(1 - Math.max(...xs), Math.max(-Math.min(...xs), dx));
+              dy = Math.min(1 - Math.max(...ys), Math.max(-Math.min(...ys), dy));
+              setRegion(cur.id, { pts: drag.pts0.map(([x, y]) => [x + dx, y + dy]) as Region["pts"] });
+              return;
+            }
             const pts = cur.pts.map((q) => [...q]) as Region["pts"];
             pts[drag.ci] = p;
             setRegion(cur.id, { pts });
@@ -222,8 +233,25 @@ export function FrameEditor({ id }: { id: string }) {
                     const pts = r.pts.map(([x, y]) => [ox + x * dw, oy + y * dh]);
                     return (
                       <g key={r.id}>
-                        <polygon points={pts.map((p) => p.join(",")).join(" ")} onPointerDown={() => setSel(r.id)}
-                          className={cx("cursor-pointer", on ? "fill-[#ff5fa2]/15 stroke-[#ff5fa2]" : "fill-[#18181b]/5 stroke-[#18181b]/50")} strokeWidth={on ? 2 : 1} strokeDasharray={on ? undefined : "4 3"} />
+                        <polygon points={pts.map((p) => p.join(",")).join(" ")}
+                          onPointerDown={(e) => { setSel(r.id); (e.target as Element).setPointerCapture?.(e.pointerId); setDrag({ ri: r.id, ci: -1, x: 0, y: 0, start: toFrac(e.clientX, e.clientY), pts0: r.pts }); }}
+                          className={cx(on ? "cursor-move" : "cursor-pointer", r.type === "disc" ? "fill-transparent" : on ? "fill-[#ff5fa2]/15" : "fill-[#18181b]/5", on ? "stroke-[#ff5fa2]" : "stroke-[#18181b]/50")}
+                          strokeWidth={on ? (r.type === "disc" ? 1 : 2) : 1} strokeDasharray={on && r.type !== "disc" ? undefined : "4 3"} />
+                        {r.type === "disc" && (() => {
+                          // hình tròn của đĩa kéo theo phối cảnh (thành elip) + lỗ tâm
+                          const H3 = squareToQuad(pts as [number, number][]);
+                          const ring = (rad: number) => Array.from({ length: 73 }, (_, i) => {
+                            const a = (i / 72) * Math.PI * 2;
+                            return apply(H3, 0.5 + rad * Math.cos(a), 0.5 + rad * Math.sin(a)).join(",");
+                          }).join(" ");
+                          const hole = (r.hole ?? DEFAULT_DISC_HOLE) / 2;
+                          return (
+                            <g className="pointer-events-none">
+                              <polygon points={ring(0.5)} className={on ? "fill-[#ff5fa2]/15 stroke-[#ff5fa2]" : "fill-[#18181b]/5 stroke-[#18181b]/50"} strokeWidth={on ? 2 : 1} />
+                              <polygon points={ring(hole)} className="fill-white/70 stroke-[#ff5fa2]" strokeWidth={1.5} strokeDasharray="3 2" />
+                            </g>
+                          );
+                        })()}
                         <text x={pts[0][0] + 6} y={pts[0][1] + 16} className="pointer-events-none fill-[#18181b] text-[11px] font-semibold">{REGION_LABELS[r.type]}</text>
                         {on && pts.map((p, ci) => (
                           <circle key={ci} cx={p[0]} cy={p[1]} r={corner === ci ? 8 : 6} className={handle} strokeWidth={2}
@@ -233,13 +261,13 @@ export function FrameEditor({ id }: { id: string }) {
                     );
                   })}
                 </svg>
-                {drag && <canvas ref={lens} width={160} height={160} className="pointer-events-none absolute left-4 top-4 rounded-full border-2 border-[#ff5fa2] bg-white shadow-lg" />}
+                {drag && drag.ci >= 0 && <canvas ref={lens} width={160} height={160} className="pointer-events-none absolute left-4 top-4 rounded-full border-2 border-[#ff5fa2] bg-white shadow-lg" />}
               </>
             )}
         </div>
 
         {/* ---------- Panel 320px ---------- */}
-        <aside className="space-y-5 overflow-y-auto border-[#e5e5e7] p-4 text-[13px] lg:w-[320px] lg:shrink-0 lg:border-l">
+        <aside className="relative space-y-5 overflow-y-auto border-[#e5e5e7] p-4 text-[13px] lg:w-[320px] lg:shrink-0 lg:border-l">
           <section className="space-y-2">
             <p className="text-[13px] font-semibold">Ảnh khung</p>
             <Input value={f.image_url} onChange={(e) => setF({ ...f, image_url: e.target.value.trim() })} placeholder="Dán link ảnh PNG..." />
@@ -263,7 +291,7 @@ export function FrameEditor({ id }: { id: string }) {
               <Button variant="secondary" size="sm" icon={<Plus size={16} />} disabled={f.regions.length >= 5}
                 onClick={() => { const r = newRegion(TYPES[f.regions.length % TYPES.length], f.regions.length + 1); setF({ ...f, regions: [...f.regions, r] }); setSel(r.id); }}>Thêm vùng</Button>
             </div>
-            <p className="text-[12px] text-[#71717a]">Tối đa 5 vùng. Kéo 4 góc trên canvas; phím mũi tên dịch góc đang chọn 1px (Shift: 10px).</p>
+            <p className="text-[12px] text-[#71717a]">Tối đa 5 vùng. Kéo 4 góc để chỉnh, kéo bên trong vùng để di chuyển cả vùng; phím mũi tên dịch góc đang chọn 1px (Shift: 10px).</p>
             <ul className="space-y-1">
               {f.regions.map((r) => (
                 <li key={r.id}>
@@ -280,7 +308,7 @@ export function FrameEditor({ id }: { id: string }) {
             <section className="space-y-3 rounded-[10px] border border-[#e5e5e7] bg-[#fafafa] p-3">
               <p className="font-semibold">Vùng đang chọn</p>
               <Field label="Loại vùng">
-                <Select value={cur.type} onChange={(e) => setRegion(cur.id, { type: e.target.value as RegionType, glass: e.target.value !== "disc" })}>
+                <Select value={cur.type} onChange={(e) => setRegion(cur.id, { type: e.target.value as RegionType, glass: e.target.value !== "disc", ...(e.target.value === "disc" && cur.hole == null ? { hole: DEFAULT_DISC_HOLE } : {}) })}>
                   {TYPES.map((t) => <option key={t} value={t}>{REGION_LABELS[t]}</option>)}
                 </Select>
               </Field>
@@ -301,8 +329,8 @@ export function FrameEditor({ id }: { id: string }) {
                 </Field>
               )}
               {cur.type === "disc" && (
-                <Field label={`Tỉ lệ lỗ giữa: ${Math.round((cur.hole ?? 0.125) * 100)}%`}>
-                  <input type="range" min={0} max={0.4} step={0.005} value={cur.hole ?? 0.125} onChange={(e) => setRegion(cur.id, { hole: Number(e.target.value) })} className="w-full accent-[#ff5fa2]" />
+                <Field label={`Lỗ tâm: ${((cur.hole ?? DEFAULT_DISC_HOLE) * DISC_CM).toFixed(1)} cm (đĩa ${DISC_CM} cm)`} hint="Mặc định 2,3 cm. Kéo 4 góc để hình tròn khớp mặt đĩa trên ảnh khung.">
+                  <input type="range" min={0} max={0.4} step={0.0025} value={cur.hole ?? DEFAULT_DISC_HOLE} onChange={(e) => setRegion(cur.id, { hole: Number(e.target.value) })} className="w-full accent-[#ff5fa2]" />
                 </Field>
               )}
               <Field label="Mặt nạ PNG (không bắt buộc)">

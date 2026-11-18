@@ -115,7 +115,7 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
             </div>
           )}
         </div>
-        <aside className="flex flex-col divide-y divide-[#efeff1] border-[#e5e5e7] lg:w-[320px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
+        <aside className="relative flex flex-col divide-y divide-[#efeff1] border-[#e5e5e7] lg:w-[320px] lg:shrink-0 lg:overflow-y-auto lg:border-l">
           <section className="space-y-2.5 p-4">
             <p className="tool-label">Loại mẫu</p>
             <select className="tool-input w-full" value={target} onChange={(e) => setTarget(e.target.value as TplTarget)} aria-label="Loại mẫu">
