@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, Plus, ScanSearch, Trash2, Upload } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Minus, Plus, ScanSearch, Trash2, Upload } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadMockupImage } from "@/lib/upload";
 import { loadImg, proxied } from "@/lib/mockup/images";
@@ -85,8 +85,14 @@ export function FrameEditor({ id }: { id: string }) {
   const [uploading, setUploading] = useState(false);
   const [box, setBox] = useState({ w: 800, h: 600 });
   // ci = 0..3: kéo 1 góc · ci = -1: kéo cả vùng (start = điểm bấm, pts0 = 4 góc lúc bấm)
+  //        giữ Shift khi kéo góc: thu / phóng cả vùng theo góc đối diện (giữ nguyên hình dạng)
   const [drag, setDrag] = useState<{ ri: string; ci: number; x: number; y: number; start?: Pt; pts0?: Region["pts"] } | null>(null);
   const area = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  // thu phóng vùng chỉnh sửa (vừa phải: 50% – 300%)
+  const [zoom, setZoom] = useState(1);
+  const pendingCenter = useRef<[number, number] | null>(null);
   const fileIn = useRef<HTMLInputElement>(null);
   const testIn = useRef<HTMLInputElement>(null);
   const lens = useRef<HTMLCanvasElement>(null);
@@ -114,8 +120,18 @@ export function FrameEditor({ id }: { id: string }) {
   }, []);
 
   const iw = img?.naturalWidth ?? 1000, ih = img?.naturalHeight ?? 750;
-  const k = Math.min((box.w - 48) / iw, (box.h - 48) / ih);
-  const dw = iw * k, dh = ih * k, ox = (box.w - dw) / 2, oy = (box.h - dh) / 2;
+  const k = Math.min((box.w - 48) / iw, (box.h - 48) / ih) * zoom;
+  const dw = iw * k, dh = ih * k;
+  const stageW = Math.max(box.w, dw + 48), stageH = Math.max(box.h, dh + 48);
+  const ox = (stageW - dw) / 2, oy = (stageH - dh) / 2;
+  const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
+  function zoomTo(nz: number) {
+    nz = Math.min(3, Math.max(0.5, nz));
+    const sc = scroller.current;
+    if (sc) pendingCenter.current = [(sc.scrollLeft + box.w / 2 - ox) / dw, (sc.scrollTop + box.h / 2 - oy) / dh]; // giữ điểm ở giữa màn hình
+    setZoom(nz);
+  }
+  const zoomStep = (dir: 1 | -1) => zoomTo(dir > 0 ? ZOOMS.find((z) => z > zoom + 1e-6) ?? 3 : [...ZOOMS].reverse().find((z) => z < zoom - 1e-6) ?? 0.5);
   const cur = f.regions.find((r) => r.id === sel) ?? null;
   const setRegion = (rid: string, p: Partial<Region>) => setF((x) => ({ ...x, regions: x.regions.map((r) => (r.id === rid ? { ...r, ...p } : r)) }));
 
@@ -148,8 +164,25 @@ export function FrameEditor({ id }: { id: string }) {
     x.beginPath(); x.moveTo(S / 2, 0); x.lineTo(S / 2, S); x.moveTo(0, S / 2); x.lineTo(S, S / 2); x.stroke();
   }, [drag, img, iw, ih]);
 
+  // sau khi đổi zoom: cuộn để điểm giữa màn hình giữ nguyên
+  useEffect(() => {
+    const sc = scroller.current, c = pendingCenter.current;
+    if (!sc || !c) return;
+    pendingCenter.current = null;
+    sc.scrollLeft = ox + c[0] * dw - box.w / 2;
+    sc.scrollTop = oy + c[1] * dh - box.h / 2;
+  }, [zoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Ctrl / ⌘ + cuộn chuột để thu phóng
+  useEffect(() => {
+    const sc = scroller.current;
+    if (!sc) return;
+    const wheel = (e: WheelEvent) => { if (!e.ctrlKey && !e.metaKey) return; e.preventDefault(); zoomTo(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1)); };
+    sc.addEventListener("wheel", wheel, { passive: false });
+    return () => sc.removeEventListener("wheel", wheel);
+  });
+
   const toFrac = useCallback((cx: number, cy: number): Pt => {
-    const r = area.current!.getBoundingClientRect();
+    const r = stage.current!.getBoundingClientRect();
     return [Math.min(1, Math.max(0, (cx - r.left - ox) / dw)), Math.min(1, Math.max(0, (cy - r.top - oy) / dh))];
   }, [ox, oy, dw, dh]);
 
@@ -205,7 +238,9 @@ export function FrameEditor({ id }: { id: string }) {
       </div>
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* ---------- Canvas ---------- */}
-        <div ref={area} className="relative min-h-[420px] min-w-0 flex-1 select-none overflow-hidden bg-[repeating-conic-gradient(#ececee_0_25%,#f7f7f8_0_50%)] bg-[length:20px_20px]"
+        <div ref={area} className="relative min-h-[420px] min-w-0 flex-1 select-none overflow-hidden bg-[repeating-conic-gradient(#ececee_0_25%,#f7f7f8_0_50%)] bg-[length:20px_20px]">
+        <div ref={scroller} className="absolute inset-0 overflow-auto">
+        <div ref={stage} className="relative" style={{ width: stageW, height: stageH }}
           onPointerMove={(e) => {
             if (!drag || !cur) return;
             const p = toFrac(e.clientX, e.clientY);
@@ -216,6 +251,16 @@ export function FrameEditor({ id }: { id: string }) {
               dx = Math.min(1 - Math.max(...xs), Math.max(-Math.min(...xs), dx));
               dy = Math.min(1 - Math.max(...ys), Math.max(-Math.min(...ys), dy));
               setRegion(cur.id, { pts: drag.pts0.map(([x, y]) => [x + dx, y + dy]) as Region["pts"] });
+              return;
+            }
+            if (e.shiftKey && drag.pts0) {
+              // Shift + kéo góc: đổi kích thước cả vùng, neo ở góc đối diện (tính theo px để giữ tỉ lệ)
+              const a = drag.pts0[(drag.ci + 2) % 4], c0 = drag.pts0[drag.ci];
+              const d0 = Math.hypot((c0[0] - a[0]) * iw, (c0[1] - a[1]) * ih) || 1;
+              const sc = Math.max(0.05, Math.hypot((p[0] - a[0]) * iw, (p[1] - a[1]) * ih) / d0);
+              const pts = drag.pts0.map(([x, y]) => [Math.min(1, Math.max(0, a[0] + (x - a[0]) * sc)), Math.min(1, Math.max(0, a[1] + (y - a[1]) * sc))]) as Region["pts"];
+              setRegion(cur.id, { pts });
+              setDrag({ ...drag, x: pts[drag.ci][0], y: pts[drag.ci][1] });
               return;
             }
             const pts = cur.pts.map((q) => [...q]) as Region["pts"];
@@ -257,15 +302,25 @@ export function FrameEditor({ id }: { id: string }) {
                         <text x={pts[0][0] + 6} y={pts[0][1] + 16} className="pointer-events-none fill-[#18181b] text-[11px] font-semibold">{REGION_LABELS[r.type]}</text>
                         {on && pts.map((p, ci) => (
                           <circle key={ci} cx={p[0]} cy={p[1]} r={corner === ci ? 8 : 6} className={handle} strokeWidth={2}
-                            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); setCorner(ci); setDrag({ ri: r.id, ci, x: r.pts[ci][0], y: r.pts[ci][1] }); }} />
+                            onPointerDown={(e) => { e.stopPropagation(); (e.target as Element).setPointerCapture?.(e.pointerId); setCorner(ci); setDrag({ ri: r.id, ci, x: r.pts[ci][0], y: r.pts[ci][1], pts0: r.pts }); }} />
                         ))}
                       </g>
                     );
                   })}
                 </svg>
-                {drag && drag.ci >= 0 && <canvas ref={lens} width={160} height={160} className="pointer-events-none absolute left-4 top-4 rounded-full border-2 border-[#ff5fa2] bg-white shadow-lg" />}
               </>
             )}
+        </div>
+        </div>
+          {drag && drag.ci >= 0 && <canvas ref={lens} width={160} height={160} className="pointer-events-none absolute left-4 top-4 rounded-full border-2 border-[#ff5fa2] bg-white shadow-lg" />}
+          {/* thu phóng */}
+          {f.image_url && !imgErr && (
+            <div className="absolute bottom-4 right-4 flex items-center gap-1 rounded-[10px] border border-[#e5e5e7] bg-white p-1 shadow-[0_4px_16px_rgb(0_0_0/0.08)]">
+              <button type="button" onClick={() => zoomStep(-1)} disabled={zoom <= 0.5} aria-label="Thu nhỏ" className="grid h-8 w-8 place-items-center rounded-[6px] hover:bg-[#f4f4f5] disabled:opacity-40"><Minus size={16} /></button>
+              <button type="button" onClick={() => zoomTo(1)} title="Vừa khung" className="h-8 min-w-[56px] rounded-[6px] px-2 text-[13px] font-medium tabular-nums hover:bg-[#f4f4f5]">{Math.round(zoom * 100)}%</button>
+              <button type="button" onClick={() => zoomStep(1)} disabled={zoom >= 3} aria-label="Phóng to" className="grid h-8 w-8 place-items-center rounded-[6px] hover:bg-[#f4f4f5] disabled:opacity-40"><Plus size={16} /></button>
+            </div>
+          )}
         </div>
 
         {/* ---------- Panel 320px ---------- */}
@@ -293,7 +348,7 @@ export function FrameEditor({ id }: { id: string }) {
               <Button variant="secondary" size="sm" icon={<Plus size={16} />} disabled={f.regions.length >= MAX_REGIONS}
                 onClick={() => { const r = newRegion(TYPES[f.regions.length % TYPES.length], f.regions.length + 1); setF({ ...f, regions: [...f.regions, r] }); setSel(r.id); }}>Thêm vùng</Button>
             </div>
-            <p className="text-[12px] text-[#71717a]">Tối đa {MAX_REGIONS} vùng. Kéo 4 góc để chỉnh, kéo bên trong vùng để di chuyển cả vùng; phím mũi tên dịch góc đang chọn 1px (Shift: 10px).</p>
+            <p className="text-[12px] text-[#71717a]">Tối đa {MAX_REGIONS} vùng. Kéo 4 góc để chỉnh từng góc, giữ <b>Shift</b> khi kéo góc để thu / phóng cả vùng, kéo bên trong vùng để di chuyển. Phím mũi tên dịch góc đang chọn 1px (Shift: 10px). Ctrl + cuộn chuột hoặc nút −/+ ở góc để thu phóng.</p>
             <ul className="space-y-1">
               {f.regions.map((r) => (
                 <li key={r.id}>
