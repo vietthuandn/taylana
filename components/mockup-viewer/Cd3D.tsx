@@ -8,7 +8,7 @@ import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNo
 import * as THREE from "three";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { ContactShadows, Environment, Lightformer, OrbitControls, PerformanceMonitor, RoundedBox, useGLTF } from "@react-three/drei";
-import { EffectComposer, N8AO, SMAA, ToneMapping, Vignette } from "@react-three/postprocessing";
+import { EffectComposer, SMAA, ToneMapping, Vignette } from "@react-three/postprocessing";
 import { ToneMappingMode, type EffectComposer as ComposerImpl } from "postprocessing";
 import type { OrbitControls as OrbitImpl } from "three-stdlib";
 import { BookOpen, RotateCcw } from "lucide-react";
@@ -462,25 +462,17 @@ export default function Cd3D({ images, tray, finish = "matte", modelUrl, bgUrl, 
           ) : built}
         </group>
         {/* bóng đổ mềm dưới hộp (động: đổi theo nắp mở / đĩa nhấc) */}
-        <ContactShadows position={[0, -0.01, 0]} opacity={0.45} scale={40} blur={2.5} far={8} resolution={low ? 512 : 1024} color="#1f1f23" />
+        <ContactShadows position={[0, -0.01, 0]} opacity={0.4} scale={30} blur={2.4} far={4} resolution={low ? 512 : 1024} color="#1f1f23" depthWrite={false} />
         <OrbitControls ref={controls as never} makeDefault enablePan={false} target={TARGET0.toArray()} minDistance={24} maxDistance={90}
           minPolarAngle={0.12} maxPolarAngle={Math.PI * 0.62} onStart={start} />
         <CameraRig open={open} idle={idle} />
-        {/* hậu kỳ: AO nhẹ ở khe / mấu / gáy (tắt trên máy yếu) + SMAA + vignette rất nhẹ, không bloom */}
-        {low ? (
-          <EffectComposer key="low" ref={composer as never} multisampling={low ? 0 : 4} enableNormalPass={false}>
-            <SMAA />
-            <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-            <Vignette offset={0.35} darkness={0.22} />
-          </EffectComposer>
-        ) : (
-          <EffectComposer key="high" ref={composer as never} multisampling={low ? 0 : 4} enableNormalPass={false}>
-            <N8AO aoRadius={0.5} intensity={1} distanceFalloff={0.5} quality="medium" halfRes />
-            <SMAA />
-            <ToneMapping mode={ToneMappingMode.NEUTRAL} />
-            <Vignette offset={0.35} darkness={0.22} />
-          </EffectComposer>
-        )}
+        {/* hậu kỳ: SMAA + vignette rất nhẹ, không bloom.
+            Không dùng N8AO: nó tự dựng lại độ sâu của cả tấm hứng bóng (rộng gấp 3 hộp) nên phủ 1 vùng tối hình vuông lên nền. */}
+        <EffectComposer ref={composer as never} multisampling={low ? 0 : 4} enableNormalPass={false}>
+          <SMAA />
+          <ToneMapping mode={ToneMappingMode.NEUTRAL} />
+          <Vignette offset={0.35} darkness={0.18} />
+        </EffectComposer>
         <Capturer handle={handle} composer={composer} />
       </Canvas>
 
