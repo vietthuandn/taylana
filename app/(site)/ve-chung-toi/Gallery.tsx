@@ -2,11 +2,11 @@
 
 /* Gallery masonry (máy tính 3 cột, điện thoại 2 cột, cách 8px, bo 8px), ảnh tải dần.
    Bấm ảnh mở lightbox: nút trước/sau, vuốt trên điện thoại, phím ←/→, Esc để đóng. */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ImageLightbox } from "@/components/site/ImageLightbox";
 import type { ShowcaseItem } from "@/lib/types";
 
 export function Gallery({ items }: { items: ShowcaseItem[] }) {
@@ -32,52 +32,9 @@ export function Gallery({ items }: { items: ShowcaseItem[] }) {
           </li>
         ))}
       </ul>
-      {open !== null && shown[open] && <Lightbox items={shown} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
-    </>
-  );
-}
-
-function Lightbox({ items, index, onIndex, onClose }: { items: ShowcaseItem[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
-  const it = items[index];
-  const touch = useRef<number | null>(null);
-  const prev = useCallback(() => onIndex((index - 1 + items.length) % items.length), [index, items.length, onIndex]);
-  const next = useCallback(() => onIndex((index + 1) % items.length), [index, items.length, onIndex]);
-  useEffect(() => {
-    const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowLeft") prev();
-      else if (e.key === "ArrowRight") next();
-    };
-    window.addEventListener("keydown", key);
-    const o = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { window.removeEventListener("keydown", key); document.body.style.overflow = o; };
-  }, [onClose, prev, next]);
-
-  const btn = "absolute top-1/2 grid h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20";
-  return (
-    <div className="fixed inset-0 z-[80] bg-black/90" role="dialog" aria-modal aria-label="Xem ảnh" onClick={onClose}
-      onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
-      onTouchEnd={(e) => {
-        if (touch.current === null) return;
-        const dx = e.changedTouches[0].clientX - touch.current;
-        touch.current = null;
-        if (Math.abs(dx) > 48) (dx > 0 ? prev : next)();
-      }}>
-      <div className="absolute inset-x-0 top-0 flex h-14 items-center justify-between px-4 text-[14px] text-white/80">
-        <span className="tabular-nums">{index + 1} / {items.length}</span>
-        <button type="button" onClick={onClose} aria-label="Đóng" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"><X size={20} /></button>
-      </div>
-      <div className="absolute inset-x-4 bottom-16 top-14 sm:inset-x-24" onClick={(e) => e.stopPropagation()}>
-        <Image key={it.id} src={it.image_url} alt={it.title || "Sản phẩm"} fill sizes="100vw" className="animate-[fadeIn_.25s_ease] object-contain" />
-      </div>
-      {it.title && <p className="absolute inset-x-0 bottom-4 px-4 text-center text-[14px] text-white/90">{it.title}</p>}
-      {items.length > 1 && (
-        <>
-          <button type="button" aria-label="Ảnh trước" className={`${btn} left-4 hidden sm:grid`} onClick={(e) => { e.stopPropagation(); prev(); }}><ChevronLeft size={24} /></button>
-          <button type="button" aria-label="Ảnh sau" className={`${btn} right-4 hidden sm:grid`} onClick={(e) => { e.stopPropagation(); next(); }}><ChevronRight size={24} /></button>
-        </>
+      {open !== null && shown[open] && (
+        <ImageLightbox images={shown.map((x) => x.image_url)} index={open} onIndex={setOpen} onClose={() => setOpen(null)} alt={shown[open].title || "Sản phẩm"} />
       )}
-    </div>
+    </>
   );
 }

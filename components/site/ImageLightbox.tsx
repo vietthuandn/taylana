@@ -1,7 +1,8 @@
 "use client";
 
 /* Xem ảnh phóng to: nút trước/sau, vuốt trên điện thoại, phím ←/→, Esc để đóng. */
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
@@ -22,9 +23,13 @@ export function ImageLightbox({ images, index, onIndex, onClose, alt = "" }: {
     document.body.style.overflow = "hidden";
     return () => { window.removeEventListener("keydown", key); document.body.style.overflow = o; };
   }, [onClose, prev, next]);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const btn = "absolute top-1/2 hidden h-12 w-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20 sm:grid";
-  return (
-    <div className="fixed inset-0 z-[80] bg-black/90" role="dialog" aria-modal aria-label="Xem ảnh" onClick={onClose}
+  if (!mounted) return null;
+  // Gắn thẳng vào <body> để luôn nằm trên header (vùng nội dung có stacking context riêng)
+  return createPortal(
+    <div className="fixed inset-0 z-[100] bg-black/90" role="dialog" aria-modal aria-label="Xem ảnh" onClick={onClose}
       onTouchStart={(e) => { touch.current = e.touches[0].clientX; }}
       onTouchEnd={(e) => {
         if (touch.current === null) return;
@@ -34,7 +39,8 @@ export function ImageLightbox({ images, index, onIndex, onClose, alt = "" }: {
       }}>
       <div className="absolute inset-x-0 top-0 flex h-14 items-center justify-between px-4 text-[14px] text-white/80">
         <span className="tabular-nums">{images.length > 1 ? `${index + 1} / ${images.length}` : ""}</span>
-        <button type="button" onClick={onClose} aria-label="Đóng" className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"><X size={20} /></button>
+        <button type="button" onClick={(e) => { e.stopPropagation(); onClose(); }} aria-label="Đóng"
+          className="grid h-11 w-11 place-items-center rounded-full bg-white/15 text-white hover:bg-white/25"><X size={22} /></button>
       </div>
       <div className="absolute inset-x-4 bottom-8 top-14 sm:inset-x-24" onClick={(e) => e.stopPropagation()}>
         <Image key={images[index]} src={images[index]} alt={alt} fill sizes="100vw" className="animate-[fadeIn_.25s_ease] object-contain" />
@@ -45,6 +51,7 @@ export function ImageLightbox({ images, index, onIndex, onClose, alt = "" }: {
           <button type="button" aria-label="Ảnh sau" className={`${btn} right-4`} onClick={(e) => { e.stopPropagation(); next(); }}><ChevronRight size={24} /></button>
         </>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

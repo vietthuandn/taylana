@@ -350,7 +350,7 @@ function DiscountModal({ pubs, priv, choice, resolve, check, onClose, onConfirm 
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center sm:p-4" role="dialog" aria-modal onMouseDown={onClose}>
-      <div className="flex max-h-[90dvh] w-full max-w-[480px] flex-col overflow-hidden rounded-t-[12px] bg-white sm:rounded-[12px]" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="flex max-h-[calc(100dvh-var(--header-h)-16px)] w-full max-w-[480px] flex-col overflow-hidden rounded-t-[12px] bg-white sm:rounded-[12px]" onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-[#e5e5e7] px-4">
           <p className="text-[16px] font-semibold text-[#18181b]">Chọn mã giảm giá</p>
           <button type="button" onClick={onClose} aria-label="Đóng" className="grid h-8 w-8 place-items-center rounded-[8px] text-[#71717a] hover:bg-[#f4f4f5]"><X size={16} /></button>
