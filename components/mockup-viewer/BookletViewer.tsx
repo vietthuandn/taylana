@@ -107,9 +107,13 @@ export function BookletViewer({ pages, back, bg, bgPicker, onExit }: {
         usePortrait: false, mobileScrollSupport: false, flippingTime: 800, startPage: Math.min(curRef.current, urls.length - 1),
       });
       // chế độ HTML (không dùng canvas) để trang cong khi lật tràn ra ngoài khung, không bị cắt
+      // ảnh trang là <img> CON của trang: page-flip ghi đè style.cssText của trang mỗi lần vẽ (nền CSS sẽ mất)
       const items = urls.map((u) => {
         const d = document.createElement("div");
-        d.style.cssText = `width:${P}px;height:${P}px;background:url(${u}) center/cover no-repeat;`;
+        const im = document.createElement("img");
+        im.src = u; im.alt = ""; im.draggable = false;
+        im.style.cssText = "display:block;width:100%;height:100%;object-fit:cover;pointer-events:none;user-select:none;";
+        d.appendChild(im);
         return d;
       });
       items.forEach((d) => book.appendChild(d));
