@@ -106,9 +106,11 @@ const anchor = (cs: Rect, W: number, H: number) => ({ ax: ((cs.x0 + cs.x1) / 2) 
 export function spriteClosed(sp: Sprites, k: number, front: Src, backIn: Src, g: GlassSettings): SpriteOut {
   const s = sp.sheet.closed, W = s.width * k, H = s.height * k;
   const { c, x } = canvas(W, H);
-  const win = R(s.cover, W, H);
+  const win = R(s.cover, W, H), cs = R(s.case, W, H);
+  // tray card mặt trong kéo sang trái tới hết vùng bản lề (không để trống), bìa trước 12 × 12 đặt lên trên
+  const behind = { x: cs.x + 3 * k, y: win.y, w: win.x + win.w - (cs.x + 3 * k), h: win.h };
   if (front === undefined) cover(x, undefined, win); // không có bìa: nhựa hơi đục
-  else { card(x, backIn, win); squareCover(x, front, win); } // tray card mặt trong phía sau + bìa trước 12 × 12
+  else { card(x, backIn, behind); squareCover(x, front, win); }
   x.drawImage(sp.closed, 0, 0, W, H);
   glass(x, R(s.case, W, H), g);
   return { c, ...anchor(s.case, W, H) };
@@ -117,17 +119,27 @@ export function spriteClosed(sp: Sprites, k: number, front: Src, backIn: Src, g:
 export function spriteBack(sp: Sprites, k: number, back: Src, g: GlassSettings): SpriteOut {
   const s = sp.sheet.closed, W = s.width * k, H = s.height * k;
   const { c, x } = canvas(W, H);
-  card(x, back, R(flipRect(s.cover), W, H));
+  const cs = flipRect(s.case), win = R(flipRect(s.cover), W, H), cr = R(cs, W, H);
+  // tray card mặt ngoài kéo sang phải tới hết vùng bản lề
+  const full = { x: win.x, y: win.y, w: cr.x + cr.w - 2 * k - win.x, h: win.h };
+  card(x, back, full);
   x.save(); x.translate(W, 0); x.scale(-1, 1); x.drawImage(sp.closed, 0, 0, W, H); x.restore();
-  const cs = flipRect(s.case);
+  // vùng bản lề bên phải: vẽ lại tray card ĐÈ lên nhựa để ảnh liền mạch, không vạch nào đè lên
+  if (back !== undefined) {
+    x.save(); x.beginPath(); x.rect(win.x + win.w, full.y - NUDGE, full.x + full.w - (win.x + win.w), full.h + NUDGE * 2); x.clip();
+    card(x, back, full);
+    x.restore();
+  }
   glass(x, R(cs, W, H), g);
   return { c, ...anchor(cs, W, H) };
 }
 export function spriteOpen(sp: Sprites, k: number, frontIn: Src, backIn: Src, disc: Src, g: GlassSettings): SpriteOut {
   const s = sp.sheet.open, W = s.width * k, H = s.height * k;
   const { c, x } = canvas(W, H);
-  cover(x, frontIn, R(s.lid, W, H));
-  card(x, backIn, R(s.tray, W, H));
+  const lid = R(s.lid, W, H), tray = R(s.tray, W, H);
+  cover(x, frontIn, lid);
+  // tray card mặt trong kéo sang trái tới hết vùng bản lề giữa 2 nửa (không để trống)
+  card(x, backIn, { x: lid.x + lid.w + 2 * k, y: tray.y, w: tray.x + tray.w - (lid.x + lid.w + 2 * k), h: tray.h });
   x.drawImage(sp.open, 0, 0, W, H);
   printDisc(x, disc, s.disc.cx * W, s.disc.cy * H, s.disc.r * W, s.disc.printIn * W, sp);
   glass(x, R(s.case, W, H), g);
