@@ -1,4 +1,4 @@
-/* Scrapbook — kiểu dữ liệu dùng chung (CD Scrapbook + Booklet Scrapbook, trang khách + admin).
+/* Scrapbook — kiểu dữ liệu dùng chung (CD Template + Booklet Template, trang khách + admin).
    Đơn vị toạ độ: mm trên "bề mặt" (surface): đĩa 120 × 120 mm tâm (60, 60) · trang 120 × 120 mm · cặp trang 240 × 120 mm. */
 
 export const DISC_MM = 120;
@@ -46,9 +46,9 @@ export type Rect01 = { x0: number; y0: number; x1: number; y1: number };
 export type ScrapAsset = {
   id: string; name: string; grp: AssetGroup; url: string; tone: string; region: Rect01 | null; is_active: boolean; sort_order: number;
 };
-/** surface_type: "disc" (CD Scrapbook) · "spread" (Booklet Scrapbook: n = kiểu dàn trang cặp) */
+/** surface_type: "disc" (CD Template) · "spread" (Booklet Template: n = kiểu dàn trang cặp) */
 export type TemplateSetting = { n: number; style: Style; seed: number; is_active: boolean; template?: Template | null; surface_type?: string; name?: string | null; sort_order?: number | null };
-/** mẫu CD / Booklet Scrapbook admin tạo mới / nhân bản (bảng scrapbook_templates). CD: n = số ảnh · Booklet: n = số trang */
+/** mẫu CD / Booklet Template admin tạo mới / nhân bản (bảng scrapbook_templates). CD: n = số ảnh · Booklet: n = số trang */
 export type CustomTemplate = { id: string; name: string; surface: "disc" | "booklet"; n: number; style: Style | null; config: { surfaces: Template[] }; is_active: boolean; sort_order: number; created_at?: string };
 
 // ---------- thư viện Khung ảnh (admin) ----------

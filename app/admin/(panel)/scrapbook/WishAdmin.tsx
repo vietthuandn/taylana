@@ -1,7 +1,7 @@
 "use client";
 
-/* Admin → Chất liệu Scrapbook → tab "Lời chúc": chủ đề (thêm, đổi tên, bật/tắt, thứ tự, xoá) và lời chúc theo chủ đề
-   (nội dung, ngôn ngữ, bật/tắt, thứ tự). Khách thấy ở Booklet Scrapbook → tab Chữ → "Lời chúc có sẵn".
+/* Admin → Quản lý chất liệu → tab "Lời chúc": chủ đề (thêm, đổi tên, bật/tắt, thứ tự, xoá) và lời chúc theo chủ đề
+   (nội dung, ngôn ngữ, bật/tắt, thứ tự). Khách thấy ở Booklet Template → tab Chữ → "Lời chúc có sẵn".
    "Nạp dữ liệu mẫu": thêm 7 chủ đề × 10 lời chúc mẫu (bỏ qua chủ đề đã có). */
 import { promptDialog } from "@/components/ui/dialog";
 import { useCallback, useEffect, useState } from "react";
@@ -14,7 +14,7 @@ import { Badge, Button, Card, EmptyState, Field, Input, Message, Select, SortBut
 import { cx } from "@/components/admin/styles";
 
 type Msg = { type: "ok" | "err"; text: string } | null;
-const PATHS = ["/thiet-ke/booklet-scrapbook"];
+const PATHS = ["/thiet-ke/booklet"];
 
 export function WishAdmin() {
   const [topics, setTopics] = useState<WishTopic[]>([]);

@@ -88,7 +88,7 @@ export default async function CleanupPage() {
               <ul className="mt-4 divide-y divide-[#efeff1] text-[13px]">
                 {rows.map((r) => (
                   <li key={r.bucket} className="flex justify-between py-2">
-                    <span className="text-[#3f3f46]">{r.bucket === "order-files" ? "File khách gửi" : r.bucket === "public-assets" ? "Ảnh trên web" : r.bucket === "scrapbook" ? "Chất liệu Scrapbook" : r.bucket === "mockups" ? "Ảnh mockup" : r.bucket === "design-assets" ? "Thiết kế của khách" : r.bucket === "mockup-shares" ? "Link chia sẻ" : r.bucket}</span>
+                    <span className="text-[#3f3f46]">{r.bucket === "order-files" ? "File khách gửi" : r.bucket === "public-assets" ? "Ảnh trên web" : r.bucket === "scrapbook" ? "Quản lý chất liệu" : r.bucket === "mockups" ? "Ảnh mockup" : r.bucket === "design-assets" ? "Thiết kế của khách" : r.bucket === "mockup-shares" ? "Link chia sẻ" : r.bucket}</span>
                     <span className="text-[#71717a]">{formatBytes(Number(r.total_bytes))} · {r.file_count} file</span>
                   </li>
                 ))}

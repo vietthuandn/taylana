@@ -476,7 +476,7 @@ export async function submitOrder(lines: Line[], form: Form, opts: { code: strin
   });
   if (error || !data?.[0]) throw new Error(error?.message ?? "Gửi đơn thất bại, bạn thử lại nhé.");
   saveOrderCode(data[0].order_code);
-  // CD Scrapbook: file in mặt đĩa đang chờ trên máy khách → tải lên + gắn vào đơn vừa tạo (lỗi thì bỏ qua, khách gửi sau được)
+  // CD Template: file in mặt đĩa đang chờ trên máy khách → tải lên + gắn vào đơn vừa tạo (lỗi thì bỏ qua, khách gửi sau được)
   if (data[0].order_id) { await attachPendingDisc(data[0].order_id as string); await attachPendingFiles(data[0].order_id as string); } // + Booklet Lyrics
   return { code: data[0].order_code as string, total: data[0].order_total as number };
 }

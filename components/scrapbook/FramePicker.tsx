@@ -1,6 +1,6 @@
 "use client";
 
-/* Bộ chọn khung dùng chung (trình sửa mẫu admin + CD Scrapbook + Booklet Scrapbook):
+/* Bộ chọn khung dùng chung (trình sửa mẫu admin + CD Template + Booklet Template):
    "Hình dạng cơ bản" (Chữ nhật, Vuông, Tròn, Tim, Polaroid, Giấy xé) · các nhóm theo BỘ KHUNG trong thư viện (chỉ bộ / khung
    đang bật; thumbnail trên nền caro kèm ảnh thử bên trong để thấy vùng ảnh) · tìm theo tên · chip lọc theo bộ · "Không khung".
    mode "decor": chỉ khung PNG (khung trang trí, không chứa ảnh). */

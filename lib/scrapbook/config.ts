@@ -1,4 +1,4 @@
-/* Cấu hình chung của bộ máy scrapbook (CD Scrapbook + Booklet Scrapbook) */
+/* Cấu hình chung của bộ máy scrapbook (CD Template + Booklet Template) */
 export const SCRAP_CONFIG = {
   stickerScale: 1.3, // sticker do mẫu tự rải: to hơn ~30% so với cỡ cũ
   gridMM: 2, // lưới chiếm chỗ: mỗi ô 2 mm

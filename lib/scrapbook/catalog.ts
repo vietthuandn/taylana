@@ -1,4 +1,4 @@
-/* Danh mục mẫu CD / Booklet Scrapbook = mẫu tự tạo bằng code (5 phong cách × số ảnh / số trang, bật tắt + tên + thứ tự lưu ở
+/* Danh mục mẫu CD / Booklet Template = mẫu tự tạo bằng code (5 phong cách × số ảnh / số trang, bật tắt + tên + thứ tự lưu ở
    scrapbook_template_settings) + mẫu admin tạo mới / nhân bản (scrapbook_templates). Dùng chung cho trang khách và admin. */
 import { BOOKLET_PAGES, bookletSeed, generateBooklet, type BookletSet } from "./booklet";
 import { resolveFrameSets } from "./generate";
@@ -43,7 +43,7 @@ export function catalog(surface: "disc" | "booklet", settings: TemplateSetting[]
 const customSurfaces = (c: CustomTemplate, frames: Frame[]) =>
   (c.config?.surfaces ?? []).map((t, i) => ({ ...structuredClone(t), id: `c:${c.id}${i ? `-${i}` : ""}`, style: (c.style ?? t.style ?? "polaroid") as Style, fixed: true, layers: resolveFrameSets(structuredClone(t.layers), frames, i + 7) }));
 
-/** CD Scrapbook (khách): các mẫu đang bật, đúng thứ tự admin. labels: id mẫu → tên hiển thị */
+/** CD Template (khách): các mẫu đang bật, đúng thứ tự admin. labels: id mẫu → tên hiển thị */
 export function discTemplates(settings: TemplateSetting[], customs: CustomTemplate[], assets: ScrapAsset[], frames: Frame[]) {
   const labels: Record<string, string> = {};
   const gen: Record<number, Template[]> = {};
@@ -58,7 +58,7 @@ export function discTemplates(settings: TemplateSetting[], customs: CustomTempla
   return { templates: out, labels };
 }
 
-/** Booklet Scrapbook (khách): các bộ mẫu đang bật cho số trang đang chọn */
+/** Booklet Template (khách): các bộ mẫu đang bật cho số trang đang chọn */
 export function bookletCatalogSets(pages: number, settings: TemplateSetting[], customs: CustomTemplate[], assets: ScrapAsset[], frames: Frame[]): BookletSet[] {
   const spread = settings.filter((s) => s.surface_type === "spread");
   return catalog("booklet", settings, customs).filter((x) => x.active && x.n === pages).map((it): BookletSet => {

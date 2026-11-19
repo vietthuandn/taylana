@@ -1,6 +1,6 @@
 "use client";
 
-/* Quản lý template → CD Scrapbook / Booklet Scrapbook: lưới mẫu = mẫu tự sinh bằng code (5 phong cách × số ảnh / số trang)
+/* Quản lý template → CD Template / Booklet Template: lưới mẫu = mẫu tự sinh bằng code (5 phong cách × số ảnh / số trang)
    + mẫu admin tạo mới / nhân bản (bảng scrapbook_templates, không giới hạn). Ảnh thu nhỏ dựng bằng ảnh thử.
    Mỗi thẻ: Sửa · Đổi tên · Nhân bản · Bật/Tắt · Xoá (chỉ mẫu tạo mới) · kéo thả đổi thứ tự (trong cùng số ảnh / số trang).
    Nút bánh răng "Cài đặt rải sticker" (CD: site_settings "scrap_stickers" · Booklet: "scrap_stickers_booklet"). */
@@ -31,7 +31,7 @@ import { TemplatePreview } from "../../scrapbook/mau/TemplatePreview";
 
 type Surface = "disc" | "booklet";
 const EDITOR = "/admin/thiet-ke/template/sua";
-const PATHS = ["/thiet-ke/scrapbook", "/thiet-ke/booklet-scrapbook"];
+const PATHS = ["/thiet-ke/cd-template", "/thiet-ke/booklet"];
 const now = () => new Date().toISOString();
 const MIGRATE = "Thiếu bảng / cột — cần chạy supabase/migration_staff_templates.sql.";
 const errText = (m: string) => (/scrapbook_templates|name|sort_order|surface_check|schema cache/.test(m) ? MIGRATE : m);
@@ -257,7 +257,7 @@ export function ScrapTemplates({ surface }: { surface: Surface }) {
 
       {gear && cfg && (
         <Modal onClose={() => setGear(false)} wide>
-          <StickerSettings value={cfg} sets={fsets} storeKey={cfgKey} title={`Cài đặt rải sticker · ${disc ? "CD Scrapbook" : "Booklet Scrapbook"}`} onSaved={(v) => { setCfg(v); setGear(false); setReady((r) => r); setThumbs({}); load(); }} />
+          <StickerSettings value={cfg} sets={fsets} storeKey={cfgKey} title={`Cài đặt rải sticker · ${disc ? "CD Template" : "Booklet Template"}`} onSaved={(v) => { setCfg(v); setGear(false); setReady((r) => r); setThumbs({}); load(); }} />
         </Modal>
       )}
       {creating && <CreateModal disc={disc} ns={ns} onClose={() => setCreating(false)} onCreate={async (name, n, style) => {
@@ -306,7 +306,7 @@ function CreateModal({ disc, ns, onClose, onCreate }: { disc: boolean; ns: numbe
   return (
     <Modal onClose={onClose}>
       <form className="space-y-4 p-5" onSubmit={async (e) => { e.preventDefault(); setBusy(true); await onCreate(name.trim() || "Mẫu mới", n, style); setBusy(false); }}>
-        <h2 className="text-[17px] font-semibold">Tạo mẫu mới · {disc ? "CD Scrapbook" : "Booklet Scrapbook"}</h2>
+        <h2 className="text-[17px] font-semibold">Tạo mẫu mới · {disc ? "CD Template" : "Booklet Template"}</h2>
         <div>
           <p className="mb-1.5 text-[13px] font-medium">{disc ? "Số ảnh" : "Số trang"}</p>
           <div className="flex flex-wrap gap-1.5">{ns.map((k) => <button key={k} type="button" onClick={() => setN(k)} className={chip(n === k)}>{k} {disc ? "ảnh" : "trang"}</button>)}</div>

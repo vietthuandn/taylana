@@ -1,7 +1,7 @@
 "use client";
 import { deleteFiles } from "@/lib/storage/client";
 
-/* Admin → Chất liệu Scrapbook: băng dính, sticker, khung ảnh, doodle, texture, mảnh giấy (PNG trong suốt, upload hoặc link).
+/* Admin → Quản lý chất liệu: băng dính, sticker, khung ảnh, doodle, texture, mảnh giấy (PNG trong suốt, upload hoặc link).
    Khung ảnh có thêm vùng đặt ảnh (kéo 4 góc hoặc tự dò vùng trong suốt). */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Crop, Plus, Trash2, Upload, Wand2 } from "lucide-react";
@@ -15,7 +15,7 @@ import { cx } from "@/components/admin/styles";
 import { SheetSlicer } from "./SheetSlicer";
 
 type Msg = { type: "ok" | "err"; text: string } | null;
-const PATHS = ["/thiet-ke/scrapbook"];
+const PATHS = ["/thiet-ke/cd-template"];
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
 
 export function ScrapbookAdmin() {

@@ -1,6 +1,6 @@
 "use client";
 /* Bản nháp scrapbook (IndexedDB trên máy khách): ảnh, sticker khách tải, thiết kế (các bề mặt), chữ, chỉnh ô — tải lại trang không mất.
-   prefix: "scrapbook" (CD Scrapbook) · "bscrap" (Booklet Scrapbook). */
+   prefix: "scrapbook" (CD Template) · "bscrap" (Booklet Template). */
 import { getBlob, putBlob } from "@/lib/blobStore";
 import type { Adjust, DiscText, Style, Template } from "./types";
 
@@ -9,9 +9,9 @@ export type DraftMeta = {
   ids: string[]; names: Record<string, string>; text: DiscText; adjust: Record<string, Adjust>;
   doc?: Template[] | null; edited?: boolean; applied?: string | null; // thiết kế của khách (bản chép từ mẫu, độc lập với mẫu)
   stickers?: string[]; // sticker khách tự tải (id)
-  pages?: number; showTitle?: boolean; rightsOk?: boolean; // Booklet Scrapbook
+  pages?: number; showTitle?: boolean; rightsOk?: boolean; // Booklet Template
   colors?: string[]; // màu riêng khách đã chọn (dòng "Đã dùng" trong Cài đặt chữ), mới nhất ở đầu
-  style?: Style | null; seeds?: Partial<Record<Style, number>>; work?: Template | null; // (bản nháp cũ của CD Scrapbook)
+  style?: Style | null; seeds?: Partial<Record<Style, number>>; work?: Template | null; // (bản nháp cũ của CD Template)
 };
 export type DraftSticker = { id: string; blob: Blob };
 

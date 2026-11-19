@@ -1,6 +1,6 @@
 "use client";
 
-/* Admin → Xem mẫu Scrapbook: lọc theo loại — CD Scrapbook (chọn số ảnh N → 5 mẫu mặt đĩa) · Booklet Scrapbook
+/* Admin → Xem mẫu Scrapbook: lọc theo loại — CD Template (chọn số ảnh N → 5 mẫu mặt đĩa) · Booklet Template
    (chọn kiểu dàn trang cặp → 5 mẫu cặp trang 24 × 12 cm). Lưới dựng bằng ảnh thử.
    "Đổi seed" ra bố cục khác (lưu vào database) · công tắc ẩn / hiện mẫu với khách · "Sửa mẫu" mở trình sửa mẫu. */
 import "@fontsource/dancing-script/700.css";
@@ -29,7 +29,7 @@ type Kind = "disc" | "spread";
 const settingFor = (list: TemplateSetting[], kind: Kind, n: number, style: Style): TemplateSetting =>
   kind === "disc" ? settingOf(list, n, style) : list.find((s) => s.surface_type === "spread" && s.n === n && s.style === style) ?? { n, style, seed: n * 1000 + STYLES.findIndex((x) => x.id === style) + 1, is_active: true, surface_type: "spread" };
 
-/** only="spread": chỉ các kiểu cặp trang Booklet (dùng trong tab Booklet Scrapbook của Quản lý template) */
+/** only="spread": chỉ các kiểu cặp trang Booklet (dùng trong tab Booklet Template của Quản lý template) */
 export function TemplatePreview({ only }: { only?: "spread" } = {}) {
   const [kind, setKind] = useState<Kind>(only ? "spread" : "disc");
   const [n, setN] = useState(only ? 1 : MIN_PHOTOS);
@@ -78,7 +78,7 @@ export function TemplatePreview({ only }: { only?: "spread" } = {}) {
     if (error) return setMsg({ type: "err", text: /surface_type/.test(error.message) ? "Thiếu cột surface_type — cần chạy supabase/migration_booklet_scrapbook.sql." : error.message });
     setSettings((list) => [...list.filter((x) => !(x.n === n && x.style === style && (x.surface_type ?? "disc") === kind)), row]);
     setMsg({ type: "ok", text });
-    await revalidatePublic(["/thiet-ke/scrapbook", "/thiet-ke/booklet-scrapbook"]);
+    await revalidatePublic(["/thiet-ke/cd-template", "/thiet-ke/booklet"]);
   }
   const chip = (on: boolean) => cx("h-9 rounded-full border px-4 text-[14px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]");
 
@@ -87,8 +87,8 @@ export function TemplatePreview({ only }: { only?: "spread" } = {}) {
       {cfg && !only && <StickerSettings value={cfg} onSaved={setCfg} sets={fsets} />}
       <Card title={only ? "Kiểu cặp trang" : "Loại mẫu"} description={only ? "Bộ mẫu booklet tự sinh ghép ngẫu nhiên các kiểu cặp trang đang hiện. Sửa tay 1 kiểu = mọi bộ tự sinh dùng bản đã sửa." : undefined}>
         <div className={cx("mb-3 flex flex-wrap gap-2", only && "hidden")}>
-          <button type="button" onClick={() => { setKind("disc"); setN(MIN_PHOTOS); }} className={chip(kind === "disc")}>CD Scrapbook</button>
-          <button type="button" onClick={() => { setKind("spread"); setN(1); }} className={chip(kind === "spread")}>Booklet Scrapbook</button>
+          <button type="button" onClick={() => { setKind("disc"); setN(MIN_PHOTOS); }} className={chip(kind === "disc")}>CD Template</button>
+          <button type="button" onClick={() => { setKind("spread"); setN(1); }} className={chip(kind === "spread")}>Booklet Template</button>
         </div>
         <div className="flex flex-wrap gap-2">
           {kind === "disc"

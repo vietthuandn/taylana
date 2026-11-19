@@ -1,6 +1,6 @@
 "use client";
 
-/* Phần logic dùng chung của CD Scrapbook + Booklet Scrapbook: ảnh của khách (gán vào ô theo id, đánh dấu đang dùng / chưa dùng),
+/* Phần logic dùng chung của CD Template + Booklet Template: ảnh của khách (gán vào ô theo id, đánh dấu đang dùng / chưa dùng),
    sticker khách tự tải, chất liệu + khung + font cut-out đã tải, thao tác trên lớp của bề mặt đang xem (nhân bản, lên / xuống,
    xoá, đổi khung, thêm / xoá ô ảnh, thêm sticker / chữ / lời chúc), phím tắt, lưu nháp IndexedDB. */
 import { useCallback, useEffect, useMemo, useState } from "react";

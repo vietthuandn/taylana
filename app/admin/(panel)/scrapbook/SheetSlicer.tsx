@@ -1,6 +1,6 @@
 "use client";
 
-/* Admin → Chất liệu Scrapbook → "Tách từ tờ sticker": 1 ảnh tờ sticker → từng món PNG nền trong suốt.
+/* Admin → Quản lý chất liệu → "Tách từ tờ sticker": 1 ảnh tờ sticker → từng món PNG nền trong suốt.
    Xử lý trên trình duyệt (Web Worker, lib/stickerSlicer). Duyệt: bật / tắt từng món, đổi tên / nhóm / tông màu,
    gộp, tách thủ công (vẽ khung / vẽ đường cắt), cọ xoá / khôi phục — rồi lưu các món đã chọn vào bucket "scrapbook". */
 import { useCallback, useEffect, useRef, useState } from "react";

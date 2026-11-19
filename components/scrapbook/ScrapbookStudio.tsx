@@ -1,6 +1,6 @@
 "use client";
 
-/* Trang "CD Scrapbook" (/thiet-ke/scrapbook): khách tải ảnh → chọn 1 mẫu mặt đĩa kiểu scrapbook xé dán.
+/* Trang "CD Template" (/thiet-ke/cd-template): khách tải ảnh → chọn 1 mẫu mặt đĩa kiểu scrapbook xé dán.
    Trái 36%: 3 tab Ảnh (ảnh của bạn — đang dùng / chưa dùng, thêm ô ảnh, tất cả mẫu 5–10 ảnh chia nhóm) · Sticker (thư viện +
    sticker của bạn) · Chữ (font thường / chữ cắt dán). Bấm 1 mẫu = chép toàn bộ lớp của mẫu thành thiết kế của khách (độc lập với mẫu);
    thêm / xoá ảnh không tự đổi mẫu. Phải: mặt đĩa — sửa tự do (lib/scrapbook + SurfaceView). Ảnh khách chỉ xử lý trên trình duyệt. */
@@ -131,12 +131,12 @@ export function ScrapbookStudio({ assets, settings, customs = [], fonts, glyphs,
   };
   async function downloadPrint() {
     setBusy(true);
-    try { saveBlob(await printBlob(), "Mat-dia-Scrapbook-12x12cm-300dpi.png"); toast("Đã tải xuống"); } catch (e) { toast(e instanceof Error ? e.message : "Xuất file thất bại", "err"); }
+    try { saveBlob(await printBlob(), "Mat-dia-CD-Template-12x12cm-300dpi.png"); toast("Đã tải xuống"); } catch (e) { toast(e instanceof Error ? e.message : "Xuất file thất bại", "err"); }
     setBusy(false);
   }
   async function downloadMockup() {
     setBusy(true);
-    try { const c = await mockupCanvas(2400); if (!c) throw new Error("Tải ảnh và chọn mẫu trước"); saveBlob(await toBlob(c, "image/jpeg", 0.92), "Mockup-CD-Scrapbook.jpg"); toast("Đã tải xuống"); }
+    try { const c = await mockupCanvas(2400); if (!c) throw new Error("Tải ảnh và chọn mẫu trước"); saveBlob(await toBlob(c, "image/jpeg", 0.92), "Mockup-CD-Template.jpg"); toast("Đã tải xuống"); }
     catch (e) { toast(e instanceof Error ? e.message : "Xuất ảnh thất bại", "err"); }
     setBusy(false);
   }

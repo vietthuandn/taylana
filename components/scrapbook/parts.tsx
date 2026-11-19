@@ -1,6 +1,6 @@
 "use client";
 
-/* Phần giao diện dùng chung của CD Scrapbook + Booklet Scrapbook: danh sách ảnh (đánh dấu đang dùng / chưa dùng, kéo thả lên ô),
+/* Phần giao diện dùng chung của CD Template + Booklet Template: danh sách ảnh (đánh dấu đang dùng / chưa dùng, kéo thả lên ô),
    chọn ảnh cho ô, thêm ô ảnh (hình dạng / khung), đổi khung, xác nhận bản quyền khi đặt in. */
 import { useMemo, useRef, useState } from "react";
 import { RefreshCw, Trash2, Upload, X } from "lucide-react";

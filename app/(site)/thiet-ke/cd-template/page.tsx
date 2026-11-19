@@ -3,7 +3,7 @@ import { getMockupData } from "@/lib/mockup/load";
 import { getScrapbookData } from "@/lib/scrapbook/load";
 import { ScrapbookLoader } from "./ScrapbookLoader";
 
-export const metadata = { title: "CD Scrapbook" };
+export const metadata = { title: "CD Template" };
 export const revalidate = 60;
 
 // gói "CD + Hộp" (chọn sẵn khi bấm "Đặt in CD này")

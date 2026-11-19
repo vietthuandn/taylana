@@ -21,7 +21,7 @@ function DesignerHome() {
       <PageHeader title="Tổng quan" />
       <div className="grid gap-4 sm:grid-cols-2">
         {card("/admin/thiet-ke/chat-lieu", "Quản lý chất liệu", "Sticker & trang trí, khung ảnh, font chữ cut-out, lời chúc.")}
-        {card("/admin/thiet-ke/template", "Quản lý template", "Mẫu CD Scrapbook, Booklet Scrapbook, CD nâng cao, Photostrip, Booklet Lyrics, Canva.")}
+        {card("/admin/thiet-ke/template", "Quản lý template", "Mẫu CD Template, Booklet Template, Khung Photostrip.")}
       </div>
     </AdminPage>
   );

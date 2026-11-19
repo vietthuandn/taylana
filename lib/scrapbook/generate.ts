@@ -1,4 +1,4 @@
-/* CD Scrapbook — sinh mẫu BẰNG CODE theo seed (luôn ra giống nhau với cùng seed).
+/* CD Template — sinh mẫu BẰNG CODE theo seed (luôn ra giống nhau với cùng seed).
    Mỗi số ảnh N (5–10) × 5 phong cách = 30 mẫu. Ảnh nằm trong vành khuyên [hub 23 mm … an toàn 57 mm],
    ảnh chính (ô 0) luôn to nhất, đặt ở đỉnh; dải dưới cùng dành cho chữ (trừ phong cách "Vòng tròn": chữ chạy cong vòng ngoài).
    Trang trí (sticker, băng dính, mảnh giấy) được phép tràn ra mép — khi vẽ sẽ cắt theo hình tròn. */

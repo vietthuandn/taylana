@@ -1,11 +1,11 @@
-/* Tự rải sticker / doodle / băng dính cho 1 bề mặt (đĩa, trang, cặp trang) — CD Scrapbook + Booklet Scrapbook.
+/* Tự rải sticker / doodle / băng dính cho 1 bề mặt (đĩa, trang, cặp trang) — CD Template + Booklet Template.
    - Nguồn: TẤT CẢ chất liệu đang bật nhóm Sticker (sticker thường + điểm nhấn) và Doodle (doodle nhỏ); Băng dính dán góc / cạnh
      trên ảnh. Xáo trộn theo seed, lấy lần lượt KHÔNG LẶP trong 1 thiết kế (hết danh sách mới lặp). Sticker hợp tông được ưu tiên
      nhẹ (trọng số ×1.5), không loại sticker khác tông. Sticker vẽ bằng code chỉ dùng khi thư viện có < 6 sticker (tắt được).
    - Kích thước theo % bề rộng 1 trang / đường kính đĩa (120 mm), giữ tỉ lệ gốc (khi vẽ không phóng quá 2× cỡ gốc ở 300 DPI).
    - Vị trí: lưới chiếm chỗ (vùng trống lớn nhất trước, rồi mép / góc ảnh). Điểm nhấn đè góc / mép 1 ảnh, che ≤ 20% ảnh, không đè
      50% diện tích giữa ảnh. Sticker chồng nhau ≤ 15%, tràn mép tối đa vùng bleed, xoay −15°…15°, không vắt qua gáy cặp trang.
-   Cài đặt (admin → Quản lý template → CD / Booklet Scrapbook → "Cài đặt rải sticker") lưu ở site_settings "scrap_stickers" / "scrap_stickers_booklet". */
+   Cài đặt (admin → Quản lý template → CD / Booklet Template → "Cài đặt rải sticker") lưu ở site_settings "scrap_stickers" / "scrap_stickers_booklet". */
 import { deepest, grid, mark } from "./place";
 import { surfaceOf, type Surface } from "./surface";
 import { C, R_HUB, R_OUT, type FrameSet, type Layer, type ScrapAsset, type StickerShape, type Style, type Template } from "./types";

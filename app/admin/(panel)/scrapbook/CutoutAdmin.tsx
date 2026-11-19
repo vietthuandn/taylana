@@ -1,6 +1,6 @@
 "use client";
 
-/* Admin → Chất liệu Scrapbook → tab "Font cut-out": bộ font chữ cắt dán (mỗi ký tự nhiều biến thể).
+/* Admin → Quản lý chất liệu → tab "Font cut-out": bộ font chữ cắt dán (mỗi ký tự nhiều biến thể).
    Tải tờ chữ → tách từng mảnh (lib/stickerSlicer, giữ nền giấy của mảnh) → gán ký tự bằng nhận diện (lib/cutoutOcr:
    tiền xử lý + Tesseract + font mẫu + dữ liệu học, chạy trong Web Worker) hoặc "Theo thứ tự" (chuỗi ký tự đọc trái → phải, trên → dưới) → duyệt / sửa → lưu vào cutout_glyphs. */
 import { promptDialog } from "@/components/ui/dialog";
@@ -28,7 +28,7 @@ import "@fontsource/roboto-slab/700.css";
 
 type Msg = { type: "ok" | "err"; text: string } | null;
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
-const PATHS = ["/thiet-ke/scrapbook"];
+const PATHS = ["/thiet-ke/cd-template"];
 const storagePath = (url: string) => url; // xoá theo link (lib/storage nhận cả link R2 lẫn Supabase cũ)
 
 // ảnh xem trước: chữ "Taylana" dựng bằng chính bộ font

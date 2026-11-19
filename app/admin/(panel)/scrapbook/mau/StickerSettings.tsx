@@ -35,7 +35,7 @@ export function StickerSettings({ value, onSaved, sets = [], storeKey = "scrap_s
     setSaving(false);
     if (error) return toast(error.message, "err");
     setStickerConfig(v); setC(v); onSaved(v);
-    await revalidatePublic(["/thiet-ke/scrapbook", "/thiet-ke/booklet-scrapbook"]);
+    await revalidatePublic(["/thiet-ke/cd-template", "/thiet-ke/booklet"]);
     toast("Đã lưu cài đặt sticker tự rải");
   }
   return (

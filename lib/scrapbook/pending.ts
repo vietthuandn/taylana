@@ -29,7 +29,7 @@ export async function attachPendingDisc(orderId: string) {
     const sb = createClient();
     const path = (await uploadFile("order", blob, { folder: orderId, contentType: "image/png" })).path;
     const reg = await sb.rpc("register_order_file", {
-      p_order_id: orderId, p_kind: "disc", p_storage_path: path, p_file_name: "mat-dia-scrapbook.png",
+      p_order_id: orderId, p_kind: "disc", p_storage_path: path, p_file_name: "mat-dia-cd-template.png",
       p_mime_type: "image/png", p_size_bytes: blob.size, p_page: null, p_width_px: 1417, p_height_px: 1417,
     });
     if (reg.error) return false;

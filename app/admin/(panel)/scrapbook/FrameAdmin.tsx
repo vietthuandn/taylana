@@ -1,7 +1,7 @@
 "use client";
 import { deleteFiles } from "@/lib/storage/client";
 
-/* Admin → Chất liệu Scrapbook → tab "Khung ảnh": quản lý theo BỘ KHUNG (tên, bật/tắt, thứ tự).
+/* Admin → Quản lý chất liệu → tab "Khung ảnh": quản lý theo BỘ KHUNG (tên, bật/tắt, thứ tự).
    Mỗi khung: ảnh PNG (upload hoặc link), vùng ảnh nằm dưới khung (tự dò vùng trong suốt bên trong / kéo 4 góc /
    ảnh mặt nạ đen trắng cho vùng tròn, tim, hình bất kỳ), tỉ lệ (cao / rộng), bật/tắt. Upload nhiều khung cùng lúc:
    mỗi khung tự dò vùng ảnh, admin duyệt lại. Xem trước bằng ảnh thử. */
@@ -20,7 +20,7 @@ import { Badge, Button, Card, EmptyState, Field, Input, Message, SortButtons, To
 import { cx } from "@/components/admin/styles";
 
 type Msg = { type: "ok" | "err"; text: string } | null;
-const PATHS = ["/thiet-ke/scrapbook", "/thiet-ke/booklet-scrapbook"];
+const PATHS = ["/thiet-ke/cd-template", "/thiet-ke/booklet"];
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
 const storagePath = (url: string) => url; // xoá theo link (lib/storage nhận cả link R2 lẫn Supabase cũ)
 

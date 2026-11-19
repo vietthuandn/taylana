@@ -1,6 +1,6 @@
 "use client";
 
-/* Trình chỉnh scrapbook DÙNG CHUNG cho khách (CD Scrapbook, Booklet Scrapbook — mode "customer") và trình sửa mẫu
+/* Trình chỉnh scrapbook DÙNG CHUNG cho khách (CD Template, Booklet Template — mode "customer") và trình sửa mẫu
    của admin (mode "template"). Trái: tab Ảnh · Sticker · Chữ · Nền. Giữa: bề mặt đang xem (đĩa / trang / cặp trang)
    — chọn lớp, kéo, phóng / thu, xoay, menu chuột phải, phím tắt, hoàn tác / làm lại, đường gióng, sửa chữ trực tiếp;
    nhiều bề mặt (booklet) thì có thanh chuyển trang + thumbnail. Phải (mode template): panel admin truyền vào.

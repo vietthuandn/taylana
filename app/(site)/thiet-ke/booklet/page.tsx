@@ -4,7 +4,7 @@ import { getMockupData } from "@/lib/mockup/load";
 import { getScrapbookData } from "@/lib/scrapbook/load";
 import { BookletScrapLoader } from "./BookletScrapLoader";
 
-export const metadata = { title: "Booklet Scrapbook" };
+export const metadata = { title: "Booklet Template" };
 export const revalidate = 60;
 
 // gói "Combo + Booklet N trang" theo số trang (nút "Đặt in booklet này" chọn sẵn đúng gói)

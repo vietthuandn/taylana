@@ -1,6 +1,6 @@
 "use client";
 import { downloadPrivate, uploadFile } from "@/lib/storage/client";
-/* Booklet Scrapbook: lưu vào "Thiết kế của tôi" (bảng designs) — ảnh + sticker của khách lên bucket riêng tư design-assets/<user_id>/
+/* Booklet Template: lưu vào "Thiết kế của tôi" (bảng designs) — ảnh + sticker của khách lên bucket riêng tư design-assets/<user_id>/
    (chỉ khi khách đã đăng nhập và bấm "Lưu"). */
 import { createClient } from "@/lib/supabase/client";
 import type { Adjust, DiscText, Template } from "./types";
@@ -21,7 +21,7 @@ export async function saveScrapToAccount(data: ScrapDesign, files: { id: string;
     catch (e) { throw new Error("Tải ảnh lên thất bại: " + (e instanceof Error ? e.message : "")); }
     paths[f.id] = path;
   }
-  const row = { name: opts.name.trim() || "Booklet Scrapbook", data: { ...data, paths }, thumbnail: opts.thumbnail };
+  const row = { name: opts.name.trim() || "Booklet Template", data: { ...data, paths }, thumbnail: opts.thumbnail };
   if (opts.id) {
     const { error } = await sb.from("designs").update(row).eq("id", opts.id);
     if (error) throw new Error(error.message);

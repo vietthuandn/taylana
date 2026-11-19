@@ -149,7 +149,7 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
     }
     setSaving(false);
     if (error) return toast(/name|surface_type|template/.test(error.message) ? "Thiếu cột — cần chạy supabase/migration_staff_templates.sql." : error.message, "err");
-    await revalidatePublic(["/thiet-ke/scrapbook", "/thiet-ke/booklet-scrapbook"]);
+    await revalidatePublic(["/thiet-ke/cd-template", "/thiet-ke/booklet"]);
     setOriginal(structuredClone(doc)); st.D.setEdited(false);
     toast("Đã lưu mẫu");
   }
@@ -159,7 +159,7 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
       if (row.template) await sb.from("scrapbook_template_settings").upsert({ surface_type: src.surface, n: src.n, style: src.style, seed: row.seed, is_active: row.is_active, template: null, updated_at: new Date().toISOString() }, { onConflict: "surface_type,n,style" });
       const d = generated(row.seed).map((t) => customizeText(t, TEXT0));
       st.D.begin(); st.D.setDoc(d); setRow({ ...row, template: null }); setOriginal(structuredClone(d));
-      await revalidatePublic(["/thiet-ke/scrapbook", "/thiet-ke/booklet-scrapbook"]);
+      await revalidatePublic(["/thiet-ke/cd-template", "/thiet-ke/booklet"]);
       toast("Đã khôi phục mẫu gốc");
     } else if (original) { st.D.begin(); st.D.setDoc(structuredClone(original)); toast("Đã khôi phục bản đã lưu"); }
   }
@@ -265,11 +265,11 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
       )}
     </>
   );
-  const title = src.kind === "custom" ? (booklet ? "Booklet Scrapbook" : "CD Scrapbook") : src.surface === "booklet" ? "Booklet Scrapbook · mẫu tự sinh" : src.surface === "spread" ? "Booklet · kiểu cặp trang" : "CD Scrapbook · mẫu tự tạo";
+  const title = src.kind === "custom" ? (booklet ? "Booklet Template" : "CD Template") : src.surface === "booklet" ? "Booklet Template · mẫu tự sinh" : src.surface === "spread" ? "Booklet · kiểu cặp trang" : "CD Template · mẫu tự tạo";
   return (
     <div className="flex h-[calc(100dvh-var(--header-h,57px))] min-h-[560px] flex-col">
       <div className="flex flex-wrap items-center gap-3 border-b border-[#e5e5e7] bg-white px-4 py-2">
-        <Link href={`/admin/thiet-ke/template?tab=${booklet ? "booklet-scrapbook" : "cd-scrapbook"}`} className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Template</Link>
+        <Link href={`/admin/thiet-ke/template?tab=${booklet ? "booklet-template" : "cd-template"}`} className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Template</Link>
         <span className="text-[12px] text-[#a1a1aa]">{title}</span>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên mẫu" aria-label="Tên mẫu" className="h-8 min-w-[200px] flex-1 rounded-[6px] border border-transparent px-2 text-[14px] font-semibold hover:border-[#e5e5e7] focus:border-[#ff5fa2] focus:outline-none" />
         {row?.template && <span className="rounded-full bg-[#fff0f6] px-2 text-[12px] font-medium text-[#db2777]">Đã chỉnh</span>}

@@ -5,8 +5,8 @@ import { ScrapTemplates } from "../ScrapTemplates";
 export default function Page() {
   return (
     <AdminPage wide>
-      <TemplateTabs tab="booklet-scrapbook" />
-      <ScrapTemplates surface="booklet" />
+      <TemplateTabs tab="cd-template" />
+      <ScrapTemplates surface="disc" />
     </AdminPage>
   );
 }

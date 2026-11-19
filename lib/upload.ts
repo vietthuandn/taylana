@@ -52,7 +52,7 @@ export async function uploadMockupModel(file: File) {
   return put("mockups", file, "models", "model/gltf-binary").catch((e) => { throw new Error(String(e instanceof Error ? e.message : e).replace("Tải ảnh", "Tải mô hình")); });
 }
 
-// Chất liệu Scrapbook (PNG trong suốt…) → "scrapbook/<folder>"
+// Quản lý chất liệu (PNG trong suốt…) → "scrapbook/<folder>"
 export async function uploadScrapbookAsset(file: Blob & { type: string }, folder = "assets") {
   if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.type)) throw new Error("Chỉ nhận PNG, JPG, WEBP hoặc SVG");
   if (file.size > 10 * 1024 * 1024) throw new Error("Ảnh tối đa 10MB");

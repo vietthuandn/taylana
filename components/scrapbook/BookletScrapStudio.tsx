@@ -1,6 +1,6 @@
 "use client";
 
-/* Trang "Booklet Scrapbook" (/thiet-ke/booklet-scrapbook): dùng chung bộ máy của CD Scrapbook (lib/scrapbook) trên các bề mặt
+/* Trang "Booklet Template" (/thiet-ke/booklet): dùng chung bộ máy của CD Template (lib/scrapbook) trên các bề mặt
    trang / cặp trang: Trang 1 (bìa, đơn) → 2–3 → 4–5 → … → trang cuối (đơn). Mỗi cặp trang mở đôi là 1 surface "spread" để ảnh,
    sticker, băng dính vắt qua gáy. Trái: tab Ảnh (ảnh, số trang, bộ mẫu) · Sticker · Chữ (lời chúc có sẵn). Phải: cuốn sách to nhất
    có thể (1 trang = min(cao × 0.85, rộng × 0.92 / 2)), thumbnail các trang 48px, bấm đúp 1 trang để xem riêng (Esc thoát).
@@ -206,7 +206,7 @@ export function BookletScrapStudio({ assets, settings, customs = [], fonts, glyp
     return h.toDataURL("image/jpeg", 0.92);
   }, [zoomPage, doc, ro, pages, count]);
   async function run(fn: () => Promise<void>) { setBusy(true); try { await fn(); } catch (e) { toast(e instanceof Error ? e.message : "Có lỗi, bạn thử lại nhé.", "err"); } setBusy(false); }
-  const dlPages = () => run(async () => { const cs = await pageCanvases(cmToPx(12)); const files = []; for (const [i, c] of cs.entries()) files.push({ name: `${pad(i + 1)}.jpg`, blob: await toBlob(c) }); await saveZip(files, "Booklet-Scrapbook-cac-trang.zip"); toast("Đã tải xuống"); });
+  const dlPages = () => run(async () => { const cs = await pageCanvases(cmToPx(12)); const files = []; for (const [i, c] of cs.entries()) files.push({ name: `${pad(i + 1)}.jpg`, blob: await toBlob(c) }); await saveZip(files, "Booklet-Template-cac-trang.zip"); toast("Đã tải xuống"); });
   const dlImposed = () => run(async () => {
     const cs = await pageCanvases(cmToPx(12)), px = cmToPx(12), files = [];
     for (const s of impose(pages)) {
@@ -222,7 +222,7 @@ export function BookletScrapStudio({ assets, settings, customs = [], fonts, glyp
     await loadSprites();
     const c = renderSystem(2400, { pack: "booklet", frontOut: cs[0] as unknown as HTMLImageElement, pages: cs as unknown as HTMLImageElement[] },
       { arrange: "single", single: "booklet", seed: 1, tray: "clear", glass: defaultGlass }, (ctx, w, h) => paintBackground(ctx, w, h, bg));
-    saveBlob(await toBlob(c, "image/jpeg", 0.92), "Mockup-Booklet-Scrapbook.jpg"); toast("Đã tải xuống");
+    saveBlob(await toBlob(c, "image/jpeg", 0.92), "Mockup-Booklet-Template.jpg"); toast("Đã tải xuống");
   });
   const orderId = packIds[pages];
   const order = () => run(async () => {
@@ -237,7 +237,7 @@ export function BookletScrapStudio({ assets, settings, customs = [], fonts, glyp
     const thumb = renderSurface({ template: doc[0], ...ro, size: 360 }).canvas.toDataURL("image/jpeg", 0.8);
     const files = [...photos.map((p) => ({ id: p.id, blob: p.blob })), ...st.ustickers.map((s) => ({ id: s.id, blob: s.blob }))];
     const r = await saveScrapToAccount({ v: 1, kind: "booklet-scrapbook", pages, showTitle: true, rightsOk, text: st.text, adjust: st.adjust, doc, applied: st.applied, photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((s) => s.id), paths: paths.current, colors: st.colors },
-      files, { id: designId, name: st.text.main || "Booklet Scrapbook", thumbnail: thumb });
+      files, { id: designId, name: st.text.main || "Booklet Template", thumbnail: thumb });
     paths.current = r.paths; setDesignId(r.id);
     toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
   });

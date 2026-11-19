@@ -1,6 +1,6 @@
-/* Booklet Scrapbook — sinh mẫu BẰNG CODE theo seed: trang 1 (bìa, trang đơn) → các cặp trang mở đôi (surface "spread",
+/* Booklet Template — sinh mẫu BẰNG CODE theo seed: trang 1 (bìa, trang đơn) → các cặp trang mở đôi (surface "spread",
    ảnh / sticker / băng dính được vắt qua gáy) → trang cuối (trang đơn). Mỗi cặp trang lấy ngẫu nhiên 1 kiểu dàn trang cặp.
-   Phong cách (Polaroid, Xé dán, Vòng tròn, Tạp chí, Hoa lá) dùng chung bảng màu + chất liệu với CD Scrapbook.
+   Phong cách (Polaroid, Xé dán, Vòng tròn, Tạp chí, Hoa lá) dùng chung bảng màu + chất liệu với CD Template.
    Ô ảnh đánh số toàn cuốn (slot 0 = ảnh bìa). Admin có thể sửa tay từng kiểu cặp trang × phong cách (surface_type "spread"). */
 import { DEFAULT_WISHES } from "./wishes";
 import { PALETTES, applyFrames, asset, jit, pick, resolveFrameSets, rng } from "./generate";

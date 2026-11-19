@@ -1,4 +1,4 @@
-/* Lời chúc mẫu (dữ liệu ban đầu của thư viện Lời chúc — admin sửa ở Admin → Chất liệu Scrapbook → Lời chúc).
+/* Lời chúc mẫu (dữ liệu ban đầu của thư viện Lời chúc — admin sửa ở Admin → Quản lý chất liệu → Lời chúc).
    Dùng khi chưa chạy migration / chưa có dữ liệu. */
 import type { Wish, WishTopic } from "./types";
 
