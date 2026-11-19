@@ -6,7 +6,7 @@
    nhiều bề mặt (booklet) thì có thanh chuyển trang + thumbnail. Phải (mode template): panel admin truyền vào.
    Mọi logic dùng chung nằm ở useScrapStudio; component này chỉ ghép giao diện. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Redo2, RotateCcw, Undo2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Image as ImageIcon, LayoutTemplate, PaintBucket, Redo2, RotateCcw, Smile, Type, Undo2, X } from "lucide-react";
 import { renderSurface, type RenderOpts } from "@/lib/scrapbook/render";
 import { surfaceOf } from "@/lib/scrapbook/surface";
 import type { CutoutFont } from "@/lib/scrapbook/cutout";
@@ -22,7 +22,7 @@ import { PickPhotoModal } from "./parts";
 import { UserStickerModal } from "./UserStickerModal";
 import type { useScrapStudio } from "./useScrapStudio";
 
-export type EditorTab = "anh" | "sticker" | "chu" | "nen";
+export type EditorTab = "mau" | "anh" | "sticker" | "chu" | "nen";
 type Studio = ReturnType<typeof useScrapStudio>;
 
 export function ScrapbookEditor(p: {
@@ -30,6 +30,7 @@ export function ScrapbookEditor(p: {
   st: Studio; assets: ScrapAsset[]; frames: Frame[]; frameSets: FrameSet[]; fonts: CutoutFont[]; topics: WishTopic[]; wishes: Wish[];
   tab: EditorTab; setTab: (t: EditorTab) => void;
   render?: Omit<RenderOpts, "template" | "size">; // mặc định st.renderOpts
+  templateTab?: React.ReactNode; // mục "Mẫu" (danh sách mẫu / bộ mẫu)
   photoTab?: React.ReactNode; // nội dung thêm của tab Ảnh (khách: ảnh của bạn, số trang, chọn mẫu…)
   framePhotos?: { id: string; url: string }[]; // ảnh cho bước 2 của "+ Thêm khung ảnh" (khách: ảnh đã tải · template: ảnh thử)
   toolbar?: React.ReactNode; onRestore?: () => void; canRestore?: boolean;
@@ -47,7 +48,14 @@ export function ScrapbookEditor(p: {
 
   // chọn 1 lớp chữ trên bề mặt → mở tab Chữ (hiện Cài đặt chữ)
   useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel])) p.setTab("chu"); }, [st.sel]); // eslint-disable-line react-hooks/exhaustive-deps
-  const switchTab = (id: EditorTab) => { p.setTab(id); if (id !== "chu" && st.sel !== null && st.isTextLayer(st.L[st.sel])) { st.setEditText(null); st.setSel(null); } };
+  // cột công cụ kiểu Canva: bấm lại mục đang mở → thu gọn panel (khu làm việc rộng hơn)
+  const [collapsed, setCollapsed] = useState(false);
+  const switchTab = (id: EditorTab) => {
+    if (id === p.tab && !collapsed) { setCollapsed(true); return; }
+    setCollapsed(false); p.setTab(id);
+    if (id !== "chu" && st.sel !== null && st.isTextLayer(st.L[st.sel])) { st.setEditText(null); st.setSel(null); }
+  };
+  useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel])) setCollapsed(false); }, [st.sel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // khung xem: bề mặt to nhất có thể (trang: cao × 0.85 · rộng × 0.92)
   const area = useRef<HTMLDivElement>(null);
@@ -85,15 +93,32 @@ export function ScrapbookEditor(p: {
     if (st.editText !== null) st.setEditText(null);
     if (st.editLayer !== null) st.setEditLayer(null);
   };
-  const tabBtn = (id: EditorTab, label: string) => (
-    <button key={id} type="button" onClick={() => switchTab(id)} className={cx("flex-1 rounded-[8px] px-2 py-1.5 text-[13px] font-medium", p.tab === id ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{label}</button>
-  );
+  const RAIL: [EditorTab, string, React.ReactNode][] = [
+    ...(p.templateTab ? [["mau", "Mẫu", <LayoutTemplate key="m" size={20} />] as [EditorTab, string, React.ReactNode]] : []),
+    ["anh", "Ảnh", <ImageIcon key="a" size={20} />], ["sticker", "Sticker", <Smile key="s" size={20} />], ["chu", "Chữ", <Type key="c" size={20} />], ["nen", "Nền", <PaintBucket key="n" size={20} />],
+  ];
+  const open = !collapsed;
+  const title = RAIL.find((x) => x[0] === p.tab)?.[1];
   return (
     <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
-     <div className={cx("mx-auto flex w-full flex-1 flex-col md:min-h-0 md:flex-row md:border-x md:border-[#e5e5e7]", p.maxW ?? "max-w-[1400px]")}>
-      {/* ---------- trái: 4 tab ---------- */}
-      <aside className="order-2 space-y-5 border-[#e5e5e7] bg-white p-5 md:order-1 md:w-[34%] md:min-w-[330px] md:max-w-[420px] md:shrink-0 md:overflow-y-auto md:border-r">
-        <div className="flex rounded-[10px] border border-[#e5e5e7] p-1">{tabBtn("anh", "Ảnh")}{tabBtn("sticker", "Sticker")}{tabBtn("chu", "Chữ")}{tabBtn("nen", "Nền")}</div>
+     <div className={cx("flex w-full flex-1 flex-col md:min-h-0 md:flex-row", p.maxW)}>
+      {/* ---------- trái: cột công cụ dọc (máy tính) / thanh ngang dưới đáy (điện thoại) + panel nội dung ---------- */}
+      <nav aria-label="Công cụ" className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[#e5e5e7] bg-white pb-[env(safe-area-inset-bottom)] md:static md:z-auto md:order-1 md:w-[72px] md:shrink-0 md:flex-col md:gap-1 md:border-r md:border-t-0 md:py-2">
+        {RAIL.map(([id, label, icon]) => {
+          const on = p.tab === id && open;
+          return (
+            <button key={id} type="button" onClick={() => switchTab(id)} aria-pressed={on}
+              className={cx("flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium md:mx-1.5 md:flex-none md:rounded-[10px] md:py-2.5", on ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b] hover:bg-[#f4f4f5]")}>
+              <span className={on ? "text-[#ff5fa2]" : "text-[#3f3f46]"}>{icon}</span>{label}
+            </button>
+          );
+        })}
+      </nav>
+      {open && <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setCollapsed(true)} aria-hidden />}
+      <aside className={cx("border-[#e5e5e7] bg-white", open ? "fixed inset-x-0 bottom-[58px] z-40 max-h-[62dvh] overflow-y-auto rounded-t-[16px] p-4 shadow-[0_-8px_24px_rgb(0_0_0/0.12)] md:static md:z-auto md:order-1 md:block md:max-h-none md:w-[320px] md:shrink-0 md:rounded-none md:border-r md:p-4 md:shadow-none" : "hidden")}>
+       <div className="space-y-5">
+        <div className="flex items-center justify-between md:hidden"><p className="text-[15px] font-semibold">{title}</p><button type="button" onClick={() => setCollapsed(true)} aria-label="Đóng" className="grid h-8 w-8 place-items-center rounded-full hover:bg-[#f4f4f5]"><X size={16} /></button></div>
+        {p.tab === "mau" && p.templateTab}
         {p.tab === "anh" && (
           <>
             <button type="button" onClick={() => (doc ? st.setAddSlotOpen(true) : toast("Tải ảnh và chọn mẫu trước khi thêm khung ảnh.", "err"))}
@@ -113,10 +138,11 @@ export function ScrapbookEditor(p: {
             topics={T} wishes={W} onWish={st.addWish} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
         )}
         {p.tab === "nen" && <BgTab t={cur} assets={p.assets} bgImages={bgPreview} onSet={st.setBg} onUpload={st.uploadBg} />}
+       </div>
       </aside>
 
       {/* ---------- giữa: bề mặt ---------- */}
-      <section onPointerDown={deselectOutside} className="relative order-1 flex min-h-[460px] min-w-0 flex-1 flex-col md:order-2 md:min-h-0">
+      <section onPointerDown={deselectOutside} className="relative order-1 flex min-h-[460px] min-w-0 flex-1 flex-col pb-[58px] md:order-2 md:min-h-0 md:pb-0">
         <div className="flex flex-wrap items-center gap-2 px-3 pt-2">
           <button type="button" onClick={() => { if (st.D.undo()) st.setSel(null); }} title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canUndo}><Undo2 size={13} /></button>
           <button type="button" onClick={() => { if (st.D.redo()) st.setSel(null); }} title="Làm lại (Ctrl+Shift+Z)" aria-label="Làm lại" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canRedo}><Redo2 size={13} /></button>
