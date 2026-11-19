@@ -48,6 +48,12 @@ Chạy `supabase/migration_r2_storage.sql` trong Supabase → SQL Editor (để 
 
 ## 5. Chép dữ liệu cũ sang R2
 
+**Tự động trên Vercel (không cần làm gì):** lịch pg_cron gọi `/api/cron/cleanup-shares` mỗi 15 phút; mỗi lần gọi chuyển thêm 1 đợt
+(tối đa ~200 file / ~4 phút — `lib/storage/migrate.ts`), chép xong file thì đổi link ảnh trong database rồi tự dừng.
+Tiến độ + nhật ký: Admin → Hệ thống → **Dọn file**. Không xoá gì trên Supabase Storage.
+
+**Cách dự phòng (chạy trên máy, không bắt buộc):**
+
 1. Tạo file `.env.local` ở thư mục gốc dự án (không commit) với: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_BUCKET`, `R2_PRIVATE_BUCKET`, `NEXT_PUBLIC_R2_PUBLIC_URL`.
 2. `npm install`
 3. Chạy thử (không chép, không sửa gì): `node scripts/migrate-storage-to-r2.mjs --dry-run`

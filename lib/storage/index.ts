@@ -12,12 +12,12 @@ export const CACHE_PUBLIC = "public, max-age=31536000, immutable";
 export type BucketKind = "public" | "private";
 
 let s3: S3Client | null = null;
-function r2() {
+export function r2() {
   const id = process.env.R2_ACCOUNT_ID, ak = process.env.R2_ACCESS_KEY_ID, sk = process.env.R2_SECRET_ACCESS_KEY;
   if (!id || !ak || !sk) throw new Error("Thiếu biến môi trường R2 (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)");
   return (s3 ??= new S3Client({ region: "auto", endpoint: `https://${id}.r2.cloudflarestorage.com`, credentials: { accessKeyId: ak, secretAccessKey: sk } }));
 }
-const bucketName = (k: BucketKind) => {
+export const bucketName = (k: BucketKind) => {
   const b = k === "public" ? process.env.R2_PUBLIC_BUCKET : process.env.R2_PRIVATE_BUCKET;
   if (!b) throw new Error(`Thiếu biến môi trường ${k === "public" ? "R2_PUBLIC_BUCKET" : "R2_PRIVATE_BUCKET"}`);
   return b;
