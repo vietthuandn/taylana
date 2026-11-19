@@ -40,4 +40,5 @@ export const activeAdminLink = (path: string) =>
   adminLinks.filter((l) => (l.href === "/admin" ? path === "/admin" : path.startsWith(l.href))).at(-1);
 
 // Trang cần workspace lớn (full màn hình, không padding)
-export const isWorkspacePath = (path: string) => /^\/admin\/thiet-ke\/template\/(cd-nang-cao|photostrip|sua)/.test(path) || /^\/admin\/mockup\/.+/.test(path);
+// trình chỉnh (cao đúng màn hình, không cuộn cả trang — panel tự cuộn): sửa mẫu, Photostrip, công cụ
+export const isWorkspacePath = (path: string) => /^\/admin\/thiet-ke\/template\/(cd-nang-cao|photostrip|sua)/.test(path) || /^\/admin\/mockup\/.+/.test(path) || path.startsWith("/admin/cong-cu/");

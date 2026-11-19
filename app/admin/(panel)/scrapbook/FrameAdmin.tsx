@@ -201,6 +201,10 @@ export function FrameAdmin() {
                         {f.mask_url && <Badge tone="pink">Mặt nạ</Badge>}
                         <span className="text-[11px] text-[#a1a1aa]">tỉ lệ {Math.round(f.ratio * 100) / 100}</span>
                       </div>
+                      <label className="flex items-center gap-1.5 text-[12px] text-[#52525b]" title="Khung dạng viền có thể kéo dài: thêm nút kéo giữa 4 cạnh trong trình chỉnh">
+                        <input type="checkbox" className="accent-[#ff5fa2]" checked={!!f.allow_stretch} onChange={(e) => patchFrame(f.id, { allow_stretch: e.target.checked }, e.target.checked ? "Đã cho phép kéo giãn." : "Đã khoá tỉ lệ.")} />
+                        Cho phép kéo giãn
+                      </label>
                       <div className="flex items-center gap-1">
                         <button type="button" onClick={() => setEdit(f)} className="inline-flex items-center gap-1 text-[12px] font-medium text-[#ff5fa2]"><Crop size={12} /> Vùng ảnh</button>
                         <span className="flex-1" />

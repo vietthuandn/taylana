@@ -76,6 +76,15 @@ export function ScrapbookEditor(p: {
     return m;
   }, [st.bgLocal, doc]);
 
+  // bấm vào chỗ trống (vùng xám quanh bề mặt, chỗ trống của thanh công cụ trên / dưới) → bỏ chọn + thoát sửa chữ.
+  // Không bỏ chọn khi bấm vào lớp (canvas tự xử lý) hay các điều khiển (nút, ô nhập, menu, thanh công cụ nổi…)
+  const deselectOutside = (e: React.PointerEvent) => {
+    const t = e.target as HTMLElement;
+    if (t.closest("canvas, button, a, input, textarea, select, label, [role=menu], [role=dialog], [data-keep-sel]")) return;
+    if (st.sel !== null) st.setSel(null);
+    if (st.editText !== null) st.setEditText(null);
+    if (st.editLayer !== null) st.setEditLayer(null);
+  };
   const tabBtn = (id: EditorTab, label: string) => (
     <button key={id} type="button" onClick={() => switchTab(id)} className={cx("flex-1 rounded-[8px] px-2 py-1.5 text-[13px] font-medium", p.tab === id ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{label}</button>
   );
@@ -107,7 +116,7 @@ export function ScrapbookEditor(p: {
       </aside>
 
       {/* ---------- giữa: bề mặt ---------- */}
-      <section className="relative order-1 flex min-h-[460px] min-w-0 flex-1 flex-col md:order-2 md:min-h-0">
+      <section onPointerDown={deselectOutside} className="relative order-1 flex min-h-[460px] min-w-0 flex-1 flex-col md:order-2 md:min-h-0">
         <div className="flex flex-wrap items-center gap-2 px-3 pt-2">
           <button type="button" onClick={() => { if (st.D.undo()) st.setSel(null); }} title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canUndo}><Undo2 size={13} /></button>
           <button type="button" onClick={() => { if (st.D.redo()) st.setSel(null); }} title="Làm lại (Ctrl+Shift+Z)" aria-label="Làm lại" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canRedo}><Redo2 size={13} /></button>

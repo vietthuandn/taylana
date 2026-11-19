@@ -267,7 +267,7 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
   );
   const title = src.kind === "custom" ? (booklet ? "Booklet Template" : "CD Template") : src.surface === "booklet" ? "Booklet Template · mẫu tự sinh" : src.surface === "spread" ? "Booklet · kiểu cặp trang" : "CD Template · mẫu tự tạo";
   return (
-    <div className="flex h-[calc(100dvh-var(--header-h,57px))] min-h-[560px] flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-3 border-b border-[#e5e5e7] bg-white px-4 py-2">
         <Link href={`/admin/thiet-ke/template?tab=${booklet ? "booklet-template" : "cd-template"}`} className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Template</Link>
         <span className="text-[12px] text-[#a1a1aa]">{title}</span>

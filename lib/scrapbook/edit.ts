@@ -41,3 +41,21 @@ export function applyWidth(l: Layer, b0: Box, side: -1 | 1, px: number, py: numb
   const c = fixed + (side * w) / 2; // tâm mới (theo trục ngang)
   return { ...l, w, x: b0.x + c * ux, y: b0.y + c * uy } as Layer;
 }
+
+/** Kéo nút góc / cạnh (hx, hy ∈ −1 · 0 · 1; cạnh: 1 trong 2 bằng 0) — đúng kiểu Figma / Canva, kể cả khi lớp đang xoay:
+   góc / cạnh ĐỐI DIỆN đứng yên (theo hệ toạ độ của lớp đã xoay). lock = giữ tỉ lệ · fromCenter (Alt) = phóng / thu từ tâm. */
+export function resizeBox(b0: Box, hx: -1 | 0 | 1, hy: -1 | 0 | 1, px: number, py: number, o: { lock: boolean; fromCenter: boolean; min?: number }): Box {
+  const min = o.min ?? 2, a = (b0.rot * Math.PI) / 180, cos = Math.cos(a), sin = Math.sin(a);
+  const dx = px - b0.x, dy = py - b0.y;
+  const lx = dx * cos + dy * sin, ly = -dx * sin + dy * cos; // con trỏ theo trục của lớp
+  const ax = o.fromCenter ? 0 : (-hx * b0.w) / 2, ay = o.fromCenter ? 0 : (-hy * b0.h) / 2; // điểm cố định
+  const span = (h: number, l: number, an: number, w0: number) => (h === 0 ? w0 : Math.max(min, o.fromCenter ? 2 * h * l : h * (l - an)));
+  let w = span(hx, lx, ax, b0.w), h = span(hy, ly, ay, b0.h);
+  if (o.lock) {
+    const s = hx !== 0 && hy !== 0 ? Math.max(w / b0.w, h / b0.h) : hx !== 0 ? w / b0.w : h / b0.h;
+    w = Math.max(min, b0.w * s); h = Math.max(min, b0.h * s);
+  }
+  // tâm mới (theo trục lớp) rồi đổi về toạ độ bề mặt
+  const cx = o.fromCenter || hx === 0 ? 0 : ax + (hx * w) / 2, cy = o.fromCenter || hy === 0 ? 0 : ay + (hy * h) / 2;
+  return { x: b0.x + cx * cos - cy * sin, y: b0.y + cx * sin + cy * cos, w, h, rot: b0.rot };
+}

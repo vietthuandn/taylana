@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { FONTS, WISH_FONT, renderSurface, type RenderOpts, type TextHit } from "@/lib/scrapbook/render";
-import { applyBox, applyWidth, boxOf, inside, snap, type Box as LBox } from "@/lib/scrapbook/edit";
+import { applyBox, applyWidth, boxOf, inside, resizeBox, snap, type Box as LBox } from "@/lib/scrapbook/edit";
 import { surfaceOf } from "@/lib/scrapbook/surface";
 import { C, R_HUB, R_OUT, R_SAFE, type Adjust, type Layer, type Template } from "@/lib/scrapbook/types";
 import { cx } from "@/components/ui/styles";
@@ -40,7 +40,7 @@ export function SurfaceView(p: SurfaceViewProps) {
   const S = surfaceOf(t), k = width / S.w, height = S.h * k;
   const view = useRef<HTMLCanvasElement>(null);
   const textBoxes = useRef<Record<number, LBox>>({});
-  const drag = useRef<{ mode: "move" | "scale" | "rotate" | "pan" | "width"; i: number; b0: LBox; sx: number; sy: number; adj0?: Adjust; layer0?: Layer; pid?: string; moved?: boolean; wasSel?: boolean; side?: -1 | 1 } | null>(null);
+  const drag = useRef<{ mode: "move" | "scale" | "rotate" | "pan" | "width"; i: number; b0: LBox; sx: number; sy: number; adj0?: Adjust; layer0?: Layer; pid?: string; moved?: boolean; wasSel?: boolean; side?: -1 | 1; hx?: -1 | 0 | 1; hy?: -1 | 0 | 1 } | null>(null);
   const editing = p.editText ?? null;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [guide, setGuide] = useState<{ center?: boolean; ring?: number } | null>(null);
@@ -99,7 +99,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     const pt = toMM(e);
     drag.current = { mode: "width", i: p.sel, b0: { ...b, x: L[p.sel].x, y: L[p.sel].y }, sx: pt.x, sy: pt.y, layer0: L[p.sel], side };
   }
-  function startHandle(e: React.PointerEvent, mode: "scale" | "rotate") {
+  function startHandle(e: React.PointerEvent, mode: "scale" | "rotate", hx: -1 | 0 | 1 = 1, hy: -1 | 0 | 1 = 1) {
     if (p.sel === null) return;
     e.stopPropagation();
     const b = layerBox(p.sel);
@@ -107,7 +107,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     p.begin();
     const pt = toMM(e);
-    drag.current = { mode, i: p.sel, b0: b, sx: pt.x, sy: pt.y, layer0: L[p.sel] };
+    drag.current = { mode, i: p.sel, b0: b, sx: pt.x, sy: pt.y, layer0: L[p.sel], hx, hy };
   }
   function onMove(e: React.PointerEvent) {
     const d = drag.current;
@@ -132,10 +132,9 @@ export function SurfaceView(p: SurfaceViewProps) {
       if (Math.abs(((r % 90) + 90) % 90) < 3 || Math.abs(((r % 90) + 90) % 90) > 87) r = Math.round(r / 90) * 90;
       b = { ...b0, rot: r };
     } else {
-      const a = (-b0.rot * Math.PI) / 180, dx = pt.x - b0.x, dy = pt.y - b0.y;
-      const lx = Math.abs(dx * Math.cos(a) - dy * Math.sin(a)), ly = Math.abs(dx * Math.sin(a) + dy * Math.cos(a));
-      const s = Math.max(0.15, Math.max(lx / (b0.w / 2), ly / (b0.h / 2)));
-      b = { ...b0, w: b0.w * s, h: b0.h * s };
+      // góc / cạnh đối diện đứng yên · Shift = giữ tỉ lệ (lớp kéo giãn tự do) · Alt = từ tâm
+      const l0 = d.layer0!, free = stretchable(l0);
+      b = resizeBox(b0, d.hx ?? 1, d.hy ?? 1, pt.x, pt.y, { lock: !free || e.shiftKey, fromCenter: e.altKey, min: l0.k === "text" ? 1 : 2 });
     }
     const l0 = d.layer0!;
     p.setLayers((ls) => ls.map((l, j) => (j === d.i ? applyBox(l0, b, b0) : l)), l0);
@@ -191,6 +190,14 @@ export function SurfaceView(p: SurfaceViewProps) {
   const SB = p.sel !== null && p.editLayer === null && editing === null ? layerBox(p.sel) : null;
   const selL = p.sel !== null ? L[p.sel] : null;
   const sideHandles = selL?.k === "text" && !selL.arc;
+  // lớp kéo giãn tự do (thêm 4 nút giữa cạnh): ô ảnh chữ nhật / vuông / bo góc / giấy xé / tròn / tim, khung PNG admin cho phép, giấy, băng dính, lời chúc
+  function stretchable(l: Layer) {
+    if (l.k === "paper" || l.k === "tape" || l.k === "wish") return true;
+    if (l.k !== "photo") return false;
+    if (l.frame) return !!p.render.frames?.[l.frame]?.frame.allow_stretch;
+    return l.shape !== "polaroid" && l.shape !== "frame";
+  }
+  const edgeHandles = !!selL && !sideHandles && stretchable(selL);
   return (
     <div className="relative" style={{ width, height }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
       onDragOver={(e) => { if (e.dataTransfer.types.includes(ASSET_DRAG) || e.dataTransfer.types.includes(PHOTO_DRAG)) e.preventDefault(); }} onDrop={onDrop}>
@@ -224,8 +231,12 @@ export function SurfaceView(p: SurfaceViewProps) {
       {SB && (
         <div className="pointer-events-none absolute border-2 border-[#2563eb]"
           style={{ left: (SB.x - SB.w / 2) * k, top: (SB.y - SB.h / 2) * k, width: SB.w * k, height: SB.h * k, transform: `rotate(${SB.rot}deg)` }}>
-          {[[0, 0], [1, 0], [1, 1], [0, 1]].map(([cx0, cy0], i) => (
-            <span key={i} onPointerDown={(e) => startHandle(e, "scale")} className="pointer-events-auto absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize rounded-[2px] border-2 border-[#2563eb] bg-white" style={{ left: `${cx0 * 100}%`, top: `${cy0 * 100}%` }} />
+          {([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([hx, hy], i) => (
+            <span key={i} onPointerDown={(e) => startHandle(e, "scale", hx, hy)} className={cx("pointer-events-auto absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-[2px] border-2 border-[#2563eb] bg-white", hx === hy ? "cursor-nwse-resize" : "cursor-nesw-resize")} style={{ left: `${(hx + 1) * 50}%`, top: `${(hy + 1) * 50}%` }} />
+          ))}
+          {edgeHandles && ([[0, -1], [1, 0], [0, 1], [-1, 0]] as const).map(([hx, hy], i) => (
+            <span key={`e${i}`} onPointerDown={(e) => startHandle(e, "scale", hx, hy)} title="Kéo để kéo giãn (Shift: giữ tỉ lệ · Alt: từ tâm)"
+              className={cx("pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#2563eb] bg-white", hx ? "h-5 w-2 cursor-ew-resize" : "h-2 w-5 cursor-ns-resize")} style={{ left: `${(hx + 1) * 50}%`, top: `${(hy + 1) * 50}%` }} />
           ))}
           <span onPointerDown={(e) => startHandle(e, "rotate")} title="Kéo để xoay" className="pointer-events-auto absolute left-1/2 top-[-22px] h-3.5 w-3.5 -translate-x-1/2 cursor-grab rounded-full border-2 border-[#2563eb] bg-white" />
           {sideHandles && ([-1, 1] as const).map((side) => (

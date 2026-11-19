@@ -101,7 +101,7 @@ export function AdminShell({ email, role = "admin", children }: { email: string;
   const workspace = isWorkspacePath(path);
 
   return (
-    <div className="admin-ui min-h-dvh">
+    <div className={cx("admin-ui", workspace ? "h-dvh overflow-hidden" : "min-h-dvh")}>
       {/* sidebar máy tính */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] border-r border-[#e5e5e7] bg-white md:block">
         <Sidebar email={email} role={role} />
@@ -117,7 +117,7 @@ export function AdminShell({ email, role = "admin", children }: { email: string;
         </div>
       )}
 
-      <div className="flex min-h-dvh flex-col md:pl-[240px]">
+      <div className={cx("flex flex-col md:pl-[240px]", workspace ? "h-dvh" : "min-h-dvh")}>
         <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b border-[#e5e5e7] bg-white px-4 md:px-6">
           <button className="grid h-8 w-8 place-items-center rounded-[6px] text-[#3f3f46] hover:bg-[#f4f4f5] md:hidden" onClick={() => setOpen(true)} aria-label="Mở menu"><Menu size={16} /></button>
           <nav className="flex min-w-0 flex-1 items-center gap-1.5 text-[14px]" aria-label="Breadcrumb">
@@ -132,7 +132,7 @@ export function AdminShell({ email, role = "admin", children }: { email: string;
             <span className="hidden sm:inline">Xem trang web</span> <ExternalLink size={16} />
           </a>
         </header>
-        <main className={cx("min-w-0 flex-1", workspace && "flex flex-col")}>{children}</main>
+        <main className={cx("min-w-0 flex-1", workspace && "flex min-h-0 flex-col overflow-y-auto")}>{children}</main>
       </div>
       <AdminOverlays />
     </div>

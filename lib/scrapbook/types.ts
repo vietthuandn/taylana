@@ -54,7 +54,7 @@ export type CustomTemplate = { id: string; name: string; surface: "disc" | "book
 // ---------- thư viện Khung ảnh (admin) ----------
 export type FrameSet = { id: string; name: string; is_active: boolean; sort_order: number };
 /** region: vùng ảnh nằm dưới khung (0..1) · mask_url: ảnh mặt nạ đen trắng (trắng = vùng ảnh) · ratio = cao / rộng của ảnh khung */
-export type Frame = { id: string; set_id: string; name: string; url: string; region: Rect01 | null; mask_url: string | null; ratio: number; is_active: boolean; sort_order: number };
+export type Frame = { id: string; set_id: string; name: string; url: string; region: Rect01 | null; mask_url: string | null; ratio: number; is_active: boolean; sort_order: number; allow_stretch?: boolean };
 // ---------- thư viện Lời chúc (admin) ----------
 export type WishTopic = { id: string; name: string; is_active: boolean; sort_order: number };
 export type Wish = { id: string; topic_id: string; content: string; lang: "vi" | "en"; is_active: boolean; sort_order: number };
