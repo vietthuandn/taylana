@@ -205,7 +205,7 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
       <PrintBar batch={batch} orders={orders} selected={sels} packs={packs} addons={addons} items={items} stat={stat} slotsFor={slotsFor}
         onBatch={setBatch} onOrders={(ids, v) => setOrders((c) => c.map((o) => (ids.includes(o.id) ? { ...o, ...v } : o)))} />
 
-      {importing && <ImportModal packs={packs} addons={addons} existing={orders} onAdd={addOrders} onClose={() => setImporting(false)} />}
+      {importing && <ImportModal packs={packs} addons={addons} rules={rules} existing={orders} onAdd={addOrders} onClose={() => setImporting(false)} />}
       {settings && <SettingsModal packs={packs} rules={rules} addons={addons} onRules={setRules} onAddons={setAddons} onClose={() => setSettings(false)} />}
       {viewer && <Viewer o={viewer.order} slot={viewer.slot} batchId={batchId} item={itemOf(viewer.order, viewer.slot.key)} onClose={() => setViewer(null)}
         onReplace={(f) => saveFile(viewer.order, viewer.slot.key, f, f.name)} onRotate={() => rotate(viewer.order, viewer.slot.key)} onDelete={async () => { await removeFile(viewer.order, viewer.slot.key); setViewer(null); }} />}

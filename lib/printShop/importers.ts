@@ -8,7 +8,7 @@ export type ImportRow = { key: string; order_code: string; username: string; lin
 export type Col = "code" | "user" | "product" | "variation" | "qty";
 export const COLS: { id: Col; name: string; hints: string[] }[] = [
   { id: "code", name: "Mã đơn hàng", hints: ["ma don hang", "ma don", "order id", "order sn"] },
-  { id: "user", name: "Tên người mua (username)", hints: ["nguoi mua", "username", "ten dang nhap", "buyer"] },
+  { id: "user", name: "Người mua (username)", hints: ["nguoi mua", "username", "ten dang nhap nguoi mua", "buyer username", "buyer"] },
   { id: "product", name: "Tên sản phẩm", hints: ["ten san pham", "product name", "san pham"] },
   { id: "variation", name: "Tên phân loại hàng", hints: ["ten phan loai", "phan loai", "variation"] },
   { id: "qty", name: "Số lượng", hints: ["so luong", "quantity", "sl"] },
@@ -32,8 +32,10 @@ export function guessCols(headers: string[]): Record<Col, number> {
   const out = {} as Record<Col, number>;
   for (const c of COLS) {
     // khớp gợi ý dài trước ("ten phan loai" trước "phan loai")
+    // ưu tiên tên cột TRÙNG KHỚP ("Người Mua"), rồi mới tới cột có chứa cụm (tránh nhận nhầm "Nhận xét từ Người mua")
     let idx = -1;
-    for (const h of c.hints) { idx = headers.findIndex((x) => fold(x).includes(h)); if (idx >= 0) break; }
+    for (const h of c.hints) { idx = headers.findIndex((x) => fold(x) === h); if (idx >= 0) break; }
+    if (idx < 0) for (const h of c.hints) { idx = headers.findIndex((x) => fold(x).includes(h) && !/nhan xet|ghi chu|danh gia/.test(fold(x))); if (idx >= 0) break; }
     out[c.id] = idx;
   }
   if (out.user >= 0 && out.user === out.code) out.user = -1;

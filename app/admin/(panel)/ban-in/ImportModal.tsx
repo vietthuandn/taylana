@@ -5,7 +5,8 @@
 import { useState } from "react";
 import { FileSpreadsheet, ImageIcon, Keyboard, Plus, Trash2, X } from "lucide-react";
 import { COLS, guessCols, ocrImage, readSheet, rowKey, rowsFromOcr, rowsFromSheet, type Col, type ImportRow, type Sheet } from "@/lib/printShop/importers";
-import { fold, type Addon, type Order, type Pack } from "@/lib/printShop/types";
+import { fold, type Addon, type Order, type Pack, type Rule } from "@/lib/printShop/types";
+import { resolve } from "@/lib/printShop/rules";
 import { confirmDialog } from "@/components/ui/dialog";
 import { Button, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
@@ -13,8 +14,8 @@ import { cx } from "@/components/admin/styles";
 export type NewOrder = { row: ImportRow; manual?: { package_id: string | null; addons: string[]; music: boolean; qty: number } };
 const inp = "h-8 w-full rounded-[6px] border border-[#e5e5e7] px-2 text-[13px] outline-none focus:border-[#ff5fa2]";
 
-export function ImportModal({ packs, addons, existing, onAdd, onClose }: {
-  packs: Pack[]; addons: Addon[]; existing: Order[]; onAdd: (rows: NewOrder[]) => Promise<void>; onClose: () => void;
+export function ImportModal({ packs, addons, rules, existing, onAdd, onClose }: {
+  packs: Pack[]; addons: Addon[]; rules: Rule[]; existing: Order[]; onAdd: (rows: NewOrder[]) => Promise<void>; onClose: () => void;
 }) {
   const [tab, setTab] = useState<"excel" | "ocr" | "manual">("excel");
   const [sheet, setSheet] = useState<Sheet | null>(null);
@@ -73,9 +74,10 @@ export function ImportModal({ packs, addons, existing, onAdd, onClose }: {
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
           {tab === "excel" && (
             <>
-              <label className="block cursor-pointer rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] p-5 text-center text-[13px] hover:border-[#ff5fa2]">
+              <label onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const f = [...e.dataTransfer.files].find((x) => /\.(xlsx|xls|csv)$/i.test(x.name)); if (f) pickExcel(f); else toast("Thả file .xlsx, .xls hoặc .csv", "err"); }}
+                className="block cursor-pointer rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] p-5 text-center text-[13px] hover:border-[#ff5fa2]">
                 <FileSpreadsheet className="mx-auto mb-1 text-[#a1a1aa]" />
-                Chọn file Excel (.xlsx, .xls) hoặc CSV xuất từ Shopee — đọc ngay trên trình duyệt
+                Kéo thả hoặc bấm để chọn file Excel (.xlsx, .xls) / CSV xuất từ Shopee — đọc ngay trên trình duyệt
                 <input type="file" accept=".xlsx,.xls,.csv" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) pickExcel(f); }} />
               </label>
               {sheet && map && (
@@ -97,39 +99,54 @@ export function ImportModal({ packs, addons, existing, onAdd, onClose }: {
             </>
           )}
           {tab === "ocr" && (
-            <label className="block cursor-pointer rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] p-5 text-center text-[13px] hover:border-[#ff5fa2]">
+            <label onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const fs = [...e.dataTransfer.files].filter((x) => x.type.startsWith("image/")); if (fs.length) pickImages(fs); }}
+              className="block cursor-pointer rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] p-5 text-center text-[13px] hover:border-[#ff5fa2]">
               <ImageIcon className="mx-auto mb-1 text-[#a1a1aa]" />
-              Chọn 1 hoặc nhiều ảnh chụp màn hình danh sách đơn (trang Sản phẩm của Shopee) — nhận diện chữ ngay trên trình duyệt
+              Kéo thả hoặc bấm để chọn 1 hoặc nhiều ảnh chụp màn hình danh sách đơn (trang Sản phẩm của Shopee) — nhận diện chữ ngay trên trình duyệt
               <input type="file" multiple accept="image/*" className="sr-only" onChange={(e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ""; if (fs.length) pickImages(fs); }} />
             </label>
           )}
           {busy && <p className="rounded-[8px] bg-[#eff6ff] px-3 py-2 text-[13px] text-[#1d4ed8]">{busy}</p>}
           {tab !== "manual" && rows.length > 0 && (
-            <div className="overflow-x-auto rounded-[10px] border border-[#e5e5e7]">
-              <table className="w-full min-w-[760px] text-[13px]">
-                <thead><tr className="bg-[#fafafa] text-left text-[12px] text-[#71717a]"><th className="w-8 p-2">#</th><th className="w-[150px] p-2">Username</th><th className="w-[130px] p-2">Mã đơn</th><th className="p-2">Sản phẩm · Phân loại · SL</th><th className="w-8" /></tr></thead>
-                <tbody>
-                  {rows.map((r, i) => (
-                    <tr key={r.key} className="border-t border-[#efeff1] align-top">
-                      <td className="p-2 text-[#a1a1aa]">{i + 1}</td>
-                      <td className="p-1.5"><input value={r.username} onChange={(e) => setRow(r.key, { username: e.target.value })} className={cx(inp, low(r, "username"))} /></td>
-                      <td className="p-1.5"><input value={r.order_code} onChange={(e) => setRow(r.key, { order_code: e.target.value })} className={inp} placeholder="(không bắt buộc)" /></td>
-                      <td className="space-y-1 p-1.5">
-                        {r.lines.map((l, j) => (
-                          <div key={j} className="flex gap-1">
-                            <input value={l.product} onChange={(e) => setLine(r.key, j, { product: e.target.value })} placeholder="Tên sản phẩm" className={cx(inp, "flex-[2]", low(r, `l${j}.product`))} />
-                            <input value={l.variation} onChange={(e) => setLine(r.key, j, { variation: e.target.value })} placeholder="Phân loại" className={cx(inp, "flex-[2]", low(r, `l${j}.variation`))} />
-                            <input type="number" min={1} value={l.qty} onChange={(e) => setLine(r.key, j, { qty: Math.max(1, Number(e.target.value) || 1) })} className={cx(inp, "w-14 flex-none")} aria-label="Số lượng" />
-                            <button type="button" onClick={() => setRow(r.key, { lines: r.lines.filter((_, k) => k !== j) })} className="grid w-7 place-items-center text-[#a1a1aa] hover:text-[#dc2626]" aria-label="Xoá dòng"><X size={13} /></button>
-                          </div>
-                        ))}
-                        <button type="button" onClick={() => setRow(r.key, { lines: [...r.lines, { product: "", variation: "", qty: 1 }] })} className="text-[12px] text-[#ff5fa2]">+ dòng sản phẩm</button>
-                      </td>
-                      <td className="p-1.5"><button type="button" onClick={() => setRows((c) => c.filter((x) => x.key !== r.key))} className="grid h-8 w-7 place-items-center text-[#a1a1aa] hover:text-[#dc2626]" aria-label="Xoá đơn"><Trash2 size={14} /></button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="overflow-hidden rounded-[10px] border border-[#e5e5e7]">
+              <div className="grid grid-cols-[28px_170px_1fr_220px_28px] gap-3 bg-[#fafafa] px-3 py-2 text-[12px] font-medium text-[#71717a]"><span>#</span><span>Người mua · Mã đơn</span><span>Sản phẩm đặt</span><span>Sẽ in</span><span /></div>
+              {rows.map((r, i) => {
+                const res = resolve(r.lines, rules, packs, addons);
+                const pack = packs.find((p) => p.id === res.package_id), ad = new Map<string, number>();
+                for (const id of res.addons) ad.set(id, (ad.get(id) ?? 0) + 1);
+                return (
+                  <div key={r.key} className="grid grid-cols-[28px_170px_1fr_220px_28px] items-start gap-3 border-t border-[#efeff1] px-3 py-2.5 text-[13px]">
+                    <span className="pt-1.5 text-[#a1a1aa]">{i + 1}</span>
+                    <div className="min-w-0 space-y-1">
+                      <input value={r.username} onChange={(e) => setRow(r.key, { username: e.target.value })} placeholder="username" className={cx(inp, "font-medium", !r.username && "border-[#f59e0b] bg-[#fffbeb]", low(r, "username"))} />
+                      {tab === "ocr" ? <input value={r.order_code} onChange={(e) => setRow(r.key, { order_code: e.target.value })} className={cx(inp, "text-[12px]")} placeholder="mã đơn (không bắt buộc)" /> : <p className="truncate px-0.5 text-[11px] text-[#71717a]" title={r.order_code}>{r.order_code}</p>}
+                    </div>
+                    <ul className="min-w-0 space-y-1.5">
+                      {r.lines.map((l, j) => tab === "ocr" ? (
+                        <li key={j} className="grid grid-cols-[1fr_1fr_56px_24px] gap-1">
+                          <input value={l.product} onChange={(e) => setLine(r.key, j, { product: e.target.value })} placeholder="Tên sản phẩm" className={cx(inp, low(r, `l${j}.product`))} />
+                          <input value={l.variation} onChange={(e) => setLine(r.key, j, { variation: e.target.value })} placeholder="Phân loại" className={cx(inp, low(r, `l${j}.variation`))} />
+                          <input type="number" min={1} value={l.qty} onChange={(e) => setLine(r.key, j, { qty: Math.max(1, Number(e.target.value) || 1) })} className={inp} aria-label="Số lượng" />
+                          <button type="button" onClick={() => setRow(r.key, { lines: r.lines.filter((_, k) => k !== j) })} className="grid place-items-center text-[#a1a1aa] hover:text-[#dc2626]" aria-label="Xoá dòng"><X size={13} /></button>
+                        </li>
+                      ) : (
+                        <li key={j} className="min-w-0">
+                          <p className="font-medium text-[#18181b]">{l.variation || "(không có phân loại)"} <span className="font-normal text-[#71717a]">× {l.qty}</span></p>
+                          <p className="truncate text-[11px] text-[#a1a1aa]" title={l.product}>{l.product}</p>
+                        </li>
+                      ))}
+                      {tab === "ocr" && <li><button type="button" onClick={() => setRow(r.key, { lines: [...r.lines, { product: "", variation: "", qty: 1 }] })} className="text-[12px] text-[#ff5fa2]">+ dòng sản phẩm</button></li>}
+                    </ul>
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {pack && <span className="rounded-full bg-[#eff6ff] px-2 py-0.5 text-[12px] font-medium text-[#1d4ed8]">{pack.name}{res.qty > 1 ? ` × ${res.qty}` : ""}</span>}
+                      {[...ad].map(([id, n]) => <span key={id} className="rounded-full bg-[#f4f4f5] px-2 py-0.5 text-[12px]">{addons.find((a) => a.id === id)?.name}{n > 1 ? ` × ${n}` : ""}</span>)}
+                      {res.music && <span className="rounded-full bg-[#f5f3ff] px-2 py-0.5 text-[12px] text-[#7c3aed]">Ghi nhạc</span>}
+                      {res.unresolved && <span className="rounded-full bg-[#fef2f2] px-2 py-0.5 text-[12px] font-medium text-[#b91c1c]">Chưa xác định — chọn tay sau</span>}
+                    </div>
+                    <button type="button" onClick={() => setRows((c) => c.filter((x) => x.key !== r.key))} className="grid h-8 place-items-center text-[#a1a1aa] hover:text-[#dc2626]" aria-label="Xoá đơn"><Trash2 size={14} /></button>
+                  </div>
+                );
+              })}
               {tab === "ocr" && <p className="border-t border-[#efeff1] px-3 py-2 text-[12px] text-[#71717a]">Ô tô vàng: nhận diện kém tin cậy — kiểm tra lại trước khi thêm.</p>}
             </div>
           )}
