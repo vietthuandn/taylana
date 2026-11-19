@@ -38,7 +38,8 @@ async function orderOwned(w: Who, orderId: string) {
 export async function canWrite(w: Who, key: string) {
   if (w.role === "admin") return true;
   switch (rootOf(key)) {
-    case "scrapbook": case "mockups": return staff(w);
+    case "scrapbook": return staff(w); // chất liệu, ảnh nền, ảnh thu nhỏ mẫu (nhà thiết kế được)
+    case "mockups": return false; // ảnh mockup, Template Canva: chỉ admin
     case "public-assets": return seg(key, 1) === "reviews" || (staff(w) && ["templates", "photostrip"].includes(seg(key, 1)));
     case "order-files": return orderWritable(w, seg(key, 1));
     case "design-assets": return !!w.userId && seg(key, 1) === w.userId;
@@ -57,7 +58,8 @@ export async function canRead(w: Who, key: string) {
 export async function canDelete(w: Who, key: string) {
   if (w.role === "admin") return true;
   switch (rootOf(key)) {
-    case "scrapbook": case "mockups": return staff(w);
+    case "scrapbook": return staff(w);
+    case "mockups": return false;
     case "public-assets": return staff(w) && ["templates", "photostrip"].includes(seg(key, 1));
     case "design-assets": return !!w.userId && seg(key, 1) === w.userId;
     default: return false;
