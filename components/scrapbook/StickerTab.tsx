@@ -1,31 +1,41 @@
 "use client";
 
 /* Scrapbook → tab "Sticker": "Sticker của bạn" (khách tự tải, xoá nền + viền trắng) ở đầu, rồi thư viện:
-   lọc theo nhóm / tông màu, lưới 4 cột trên nền caro, tải dần khi cuộn.
+   chip Nhóm (thứ tự admin đặt; chưa đặt thì theo số lượng) · hàng 2: chip Tag phổ biến (thu gọn được) · tông màu,
+   lưới 4 cột trên nền caro (ảnh thu nhỏ), tải dần khi cuộn.
    Bấm để thêm (nửa dưới bề mặt, lớp trên cùng), hoặc kéo thả thẳng lên bề mặt. Chỉ lấy chất liệu đang bật trong admin. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Trash2, Upload } from "lucide-react";
 import { ASSET_DRAG } from "./SurfaceView";
-import { TONES, type ScrapAsset } from "@/lib/scrapbook/types";
+import { TONES, type AssetGroupRow, type ScrapAsset } from "@/lib/scrapbook/types";
+import { tagCounts } from "@/lib/scrapbook/assetGroups";
 import { cx } from "@/components/ui/styles";
 
-const GROUPS: [string, string][] = [["all", "Tất cả"], ["tape", "Băng dính"], ["sticker", "Sticker"], ["frame", "Khung"], ["doodle", "Doodle"], ["paper", "Mảnh giấy"]];
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
 export { ASSET_DRAG };
 export type UserStickerItem = { id: string; url: string };
 
-export function StickerTab({ assets, onAdd, mine = [], onUpload, onAddMine, onRemoveMine }: {
-  assets: ScrapAsset[]; onAdd: (a: ScrapAsset) => void;
+export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, onAddMine, onRemoveMine }: {
+  assets: ScrapAsset[]; groups?: AssetGroupRow[]; onAdd: (a: ScrapAsset) => void;
   mine?: UserStickerItem[]; onUpload?: (files: File[]) => void; onAddMine?: (id: string) => void; onRemoveMine?: (id: string) => void;
 }) {
   const upIn = useRef<HTMLInputElement>(null);
-  const [grp, setGrp] = useState("all");
+  const [grp, setGrp] = useState("all"); // id nhóm
+  const [tag, setTag] = useState("");
+  const [tagsOpen, setTagsOpen] = useState(false);
   const [tone, setTone] = useState("all");
   const [limit, setLimit] = useState(24);
   const more = useRef<HTMLDivElement>(null);
-  const list = useMemo(() => assets.filter((a) => a.is_active && a.grp !== "texture"
-    && (grp === "all" || a.grp === grp) && (tone === "all" || a.tone === tone)), [assets, grp, tone]);
-  useEffect(() => { setLimit(24); }, [grp, tone]);
+  const lib = useMemo(() => assets.filter((a) => a.is_active && a.grp !== "texture"), [assets]);
+  // chip Nhóm: thứ tự admin đặt (sort_order), chưa đặt (cùng thứ tự) thì theo số lượng
+  const chips = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const a of lib) if (a.group_id) n.set(a.group_id, (n.get(a.group_id) ?? 0) + 1);
+    return groups.filter((g) => n.get(g.id)).map((g) => ({ ...g, count: n.get(g.id)! })).sort((a, b) => a.sort_order - b.sort_order || b.count - a.count);
+  }, [lib, groups]);
+  const tagList = useMemo(() => tagCounts(lib).slice(0, 24), [lib]);
+  const list = useMemo(() => lib.filter((a) => (grp === "all" || a.group_id === grp) && (!tag || (a.tags ?? []).includes(tag)) && (tone === "all" || a.tone === tone)), [lib, grp, tag, tone]);
+  useEffect(() => { setLimit(24); }, [grp, tag, tone]);
   // tải dần khi cuộn tới cuối lưới
   useEffect(() => {
     const el = more.current;
@@ -59,7 +69,20 @@ export function StickerTab({ assets, onAdd, mine = [], onUpload, onAddMine, onRe
           ) : <p className="text-[12px] text-[#a1a1aa]">PNG nền trong suốt dùng luôn · ảnh chụp sẽ được xoá nền, thêm viền trắng tuỳ chọn.</p>}
         </section>
       )}
-      <div className="no-scrollbar flex gap-1.5 overflow-x-auto">{GROUPS.filter(([k]) => k === "all" || assets.some((a) => a.grp === k)).map(([k, t]) => <button key={k} type="button" onClick={() => setGrp(k)} className={chip(grp === k)}>{t}</button>)}</div>
+      {chips.length > 0 && (
+        <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+          <button type="button" onClick={() => setGrp("all")} className={chip(grp === "all")}>Tất cả</button>
+          {chips.map((g) => <button key={g.id} type="button" onClick={() => setGrp(g.id)} className={chip(grp === g.id)}>{g.name}</button>)}
+        </div>
+      )}
+      {tagList.length > 0 && (
+        <div className="flex items-start gap-1.5">
+          <div className={cx("flex flex-1 gap-1.5", tagsOpen ? "flex-wrap" : "no-scrollbar overflow-x-auto")}>
+            {tagList.map((t) => <button key={t.tag} type="button" onClick={() => setTag(tag === t.tag ? "" : t.tag)} className={cx(chip(tag === t.tag), "h-6 px-2 text-[11px]")}>#{t.tag}</button>)}
+          </div>
+          <button type="button" onClick={() => setTagsOpen((v) => !v)} className="h-6 shrink-0 text-[11px] font-medium text-[#71717a] hover:text-[#ff5fa2]" aria-expanded={tagsOpen}>{tagsOpen ? "Thu gọn" : "Thêm"}</button>
+        </div>
+      )}
       <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
         <button type="button" onClick={() => setTone("all")} className={chip(tone === "all")}>Mọi màu</button>
         {TONES.filter((t) => t.id !== "any").map((t) => (
@@ -74,7 +97,7 @@ export function StickerTab({ assets, onAdd, mine = [], onUpload, onAddMine, onRe
               onDragStart={(e) => { e.dataTransfer.setData(ASSET_DRAG, a.id); e.dataTransfer.effectAllowed = "copy"; }}
               className={cx("grid aspect-square place-items-center overflow-hidden rounded-[8px] border border-[#e5e5e7] p-1.5 hover:border-[#ff5fa2]", checker)}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={a.url} alt={a.name} className="max-h-full max-w-full object-contain" loading="lazy" draggable={false} />
+              <img src={a.thumb_url || a.url} alt={a.name} className="max-h-full max-w-full object-contain" loading="lazy" decoding="async" draggable={false} />
             </button>
           ))}
           {limit < list.length && <div ref={more} className="col-span-4 h-6" />}

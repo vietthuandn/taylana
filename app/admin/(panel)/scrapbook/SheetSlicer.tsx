@@ -1,24 +1,38 @@
 "use client";
 
-/* Admin → Quản lý chất liệu → "Tách từ tờ sticker": 1 ảnh tờ sticker → từng món PNG nền trong suốt.
-   Xử lý trên trình duyệt (Web Worker, lib/stickerSlicer). Duyệt: bật / tắt từng món, đổi tên / nhóm / tông màu,
-   gộp, tách thủ công (vẽ khung / vẽ đường cắt), cọ xoá / khôi phục — rồi lưu các món đã chọn vào bucket "scrapbook". */
-import { useCallback, useEffect, useRef, useState } from "react";
+/* Admin → Quản lý chất liệu → "Tách từ tờ sticker" (chế độ mặc định): 1 ảnh tờ sticker → từng món PNG nền trong suốt.
+   Xử lý trên trình duyệt (Web Worker, lib/stickerSlicer). Cả tờ: Loại (tự đoán: dài → Băng dính), Nhóm (combobox, tạo mới được),
+   Tags. Từng món: sửa riêng Loại / Nhóm / Tags / tông màu / tên. Tên tự động = Nhóm (+ " - " tag đầu) + số 2 chữ số nối tiếp
+   tên đã có; đổi Nhóm / Tags cả tờ thì tên tự cập nhật (trừ tên đã sửa tay). Gộp, tách thủ công, cọ xoá / khôi phục,
+   rồi lưu PNG (giữ alpha) + ảnh thu nhỏ vào kho "scrapbook". */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Brush, Combine, Eraser, Link2, MousePointer2, RotateCcw, Scissors, Square, Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadFile } from "@/lib/storage/client";
 import { brush, itemCanvas, itemFromRect, itemsFromSheet, mergeItems, readSheet, runSlice, splitItem, type Item, type Sheet } from "@/lib/stickerSlicer";
-import { ASSET_GROUPS, TONES } from "@/lib/scrapbook/types";
+import { TONES, type AssetGroupRow, type ScrapAsset } from "@/lib/scrapbook/types";
+import { ASSET_TYPES, autoNames, namePrefix, tagCounts, typeName } from "@/lib/scrapbook/assetGroups";
+import { typeGroup, uploadAssetThumb } from "@/lib/scrapbook/assetGroupsClient";
+import { GroupCombo, TagInput } from "./AssetFields";
 import { Button, Select, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
 
 type Tool = "select" | "rect" | "split" | "erase" | "restore";
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
 
-export function SheetSlicer({ onDone }: { onDone: () => void }) {
+type Meta = { group?: string | null; tags?: string[]; manual?: string };
+export const DENSE = "grid grid-cols-5 gap-1.5 lg:grid-cols-8 min-[1440px]:grid-cols-10";
+
+export function SheetSlicer({ onDone, assets, groups, onCreateGroup }: {
+  onDone: () => void; assets: ScrapAsset[]; groups: (AssetGroupRow & { count: number })[]; onCreateGroup: (name: string) => Promise<AssetGroupRow | null>;
+}) {
   const [src, setSrc] = useState<Blob | null>(null);
   const [link, setLink] = useState("");
   const [defGrp, setDefGrp] = useState<string>("auto");
+  const [sheetGroup, setSheetGroup] = useState<string | null>(null);
+  const [sheetTags, setSheetTags] = useState<string[]>([]);
+  const [meta, setMeta] = useState<Record<string, Meta>>({});
+  const [guessed, setGuessed] = useState<Record<string, string>>({});
   const [tol, setTol] = useState(24);
   const [minPct, setMinPct] = useState(0.05);
   const [sheet, setSheet] = useState<Sheet | null>(null);
@@ -61,8 +75,10 @@ export function SheetSlicer({ onDone }: { onDone: () => void }) {
       const res = await runSlice(img.data, img.w, img.h, { tolerance: tol, minAreaPct: minPct, close: 3 });
       const s: Sheet = { w: img.w, h: img.h, orig: img.data, res };
       setSheet(s);
-      setItems(itemsFromSheet(s, defGrp === "auto" ? null : defGrp));
-      setPicked([]);
+      const its = itemsFromSheet(s, null);
+      setGuessed(Object.fromEntries(its.map((i) => [i.key, i.grp])));
+      setItems(defGrp === "auto" ? its : its.map((i) => ({ ...i, grp: defGrp })));
+      setMeta({}); setPicked([]);
       if (!res.comps.length) toast("Không tìm thấy món nào — thử tăng “Độ nhạy nền” hoặc giảm “Kích thước nhỏ nhất”.", "err");
     } catch (e) { toast(e instanceof Error ? e.message : "Không đọc được ảnh", "err"); }
     setBusy("");
@@ -145,6 +161,7 @@ export function SheetSlicer({ onDone }: { onDone: () => void }) {
     if (!d || !sheet) { paintOverlay(); return; }
     if (tool === "rect") {
       const it = itemFromRect(sheet, d, defGrp === "auto" ? "sticker" : defGrp, items.length + 1);
+      if (it) setGuessed((g) => ({ ...g, [it.key]: it.grp }));
       if (it) { setItems((c) => [...c, it]); setPicked([it.key]); }
     } else if (tool === "split" && one && Math.hypot(d.x1 - d.x0, d.y1 - d.y0) > 4) {
       const [a, b] = splitItem(one, { x: d.x0, y: d.y0 }, { x: d.x1, y: d.y1 });
@@ -161,6 +178,23 @@ export function SheetSlicer({ onDone }: { onDone: () => void }) {
     setPicked([m.key]);
   }
   const patch = (key: string, v: Partial<Item>) => setItems((c) => c.map((i) => (i.key === key ? { ...i, ...v } : i)));
+  const patchMeta = (keys: string[], v: Meta) => setMeta((m) => ({ ...m, ...Object.fromEntries(keys.map((k) => [k, { ...m[k], ...v }])) }));
+  /** Loại cho cả tờ: "auto" = theo tự đoán từng món */
+  function setSheetType(v: string) { setDefGrp(v); setItems((c) => c.map((i) => ({ ...i, grp: v === "auto" ? guessed[i.key] ?? "sticker" : v }))); }
+  // giá trị hiệu lực của từng món (riêng món → theo cả tờ) + tên tự động
+  const eff = useMemo(() => {
+    const base = items.map((it) => {
+      const m = meta[it.key] ?? {};
+      const group = m.group !== undefined ? m.group : sheetGroup;
+      const tags = m.tags ?? sheetTags;
+      const gname = groups.find((g) => g.id === group)?.name ?? typeName(it.grp);
+      return { it, group, tags, gname, manual: m.manual };
+    });
+    const names = autoNames(base.filter((b) => b.it.checked).map((b) => ({ prefix: namePrefix(b.gname, b.tags) })), assets.map((a) => a.name));
+    let k = 0;
+    return Object.fromEntries(base.map((b) => [b.it.key, { ...b, name: b.manual ?? (b.it.checked ? names[k++] : `${namePrefix(b.gname, b.tags)} —`) }]));
+  }, [items, meta, sheetGroup, sheetTags, groups, assets]);
+  const tagSug = useMemo(() => tagCounts(assets), [assets]);
 
   async function saveAll() {
     if (!sheet) return;
@@ -169,15 +203,20 @@ export function SheetSlicer({ onDone }: { onDone: () => void }) {
     const sb = createClient();
     setBusy("Đang lưu..."); setProgress(0);
     let ok = 0;
+    const typeGroups: Record<string, string> = {};
     for (const [i, it] of list.entries()) {
       const c = itemCanvas(sheet, it);
       if (!c) continue;
-      const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/png"));
+      const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/png")); // luôn PNG — giữ nền trong suốt
       if (!blob) continue;
-      let url: string;
-      try { url = (await uploadFile("scrapbook", blob, { folder: it.grp, contentType: "image/png" })).url!; }
-      catch (e) { toast("Tải ảnh thất bại: " + (e instanceof Error ? e.message : ""), "err"); break; }
-      const ins = await sb.from("scrapbook_assets").insert({ name: it.name.trim() || `Sticker ${i + 1}`, grp: it.grp, tone: it.tone, url, sort_order: Date.now() % 1e6 + i });
+      const e = eff[it.key];
+      let url: string, group = e.group;
+      try {
+        if (!group) group = typeGroups[it.grp] ??= (await typeGroup(it.grp, groups)).id;
+        url = (await uploadFile("scrapbook", blob, { folder: it.grp, contentType: "image/png" })).url!;
+      } catch (x) { toast("Lưu thất bại: " + (x instanceof Error ? x.message : ""), "err"); break; }
+      const thumb = await uploadAssetThumb(c).catch(() => null);
+      const ins = await sb.from("scrapbook_assets").insert({ name: e.name.trim() || `${typeName(it.grp)} ${i + 1}`, grp: it.grp, asset_type: it.grp, group_id: group, tags: e.tags, tone: it.tone, url, thumb_url: thumb, sort_order: Date.now() % 1e6 + i });
       if (ins.error) { toast(ins.error.message, "err"); break; }
       ok++;
       setProgress((i + 1) / list.length);
@@ -186,16 +225,24 @@ export function SheetSlicer({ onDone }: { onDone: () => void }) {
     if (ok) { toast(`Đã lưu ${ok} món`); onDone(); }
   }
 
+  const sheetFields = (
+    <div className="grid w-full gap-3 sm:grid-cols-[180px_1fr_1fr]">
+      <label className="block"><span className="mb-1 block text-[12px] font-medium">Loại (cả tờ)</span>
+        <Select value={defGrp} onChange={(e) => setSheetType(e.target.value)} className="h-9">
+          <option value="auto">Tự đoán (dài → Băng dính)</option>
+          {ASSET_TYPES.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+        </Select>
+      </label>
+      <label className="block"><span className="mb-1 block text-[12px] font-medium">Nhóm (cả tờ)</span>
+        <GroupCombo groups={groups} value={sheetGroup} onChange={setSheetGroup} onCreate={onCreateGroup} /></label>
+      <div><span className="mb-1 block text-[12px] font-medium">Tags (cả tờ)</span><TagInput value={sheetTags} onChange={setSheetTags} suggest={tagSug} /></div>
+    </div>
+  );
   if (!sheet) {
     return (
       <div className="space-y-3">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="block"><span className="mb-1 block text-[13px] font-medium">Nhóm mặc định cho cả tờ</span>
-            <Select value={defGrp} onChange={(e) => setDefGrp(e.target.value)} className="w-56">
-              <option value="auto">Tự đoán (dài → băng dính)</option>
-              {ASSET_GROUPS.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </Select>
-          </label>
+          {sheetFields}
         </div>
         <button type="button" onClick={() => fileIn.current?.click()} onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) setSrc(f); }}
@@ -234,43 +281,60 @@ export function SheetSlicer({ onDone }: { onDone: () => void }) {
       <p className="text-[12px] text-[#71717a]">
         Bấm khung trên ảnh để bật / tắt món. Bấm thẻ bên phải để chọn món (giữ Ctrl / Shift để chọn nhiều → Gộp). Chia đôi / cọ sửa áp dụng cho món đang chọn.
       </p>
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+      {sheetFields}
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         {/* ảnh gốc + khung */}
-        <div className={cx("relative overflow-hidden rounded-[10px] border border-[#e5e5e7]", checker)}>
+        <div className={cx("relative max-h-[60vh] overflow-auto rounded-[10px] border border-[#e5e5e7]", checker)}>
           <canvas ref={view} className="block h-auto w-full" />
           <canvas ref={overlay} className={cx("absolute inset-0 h-full w-full touch-none", tool === "select" ? "cursor-pointer" : "cursor-crosshair")}
             onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
           {busy && <div className="absolute inset-0 grid place-items-center bg-white/70 text-[14px] font-medium">{busy}</div>}
         </div>
-        {/* các món đã tách */}
-        <div className="max-h-[70vh] overflow-y-auto pr-1">
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {items.map((it, i) => (
-              <li key={it.key} onClick={(e) => setPicked((p) => (e.ctrlKey || e.metaKey || e.shiftKey ? (p.includes(it.key) ? p.filter((k) => k !== it.key) : [...p, it.key]) : p[0] === it.key && p.length === 1 ? [] : [it.key]))}
-                className={cx("rounded-[10px] border p-1.5", picked.includes(it.key) ? "border-[#2563eb] ring-2 ring-[#2563eb]/25" : "border-[#e5e5e7]", !it.checked && "opacity-50")}>
-                <div className={cx("relative grid aspect-square place-items-center overflow-hidden rounded-[6px]", checker)}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {thumbs[it.key] && <img src={thumbs[it.key]} alt="" className="max-h-full max-w-full object-contain" />}
-                  <span className="absolute left-1 top-1 rounded-[4px] bg-black/70 px-1 text-[10px] font-semibold text-white">{i + 1}</span>
-                  <input type="checkbox" checked={it.checked} onClick={(e) => e.stopPropagation()} onChange={(e) => patch(it.key, { checked: e.target.checked })} aria-label="Chọn món" className="absolute right-1 top-1 h-4 w-4 accent-[#ff5fa2]" />
-                  <button type="button" onClick={(e) => { e.stopPropagation(); setItems((c) => c.filter((x) => x.key !== it.key)); }} aria-label="Xoá món" className="absolute bottom-1 right-1 grid h-5 w-5 place-items-center rounded-full bg-white text-[#dc2626] shadow"><X size={12} /></button>
+        {/* món đang chọn: sửa riêng */}
+        <div className="space-y-2 rounded-[10px] border border-[#e5e5e7] p-3">
+          {picked.length ? (() => {
+            const keys = picked, first = items.find((i) => i.key === keys[0]);
+            const e0 = first ? eff[first.key] : null;
+            if (!first || !e0) return null;
+            return (
+              <>
+                <p className="text-[13px] font-semibold">{keys.length > 1 ? `Sửa ${keys.length} món đang chọn` : `Món ${items.indexOf(first) + 1}`}</p>
+                {keys.length === 1 && (
+                  <label className="block"><span className="mb-1 block text-[12px] text-[#52525b]">Tên {e0.manual ? <button type="button" onClick={() => patchMeta(keys, { manual: undefined })} className="ml-1 text-[11px] text-[#ff5fa2]">↺ tự đặt lại</button> : <span className="text-[11px] text-[#a1a1aa]">(tự đặt)</span>}</span>
+                    <input value={e0.name} onChange={(e) => patchMeta(keys, { manual: e.target.value })} className="h-9 w-full rounded-[8px] border border-[#e5e5e7] px-2.5 text-[13px] outline-none focus:border-[#ff5fa2]" /></label>
+                )}
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block"><span className="mb-1 block text-[12px] text-[#52525b]">Loại</span>
+                    <Select value={first.grp} onChange={(e) => setItems((c) => c.map((i) => (keys.includes(i.key) ? { ...i, grp: e.target.value } : i)))} className="h-9">{ASSET_TYPES.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</Select></label>
+                  <label className="block"><span className="mb-1 block text-[12px] text-[#52525b]">Tông màu</span>
+                    <Select value={first.tone} onChange={(e) => setItems((c) => c.map((i) => (keys.includes(i.key) ? { ...i, tone: e.target.value } : i)))} className="h-9">{TONES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select></label>
                 </div>
-                <div className="mt-1 space-y-1" onClick={(e) => e.stopPropagation()}>
-                  <input value={it.name} onChange={(e) => patch(it.key, { name: e.target.value })} className="h-7 w-full rounded-[6px] border border-[#e5e5e7] px-1.5 text-[12px]" aria-label="Tên" />
-                  <div className="flex gap-1">
-                    <select value={it.grp} onChange={(e) => patch(it.key, { grp: e.target.value })} className="h-7 min-w-0 flex-1 rounded-[6px] border border-[#e5e5e7] text-[11px]" aria-label="Nhóm">
-                      {ASSET_GROUPS.map((g) => <option key={g.id} value={g.id}>{g.name.split(" (")[0]}</option>)}
-                    </select>
-                    <select value={it.tone} onChange={(e) => patch(it.key, { tone: e.target.value })} className="h-7 min-w-0 flex-1 rounded-[6px] border border-[#e5e5e7] text-[11px]" aria-label="Tông màu">
-                      {TONES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                <label className="block"><span className="mb-1 block text-[12px] text-[#52525b]">Nhóm</span>
+                  <GroupCombo groups={groups} value={e0.group} onChange={(id) => patchMeta(keys, { group: id })} onCreate={onCreateGroup} /></label>
+                <div><span className="mb-1 block text-[12px] text-[#52525b]">Tags</span><TagInput value={e0.tags} onChange={(v) => patchMeta(keys, { tags: v })} suggest={tagSug} /></div>
+                <button type="button" onClick={() => patchMeta(keys, { group: undefined, tags: undefined })} className="text-[12px] text-[#71717a] hover:text-[#ff5fa2]">↺ Theo cài đặt cả tờ</button>
+              </>
+            );
+          })() : <p className="text-[12px] text-[#71717a]">Bấm 1 món ở lưới bên dưới để sửa riêng tên, Loại, Nhóm, Tags (giữ Ctrl / Shift để chọn nhiều).</p>}
         </div>
       </div>
+      {/* các món đã tách — lưới dày */}
+      <ul className={DENSE}>
+        {items.map((it, i) => (
+          <li key={it.key} title={`${eff[it.key]?.name}\nNhóm: ${eff[it.key]?.gname}${eff[it.key]?.tags.length ? `\nTags: ${eff[it.key].tags.join(", ")}` : ""}`}
+            onClick={(e) => setPicked((p) => (e.ctrlKey || e.metaKey || e.shiftKey ? (p.includes(it.key) ? p.filter((k) => k !== it.key) : [...p, it.key]) : p[0] === it.key && p.length === 1 ? [] : [it.key]))}
+            className={cx("group min-w-0 cursor-pointer", !it.checked && "opacity-45")}>
+            <div className={cx("relative grid aspect-square place-items-center overflow-hidden rounded-[6px] border p-1", checker, picked.includes(it.key) ? "border-[#2563eb] ring-2 ring-[#2563eb]/25" : "border-[#e5e5e7]")}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {thumbs[it.key] && <img src={thumbs[it.key]} alt="" className="max-h-full max-w-full object-contain" />}
+              <span className="absolute left-0.5 top-0.5 rounded-[3px] bg-black/60 px-1 text-[9px] font-semibold text-white">{i + 1}</span>
+              <input type="checkbox" checked={it.checked} onClick={(e) => e.stopPropagation()} onChange={(e) => patch(it.key, { checked: e.target.checked })} aria-label="Chọn món" className="absolute right-0.5 top-0.5 h-3.5 w-3.5 accent-[#ff5fa2]" />
+              <button type="button" onClick={(e) => { e.stopPropagation(); setItems((c) => c.filter((x) => x.key !== it.key)); }} aria-label="Xoá món" className="absolute bottom-0.5 right-0.5 grid h-4 w-4 place-items-center rounded-full bg-white text-[#dc2626] opacity-0 shadow group-hover:opacity-100"><X size={10} /></button>
+            </div>
+            <p className="mt-0.5 truncate text-[11px] leading-tight text-[#3f3f46]">{eff[it.key]?.name}</p>
+          </li>
+        ))}
+      </ul>
       {busy === "Đang lưu..." && <div className="h-2 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full bg-[#ff5fa2] transition-[width]" style={{ width: `${Math.round(progress * 100)}%` }} /></div>}
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" onClick={() => { setSheet(null); setItems([]); setSrc(null); }}>Chọn ảnh khác</Button>

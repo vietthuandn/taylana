@@ -36,7 +36,7 @@ import { BUNDLE_PAGES, blankBooklet, bundleSlots, fillDoc, fillSlots, groupByCat
 import { loadScrapFromAccount, saveScrapToAccount } from "@/lib/scrapbook/account";
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
-import type { Frame, FrameSet, ScrapAsset, Template, Wish, WishTopic } from "@/lib/scrapbook/types";
+import type { AssetGroupRow, Frame, FrameSet, ScrapAsset, Template, Wish, WishTopic } from "@/lib/scrapbook/types";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
 import { Button, toast } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
@@ -52,8 +52,8 @@ const toBlob = (c: HTMLCanvasElement, type = "image/jpeg", q = JPG_QUALITY) => n
 /** số trang của bề mặt i (booklet 2 trang: 1, 2 · còn lại: bìa = 1, cặp i = 2i–2i+1, trang cuối = n) */
 const pagesOf = (i: number, n: number, count: number) => (n === 2 ? [i + 1] : i === 0 ? [1] : i === count - 1 ? [n] : [i * 2, i * 2 + 1]);
 
-export function BookletScrapStudio({ assets, library, fonts, glyphs, frames, frameSets, topics, wishes, backgrounds, packIds }: {
-  assets: ScrapAsset[]; library: Library; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[];
+export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, glyphs, frames, frameSets, topics, wishes, backgrounds, packIds }: {
+  assets: ScrapAsset[]; assetGroups?: AssetGroupRow[]; library: Library; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[];
   topics: WishTopic[]; wishes: Wish[]; backgrounds: MockupBackground[]; packIds: Record<number, string>;
 }) {
   void backgrounds;
@@ -282,7 +282,7 @@ export function BookletScrapStudio({ assets, library, fonts, glyphs, frames, fra
   );
   return (
     <>
-      <ScrapbookEditor mode="customer" st={st} assets={assets} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
+      <ScrapbookEditor mode="customer" st={st} assets={assets} assetGroups={assetGroups} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
         render={ro} guides={guides} setGuides={setGuides} onRestore={restore} canRestore={!!st.applied && !!doc}
         pageLabel={(i, n) => { const no = pagesOf(i, pages, n); return `${no.length === 1 ? `Trang ${no[0]}${i === 0 ? " (bìa)" : ""}` : `Trang ${no[0]}–${no[1]}`} / ${pages}`; }}
         templateTab={templateTab}

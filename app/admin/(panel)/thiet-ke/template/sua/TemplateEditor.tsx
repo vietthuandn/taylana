@@ -27,11 +27,12 @@ import { mergeStickerCfg, setFrameLibrary, setStickerConfig, type StickerCfg } f
 import { samplePhotos } from "@/lib/scrapbook/samples";
 import { boxOf } from "@/lib/scrapbook/edit";
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
+import { normAsset } from "@/lib/scrapbook/assetGroups";
 import { KIND_INFO, TPL_COLS, slotCount, type DesignTpl } from "@/lib/scrapbook/library";
 import { uploadThumb } from "@/lib/scrapbook/libraryClient";
 import { buildCdDoc } from "@/lib/scrapbook/toCdDoc";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
-import type { Frame, FrameSet, Layer, ScrapAsset, Template, Wish, WishTopic } from "@/lib/scrapbook/types";
+import type { AssetGroupRow, Frame, FrameSet, Layer, ScrapAsset, Template, Wish, WishTopic } from "@/lib/scrapbook/types";
 import { ScrapbookEditor, type EditorTab } from "@/components/scrapbook/ScrapbookEditor";
 import { customizeText, useScrapStudio } from "@/components/scrapbook/useScrapStudio";
 import { shapeName } from "@/components/scrapbook/FramePicker";
@@ -42,7 +43,7 @@ import { Modal } from "../CategoryManager";
 import { PUBLIC_PATHS } from "../LibraryAdmin";
 
 type Img = HTMLCanvasElement;
-type Lib = { assets: ScrapAsset[]; frames: Frame[]; sets: FrameSet[]; fonts: CutoutFont[]; glyphs: Glyph[]; topics: WishTopic[]; wishes: Wish[]; cfg: StickerCfg; cfgKey: string };
+type Lib = { groups: AssetGroupRow[]; assets: ScrapAsset[]; frames: Frame[]; sets: FrameSet[]; fonts: CutoutFont[]; glyphs: Glyph[]; topics: WishTopic[]; wishes: Wish[]; cfg: StickerCfg; cfgKey: string };
 const r1 = (v: number) => Math.round(v * 10) / 10;
 const SHAPE_VI: Record<string, string> = { star: "Ngôi sao", heart: "Trái tim", flower: "Bông hoa", bow: "Nơ", sparkle: "Lấp lánh", arrow: "Mũi tên", swirl: "Xoắn", dash: "Vòng nét đứt", note: "Giấy note", grid: "Giấy kẻ ô", ticket: "Vé", kraft: "Giấy kraft" };
 const TEXT0 = { main: "Happy Birthday", sub: "" };
@@ -60,12 +61,13 @@ export function TemplateEditor() {
       const t = await sb.from("design_templates").select(TPL_COLS).eq("id", id).maybeSingle();
       if (t.error || !t.data) { setErr(t.error ? "Chưa có bảng mẫu mới — cần chạy supabase/migration_design_library.sql." : "Không tìm thấy mẫu."); return; }
       const tpl = t.data as unknown as DesignTpl, cfgKey = tpl.kind === "cd" ? "scrap_stickers" : "scrap_stickers_booklet";
-      const [a, fs, fr, cf, wt, w, sc, sc0] = await Promise.all([
+      const [a, fs, fr, cf, wt, w, sc, sc0, ag] = await Promise.all([
         sb.from("scrapbook_assets").select("*").eq("is_active", true).order("grp").order("sort_order"),
         sb.from("frame_sets").select("*").eq("is_active", true).order("sort_order"), sb.from("frames").select("*").eq("is_active", true).order("sort_order"),
         sb.from("cutout_fonts").select("*").eq("is_active", true).order("sort_order"),
         sb.from("wish_topics").select("*").eq("is_active", true).order("sort_order"), sb.from("wishes").select("*").eq("is_active", true).order("sort_order"),
         sb.from("site_settings").select("value").eq("key", cfgKey).maybeSingle(), sb.from("site_settings").select("value").eq("key", "scrap_stickers").maybeSingle(),
+        sb.from("asset_groups").select("*").order("sort_order"),
       ]);
       const cfg = mergeStickerCfg(((sc.data?.value ?? sc0.data?.value) as Partial<StickerCfg>) ?? null);
       setStickerConfig(cfg);
@@ -73,7 +75,7 @@ export function TemplateEditor() {
       setFrameLibrary(sets);
       const g = fonts.length ? await sb.from("cutout_glyphs").select("*").in("font_id", fonts.map((x) => x.id)).order("sort_order") : { data: [] };
       const frames = ((fr.data ?? []) as Frame[]).filter((f) => sets.some((s) => s.id === f.set_id));
-      setLib({ assets: ((a.data ?? []) as ScrapAsset[]).filter((x) => x.grp !== "frame" || !frames.length), frames, sets, fonts, glyphs: (g.data ?? []) as Glyph[],
+      setLib({ groups: (ag.data ?? []) as AssetGroupRow[], assets: ((a.data ?? []) as ScrapAsset[]).map(normAsset).filter((x) => x.grp !== "frame" || !frames.length), frames, sets, fonts, glyphs: (g.data ?? []) as Glyph[],
         topics: ((wt.data ?? []) as WishTopic[]).length ? (wt.data as WishTopic[]) : DEFAULT_TOPICS, wishes: ((w.data ?? []) as Wish[]).length ? (w.data as Wish[]) : DEFAULT_WISHES, cfg, cfgKey });
       setRow(tpl);
     })();
@@ -259,7 +261,7 @@ function Workbench({ row: row0, lib: lib0 }: { row: DesignTpl; lib: Lib }) {
         <Button size="sm" icon={<Save size={14} />} onClick={save} loading={saving}>Lưu mẫu</Button>
       </div>
       <div className="flex min-h-0 flex-1">
-        <ScrapbookEditor mode="template" st={st} assets={lib.assets} frames={lib.frames} frameSets={lib.sets} fonts={lib.fonts} topics={lib.topics} wishes={lib.wishes}
+        <ScrapbookEditor mode="template" st={st} assets={lib.assets} assetGroups={lib.groups} frames={lib.frames} frameSets={lib.sets} fonts={lib.fonts} topics={lib.topics} wishes={lib.wishes}
           tab={tab} setTab={setTab} guides={guides} setGuides={setGuides} framePhotos={framePhotos} photoTab={admin} maxW="max-w-none" />
       </div>
       {gear && (

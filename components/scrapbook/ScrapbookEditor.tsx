@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, Image as ImageIcon, LayoutTemplate, PaintBuc
 import { renderSurface, type RenderOpts } from "@/lib/scrapbook/render";
 import { surfaceOf } from "@/lib/scrapbook/surface";
 import type { CutoutFont } from "@/lib/scrapbook/cutout";
-import type { Frame, FrameSet, ScrapAsset, Wish, WishTopic } from "@/lib/scrapbook/types";
+import type { AssetGroupRow, Frame, FrameSet, ScrapAsset, Wish, WishTopic } from "@/lib/scrapbook/types";
 import { Toggle, toast } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 import { StickerTab } from "./StickerTab";
@@ -27,7 +27,7 @@ type Studio = ReturnType<typeof useScrapStudio>;
 
 export function ScrapbookEditor(p: {
   mode: "customer" | "template";
-  st: Studio; assets: ScrapAsset[]; frames: Frame[]; frameSets: FrameSet[]; fonts: CutoutFont[]; topics: WishTopic[]; wishes: Wish[];
+  st: Studio; assets: ScrapAsset[]; assetGroups?: AssetGroupRow[]; frames: Frame[]; frameSets: FrameSet[]; fonts: CutoutFont[]; topics: WishTopic[]; wishes: Wish[];
   tab: EditorTab; setTab: (t: EditorTab) => void;
   render?: Omit<RenderOpts, "template" | "size">; // mặc định st.renderOpts
   templateTab?: React.ReactNode; // mục "Mẫu" (danh sách mẫu / bộ mẫu)
@@ -128,7 +128,7 @@ export function ScrapbookEditor(p: {
           </>
         )}
         {p.tab === "sticker" && (
-          <StickerTab assets={p.assets} onAdd={(a) => st.addAsset(a)} mine={mode === "customer" ? st.ustickers.map((s) => ({ id: s.id, url: s.url })) : []}
+          <StickerTab assets={p.assets} groups={p.assetGroups} onAdd={(a) => st.addAsset(a)} mine={mode === "customer" ? st.ustickers.map((s) => ({ id: s.id, url: s.url })) : []}
             onUpload={mode === "customer" ? (f) => st.setStickerFiles(f) : undefined} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
         )}
         {p.tab === "chu" && (

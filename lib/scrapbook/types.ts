@@ -43,9 +43,14 @@ export const TONES: { id: string; name: string; hex: string }[] = [
   { id: "mono", name: "Đen trắng", hex: "#a1a1aa" },
 ];
 export type Rect01 = { x0: number; y0: number; x1: number; y1: number };
+/** grp = LOẠI (kỹ thuật: sticker / băng dính / doodle / mảnh giấy / texture — cột asset_type, bản cũ: grp) · group_id = NHÓM chủ đề
+   do admin tự đặt (bảng asset_groups) · tags: từ khoá viết thường · thumb_url: ảnh thu nhỏ ~160px (WebP có alpha) cho danh sách */
 export type ScrapAsset = {
   id: string; name: string; grp: AssetGroup; url: string; tone: string; region: Rect01 | null; is_active: boolean; sort_order: number;
+  asset_type?: AssetGroup | null; group_id?: string | null; tags?: string[] | null; thumb_url?: string | null;
 };
+/** nhóm chủ đề chất liệu (bảng asset_groups) */
+export type AssetGroupRow = { id: string; name: string; slug: string; sort_order: number; created_at?: string };
 /** surface_type: "disc" (CD Template) · "spread" (Booklet Template: n = kiểu dàn trang cặp) */
 export type TemplateSetting = { n: number; style: Style; seed: number; is_active: boolean; template?: Template | null; surface_type?: string; name?: string | null; sort_order?: number | null };
 /** mẫu CD / Booklet Template admin tạo mới / nhân bản (bảng scrapbook_templates). CD: n = số ảnh · Booklet: n = số trang */

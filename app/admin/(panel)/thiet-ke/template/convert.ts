@@ -16,6 +16,7 @@ import { loadFonts } from "@/lib/scrapbook/render";
 import { samplePhotos } from "@/lib/scrapbook/samples";
 import { slotCount, type TplKind } from "@/lib/scrapbook/library";
 import { basicCategory, isMissing, MIGRATE_MSG, uploadThumb } from "@/lib/scrapbook/libraryClient";
+import { normAsset } from "@/lib/scrapbook/assetGroups";
 import { customizeText } from "@/components/scrapbook/useScrapStudio";
 import { buildCdDoc } from "@/lib/scrapbook/toCdDoc";
 import { MAX_PHOTOS, MIN_PHOTOS, STYLES, type CustomTemplate, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting } from "@/lib/scrapbook/types";
@@ -34,7 +35,7 @@ async function context(stickerKey: string) {
   setStickerConfig(mergeStickerCfg(((sc.data?.value ?? sc0.data?.value) as Partial<StickerCfg>) ?? null));
   const sets = (fs.data ?? []) as FrameSet[], frames = ((fr.data ?? []) as Frame[]).filter((x) => sets.some((s) => s.id === x.set_id));
   setFrameLibrary(sets);
-  const assets = ((a.data ?? []) as ScrapAsset[]).filter((x) => x.grp !== "frame" || !frames.length);
+  const assets = ((a.data ?? []) as ScrapAsset[]).map(normAsset).filter((x) => x.grp !== "frame" || !frames.length);
   await loadFonts();
   const [ai, fi] = await Promise.all([loadAssetImages(assets), loadFrameImages(frames)]);
   return { settings: (t.data ?? []) as TemplateSetting[], customs: (c.data ?? []) as CustomTemplate[], assets, frames, ro: { photos: samplePhotos(), text: TEXT0, assets: ai, frames: fi } };

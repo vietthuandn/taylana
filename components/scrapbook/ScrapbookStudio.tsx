@@ -29,7 +29,7 @@ import { savePendingDisc } from "@/lib/scrapbook/pending";
 import { loadFonts, renderSurface } from "@/lib/scrapbook/render";
 import { blankTemplate, fillDoc, fillSlots, libTemplate, type DesignTpl, type Library } from "@/lib/scrapbook/library";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
-import { PRINT_PX, type Frame, type FrameSet, type ScrapAsset, type Template, type Wish, type WishTopic } from "@/lib/scrapbook/types";
+import { PRINT_PX, type AssetGroupRow, type Frame, type FrameSet, type ScrapAsset, type Template, type Wish, type WishTopic } from "@/lib/scrapbook/types";
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
 import { BgPicker } from "@/components/mockup-viewer/BgPicker";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
@@ -47,8 +47,8 @@ const NO_EXTRA = {};
 export const fromTemplate = (t: Template, photos: { id: string }[]): Template => ({ ...clone(t), layers: clone(t.layers).map((l) => (l.k === "photo" ? { ...l, photo: photos[l.slot]?.id ?? "" } : l)) });
 
 const MAX = 30; // số ảnh tối đa (mẫu có bao nhiêu ô cũng được)
-export function ScrapbookStudio({ assets, library, fonts, glyphs, frames, frameSets, topics, wishes, backgrounds, boxPackageId }: {
-  assets: ScrapAsset[]; library: Library; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[];
+export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyphs, frames, frameSets, topics, wishes, backgrounds, boxPackageId }: {
+  assets: ScrapAsset[]; assetGroups?: AssetGroupRow[]; library: Library; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[];
   topics: WishTopic[]; wishes: Wish[]; backgrounds: MockupBackground[]; boxPackageId: string | null;
 }) {
   const T = topics.length ? topics : DEFAULT_TOPICS, W = wishes.length ? wishes : DEFAULT_WISHES;
@@ -133,7 +133,7 @@ export function ScrapbookStudio({ assets, library, fonts, glyphs, frames, frameS
   }
 
   return (
-    <ScrapbookEditor mode="customer" st={st} assets={assets} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
+    <ScrapbookEditor mode="customer" st={st} assets={assets} assetGroups={assetGroups} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
       guides={guides} setGuides={setGuides} onRestore={restore} canRestore={!!st.applied && !!doc}
       toolbar={<Toggle checked={boxView} onChange={(v) => { setBoxView(v); st.setEditLayer(null); st.setSel(null); }} label="Xem trong hộp" />}
       overlay={boxView && doc ? (boxUrl

@@ -195,14 +195,20 @@ function drawTape(x: X, l: Extract<Layer, { k: "tape" }>) {
   x.restore(); x.globalAlpha = 1;
 }
 function drawPaper(x: X, l: Extract<Layer, { k: "paper" }>, assets: RenderOpts["assets"]) {
-  const p = l.torn ? tornPath(l.w, l.h, l.seed, 0.9) : (() => { const q = new Path2D(); q.rect(-l.w / 2, -l.h / 2, l.w, l.h); return q; })();
   const a = l.asset ? assets?.[l.asset] : undefined;
+  // mảnh giấy từ thư viện (PNG trong suốt): vẽ y như sticker — giữ alpha, bóng đổ nhẹ theo hình dạng thật (canvas tự đổ bóng theo alpha),
+  // KHÔNG tô nền / khung chữ nhật bên dưới, không cắt ảnh. (Lỗi cũ: tô màu giấy l.color cả khung + cắt ảnh kiểu "cover" → nền trắng đặc.)
+  if (a) {
+    const s = Math.min(l.w / a.img.width, l.h / a.img.height), w = a.img.width * s, h = a.img.height * s;
+    shadow(x, 1.2, 0.5, 0.2); x.drawImage(a.img, -w / 2, -h / 2, w, h); noShadow(x);
+    return;
+  }
+  const p = l.torn ? tornPath(l.w, l.h, l.seed, 0.9) : (() => { const q = new Path2D(); q.rect(-l.w / 2, -l.h / 2, l.w, l.h); return q; })();
   shadow(x, 1.4, 0.6, 0.18);
   x.fillStyle = l.paper === "kraft" ? "#d9c3a0" : l.color; x.fill(p);
   noShadow(x);
   x.save(); x.clip(p);
-  if (a) { const s = Math.max(l.w / a.img.width, l.h / a.img.height); x.drawImage(a.img, -(a.img.width * s) / 2, -(a.img.height * s) / 2, a.img.width * s, a.img.height * s); }
-  else if (l.paper === "grid") { x.strokeStyle = "rgba(90,140,210,0.35)"; x.lineWidth = 0.18; for (let i = -l.w / 2; i < l.w / 2; i += 2.5) { x.beginPath(); x.moveTo(i, -l.h); x.lineTo(i, l.h); x.stroke(); } for (let j = -l.h / 2; j < l.h / 2; j += 2.5) { x.beginPath(); x.moveTo(-l.w, j); x.lineTo(l.w, j); x.stroke(); } }
+  if (l.paper === "grid") { x.strokeStyle = "rgba(90,140,210,0.35)"; x.lineWidth = 0.18; for (let i = -l.w / 2; i < l.w / 2; i += 2.5) { x.beginPath(); x.moveTo(i, -l.h); x.lineTo(i, l.h); x.stroke(); } for (let j = -l.h / 2; j < l.h / 2; j += 2.5) { x.beginPath(); x.moveTo(-l.w, j); x.lineTo(l.w, j); x.stroke(); } }
   else if (l.paper === "note") { x.strokeStyle = "rgba(120,150,200,0.35)"; x.lineWidth = 0.18; for (let j = -l.h / 2 + 3; j < l.h / 2; j += 3) { x.beginPath(); x.moveTo(-l.w, j); x.lineTo(l.w, j); x.stroke(); } x.strokeStyle = "rgba(230,90,90,0.45)"; x.beginPath(); x.moveTo(-l.w / 2 + 4, -l.h); x.lineTo(-l.w / 2 + 4, l.h); x.stroke(); }
   else if (l.paper === "ticket") { x.fillStyle = "rgba(255,255,255,0.85)"; x.font = `600 ${l.h * 0.16}px Pangolin, sans-serif`; x.textAlign = "center"; x.textBaseline = "middle"; x.fillText("ADMIT ONE", 0, 0); x.setLineDash([0.8, 0.8]); x.strokeStyle = "rgba(255,255,255,0.7)"; x.lineWidth = 0.25; x.strokeRect(-l.w / 2 + 1.5, -l.h / 2 + 1.5, l.w - 3, l.h - 3); x.setLineDash([]); }
   else { x.strokeStyle = "rgba(110,80,40,0.25)"; x.lineWidth = 0.15; const r = rng(l.seed); for (let i = 0; i < 40; i++) { const X0 = (r() - 0.5) * l.w, Y0 = (r() - 0.5) * l.h; x.beginPath(); x.moveTo(X0, Y0); x.lineTo(X0 + r() * 3, Y0 + (r() - 0.5)); x.stroke(); } }
