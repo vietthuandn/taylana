@@ -2,21 +2,24 @@
 
 /* Trang "Xem Mockup CD": trái 36% = khu tải ảnh, phải = CD Mockup (hoặc trình xem Booklet khi bấm "Xem preview").
    Ảnh của khách chỉ xử lý trên trình duyệt, KHÔNG upload. */
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Share2 } from "lucide-react";
+import { createShare } from "@/lib/mockupShare/create";
+import { triggerShareCleanup } from "@/lib/mockupShare/actions";
+import { fmtExpire } from "@/lib/mockupShare/types";
+import { Button, toast } from "@/components/ui/kit";
 import { FEATURE_MOCKUP_FRAMES } from "@/lib/features";
 import type { Package } from "@/lib/types";
 import { GRADIENTS, type BgChoice } from "@/lib/mockup/backgrounds";
 import { loadImg } from "@/lib/mockup/images";
 import { takeHandoff } from "@/lib/mockup/handoff";
-import type { MockupBackground, MockupFrame, RegionType, TrayStyle } from "@/lib/mockup/types";
-import type { Cd3DImages } from "./Cd3D";
-import type { SystemInput } from "@/lib/mockup/system/compose";
+import type { MockupBackground, MockupFrame, TrayStyle } from "@/lib/mockup/types";
 import { CdUploadPanel } from "@/components/cd/CdUploadPanel";
 import { layoutOf, readPicked, slotsOf, type Picked } from "@/components/cd/cdSlots";
 import { BgPicker } from "./BgPicker";
-import { CdMockupTab } from "./CdMockupTab";
+import { CdMockupTab, type MockupView } from "./CdMockupTab";
 import { BookletViewer } from "./BookletViewer";
+import { deriveMockup } from "./derive";
 
 // so tên đã chuẩn hoá Unicode (NFC) — chữ "ộ", "ẻ" có thể được lưu dạng tổ hợp (NFD) khiến so khớp trượt
 const norm = (s: string) => s.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
@@ -30,9 +33,13 @@ const isCdBox = (p: Package) => {
   return !isSingleCd(p) && l.front === 0 && l.back === 0 && /hộp/.test(n);
 };
 
-export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrounds, tray = "clear", finish = "matte", modelUrl = null }: {
+export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrounds, tray = "clear", finish = "matte", modelUrl = null, canShare = false }: {
   packages: Package[]; frames: MockupFrame[]; boxFrame?: MockupFrame | null; backgrounds: MockupBackground[]; watermark?: boolean; tray?: TrayStyle; finish?: "matte" | "gloss"; modelUrl?: string | null;
+  canShare?: boolean; // admin đang đăng nhập (kiểm tra ở server) → nút "Chia sẻ"
 }) {
+  const view = useRef<MockupView>({ idx: -2, arrange: "grid", single: "closed", seed: 1, pos: { x: 0.5, y: 0.5, scale: 1 } });
+  const [sharing, setSharing] = useState<{ done: number; total: number } | null>(null);
+  const [shared, setShared] = useState<{ url: string; expires: string } | null>(null);
   // trang Mockup không có gói "CD lẻ"
   const packages = useMemo(() => allPackages.filter((p) => !isSingleCd(p)), [allPackages]);
   // gói mặc định khi mở trang: "Combo + 2 bìa 2 mặt" (không có thì gói đầu tiên)
@@ -84,53 +91,33 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
     });
   }
 
-  // chỉ vùng thuộc gói mới có khoá (null = chưa có ảnh); vùng ngoài gói bỏ trống → vẽ trắng trơn
-  const regionImages = useMemo<Partial<Record<RegionType, HTMLImageElement | null>>>(() => {
-    const out: Partial<Record<RegionType, HTMLImageElement | null>> = {};
-    if (!layout) return out;
-    if (layout.front >= 1) out.front_out = imgs.f1 ?? null;
-    if (layout.front >= 2) out.front_in = imgs.f2 ?? null;
-    if (layout.back >= 1) out.back_out = imgs.b1 ?? null;
-    if (layout.back >= 2) out.back_in = imgs.b2 ?? null;
-    if (layout.disc) out.disc = imgs.d ?? null;
-    return out;
-  }, [imgs, layout?.front, layout?.back, layout?.disc]); // eslint-disable-line react-hooks/exhaustive-deps
-  const bookletPages = useMemo(() => (layout && layout.front >= 4 ? Array.from({ length: layout.front }, (_, i) => imgs[`f${i + 1}`] ?? null) : null), [layout, imgs]);
-  const picker = <BgPicker value={bg} onChange={setBg} shop={backgrounds} />;
-  // gói "CD + Hộp": chỉ dùng mẫu mặc định (+ thẻ 3D); chưa có mẫu mặc định → tự chọn 3D
   const box = !!pkg && isCdBox(pkg);
+  const D = useMemo(() => deriveMockup(layout, imgs, box), [imgs, box, layout?.front, layout?.back, layout?.disc]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { regionImages, bookletPages, images3d, system } = D;
+  const picker = <BgPicker value={bg} onChange={setBg} shop={backgrounds} />;
   const showBooklet = previewing && !!bookletPages;
+
+  /** "Chia sẻ" (admin): chụp toàn bộ trạng thái hiện tại → ảnh lên bucket riêng tư → link xem chỉ đọc 24 giờ */
+  async function share() {
+    if (!pkg || !layout) return;
+    setSharing({ done: 0, total: 1 });
+    try {
+      const shopBg = bg.kind === "image" && bg.name.startsWith("shop:") ? backgrounds.find((b) => `shop:${b.id}` === bg.name) : undefined;
+      const r = await createShare({
+        pkgName: pkg.name, layout: { front: layout.front, back: layout.back, disc: !!layout.disc }, box,
+        images: Object.fromEntries(Object.entries(imgs).filter(([, v]) => v)),
+        bg: bg.kind === "gradient" ? { kind: "gradient", id: bg.g.id } : shopBg ? { kind: "shop", url: shopBg.url, name: bg.name } : { kind: "file", img: bg.img },
+        view: view.current, booklet: showBooklet, tray, finish, modelUrl,
+      }, (done, total) => setSharing({ done, total }));
+      setShared({ url: `${location.origin}/m/${r.token}`, expires: r.expires });
+      triggerShareCleanup().catch(() => null); // dự phòng: dọn các link đã hết hạn (chạy nền)
+    } catch (e) { toast(e instanceof Error ? e.message : "Không tạo được link chia sẻ", "err"); }
+    setSharing(null);
+  }
+  const shareBtn = canShare ? (
+    <Button size="sm" variant="secondary" icon={<Share2 size={15} />} onClick={share} loading={!!sharing} disabled={!!sharing}>Chia sẻ</Button>
+  ) : null;
   const viewFrames = useMemo(() => (!FEATURE_MOCKUP_FRAMES ? NO_FRAMES : box ? (boxFrame ? [boxFrame] : NO_FRAMES) : frames), [box, boxFrame, frames]);
-  // ảnh cho hộp 3D: undefined = không có giấy · null = giấy trắng (thuộc gói nhưng chưa có ảnh / mặt trong của gói 1 mặt)
-  const images3d = useMemo<Cd3DImages>(() => {
-    if (!layout || box) return { disc: imgs.d ?? null };
-    const booklet = layout.front >= 4;
-    return {
-      frontOut: layout.front ? imgs.f1 ?? null : undefined,
-      frontIn: layout.front ? (booklet ? imgs[`f${layout.front}`] : imgs.f2) ?? null : undefined,
-      backOut: layout.back ? imgs.b1 ?? null : undefined,
-      backIn: layout.back ? imgs.b2 ?? null : undefined,
-      disc: imgs.d ?? null,
-    };
-  }, [imgs, box, layout?.front, layout?.back]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Mẫu hệ thống: ảnh theo gói (undefined = không có giấy · null = giấy trắng)
-  const system = useMemo<SystemInput>(() => {
-    const l = layout ?? { front: 0, back: 0, disc: true };
-    const booklet = l.front >= 4;
-    const pack: SystemInput["pack"] = box || (!l.front && !l.back) ? "box" : booklet ? "booklet" : l.front >= 2 || l.back >= 2 ? "combo2" : "combo1";
-    if (pack === "box") return { pack, disc: imgs.d ?? null, pages: [] };
-    return {
-      pack,
-      frontOut: l.front ? imgs.f1 ?? null : undefined,
-      frontIn: booklet ? imgs[`f${l.front}`] ?? null : l.front >= 2 ? imgs.f2 ?? null : l.front ? null : undefined,
-      backOut: l.back ? imgs.b1 ?? null : undefined,
-      backIn: l.back >= 2 ? imgs.b2 ?? null : l.back ? null : undefined,
-      disc: imgs.d ?? null,
-      pages: booklet ? Array.from({ length: l.front }, (_, i) => imgs[`f${i + 1}`] ?? null) : [],
-    };
-  }, [imgs, box, layout?.front, layout?.back]); // eslint-disable-line react-hooks/exhaustive-deps
-
   return (
     <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
      {/* giới hạn bề ngang như các trang khác (1200px) */}
@@ -158,9 +145,34 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
       <section className={`relative flex min-w-0 flex-1 flex-col md:min-h-0 ${showBooklet ? "md:overflow-visible" : "md:overflow-hidden"}`}>
         {showBooklet && bookletPages
           ? <BookletViewer pages={bookletPages} back={layout && layout.back >= 1 ? imgs.b1 ?? null : null} bg={bg} bgPicker={picker} onExit={() => setPreviewing(false)} />
-          : <CdMockupTab frames={viewFrames} images={regionImages} images3d={images3d} system={system} tray={tray} finish={finish} modelUrl={modelUrl} bg={bg} bgPicker={picker} />}
+          : <CdMockupTab frames={viewFrames} images={regionImages} images3d={images3d} system={system} tray={tray} finish={finish} modelUrl={modelUrl} bg={bg} bgPicker={picker}
+              init={view.current} onView={(v) => { view.current = v; }} extra={shareBtn} />}
+        {canShare && showBooklet && <div className="absolute right-4 top-3 z-20">{shareBtn}</div>}
       </section>
      </div>
+      {sharing && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal>
+          <div className="w-full max-w-[380px] rounded-[12px] bg-white p-5 shadow-xl">
+            <p className="text-[15px] font-semibold">Đang tạo link chia sẻ...</p>
+            <p className="mt-1 text-[13px] text-[#71717a]">Đang tải ảnh lên ({sharing.done} / {sharing.total})</p>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full bg-[#ff5fa2] transition-[width]" style={{ width: `${(sharing.done / Math.max(1, sharing.total)) * 100}%` }} /></div>
+          </div>
+        </div>
+      )}
+      {shared && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={() => setShared(null)}>
+          <div className="w-full max-w-[460px] rounded-[12px] bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[16px] font-semibold">Link xem mockup</p>
+            <p className="mt-1 text-[13px] text-[#71717a]">Người nhận chỉ xem được, không sửa được. {fmtExpire(shared.expires)} — sau đó ảnh và dữ liệu bị xoá hẳn.</p>
+            <input readOnly value={shared.url} onFocus={(e) => e.currentTarget.select()} className="mt-3 h-10 w-full rounded-[8px] border border-[#e5e5e7] bg-[#fafafa] px-3 text-[13px]" />
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <Button variant="secondary" onClick={() => setShared(null)}>Đóng</Button>
+              <Button variant="secondary" onClick={() => window.open(shared.url, "_blank", "noopener")}>Mở thử</Button>
+              <Button onClick={async () => { try { await navigator.clipboard.writeText(shared.url); toast("Đã sao chép link"); } catch { toast("Không sao chép được — hãy chọn và sao chép link", "err"); } }}>Sao chép link</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

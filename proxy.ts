@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasSupabase, SUPABASE_KEY, SUPABASE_URL } from "@/lib/supabase/env";
 
-// Chạy trước mỗi request vào /admin: làm mới phiên đăng nhập Supabase (cookie).
+// Chạy trước mỗi request vào /admin (và /thiet-ke/mockup): làm mới phiên đăng nhập Supabase (cookie).
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
   if (!hasSupabase) return response;
@@ -25,4 +25,4 @@ export async function proxy(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ["/admin/:path*"] };
+export const config = { matcher: ["/admin/:path*", "/thiet-ke/mockup"] }; // + trang Mockup: nhận ra admin để hiện nút "Chia sẻ"

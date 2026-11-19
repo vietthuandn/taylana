@@ -41,15 +41,19 @@ const ratioOf = (bg: BgChoice) => bgRatio(bg);
 
 const toJpeg = (c: HTMLCanvasElement) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Không xuất được ảnh"))), "image/jpeg", 0.92));
 
-export function CdMockupTab({ frames, images, images3d, system, tray, finish, modelUrl, watermark = false, bg, bgPicker }: {
+/** trạng thái xem (lưu khi chia sẻ mockup): mẫu đang chọn (-2 Auto · -1 3D · ≥0 khung), bố cục Auto, món, seed, vị trí khung */
+export type MockupView = { idx: number; arrange: SystemArrange; single: SystemItem; seed: number; pos: Pos };
+export function CdMockupTab({ frames, images, images3d, system, tray, finish, modelUrl, watermark = false, bg, bgPicker, init, onView, readOnly = false, extra }: {
   frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; images3d: Cd3DImages; system: SystemInput; tray: TrayStyle; finish?: "matte" | "gloss"; modelUrl?: string | null; watermark?: boolean;
   bg: BgChoice; bgPicker: React.ReactNode;
+  init?: Partial<MockupView>; onView?: (v: MockupView) => void; // dựng lại đúng trạng thái đã lưu · báo trạng thái hiện tại lên trên
+  readOnly?: boolean; extra?: React.ReactNode; // chỉ xem (link chia sẻ): không đổi mẫu / nền / bố cục · nút thêm cạnh "Tải về"
 }) {
-  const [idx, setIdx] = useState(SYSTEM);
+  const [idx, setIdx] = useState(init?.idx ?? SYSTEM);
   const three = useRef<Cd3DHandle | null>(null);
   const is3d = idx === THREE_D;
   const isSys = idx === SYSTEM;
-  const [pos, setPos] = useState<Pos>(DEFAULT_POS);
+  const [pos, setPos] = useState<Pos>(init?.pos ?? DEFAULT_POS);
   const [built, setBuilt] = useState<HTMLCanvasElement | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -58,16 +62,18 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
   const frame = idx < 0 ? undefined : frames[idx] ?? frames[0];
 
   // đổi gói → danh sách mẫu đổi: giữ Auto / 3D; đang ở mẫu khung thì về mẫu đầu (không còn mẫu khung → Auto)
-  useEffect(() => { setIdx((i) => (i < 0 ? i : frames.length ? 0 : SYSTEM)); }, [frames]);
+  const firstFrames = useRef(true);
+  useEffect(() => { if (firstFrames.current && init) { firstFrames.current = false; return; } firstFrames.current = false; setIdx((i) => (i < 0 ? i : frames.length ? 0 : SYSTEM)); }, [frames]); // eslint-disable-line react-hooks/exhaustive-deps
   // không xem được 3D → báo và quay về mẫu 2D đầu tiên
   useEffect(() => {
     if (is3d && !can3D()) { toast("Thiết bị không hỗ trợ xem 3D", "err"); setIdx(frames.length ? 0 : SYSTEM); }
   }, [is3d, frames.length]);
 
   // ---------- Mẫu hệ thống ----------
-  const [arrange, setArrange] = useState<SystemArrange>("grid");
-  const [single, setSingle] = useState<SystemItem>("closed");
-  const [seed, setSeed] = useState(1);
+  const [arrange, setArrange] = useState<SystemArrange>(init?.arrange ?? "grid");
+  const [single, setSingle] = useState<SystemItem>(init?.single ?? "closed");
+  const [seed, setSeed] = useState(init?.seed ?? 1);
+  useEffect(() => { onView?.({ idx, arrange, single, seed, pos }); }, [idx, arrange, single, seed, pos]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sysBusy, setSysBusy] = useState(true);
   const [thumbs, setThumbs] = useState<Partial<Record<SystemArrange, string>>>({});
   const sysView = useRef<HTMLCanvasElement>(null);
@@ -233,9 +239,9 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
           </div>
         ) : !frame ? null : (
           <div className="group relative overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white" style={{ width: width || "100%" }}>
-            <canvas ref={view} className="block h-auto w-full cursor-grab touch-none active:cursor-grabbing"
-              onDoubleClick={() => setPos(DEFAULT_POS)}
-              onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, p: pos }; }}
+            <canvas ref={view} className={cx("block h-auto w-full touch-none", !readOnly && "cursor-grab active:cursor-grabbing")}
+              onDoubleClick={() => { if (!readOnly) setPos(DEFAULT_POS); }}
+              onPointerDown={(e) => { if (readOnly) return; (e.target as HTMLElement).setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, p: pos }; }}
               onPointerMove={(e) => {
                 const d = drag.current, el = view.current;
                 if (!d || !el) return;
@@ -244,7 +250,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
               }}
               onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} />
             {/* hover: +/− phóng to / thu nhỏ khung CD (50% – 150%) */}
-            <div className="absolute bottom-2 right-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className={cx("absolute bottom-2 right-2 flex gap-1.5 opacity-0 transition-opacity group-hover:opacity-100", readOnly && "hidden")}>
               <button type="button" onClick={() => zoom(-0.1)} disabled={pos.scale <= 0.5} aria-label="Thu nhỏ" title="Thu nhỏ"
                 className="grid h-7 w-7 place-items-center rounded-full bg-white text-[#18181b] shadow-[0_1px_4px_rgba(0,0,0,0.18)] disabled:opacity-40"><Minus size={14} /></button>
               <button type="button" onClick={() => zoom(0.1)} disabled={pos.scale >= 1.5} aria-label="Phóng to" title="Phóng to"
@@ -257,7 +263,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
       </div>
 
       {/* Mẫu: cột thumbnail dọc ở mép phải, căn giữa dọc, nằm đè vùng trống · thẻ "3D" cố định ở cuối */}
-      <div className="no-scrollbar flex gap-2 overflow-auto px-3 md:absolute md:right-3 md:top-1/2 md:max-h-[calc(100%-128px)] md:-translate-y-1/2 md:flex-col md:px-0">
+      <div className={cx("no-scrollbar flex gap-2 overflow-auto px-3 md:absolute md:right-3 md:top-1/2 md:max-h-[calc(100%-128px)] md:-translate-y-1/2 md:flex-col md:px-0", readOnly && "hidden")}>
         {/* mẫu hệ thống: 3 lựa chọn bố cục (Lưới · Chồng · Một), thumbnail dựng từ chính ảnh của khách */}
         {ARRANGE.map(([k, t]) => {
           const on = isSys && arrange === k;
@@ -285,7 +291,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
       </div>
 
       {/* Mẫu hệ thống: chip bố cục ngay trên thanh đáy */}
-      {isSys && (
+      {isSys && !readOnly && (
         <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto whitespace-nowrap px-4 pt-2 md:absolute md:inset-x-0 md:bottom-14 md:pt-0">
           {/* "Một": chọn món · nút xáo trộn */}
           {arrange === "single" && singles.map((k) => <Chip key={k} on={one === k} onClick={() => setSingle(k)}>{ITEM_LABEL[k]}</Chip>)}
@@ -296,7 +302,8 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
 
       {/* thanh đáy: trái Nền · phải Tải về */}
       <div className="flex h-14 shrink-0 items-center gap-3 px-4 md:absolute md:inset-x-0 md:bottom-0">
-        <div className="min-w-0 flex-1">{bgPicker}</div>
+        <div className="min-w-0 flex-1">{readOnly ? null : bgPicker}</div>
+        {extra && <div className="shrink-0">{extra}</div>}
         <div className="shrink-0">{menu}</div>
       </div>
     </div>
