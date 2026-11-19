@@ -3,7 +3,8 @@
    Phong cách (Polaroid, Xé dán, Vòng tròn, Tạp chí, Hoa lá) dùng chung bảng màu + chất liệu với CD Scrapbook.
    Ô ảnh đánh số toàn cuốn (slot 0 = ảnh bìa). Admin có thể sửa tay từng kiểu cặp trang × phong cách (surface_type "spread"). */
 import { DEFAULT_WISHES } from "./wishes";
-import { PALETTES, applyFrames, asset, autoDecorate, jit, pick, rng } from "./generate";
+import { PALETTES, applyFrames, asset, jit, pick, rng } from "./generate";
+import { autoDecorate, makeDeck } from "./decor";
 import { STYLES, type Frame, type Layer, type PhotoShape, type ScrapAsset, type Style, type Template, type TemplateSetting, type WishCard } from "./types";
 
 export const BOOKLET_PAGES = [4, 8, 12] as const;
@@ -40,7 +41,6 @@ function extras(r: R, style: Style, L: Layer[], pal: { accents: string[]; tone: 
     const k = style === "torn" ? 2 : 1;
     for (let i = 0; i < k; i++) L.unshift({ k: "paper", x: area.x0 + 10 + r() * (area.x1 - area.x0 - 20), y: 15 + r() * 90, w: 26 + r() * 16, h: 20 + r() * 12, rot: jit(r, 20), paper: pick(r, style === "torn" ? ["kraft", "note", "grid"] as const : ["grid", "ticket"] as const), color: style === "torn" ? pick(r, ["#e9dcc4", "#fff8dc", "#f7f7f2"]) : pick(r, pal.accents), torn: style === "torn", seed: Math.floor(r() * 1e6), asset: asset(r, assets, "paper", pal.tone, 0.5) });
   }
-  if (r() < 0.6) L.push({ k: "doodle", x: area.x0 + 12 + r() * (area.x1 - area.x0 - 24), y: 10 + r() * 100, s: 9, rot: jit(r, 30), shape: pick(r, ["arrow", "swirl", "dash"] as const), color: pick(r, pal.accents), asset: asset(r, assets, "doodle", pal.tone, 0.4) });
 }
 function bgOf(style: Style, pal: { bg: string; ink: string }, assets: ScrapAsset[], r: R, tone: string): Template["bg"] {
   return { color: pal.bg, ink: pal.ink, pattern: style === "torn" ? "lines" : style === "magazine" ? "grid" : style === "ring" ? "plain" : "dots", asset: asset(r, assets, "texture", tone, 0.5) };
@@ -85,8 +85,16 @@ export function generateBooklet(pages: number, style: Style, seed: number, asset
   const pool = kinds.length ? kinds : [1];
   const out: Template[] = [];
   let slot = 0;
-  const push = (t: Template) => { const d = autoDecorate({ ...offset(t, slot), layers: applyFrames(offset(t, slot).layers, frames, t.seed + out.length) }, t.seed + out.length * 31, assets); slot += slotsOf(t); out.push(d); };
-  push(generateCover(style, seed, assets));
+  const cover = generateCover(style, seed, assets);
+  // 1 bộ bài sticker cho cả cuốn: không lặp sticker trong 1 thiết kế (hết danh sách mới lặp)
+  const deck = makeDeck(assets, cover.tone ?? "any", seed);
+  const push = (t: Template) => {
+    const o = offset(t, slot);
+    // mẫu admin sửa tay: giữ nguyên lớp (cả sticker), chỉ bổ sung nếu còn ít hơn mức tối thiểu
+    const d = autoDecorate(t.fixed ? o : { ...o, layers: applyFrames(o.layers, frames, t.seed + out.length) }, t.seed + out.length * 31, assets, { deck, topUp: !!t.fixed });
+    slot += slotsOf(t); out.push(d);
+  };
+  push(cover);
   let last = -1;
   for (let p = 2; p + 1 < pages; p += 2) {
     let kind = pick(r, pool);
@@ -101,7 +109,7 @@ export function generateBooklet(pages: number, style: Style, seed: number, asset
 /** 1 cặp trang theo kiểu: mẫu admin sửa tay (nếu có) hoặc sinh bằng code */
 export function spreadTemplate(kind: number, style: Style, seed: number, assets: ScrapAsset[], spreadSettings: TemplateSetting[] = []): Template {
   const s = spreadSettings.find((x) => x.n === kind && x.style === style);
-  if (s?.template) return { ...structuredClone(s.template), id: `spread-${kind}-${style}`, n: kind, style, surface: "spread", kind };
+  if (s?.template) return { ...structuredClone(s.template), id: `spread-${kind}-${style}`, n: kind, style, surface: "spread", kind, fixed: true };
   return generateSpread(kind, style, s?.seed ?? seed, assets);
 }
 export const bookletSeed = (pages: number, style: Style) => pages * 100 + STYLES.findIndex((s) => s.id === style) + 1;

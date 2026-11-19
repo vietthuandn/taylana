@@ -85,6 +85,7 @@ export type Template = {
   gutter?: "left" | "right"; // trang đơn của booklet: gáy bên trái (trang 1) / bên phải (trang cuối)
   kind?: number; // cặp trang booklet: kiểu dàn trang (SPREAD_KINDS)
   accents?: string[]; tone?: string; // bảng màu của mẫu (rải lại sticker)
+  fixed?: boolean; // mẫu admin sửa tay: giữ nguyên sticker của mẫu, chỉ bổ sung khi thiếu
   bg: { color: string; pattern: "dots" | "grid" | "plain" | "lines"; ink: string; asset?: string };
   layers: Layer[];
 };

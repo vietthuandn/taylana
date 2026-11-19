@@ -35,6 +35,7 @@ import { applyFrames, autoDecorate } from "@/lib/scrapbook/generate";
 import { BOOKLET_PAGES, SPREAD_KINDS, bookletSets, spreadTemplate, type BookletSet } from "@/lib/scrapbook/booklet";
 import { loadScrapFromAccount, saveScrapToAccount } from "@/lib/scrapbook/account";
 import { samplePhotos } from "@/lib/scrapbook/samples";
+import { setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
 import { STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting, type Wish, type WishTopic } from "@/lib/scrapbook/types";
@@ -58,10 +59,11 @@ const withPhotos = (t: Template, list: { id: string }[]): Template => ({ ...clon
 /** số trang của bề mặt i (bìa = 1, cặp i = 2i–2i+1, trang cuối = n) */
 const pagesOf = (i: number, n: number, count: number) => (i === 0 ? [1] : i === count - 1 ? [n] : [i * 2, i * 2 + 1]);
 
-export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, frameSets, topics, wishes, backgrounds, packIds }: {
-  assets: ScrapAsset[]; settings: TemplateSetting[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[];
+export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, frameSets, stickerCfg, topics, wishes, backgrounds, packIds }: {
+  assets: ScrapAsset[]; settings: TemplateSetting[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; stickerCfg: StickerCfg;
   topics: WishTopic[]; wishes: Wish[]; backgrounds: MockupBackground[]; packIds: Record<number, string>;
 }) {
+  setStickerConfig(stickerCfg); // cài đặt sticker tự rải của admin (trước khi sinh mẫu)
   const router = useRouter();
   const params = useSearchParams();
   const [tab, setTab] = useState<"anh" | "sticker" | "chu">("anh");

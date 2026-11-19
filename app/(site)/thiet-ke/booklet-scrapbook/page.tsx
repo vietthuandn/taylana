@@ -14,7 +14,7 @@ export default async function Page() {
   for (const p of packages) { const n = p.front_pages ?? 0; if (n >= 4 && !packIds[n]) packIds[n] = p.id; }
   return (
     <Suspense>
-      <BookletScrapLoader assets={data.assets} settings={data.settings} fonts={data.fonts} glyphs={data.glyphs} frames={data.frames} frameSets={data.frameSets}
+      <BookletScrapLoader assets={data.assets} settings={data.settings} fonts={data.fonts} glyphs={data.glyphs} frames={data.frames} frameSets={data.frameSets} stickerCfg={data.stickerCfg}
         topics={data.topics} wishes={data.wishes} backgrounds={mock.backgrounds} packIds={packIds} />
     </Suspense>
   );

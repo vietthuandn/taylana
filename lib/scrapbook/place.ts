@@ -20,15 +20,16 @@ const inBox = (px: number, py: number, b: Box, pad = 0) => {
 };
 const OCCUPY = new Set<Layer["k"]>(["photo", "text", "wish", "sticker"]);
 
-type Grid = { cols: number; rows: number; cell: number; blocked: Uint8Array; dist: Float32Array; s: Surface };
-function grid(s: Surface, layers: Layer[]): Grid {
+export type Grid = { cols: number; rows: number; cell: number; blocked: Uint8Array; dist: Float32Array; s: Surface };
+/** gutter: chừa dải gáy (mm mỗi bên) — sticker không nằm vắt qua gáy của cặp trang */
+export function grid(s: Surface, layers: Layer[], gutter = 0): Grid {
   const cell = SCRAP_CONFIG.gridMM, cols = Math.ceil(s.w / cell), rows = Math.ceil(s.h / cell);
   const blocked = new Uint8Array(cols * rows);
   const boxes = layers.filter((l) => OCCUPY.has(l.k)).map(layerBox).filter(Boolean) as Box[];
   const arcs = layers.filter((l) => l.k === "text" && l.arc) as Extract<Layer, { k: "text" }>[];
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
     const x = (i + 0.5) * cell, y = (j + 0.5) * cell;
-    let b = !inSafe(s, x, y) || boxes.some((bx) => inBox(x, y, bx, 0.6));
+    let b = !inSafe(s, x, y) || boxes.some((bx) => inBox(x, y, bx, 0.6)) || (gutter > 0 && s.gutter !== null && Math.abs(x - s.gutter) < gutter);
     if (!b && arcs.length) b = arcs.some((t) => Math.abs(Math.hypot(x - t.x, y - t.y) - t.arc!.r) < t.size);
     blocked[j * cols + i] = b ? 1 : 0;
   }
@@ -51,7 +52,7 @@ function distance(b: Uint8Array, cols: number, rows: number) {
   }
   return d;
 }
-function mark(g: Grid, x: number, y: number, r: number) {
+export function mark(g: Grid, x: number, y: number, r: number) {
   const c = g.cell;
   for (let j = Math.max(0, Math.floor((y - r) / c)); j <= Math.min(g.rows - 1, Math.ceil((y + r) / c)); j++)
     for (let i = Math.max(0, Math.floor((x - r) / c)); i <= Math.min(g.cols - 1, Math.ceil((x + r) / c)); i++)
@@ -59,7 +60,7 @@ function mark(g: Grid, x: number, y: number, r: number) {
   g.dist = distance(g.blocked, g.cols, g.rows);
 }
 /** ô trống "sâu" nhất; r() có thì chọn ngẫu nhiên trong các ô gần sâu nhất */
-function deepest(g: Grid, r?: R) {
+export function deepest(g: Grid, r?: R) {
   let max = 0;
   for (const v of g.dist) if (v > max && v < 1e5) max = v;
   if (max <= 0) return null;

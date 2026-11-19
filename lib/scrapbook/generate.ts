@@ -3,7 +3,7 @@
    ảnh chính (ô 0) luôn to nhất, đặt ở đỉnh; dải dưới cùng dành cho chữ (trừ phong cách "Vòng tròn": chữ chạy cong vòng ngoài).
    Trang trí (sticker, băng dính, mảnh giấy) được phép tràn ra mép — khi vẽ sẽ cắt theo hình tròn. */
 import { SCRAP_CONFIG } from "./config";
-import { placeStickers } from "./place";
+import { autoDecorate } from "./decor";
 import { surfaceOf } from "./surface";
 import { C, R_HUB, R_SAFE, STYLES, type Frame, type Layer, type PhotoShape, type ScrapAsset, type StickerShape, type Style, type Template } from "./types";
 
@@ -49,8 +49,11 @@ export const PALETTES: Record<Style, { bg: string; ink: string; tone: string; ac
 export function asset(r: R, assets: ScrapAsset[], grp: ScrapAsset["grp"], tone: string, chance = 0.7) {
   const list = assets.filter((a) => a.grp === grp && a.is_active && (grp !== "frame" || a.region));
   if (!list.length || r() > chance) return undefined;
-  const same = list.filter((a) => a.tone === tone || a.tone === "any");
-  return pick(r, same.length ? same : list).id;
+  // tông màu chỉ là ưu tiên nhẹ (×1.5), không loại chất liệu khác tông
+  const w = list.map((a) => (tone !== "any" && a.tone === tone ? 1.5 : 1)), sum = w.reduce((x, y) => x + y, 0);
+  let v = r() * sum;
+  for (let i = 0; i < list.length; i++) { v -= w[i]; if (v <= 0) return list[i].id; }
+  return list[list.length - 1].id;
 }
 
 type Slot = { slot: number; x: number; y: number; w: number; h: number; a: number };
@@ -98,29 +101,8 @@ export const tapeOn = (r: R, s: Slot, rot: number, pal: { accents: string[] }, a
 };
 const stickerShapes: StickerShape[] = ["star", "heart", "flower", "bow", "sparkle"];
 
-/** hàm tạo sticker / băng dính hợp màu mẫu (dùng cho rải tự động + nút "Xáo trộn") */
-export function decorMakers(r: R, accents: string[], assets: ScrapAsset[], tone: string, shapes: StickerShape[] = stickerShapes) {
-  return {
-    sticker: (x: number, y: number, s: number, rot: number): Layer => ({ k: "sticker", x, y, s, rot, shape: pick(r, shapes), color: pick(r, accents), asset: asset(r, assets, "sticker", tone, 0.5) }),
-    tape: (x: number, y: number, w: number, rot: number): Layer => ({ k: "tape", x, y, w, h: 4.2, rot, color: pick(r, accents), pattern: pick(r, ["stripe", "dots", "plain"] as const), seed: Math.floor(r() * 1e6), asset: asset(r, assets, "tape", tone) }),
-  };
-}
-const DECOR: Record<Style, { count: number; size: number; shapes: StickerShape[] }> = {
-  polaroid: { count: 6, size: 6.5, shapes: stickerShapes },
-  torn: { count: 4, size: 6.5, shapes: stickerShapes },
-  ring: { count: 3, size: 4.5, shapes: ["sparkle", "star", "heart"] },
-  magazine: { count: 4, size: 6.5, shapes: ["star", "sparkle", "heart"] },
-  floral: { count: 12, size: 6, shapes: ["flower", "flower", "bow", "star", "heart", "sparkle"] },
-};
-/** rải sticker tự động cho 1 bề mặt (bỏ các sticker auto cũ, rải lại theo seed) */
-export function autoDecorate(t: Template, seed: number, assets: ScrapAsset[], count?: number): Template {
-  const r = rng(seed * 17 + 5), d = DECOR[t.style] ?? DECOR.polaroid;
-  const keep = t.layers.filter((l) => !l.auto);
-  const old = t.layers.length - keep.length;
-  const m = decorMakers(r, t.accents?.length ? t.accents : ["#ff8fab", "#ffd166", "#9bd1e5"], assets, t.tone ?? "any", d.shapes);
-  const n = count ?? (old || Math.round(d.count * (t.surface === "spread" ? 1.4 : 1)));
-  return { ...t, layers: [...keep, ...placeStickers(surfaceOf(t), keep, r, n, d.size, m.sticker, m.tape)] };
-}
+// sticker / doodle / băng dính tự rải: lib/scrapbook/decor.ts
+export { autoDecorate } from "./decor";
 /** gắn khung ngẫu nhiên (theo seed) cho ~60% ô ảnh; ô có khung đổi chiều cao theo tỉ lệ ảnh khung */
 export function applyFrames(layers: Layer[], frames: Frame[], seed: number, ratio = SCRAP_CONFIG.frameRatio): Layer[] {
   const list = frames.filter((f) => f.is_active && (f.region || f.mask_url));
@@ -151,7 +133,6 @@ export function generate(n: number, style: Style, seed: number, assets: ScrapAss
     slots.forEach((s) => {
       const rot = jit(r, 9);
       L.push({ k: "photo", slot: s.slot, x: s.x, y: s.y, w: s.w, h: s.w, rot, shape: frame ? "frame" : "polaroid", seed: Math.floor(r() * 1e6), asset: frame });
-      if (r() < 0.75) L.push(tapeOn(r, { ...s, h: s.w * 1.22 }, rot, pal, assets, T));
     });
     txt("hand", "#3f3f46");
   } else if (style === "torn") {
@@ -166,7 +147,6 @@ export function generate(n: number, style: Style, seed: number, assets: ScrapAss
     [...slots.filter((x) => x.slot !== 0), ...slots.filter((x) => x.slot === 0)].forEach((s) => {
       const rot = jit(r, 12);
       L.push({ k: "photo", slot: s.slot, x: s.x + jit(r, 1.5), y: s.y + jit(r, 1.5), w: s.w, h: s.w * (0.82 + r() * 0.3), rot, shape: "torn", seed: Math.floor(r() * 1e6) });
-      if (r() < 0.45) L.push(tapeOn(r, s, rot, pal, assets, T));
     });
     L.push({ k: "paper", x: C, y: C + 42, w: 64, h: 15, rot: jit(r, 3), paper: "note", color: "#fffdf5", torn: true, seed: Math.floor(r() * 1e6) });
     L.push({ k: "doodle", x: C + 30, y: C + 30, s: 9, rot: jit(r, 30), shape: "arrow", color: pick(r, pal.accents), asset: asset(r, assets, "doodle", T, 0.5) });
@@ -194,7 +174,6 @@ export function generate(n: number, style: Style, seed: number, assets: ScrapAss
       const round = i % 2 === 1;
       const shape: PhotoShape = round ? "circle" : "rect";
       L.push({ k: "photo", slot: s.slot, x: s.x, y: s.y, w: s.w, h: round ? s.w : s.w * (0.9 + r() * 0.2), rot: round ? 0 : jit(r, 4), shape, seed: Math.floor(r() * 1e6), border: "#ffffff" });
-      if (!round && r() < 0.4) L.push(tapeOn(r, s, 0, pal, assets, T));
     });
     L.push({ k: "doodle", x: C - 34, y: C + 30, s: 8, rot: jit(r, 20), shape: "dash", color: pick(r, pal.accents), asset: asset(r, assets, "doodle", T, 0.4) });
     txt("label", pick(r, pal.accents));
@@ -206,5 +185,5 @@ export function generate(n: number, style: Style, seed: number, assets: ScrapAss
   }
   // sticker tự rải theo lưới chiếm chỗ + khung ảnh ngẫu nhiên từ thư viện
   const base: Template = { id: `${n}-${style}`, n, style, seed, bg, layers: applyFrames(L, frames, seed), accents: pal.accents, tone: T };
-  return autoDecorate(base, seed, assets, DECOR[style].count);
+  return autoDecorate(base, seed, assets);
 }

@@ -18,6 +18,7 @@ import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { generate } from "@/lib/scrapbook/generate";
 import { SPREAD_KINDS, generateSpread } from "@/lib/scrapbook/booklet";
 import { surfaceOf } from "@/lib/scrapbook/surface";
+import { mergeStickerCfg, setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import { loadFonts, renderDisc } from "@/lib/scrapbook/render";
 import { samplePhotos } from "@/lib/scrapbook/samples";
 import { settingOf } from "@/lib/scrapbook/templates";
@@ -71,7 +72,8 @@ export function TemplateEditor() {
   useEffect(() => {
     (async () => {
       const sb = createClient();
-      const [t, a] = await Promise.all([sb.from("scrapbook_template_settings").select("*").eq("n", n).eq("style", style), sb.from("scrapbook_assets").select("*").eq("is_active", true).order("grp").order("sort_order")]);
+      const [t, a, sc] = await Promise.all([sb.from("scrapbook_template_settings").select("*").eq("n", n).eq("style", style), sb.from("scrapbook_assets").select("*").eq("is_active", true).order("grp").order("sort_order"), sb.from("site_settings").select("value").eq("key", "scrap_stickers").maybeSingle()]);
+      setStickerConfig(mergeStickerCfg((sc.data?.value as Partial<StickerCfg>) ?? null));
       const list = (a.data ?? []) as ScrapAsset[];
       const rowsT = ((t.data ?? []) as TemplateSetting[]).filter((x) => (x.surface_type ?? "disc") === surfaceType);
       const r = spread ? rowsT[0] ?? { n, style, seed: n * 1000 + STYLES.findIndex((x) => x.id === style) + 1, is_active: true, surface_type: "spread" } : settingOf(rowsT, n, style);

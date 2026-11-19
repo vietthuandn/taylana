@@ -427,11 +427,11 @@ export function renderSurface(o: RenderOpts) {
       else drawTape(x, l);
     } else if (l.k === "sticker") {
       const a = l.asset ? o.assets?.[l.asset] : undefined;
-      if (a) { const s = l.s / Math.max(a.img.width, a.img.height); shadow(x, 1, 0.4, 0.22); x.drawImage(a.img, (-a.img.width * s) / 2, (-a.img.height * s) / 2, a.img.width * s, a.img.height * s); }
+      if (a) { const s = fitS(l, a.img) / Math.max(a.img.width, a.img.height); shadow(x, 1, 0.4, 0.22); x.drawImage(a.img, (-a.img.width * s) / 2, (-a.img.height * s) / 2, a.img.width * s, a.img.height * s); }
       else drawSticker(x, l.shape, l.s, l.color);
     } else if (l.k === "doodle") {
       const a = l.asset ? o.assets?.[l.asset] : undefined;
-      if (a) { const s = l.s / Math.max(a.img.width, a.img.height); x.drawImage(a.img, (-a.img.width * s) / 2, (-a.img.height * s) / 2, a.img.width * s, a.img.height * s); }
+      if (a) { const s = fitS(l, a.img) / Math.max(a.img.width, a.img.height); x.drawImage(a.img, (-a.img.width * s) / 2, (-a.img.height * s) / 2, a.img.width * s, a.img.height * s); }
       else drawDoodle(x, l);
     } else if (l.k === "paper") drawPaper(x, l, o.assets);
     x.restore();
@@ -477,6 +477,8 @@ export function renderSurface(o: RenderOpts) {
 
 /** (tên cũ) vẽ mặt đĩa */
 export const renderDisc = renderSurface;
+/** sticker tự rải: không phóng quá 2× cỡ gốc ở 300 DPI (tránh mờ khi in); sticker khách tự kéo to thì giữ nguyên */
+const fitS = (l: { s: number; auto?: boolean }, img: Img) => (l.auto ? Math.min(l.s, (2 * Math.max(img.width, img.height) * 25.4) / 300) : l.s);
 const isTopSticker = (l: Layer) => l.k === "sticker" && !!l.user;
 
 /** Điểm (mm) có nằm trong ô (hình chữ nhật xoay) không */

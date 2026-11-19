@@ -1,5 +1,6 @@
 /* 5 mẫu cho N ảnh: seed lấy từ cài đặt admin (nếu có), mẫu bị admin ẩn thì không hiện với khách. */
 import { generate } from "./generate";
+import { autoDecorate } from "./decor";
 import { STYLES, type Frame, type ScrapAsset, type Style, type Template, type TemplateSetting } from "./types";
 
 export const defaultSeed = (n: number, style: Style) => n * 100 + STYLES.findIndex((s) => s.id === style) + 1;
@@ -11,5 +12,6 @@ export function templatesFor(n: number, settings: TemplateSetting[], assets: Scr
   return STYLES.map((s) => settingOf(settings, n, s.id))
     .filter((s) => all || s.is_active)
     // mẫu admin đã chỉnh tay → dùng luôn (trừ khi khách bấm "Xáo trộn" cho phong cách đó)
-    .map((s) => (s.template && override[s.style] === undefined ? { ...s.template, id: `${n}-${s.style}`, n, style: s.style } : generate(n, s.style, override[s.style] ?? s.seed, assets, frames)));
+    // mẫu sửa tay: giữ nguyên sticker của mẫu, chỉ bổ sung sticker ngẫu nhiên vào chỗ trống nếu còn ít hơn mức tối thiểu
+    .map((s) => (s.template && override[s.style] === undefined ? autoDecorate({ ...s.template, id: `${n}-${s.style}`, n, style: s.style }, s.seed, assets, { topUp: true }) : generate(n, s.style, override[s.style] ?? s.seed, assets, frames)));
 }

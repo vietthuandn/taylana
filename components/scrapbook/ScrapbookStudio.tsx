@@ -29,6 +29,7 @@ import { loadFonts, renderSurface } from "@/lib/scrapbook/render";
 import { templatesFor } from "@/lib/scrapbook/templates";
 import { autoDecorate } from "@/lib/scrapbook/generate";
 import { samplePhotos } from "@/lib/scrapbook/samples";
+import { setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
 import { MAX_PHOTOS, MIN_PHOTOS, PRINT_PX, STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting } from "@/lib/scrapbook/types";
 import { BgPicker } from "@/components/mockup-viewer/BgPicker";
@@ -50,9 +51,10 @@ const NO_EXTRA = {};
 /** chép mẫu thành thiết kế của khách: ô ảnh thứ i ← ảnh thứ i của khách (thiếu thì ô trống "+") */
 export const fromTemplate = (t: Template, photos: { id: string }[]): Template => ({ ...clone(t), layers: clone(t.layers).map((l) => (l.k === "photo" ? { ...l, photo: photos[l.slot]?.id ?? "" } : l)) });
 
-export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frameSets, backgrounds, boxPackageId }: {
-  assets: ScrapAsset[]; settings: TemplateSetting[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; backgrounds: MockupBackground[]; boxPackageId: string | null;
+export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frameSets, stickerCfg, backgrounds, boxPackageId }: {
+  assets: ScrapAsset[]; settings: TemplateSetting[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; stickerCfg: StickerCfg; backgrounds: MockupBackground[]; boxPackageId: string | null;
 }) {
+  setStickerConfig(stickerCfg); // cài đặt sticker tự rải của admin (trước khi sinh mẫu)
   const router = useRouter();
   const [tab, setTab] = useState<"anh" | "sticker" | "chu">("anh");
   const [guides, setGuides] = useState(true);
