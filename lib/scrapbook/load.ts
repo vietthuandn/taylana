@@ -3,6 +3,7 @@ import { publicClient } from "@/lib/supabase/public";
 import type { CustomTemplate, Frame, FrameSet, ScrapAsset, TemplateSetting, Wish, WishTopic } from "./types";
 import type { CutoutFont, Glyph } from "./cutout";
 import { mergeStickerCfg, type StickerCfg } from "./decor";
+import { TPL_COLS, type Library, type TplKind, type CategoryScope } from "./library";
 
 export type ScrapbookData = { assets: ScrapAsset[]; settings: TemplateSetting[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; topics: WishTopic[]; wishes: Wish[]; stickerCfg: StickerCfg; stickerCfgBooklet: StickerCfg; customs: CustomTemplate[] };
 // Chất liệu + cài đặt mẫu + khung ảnh + lời chúc đang bật (chưa chạy migration → rỗng, trang tự dùng bộ mặc định)
@@ -35,4 +36,18 @@ export async function getScrapbookData(): Promise<ScrapbookData> {
     stickerCfgBooklet: mergeStickerCfg(((sb2.data?.value ?? sc.data?.value) as Partial<StickerCfg>) ?? null),
     customs: (ct.data ?? []) as CustomTemplate[],
   };
+}
+
+/** thư viện mẫu cố định đang bật (khách): danh mục + mẫu theo loại + bộ booklet (chưa chạy migration → rỗng) */
+export async function getLibrary(kinds: TplKind[], bundles = false): Promise<Library> {
+  const sb = publicClient();
+  const empty: Library = { categories: [], templates: [], bundles: [] };
+  if (!sb) return empty;
+  const scopes: CategoryScope[] = [...kinds, ...(bundles ? ["booklet_bundle" as const] : [])];
+  const [c, t, b] = await Promise.all([
+    sb.from("template_categories").select("*").in("scope", scopes).eq("is_active", true).order("sort_order"),
+    sb.from("design_templates").select(TPL_COLS).in("kind", kinds).eq("is_active", true).order("sort_order"),
+    bundles ? sb.from("booklet_bundles").select("*").eq("is_active", true).order("sort_order") : Promise.resolve({ data: [] }),
+  ]);
+  return { categories: (c.data ?? []) as Library["categories"], templates: (t.data ?? []) as unknown as Library["templates"], bundles: (b.data ?? []) as Library["bundles"] };
 }

@@ -123,7 +123,7 @@ export function ScrapbookEditor(p: {
           <>
             <button type="button" onClick={() => (doc ? st.setAddSlotOpen(true) : toast("Tải ảnh và chọn mẫu trước khi thêm khung ảnh.", "err"))}
               className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#ff5fa2] text-[14px] font-semibold text-white hover:bg-[#f0468f]">+ Thêm khung ảnh</button>
-            {mode === "template" && <p className="text-[12px] text-[#71717a]">Chọn 1 ô ảnh trên bề mặt để đổi khung hoặc xoá ô. Số ảnh của ô sửa ở panel bên phải.</p>}
+            {mode === "template" && <p className="text-[12px] text-[#71717a]">Chọn 1 ô ảnh trên bề mặt để đổi khung hoặc xoá ô. Số ảnh của ô sửa ở khối “Thuộc tính” bên dưới.</p>}
             {p.photoTab}
           </>
         )}

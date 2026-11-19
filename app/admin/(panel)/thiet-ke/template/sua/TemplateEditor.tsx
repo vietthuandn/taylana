@@ -1,11 +1,10 @@
 "use client";
 
-/* Trình sửa mẫu scrapbook của admin = trình chỉnh dùng chung ScrapbookEditor ở mode "template" (đủ tab Ảnh · Sticker ·
-   Chữ · Nền như khách) + panel phải chỉ dành cho admin: ảnh thử, danh sách lớp (đổi thứ tự, ẩn / hiện, khoá),
-   số đo (X, Y, W, H, góc xoay — mm), số ảnh của ô (1..N), "Ngẫu nhiên từ bộ khung…". Thanh trên: tên mẫu (sửa trực tiếp),
-   Khôi phục mẫu gốc, Lưu mẫu.
-   Nguồn mẫu: ?id=<uuid> (mẫu tạo mới / nhân bản — bảng scrapbook_templates) hoặc ?n=&style=[&surface=spread]
-   (mẫu tự tạo bằng code — bản chỉnh lưu ở scrapbook_template_settings.template). */
+/* Trình sửa mẫu CỐ ĐỊNH của admin (/admin/thiet-ke/template/sua?tpl=<id> — bảng design_templates: CD Template · Trang đơn ·
+   Trang đôi) = trình chỉnh dùng chung ScrapbookEditor ở mode "template" (cột công cụ Ảnh · Sticker · Chữ · Nền như khách).
+   Mục "Ảnh" có thêm các khối thu gọn được của admin: Ảnh thử · Thuộc tính (X, Y, W, H, góc xoay mm, số ảnh của ô,
+   "Ngẫu nhiên từ bộ khung…") · Lớp (đổi thứ tự, ẩn / hiện, khoá). Thanh trên: tên mẫu, "Rải sticker tự động" (+ bánh răng
+   Cài đặt rải sticker), Khôi phục bản đã lưu, Lưu mẫu (tự tạo ảnh thu nhỏ bằng ảnh thử). */
 import "@fontsource/dancing-script/400.css";
 import "@fontsource/dancing-script/700.css";
 import "@fontsource/patrick-hand/400.css";
@@ -18,80 +17,81 @@ import "@fontsource/be-vietnam-pro/700.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowDown, ArrowLeft, ArrowUp, Dices, Eye, EyeOff, ImagePlus, Lock, RotateCcw, Save, Unlock } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Dices, Eye, EyeOff, ImagePlus, Lock, RotateCcw, Save, Settings, Sparkles, Unlock } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { revalidatePublic } from "@/app/admin/actions";
 import { uploadScrapbookAsset } from "@/lib/upload";
-import { generate } from "@/lib/scrapbook/generate";
-import { BOOKLET_PAGES, SPREAD_KINDS, generateBooklet, generateSpread } from "@/lib/scrapbook/booklet";
-import { bookletOverride, bookletSettingOf } from "@/lib/scrapbook/catalog";
+import { deleteFiles } from "@/lib/storage/client";
+import { autoDecorate } from "@/lib/scrapbook/generate";
 import { mergeStickerCfg, setFrameLibrary, setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import { samplePhotos } from "@/lib/scrapbook/samples";
-import { settingOf } from "@/lib/scrapbook/templates";
 import { boxOf } from "@/lib/scrapbook/edit";
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
+import { KIND_INFO, TPL_COLS, slotCount, type DesignTpl } from "@/lib/scrapbook/library";
+import { uploadThumb } from "@/lib/scrapbook/libraryClient";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
-import { STYLES, type Frame, type FrameSet, type Layer, type ScrapAsset, type Style, type Template, type TemplateSetting, type Wish, type WishTopic } from "@/lib/scrapbook/types";
+import type { Frame, FrameSet, Layer, ScrapAsset, Template, Wish, WishTopic } from "@/lib/scrapbook/types";
 import { ScrapbookEditor, type EditorTab } from "@/components/scrapbook/ScrapbookEditor";
 import { customizeText, useScrapStudio } from "@/components/scrapbook/useScrapStudio";
 import { shapeName } from "@/components/scrapbook/FramePicker";
 import { Button, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
+import { StickerSettings } from "../../../scrapbook/mau/StickerSettings";
+import { Modal } from "../CategoryManager";
+import { PUBLIC_PATHS } from "../LibraryAdmin";
 
 type Img = HTMLCanvasElement;
-type Src = { kind: "custom"; id: string; surface: "disc" | "booklet"; n: number } | { kind: "override"; surface: "disc" | "spread" | "booklet"; n: number; style: Style };
+type Lib = { assets: ScrapAsset[]; frames: Frame[]; sets: FrameSet[]; fonts: CutoutFont[]; glyphs: Glyph[]; topics: WishTopic[]; wishes: Wish[]; cfg: StickerCfg; cfgKey: string };
 const r1 = (v: number) => Math.round(v * 10) / 10;
 const SHAPE_VI: Record<string, string> = { star: "Ngôi sao", heart: "Trái tim", flower: "Bông hoa", bow: "Nơ", sparkle: "Lấp lánh", arrow: "Mũi tên", swirl: "Xoắn", dash: "Vòng nét đứt", note: "Giấy note", grid: "Giấy kẻ ô", ticket: "Vé", kraft: "Giấy kraft" };
-const TEXT0 = { main: "Happy Birthday", sub: "Ghi chú nhỏ" };
+const TEXT0 = { main: "Happy Birthday", sub: "" };
+const EMPTY = {};
 
 export function TemplateEditor() {
-  const params = useSearchParams();
-  const src = useMemo<Src>(() => {
-    const id = params.get("id");
-    if (id) return { kind: "custom", id, surface: "disc", n: 0 };
-    const style = (STYLES.find((s) => s.id === params.get("style"))?.id ?? "polaroid") as Style;
-    if (params.get("surface") === "booklet") { // bộ mẫu Booklet tự sinh (n = số trang) — sửa trực tiếp
-      const pages = Number(params.get("n"));
-      return { kind: "override", surface: "booklet", n: (BOOKLET_PAGES as readonly number[]).includes(pages) ? pages : 8, style };
-    }
-    const spread = params.get("surface") === "spread";
-    const n = spread ? Math.min(SPREAD_KINDS.length, Math.max(1, Number(params.get("n")) || 1)) : Math.min(10, Math.max(5, Number(params.get("n")) || 5));
-    return { kind: "override", surface: spread ? "spread" : "disc", n, style: (STYLES.find((s) => s.id === params.get("style"))?.id ?? "polaroid") as Style };
-  }, [params]);
-  const [lib, setLib] = useState<{ assets: ScrapAsset[]; frames: Frame[]; sets: FrameSet[]; fonts: CutoutFont[]; glyphs: Glyph[]; topics: WishTopic[]; wishes: Wish[] } | null>(null);
+  const id = useSearchParams().get("tpl");
+  const [row, setRow] = useState<DesignTpl | null>(null);
+  const [lib, setLib] = useState<Lib | null>(null);
+  const [err, setErr] = useState("");
   useEffect(() => {
+    if (!id) { setErr("Thiếu mã mẫu — mở mẫu từ trang Quản lý template."); return; }
     (async () => {
       const sb = createClient();
-      const [a, fs, fr, cf, wt, w, sc] = await Promise.all([
+      const t = await sb.from("design_templates").select(TPL_COLS).eq("id", id).maybeSingle();
+      if (t.error || !t.data) { setErr(t.error ? "Chưa có bảng mẫu mới — cần chạy supabase/migration_design_library.sql." : "Không tìm thấy mẫu."); return; }
+      const tpl = t.data as unknown as DesignTpl, cfgKey = tpl.kind === "cd" ? "scrap_stickers" : "scrap_stickers_booklet";
+      const [a, fs, fr, cf, wt, w, sc, sc0] = await Promise.all([
         sb.from("scrapbook_assets").select("*").eq("is_active", true).order("grp").order("sort_order"),
         sb.from("frame_sets").select("*").eq("is_active", true).order("sort_order"), sb.from("frames").select("*").eq("is_active", true).order("sort_order"),
         sb.from("cutout_fonts").select("*").eq("is_active", true).order("sort_order"),
         sb.from("wish_topics").select("*").eq("is_active", true).order("sort_order"), sb.from("wishes").select("*").eq("is_active", true).order("sort_order"),
-        sb.from("site_settings").select("value").eq("key", src.kind === "custom" ? "scrap_stickers" : src.surface === "disc" ? "scrap_stickers" : "scrap_stickers_booklet").maybeSingle(),
+        sb.from("site_settings").select("value").eq("key", cfgKey).maybeSingle(), sb.from("site_settings").select("value").eq("key", "scrap_stickers").maybeSingle(),
       ]);
-      setStickerConfig(mergeStickerCfg((sc.data?.value as Partial<StickerCfg>) ?? null));
+      const cfg = mergeStickerCfg(((sc.data?.value ?? sc0.data?.value) as Partial<StickerCfg>) ?? null);
+      setStickerConfig(cfg);
       const sets = (fs.data ?? []) as FrameSet[], fonts = (cf.data ?? []) as CutoutFont[];
       setFrameLibrary(sets);
       const g = fonts.length ? await sb.from("cutout_glyphs").select("*").in("font_id", fonts.map((x) => x.id)).order("sort_order") : { data: [] };
-      setLib({ assets: (a.data ?? []) as ScrapAsset[], frames: ((fr.data ?? []) as Frame[]).filter((f) => sets.some((s) => s.id === f.set_id)), sets, fonts, glyphs: (g.data ?? []) as Glyph[],
-        topics: ((wt.data ?? []) as WishTopic[]).length ? (wt.data as WishTopic[]) : DEFAULT_TOPICS, wishes: ((w.data ?? []) as Wish[]).length ? (w.data as Wish[]) : DEFAULT_WISHES });
+      const frames = ((fr.data ?? []) as Frame[]).filter((f) => sets.some((s) => s.id === f.set_id));
+      setLib({ assets: ((a.data ?? []) as ScrapAsset[]).filter((x) => x.grp !== "frame" || !frames.length), frames, sets, fonts, glyphs: (g.data ?? []) as Glyph[],
+        topics: ((wt.data ?? []) as WishTopic[]).length ? (wt.data as WishTopic[]) : DEFAULT_TOPICS, wishes: ((w.data ?? []) as Wish[]).length ? (w.data as Wish[]) : DEFAULT_WISHES, cfg, cfgKey });
+      setRow(tpl);
     })();
-  }, [src]);
-  if (!lib) return <p className="p-6 text-[13px] text-[#71717a]">Đang tải trình sửa mẫu...</p>;
-  return <Workbench src={src} lib={lib} />;
+  }, [id]);
+  if (err) return <p className="p-6 text-[13px] text-[#dc2626]">{err}</p>;
+  if (!lib || !row) return <p className="p-6 text-[13px] text-[#71717a]">Đang tải trình sửa mẫu...</p>;
+  return <Workbench row={row} lib={lib} />;
 }
 
-function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames: Frame[]; sets: FrameSet[]; fonts: CutoutFont[]; glyphs: Glyph[]; topics: WishTopic[]; wishes: Wish[] } }) {
+function Workbench({ row: row0, lib: lib0 }: { row: DesignTpl; lib: Lib }) {
+  const [row, setRow] = useState(row0);
+  const [lib, setLib] = useState(lib0);
   const [samples, setSamples] = useState<Img[]>(() => samplePhotos());
   const [tab, setTab] = useState<EditorTab>("anh");
   const [guides, setGuides] = useState(true);
-  const [name, setName] = useState("");
-  const [row, setRow] = useState<TemplateSetting | null>(null);
-  const [original, setOriginal] = useState<Template[] | null>(null);
+  const [name, setName] = useState(row0.name);
+  const [original, setOriginal] = useState<Template | null>(null);
   const [saving, setSaving] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [booklet, setBooklet] = useState(src.kind === "override" && src.surface !== "disc");
-  const [spreadRows, setSpreadRows] = useState<TemplateSetting[]>([]);
+  const [gear, setGear] = useState(false);
   const photoIn = useRef<HTMLInputElement>(null);
   const st = useScrapStudio({
     prefix: "tpl", max: 0, assets: lib.assets, frames: lib.frames, fonts: lib.fonts, glyphs: lib.glyphs, defaultText: TEXT0, extra: EMPTY, onLoad: () => undefined,
@@ -100,77 +100,48 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
   const framePhotos = useMemo(() => samples.map((c, i) => ({ id: `s${i}`, url: c.toDataURL("image/jpeg", 0.6) })), [samples]);
 
   // ---------- nạp mẫu ----------
-  const generated = (seed: number, spread = spreadRows): Template[] => src.kind !== "override" ? []
-    : src.surface === "booklet" ? generateBooklet(src.n, src.style, seed, lib.assets, lib.frames, spread).surfaces
-    : [src.surface === "spread" ? generateSpread(src.n, src.style, seed, lib.assets) : generate(src.n, src.style, seed, lib.assets, lib.frames)];
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     if (!st.ready || loaded) return;
-    (async () => {
-      const sb = createClient();
-      let doc: Template[] = [];
-      if (src.kind === "custom") {
-        const { data, error } = await sb.from("scrapbook_templates").select("*").eq("id", src.id).maybeSingle();
-        if (error || !data) { toast("Không tìm thấy mẫu (cần chạy migration_staff_templates.sql?)", "err"); return; }
-        doc = (data.config?.surfaces ?? []) as Template[];
-        setName(data.name ?? ""); setBooklet(data.surface === "booklet");
-      } else if (src.surface === "booklet") {
-        const { data } = await sb.from("scrapbook_template_settings").select("*");
-        const all = (data ?? []) as TemplateSetting[], spread = all.filter((x) => x.surface_type === "spread");
-        setSpreadRows(spread);
-        const r = bookletSettingOf(all, src.n, src.style);
-        setRow(r);
-        setName(r.name ?? `${STYLES.find((x) => x.id === src.style)?.name} · ${src.n} trang`);
-        doc = bookletOverride(r) ? structuredClone(bookletOverride(r)!) : generated(r.seed, spread);
-      } else {
-        const { data } = await sb.from("scrapbook_template_settings").select("*").eq("n", src.n).eq("style", src.style);
-        const rows = ((data ?? []) as TemplateSetting[]).filter((x) => (x.surface_type ?? "disc") === src.surface);
-        const r = src.surface === "spread" ? rows[0] ?? { n: src.n, style: src.style, seed: src.n * 1000 + STYLES.findIndex((x) => x.id === src.style) + 1, is_active: true, surface_type: "spread" } : settingOf(rows, src.n, src.style);
-        setRow(r);
-        setName((r as TemplateSetting & { name?: string }).name ?? `${STYLES.find((x) => x.id === src.style)?.name}${src.surface === "spread" ? ` · ${SPREAD_KINDS.find((k) => k.id === src.n)?.name}` : ` · ${src.n} ảnh`}`);
-        doc = r.template ? [structuredClone({ ...r.template, n: src.n, style: src.style, ...(src.surface === "spread" ? { surface: "spread" as const, kind: src.n } : {}) })] : generated(r.seed);
-      }
-      const docT = doc.map((t) => customizeText(t, TEXT0)); // chữ của mẫu = lớp chữ bình thường (sửa trực tiếp trên bề mặt)
-      setOriginal(structuredClone(docT));
-      st.D.setDoc(docT); st.D.reset(); st.setActive(0);
-      setLoaded(true);
-    })();
+    const t = customizeText(structuredClone(row.config.template), TEXT0); // chữ của mẫu = lớp chữ bình thường
+    setOriginal(structuredClone(t));
+    st.D.setDoc([t]); st.D.reset(); st.setActive(0);
+    setLoaded(true);
   }, [st.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** lớp "tự rải" thành lớp bình thường khi lưu; ô ảnh không mang ảnh thử */
+  const clean = (t: Template): Template => ({ ...t, layers: t.layers.map((l) => { const { auto: _a, ...rest } = l as Layer & { auto?: boolean }; void _a; return (rest.k === "photo" ? { ...rest, photo: undefined } : rest) as Layer; }) });
   async function save() {
-    const doc = st.doc;
-    if (!doc) return;
+    const t = st.doc?.[0];
+    if (!t) return;
     setSaving(true);
-    const sb = createClient();
-    let error: { message: string } | null = null;
-    if (src.kind === "custom") {
-      ({ error } = await sb.from("scrapbook_templates").update({ name: name.trim() || "Mẫu mới", config: { surfaces: doc }, updated_at: new Date().toISOString() }).eq("id", src.id));
-    } else if (row) {
-      ({ error } = await sb.from("scrapbook_template_settings").upsert({ surface_type: src.surface, n: src.n, style: src.style, seed: row.seed, is_active: row.is_active, template: src.surface === "booklet" ? { surfaces: doc } : doc[0], name: name.trim() || null, updated_at: new Date().toISOString() }, { onConflict: "surface_type,n,style" }));
-    }
+    try {
+      const template = clean(t);
+      const thumb = await uploadThumb([template], { ...st.renderOpts, photos: samples }).catch(() => null);
+      const v = { name: name.trim() || "Mẫu mới", config: { ...row.config, template }, photo_count: slotCount(template), thumbnail_url: thumb ?? row.thumbnail_url, updated_at: new Date().toISOString() };
+      const { error } = await createClient().from("design_templates").update(v).eq("id", row.id);
+      if (error) throw new Error(error.message);
+      if (thumb && row.thumbnail_url && row.thumbnail_url !== thumb) deleteFiles({ urls: [row.thumbnail_url] }).catch(() => 0);
+      setRow({ ...row, ...v }); setOriginal(structuredClone(t)); st.D.setEdited(false);
+      await revalidatePublic(PUBLIC_PATHS);
+      toast("Đã lưu mẫu");
+    } catch (e) { toast(e instanceof Error ? e.message : "Lưu thất bại", "err"); }
     setSaving(false);
-    if (error) return toast(/name|surface_type|template/.test(error.message) ? "Thiếu cột — cần chạy supabase/migration_staff_templates.sql." : error.message, "err");
-    await revalidatePublic(["/thiet-ke/cd-template", "/thiet-ke/booklet"]);
-    setOriginal(structuredClone(doc)); st.D.setEdited(false);
-    toast("Đã lưu mẫu");
   }
-  async function restore() {
-    if (src.kind === "override" && row) {
-      const sb = createClient();
-      if (row.template) await sb.from("scrapbook_template_settings").upsert({ surface_type: src.surface, n: src.n, style: src.style, seed: row.seed, is_active: row.is_active, template: null, updated_at: new Date().toISOString() }, { onConflict: "surface_type,n,style" });
-      const d = generated(row.seed).map((t) => customizeText(t, TEXT0));
-      st.D.begin(); st.D.setDoc(d); setRow({ ...row, template: null }); setOriginal(structuredClone(d));
-      await revalidatePublic(["/thiet-ke/cd-template", "/thiet-ke/booklet"]);
-      toast("Đã khôi phục mẫu gốc");
-    } else if (original) { st.D.begin(); st.D.setDoc(structuredClone(original)); toast("Đã khôi phục bản đã lưu"); }
+  function restore() { if (original) { st.D.begin(); st.D.setDoc([structuredClone(original)]); st.setSel(null); toast("Đã khôi phục bản đã lưu"); } }
+  function decorate() {
+    if (!st.cur) return;
+    st.D.begin(); st.D.patchSurface(0, (t) => autoDecorate(t, Math.floor(Math.random() * 1e6), lib.assets)); st.setSel(null);
+    toast("Đã rải sticker — bấm lại để rải kiểu khác, sticker sửa / xoá được như lớp bình thường");
   }
 
   const L = st.L, sel = st.sel, cur = st.cur;
   const layer = sel !== null ? L[sel] : null;
   const B = layer ? boxOf(layer) : null;
-  const slotCount = Math.max(1, ...(st.doc ?? []).flatMap((t) => t.layers.flatMap((l) => (l.k === "photo" ? [l.slot + 1] : []))), src.kind === "override" && src.surface === "disc" ? src.n : 1);
-  const frameName = (id?: string) => lib.frames.find((f) => f.id === id)?.name;
-  const assetName = (id?: string) => (id?.startsWith("f:") ? frameName(id.slice(2)) : lib.assets.find((a) => a.id === id)?.name);
-  const setNames = (ids: string[]) => ids.map((id) => lib.sets.find((s) => s.id === id)?.name ?? "?").join(", ");
+  const slots = Math.max(1, ...(st.doc ?? []).flatMap((t) => t.layers.flatMap((l) => (l.k === "photo" ? [l.slot + 1] : []))));
+  const frameName = (fid?: string) => lib.frames.find((f) => f.id === fid)?.name;
+  const assetName = (aid?: string) => (aid?.startsWith("f:") ? frameName(aid.slice(2)) : lib.assets.find((a) => a.id === aid)?.name);
+  const setNames = (ids: string[]) => ids.map((x) => lib.sets.find((s) => s.id === x)?.name ?? "?").join(", ");
   function layerName(l: Layer) {
     if (l.k === "photo") return `Ô ảnh ${l.slot + 1} · ${l.frameSets?.length ? `Ngẫu nhiên: ${setNames(l.frameSets)}` : l.frame ? frameName(l.frame) ?? "Khung" : shapeName(l.shape, l.h / l.w)}`;
     if (l.k === "text") return `Chữ · ${(l.role === "custom" ? l.value ?? "" : l.role === "main" ? "dòng chính" : "dòng phụ").slice(0, 24) || "chữ"}`;
@@ -198,37 +169,30 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
     patch(i, { frameSets: ids, frame: f?.id ?? l.frame, shape: "rect", h: f ? r1(l.w * (f.ratio || 1)) : l.h } as Partial<Layer>);
   }
 
-  const right = (
-    <>
-      <section>
-        <p className="mb-2 text-[13px] font-semibold">Ảnh thử</p>
-        <div className="flex gap-2">
-          <Button size="sm" variant="secondary" icon={<ImagePlus size={14} />} onClick={() => photoIn.current?.click()}>Tải ảnh thử</Button>
-          <Button size="sm" variant="secondary" onClick={() => setSamples(samplePhotos())}>Ảnh mẫu</Button>
-        </div>
-        <input ref={photoIn} type="file" multiple accept="image/*" className="sr-only" onChange={async (e) => {
-          const fs = Array.from(e.target.files ?? []); e.target.value = "";
-          const out = await Promise.all(fs.map(async (f) => { const b = await createImageBitmap(f); const c = document.createElement("canvas"); const s = Math.min(1, 1600 / Math.max(b.width, b.height)); c.width = b.width * s; c.height = b.height * s; c.getContext("2d")!.drawImage(b, 0, 0, c.width, c.height); return c; }));
-          if (out.length) setSamples(out);
-        }} />
-      </section>
-      <section>
-        <p className="mb-2 text-[13px] font-semibold">Lớp ({L.length})</p>
-        <ul className="max-h-[260px] space-y-0.5 overflow-y-auto">
-          {L.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => (
-            <li key={i} className={cx("flex items-center gap-1 rounded-[6px] px-2 py-1 text-[12px]", sel === i ? "bg-[#eff6ff] text-[#2563eb]" : "hover:bg-[#fafafa]", l.hidden && "opacity-50")}>
-              <button type="button" onClick={() => st.setSel(i)} title={layerName(l)} className="min-w-0 flex-1 truncate text-left">{layerName(l)}</button>
-              <button type="button" onClick={() => patch(i, { hidden: !l.hidden })} aria-label={l.hidden ? "Hiện" : "Ẩn"} title={l.hidden ? "Hiện lớp" : "Ẩn lớp"} className="text-[#a1a1aa] hover:text-[#18181b]">{l.hidden ? <EyeOff size={12} /> : <Eye size={12} />}</button>
-              <button type="button" onClick={() => patch(i, { locked: !l.locked })} aria-label={l.locked ? "Mở khoá" : "Khoá"} title={l.locked ? "Mở khoá (khách chọn được)" : "Khoá (khách không chọn / sửa được)"} className={l.locked ? "text-[#ff5fa2]" : "text-[#a1a1aa] hover:text-[#18181b]"}>{l.locked ? <Lock size={12} /> : <Unlock size={12} />}</button>
-              <button type="button" onClick={() => reorder(i, 1)} aria-label="Lên trên" className="text-[#a1a1aa] hover:text-[#18181b]"><ArrowUp size={12} /></button>
-              <button type="button" onClick={() => reorder(i, -1)} aria-label="Xuống dưới" className="text-[#a1a1aa] hover:text-[#18181b]"><ArrowDown size={12} /></button>
-            </li>
-          ))}
-        </ul>
-      </section>
-      {layer && B && sel !== null && (
-        <section className="space-y-2">
-          <p className="text-[13px] font-semibold">Thuộc tính · {layerName(layer)}</p>
+  const block = (title: string, body: React.ReactNode, open = true) => (
+    <details open={open} className="group rounded-[10px] border border-[#e5e5e7]">
+      <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-[13px] font-semibold">{title}<span className="text-[#a1a1aa] transition-transform group-open:rotate-180">▾</span></summary>
+      <div className="border-t border-[#efeff1] p-3">{body}</div>
+    </details>
+  );
+  const admin = (
+    <div className="space-y-2">
+      {block("Ảnh thử", (
+        <>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" icon={<ImagePlus size={14} />} onClick={() => photoIn.current?.click()}>Tải ảnh thử</Button>
+            <Button size="sm" variant="secondary" onClick={() => setSamples(samplePhotos())}>Ảnh mẫu</Button>
+          </div>
+          <input ref={photoIn} type="file" multiple accept="image/*" className="sr-only" onChange={async (e) => {
+            const fs = Array.from(e.target.files ?? []); e.target.value = "";
+            const out = await Promise.all(fs.map(async (f) => { const b = await createImageBitmap(f); const c = document.createElement("canvas"); const s = Math.min(1, 1600 / Math.max(b.width, b.height)); c.width = b.width * s; c.height = b.height * s; c.getContext("2d")!.drawImage(b, 0, 0, c.width, c.height); return c; }));
+            if (out.length) setSamples(out);
+          }} />
+          <p className="mt-2 text-[11px] text-[#a1a1aa]">Chỉ để xem thử — không lưu vào mẫu. Mẫu có {slotCount(cur ?? { layers: [] } as unknown as Template)} ô ảnh.</p>
+        </>
+      ))}
+      {block(layer ? `Thuộc tính · ${layerName(layer)}` : "Thuộc tính", layer && B && sel !== null ? (
+        <div className="space-y-2">
           <div className="grid grid-cols-5 gap-1">
             {(["x", "y", "w", "h", "rot"] as const).map((key) => (
               <label key={key} className="text-[10px] text-[#71717a]">{key === "rot" ? "Xoay°" : key.toUpperCase()}
@@ -241,7 +205,7 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
             <>
               <label className="flex items-center justify-between gap-2 text-[12px] text-[#52525b]">Ảnh số
                 <select value={layer.slot} onChange={(e) => patch(sel, { slot: Number(e.target.value) } as Partial<Layer>)} className="h-7 rounded-[6px] border border-[#e5e5e7] px-1 text-[12px]">
-                  {Array.from({ length: Math.max(slotCount, layer.slot + 1) + 1 }, (_, k) => <option key={k} value={k}>{k + 1}</option>)}
+                  {Array.from({ length: Math.max(slots, layer.slot + 1) + 1 }, (_, k) => <option key={k} value={k}>{k + 1}</option>)}
                 </select>
               </label>
               {lib.sets.length > 0 && (
@@ -256,32 +220,51 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
                         onChange={(e) => randomFrame(sel, e.target.checked ? [...(layer.frameSets ?? []), fs.id] : (layer.frameSets ?? []).filter((x) => x !== fs.id))} />{fs.name}</label>
                     ))}
                   </div>
-                  {!!layer.frameSets?.length && <p className="mt-1 text-[11px] text-[#71717a]">Ngẫu nhiên: {setNames(layer.frameSets)} — khách áp mẫu sẽ nhận 1 khung bất kỳ (theo seed).</p>}
                 </div>
               )}
             </>
           )}
-        </section>
-      )}
-    </>
+        </div>
+      ) : <p className="text-[12px] text-[#a1a1aa]">Chọn 1 lớp trên bề mặt để xem số đo.</p>)}
+      {block(`Lớp (${L.length})`, (
+        <ul className="max-h-[320px] space-y-0.5 overflow-y-auto">
+          {L.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => (
+            <li key={i} className={cx("flex items-center gap-1 rounded-[6px] px-2 py-1 text-[12px]", sel === i ? "bg-[#eff6ff] text-[#2563eb]" : "hover:bg-[#fafafa]", l.hidden && "opacity-50")}>
+              <button type="button" onClick={() => st.setSel(i)} title={layerName(l)} className="min-w-0 flex-1 truncate text-left">{layerName(l)}</button>
+              <button type="button" onClick={() => patch(i, { hidden: !l.hidden })} aria-label={l.hidden ? "Hiện" : "Ẩn"} title={l.hidden ? "Hiện lớp" : "Ẩn lớp"} className="text-[#a1a1aa] hover:text-[#18181b]">{l.hidden ? <EyeOff size={12} /> : <Eye size={12} />}</button>
+              <button type="button" onClick={() => patch(i, { locked: !l.locked })} aria-label={l.locked ? "Mở khoá" : "Khoá"} title={l.locked ? "Mở khoá (khách chọn được)" : "Khoá (khách không chọn / sửa được)"} className={l.locked ? "text-[#ff5fa2]" : "text-[#a1a1aa] hover:text-[#18181b]"}>{l.locked ? <Lock size={12} /> : <Unlock size={12} />}</button>
+              <button type="button" onClick={() => reorder(i, 1)} aria-label="Lên trên" className="text-[#a1a1aa] hover:text-[#18181b]"><ArrowUp size={12} /></button>
+              <button type="button" onClick={() => reorder(i, -1)} aria-label="Xuống dưới" className="text-[#a1a1aa] hover:text-[#18181b]"><ArrowDown size={12} /></button>
+            </li>
+          ))}
+        </ul>
+      ))}
+    </div>
   );
-  const title = src.kind === "custom" ? (booklet ? "Booklet Template" : "CD Template") : src.surface === "booklet" ? "Booklet Template · mẫu tự sinh" : src.surface === "spread" ? "Booklet · kiểu cặp trang" : "CD Template · mẫu tự tạo";
+  const back = row.kind === "cd" ? "/admin/thiet-ke/template/cd-template" : `/admin/thiet-ke/template/booklet-template?sub=${row.kind === "booklet_spread" ? "spread" : "single"}`;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-3 border-b border-[#e5e5e7] bg-white px-4 py-2">
-        <Link href={`/admin/thiet-ke/template?tab=${booklet ? "booklet-template" : "cd-template"}`} className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Template</Link>
-        <span className="text-[12px] text-[#a1a1aa]">{title}</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên mẫu" aria-label="Tên mẫu" className="h-8 min-w-[200px] flex-1 rounded-[6px] border border-transparent px-2 text-[14px] font-semibold hover:border-[#e5e5e7] focus:border-[#ff5fa2] focus:outline-none" />
-        {row?.template && <span className="rounded-full bg-[#fff0f6] px-2 text-[12px] font-medium text-[#db2777]">Đã chỉnh</span>}
-        <Button size="sm" variant="secondary" icon={<RotateCcw size={14} />} onClick={restore} disabled={saving}>Khôi phục mẫu gốc</Button>
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#e5e5e7] bg-white px-4 py-2">
+        <Link href={back} className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Template</Link>
+        <span className="text-[12px] text-[#a1a1aa]">{row.kind === "cd" ? "CD Template" : `Booklet Template · ${KIND_INFO[row.kind].label}`}</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên mẫu" aria-label="Tên mẫu" className="h-8 min-w-[180px] flex-1 rounded-[6px] border border-transparent px-2 text-[14px] font-semibold hover:border-[#e5e5e7] focus:border-[#ff5fa2] focus:outline-none" />
+        <span className="inline-flex">
+          <Button size="sm" variant="secondary" icon={<Sparkles size={14} />} onClick={decorate} className="rounded-r-none">Rải sticker tự động</Button>
+          <button type="button" onClick={() => setGear(true)} title="Cài đặt rải sticker" aria-label="Cài đặt rải sticker" className="grid h-8 w-8 place-items-center rounded-r-[8px] border border-l-0 border-[#e5e5e7] bg-white text-[#52525b] hover:bg-[#f4f4f5]"><Settings size={14} /></button>
+        </span>
+        <Button size="sm" variant="secondary" icon={<RotateCcw size={14} />} onClick={restore} disabled={saving}>Khôi phục bản đã lưu</Button>
         <Button size="sm" icon={<Save size={14} />} onClick={save} loading={saving}>Lưu mẫu</Button>
       </div>
       <div className="flex min-h-0 flex-1">
         <ScrapbookEditor mode="template" st={st} assets={lib.assets} frames={lib.frames} frameSets={lib.sets} fonts={lib.fonts} topics={lib.topics} wishes={lib.wishes}
-          tab={tab} setTab={setTab} guides={guides} setGuides={setGuides} framePhotos={framePhotos} right={right} maxW="max-w-none"
-          pageLabel={(i, n) => (i === 0 ? "Trang 1 (bìa)" : i === n - 1 ? "Trang cuối" : `Cặp trang ${i}`)} />
+          tab={tab} setTab={setTab} guides={guides} setGuides={setGuides} framePhotos={framePhotos} photoTab={admin} maxW="max-w-none" />
       </div>
+      {gear && (
+        <Modal onClose={() => setGear(false)} wide>
+          <StickerSettings value={lib.cfg} sets={lib.sets} storeKey={lib.cfgKey} title={`Cài đặt rải sticker · ${row.kind === "cd" ? "CD Template" : "Booklet Template"}`}
+            onSaved={(v) => { setLib({ ...lib, cfg: v }); setGear(false); }} />
+        </Modal>
+      )}
     </div>
   );
 }
-const EMPTY = {};
