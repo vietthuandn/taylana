@@ -134,14 +134,15 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
       },
     })),
   }], [pages, sets, pKey, tText, thumbPhotos, st.assetImgs, st.frameImgs, st.renderOpts.assets]);
+  const dirty = () => !!doc && (st.D.edited || st.D.canUndo || doc.some((t) => t.layers.some((l) => l.user)));
+  const confirmChange = () => (dirty() ? confirmDialog({ title: "Đổi sang mẫu khác?", message: "Toàn bộ sticker, chữ và chỉnh sửa trên các trang sẽ bị xoá và thay bằng mẫu mới. Ảnh bạn đã tải vẫn được giữ.", confirmText: "Đổi mẫu", cancelText: "Huỷ" }) : Promise.resolve(true));
   const apply = useCallback(async (s: BookletSet, list: Photo[], ask = true) => {
-    if (ask && st.D.edited && !(await confirmDialog({ title: "Đổi sang bộ mẫu này?", message: "Bố cục các trang sẽ được thay bằng bộ mẫu mới. Sticker và chữ bạn tự thêm vẫn được giữ.", confirmText: "Đổi bộ mẫu" }))) return;
-    const next = s.surfaces.map((t, i) => {
-      const d = customizeText(withPhotos(t, list), st.text), mine = st.doc?.[i]?.layers.filter((l) => l.user && l.k !== "photo") ?? [];
-      return { ...d, layers: [...d.layers, ...mine] };
-    });
-    st.D.begin(); st.D.setDoc(next); st.D.setEdited(false); st.setApplied(s.id); st.setSel(null); st.setEditLayer(null);
-    if (st.active >= next.length) st.setActive(0);
+    if (ask && !(await confirmChange())) return;
+    // đổi mẫu = thay mới hoàn toàn: bỏ mọi sticker, chữ, lời chúc, khung, ô ảnh, chỉnh sửa trên các trang; chỉ giữ danh sách ảnh + "Sticker của bạn"
+    const next = s.surfaces.map((t) => customizeText(withPhotos(t, list), st.text));
+    st.setEditText(null); st.setSel(null); st.setEditLayer(null);
+    st.D.setDoc(next); st.D.setEdited(false); st.D.reset(); // làm mới lịch sử Hoàn tác
+    st.setApplied(s.id); st.setActive(0);
   }, [st]);
   // lần đầu tải ảnh: tự áp bộ mẫu cần số ảnh gần nhất
   useEffect(() => {
@@ -151,7 +152,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   }, [st.ready, doc, photos, sets, apply, params]);
   async function changePages(n: number) {
     if (n === pages) return;
-    if (doc && st.D.edited && !(await confirmDialog({ title: `Đổi sang ${n} trang?`, message: "Bố cục sẽ được dựng lại, ảnh bạn đã tải vẫn được giữ.", confirmText: "Đổi số trang" }))) return;
+    if (!(await confirmChange())) return;
     setPages(n);
     if (doc) {
       const style = sets.find((s) => s.id === st.applied)?.style ?? "polaroid";
