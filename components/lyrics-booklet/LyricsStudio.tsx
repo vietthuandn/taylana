@@ -22,7 +22,7 @@ import { saveBlob, saveZip } from "@/lib/imageTools";
 import { impose, impositionZipName, printGuide, sideFileName } from "@/lib/imposition";
 import { cmToPx, JPG_QUALITY } from "@/lib/printSpecs";
 import { savePendingFiles, type PendingFile } from "@/lib/pendingOrderFiles";
-import { lineCount, minLyricPages, packFits, smallestPack } from "@/lib/lyricsBooklet/capacity";
+import { lineCount, minLyricPages } from "@/lib/lyricsBooklet/capacity";
 import { cleanLyrics } from "@/lib/lyricsBooklet/clean";
 import { bestMatch, fmtDuration, lyricsOf, norm, searchLyrics, type LrcResult } from "@/lib/lyricsBooklet/lrclib";
 import { parseTrackList, splitAlbumLyrics, type Segment, type TrackRow } from "@/lib/lyricsBooklet/parse";
@@ -30,7 +30,7 @@ import { FEATURE_LYRICS_SUGGEST } from "@/lib/features";
 import { buildBooklet } from "@/lib/lyricsBooklet/layout";
 import { longRule } from "@/lib/lyricsBooklet/capacity";
 import { repeatGroups } from "@/lib/lyricsBooklet/format";
-import { inBox, loadBookletFonts, paletteFromImage, renderBack, renderPage, type Ctx, type PageHit } from "@/lib/lyricsBooklet/render";
+import { flowLayout, flowPages, inBox, loadBookletFonts, paletteFromImage, renderBack, renderPage, type Ctx, type PageHit } from "@/lib/lyricsBooklet/render";
 import { loadFromAccount, loadLocal, saveLocal, saveToAccount, type LyricsDoc } from "@/lib/lyricsBooklet/doc";
 import { BACKS, LAYOUTS, MAX_LINE_CHARS, MAX_SONGS, PACKS, type Adjust, type Album, type BackId, type LayoutId, type LyricsSettings, type Song, DEFAULT_FORMAT, FONT_SIZES, type LyricsFormat, type LyricStyle } from "@/lib/lyricsBooklet/types";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
@@ -57,7 +57,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
   const params = useSearchParams();
   const layouts = LAYOUTS.filter((l) => settings.layouts[l.id]);
   const backs = BACKS.filter((b) => settings.backs[b.id]);
-  const [album, setAlbum] = useState<Album>({ title: "", artist: "", year: "", credit: "" });
+  const [album, setAlbum] = useState<Album>({ title: "", artist: "", coverText: true });
   const [songs, setSongs] = useState<Song[]>(() => Array.from({ length: 5 }, (_, i) => newSong(i)));
   const [pack, setPack] = useState(8);
   const [packPicked, setPackPicked] = useState(false);
@@ -68,6 +68,10 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
   const [seeds, setSeeds] = useState<Partial<Record<LayoutId, number>>>({});
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [backPhoto, setBackPhoto] = useState<Photo | null>(null);
+  const [coverPhoto, setCoverPhoto] = useState<Photo | null>(null); // ảnh bìa riêng (trang 1)
+  const [rightsOk, setRightsOk] = useState(false); // đã tick cam kết bản quyền (lưu theo thiết kế)
+  const [rightsOpen, setRightsOpen] = useState(false);
+  const [rightsTick, setRightsTick] = useState(false);
   const [adjust, setAdjust] = useState<Record<string, Adjust>>({});
   const [tab, setTab] = useState<"booklet" | "back">("booklet");
   const [spread, setSpread] = useState(0);
@@ -87,7 +91,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
   const [dragSong, setDragSong] = useState<number | null>(null);
   const [dragPhoto, setDragPhoto] = useState<number | null>(null);
   const [thumbs, setThumbs] = useState<{ pages: string[]; layouts: Record<string, string>; backs: Record<string, string> }>({ pages: [], layouts: {}, backs: {} });
-  const fileIn = useRef<HTMLInputElement>(null), replaceIn = useRef<HTMLInputElement>(null), backIn = useRef<HTMLInputElement>(null);
+  const fileIn = useRef<HTMLInputElement>(null), replaceIn = useRef<HTMLInputElement>(null), backIn = useRef<HTMLInputElement>(null), coverIn = useRef<HTMLInputElement>(null);
   const replaceId = useRef<string | null>(null);
   const area = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 800, h: 500 });
@@ -105,11 +109,18 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
         const { doc } = saved;
         const map: Record<string, Photo> = {};
         for (const p of saved.photos) { try { map[p.id] = await readPhoto(p.blob, p.id); } catch { /* bỏ ảnh lỗi */ } }
-        setAlbum(doc.album); setSongs(doc.songs.length ? doc.songs : [newSong(0)]); setPack(doc.pack); setPackPicked(true);
+        setAlbum({ title: doc.album.title ?? "", artist: doc.album.artist ?? "", coverText: doc.album.coverText !== false });
+        // bản nháp cũ: lời gợi ý "chờ duyệt" → điền thẳng (đánh dấu nguồn LRCLIB)
+        const sg = doc.songs.map(({ pending, ...x }) => (pending ? { ...x, src: "lrclib" as const } : x));
+        setSongs(sg.length ? sg : [newSong(0)]); setRightsOk(!!doc.rightsOk); setPack(doc.pack); setPackPicked(true);
         if (layouts.some((l) => l.id === doc.layout)) setLayout(doc.layout);
         if (backs.some((b) => b.id === doc.back)) setBack(doc.back);
         setPaletteId(doc.paletteId); setFmt({ ...DEFAULT_FORMAT, ...(doc.fmt ?? {}) }); setSeeds(doc.seeds ?? {}); setAdjust(doc.adjust ?? {}); setPhotoPaths(doc.photoPaths ?? {});
-        setPhotos(doc.photoIds.map((i) => map[i]).filter(Boolean));
+        // bản nháp cũ (chưa có ảnh bìa riêng): ảnh đầu tiên là ảnh bìa
+        const legacy = doc.coverPhotoId === undefined;
+        const list = doc.photoIds.map((i) => map[i]).filter(Boolean);
+        setCoverPhoto(legacy ? list[0] ?? null : doc.coverPhotoId ? map[doc.coverPhotoId] ?? null : null);
+        setPhotos(legacy ? list.slice(1) : list);
         setBackPhoto(doc.backPhotoId ? map[doc.backPhotoId] ?? null : null);
       }
       if (hasSupabase) { const { data } = await createClient().auth.getUser(); if (!off) setUser(!!data.user); }
@@ -120,31 +131,38 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
   }, []);
   const doc = useMemo<LyricsDoc>(() => ({
     v: 1, kind: "lyrics-booklet", album, songs, pack, layout, back, paletteId, seeds, adjust, fmt,
-    photoIds: photos.map((p) => p.id), backPhotoId: backPhoto?.id ?? null, photoPaths,
-  }), [album, songs, pack, layout, back, paletteId, seeds, adjust, fmt, photos, backPhoto, photoPaths]);
+    photoIds: photos.map((p) => p.id), backPhotoId: backPhoto?.id ?? null, coverPhotoId: coverPhoto?.id ?? null, rightsOk, photoPaths,
+  }), [album, songs, pack, layout, back, paletteId, seeds, adjust, fmt, photos, backPhoto, coverPhoto, rightsOk, photoPaths]);
+  const allPhotos = useMemo(() => [...photos, ...(backPhoto ? [backPhoto] : []), ...(coverPhoto ? [coverPhoto] : [])].map((p) => ({ id: p.id, blob: p.blob })), [photos, backPhoto, coverPhoto]);
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(() => { saveLocal(doc, [...photos, ...(backPhoto ? [backPhoto] : [])].map((p) => ({ id: p.id, blob: p.blob }))).catch(() => {}); }, 800);
+    const t = setTimeout(() => { saveLocal(doc, allPhotos).catch(() => {}); }, 800);
     return () => clearTimeout(t);
-  }, [ready, doc, photos, backPhoto]);
+  }, [ready, doc, allPhotos]);
 
-  // bài "chờ duyệt" (lời gợi ý chưa được khách xem + Lưu) chưa dàn lyrics vào booklet
-  const lay = useMemo(() => songs.map((x) => (x.pending ? { ...x, lyrics: "" } : x)), [songs]);
+  const lay = songs;
+  const chain = fmt.flow === "chain";
   // ---------- sức chứa / gói: bài dài đo theo CHIỀU CAO THẬT (font, cỡ chữ, kiểu lời, độ rộng cột) ----------
   const rule = useMemo(() => longRule({ bodyFont: settings.bodyFont, titleFont: settings.titleFont, minPt: settings.minFontPt, fmt }), [settings.bodyFont, settings.titleFont, settings.minFontPt, fmt, ready]); // eslint-disable-line react-hooks/exhaustive-deps
-  const need = minLyricPages(lay, rule);
-  const auto = smallestPack(lay, rule);
+  // "Nối đuôi": sức chứa = tổng chiều cao chữ của tất cả bài trên tổng số cột (3 cột / trang lyrics)
+  const mctx = useMemo(() => ({ songs: lay, bodyFont: settings.bodyFont, titleFont: settings.titleFont, minPt: settings.minFontPt, fmt }), [lay, settings.bodyFont, settings.titleFont, settings.minFontPt, fmt, ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  const flow = useMemo(() => (chain ? (() => { const f = flowLayout(mctx); return { cols: f.cols.length, endCol: f.endCol }; })() : null), [chain, mctx]);
+  const need = chain ? flowPages(mctx) : minLyricPages(lay, rule);
+  const fitsN = (n: number) => n - 1 >= need;
+  const auto = PACKS.find(fitsN) ?? null;
   useEffect(() => { if (!packPicked && auto && auto !== pack) setPack(auto); }, [auto, pack, packPicked]);
-  const fits = packFits(pack, lay, rule);
+  const fits = fitsN(pack);
   const setCount = (n: number) => setSongs((cur) => (n > cur.length ? [...cur, ...Array.from({ length: n - cur.length }, (_, i) => newSong(cur.length + i))] : cur.slice(0, n)));
 
   // ---------- dàn trang ----------
   const seed = seeds[layout] ?? 1;
-  const built = useMemo(() => buildBooklet(layout, pack, lay, album, seed, rule), [layout, pack, lay, album, seed, rule]);
-  const palette = useMemo(() => (paletteId === "auto" ? paletteFromImage(photos[0]?.img ?? null) ?? settings.palettes[0] : settings.palettes.find((p) => p.id === paletteId) ?? settings.palettes[0]), [paletteId, photos, settings.palettes]);
+  const built = useMemo(() => buildBooklet(layout, pack, lay, album, seed, rule, flow), [layout, pack, lay, album, seed, rule, flow]);
+  const coverImg = coverPhoto?.img ?? null;
+  const palette = useMemo(() => (paletteId === "auto" ? paletteFromImage(coverImg ?? photos[0]?.img ?? null) ?? settings.palettes[0] : settings.palettes.find((p) => p.id === paletteId) ?? settings.palettes[0]), [paletteId, coverImg, photos, settings.palettes]);
   const slotImgs = useMemo(() => photos.map((p) => p.img), [photos]);
   const slotAdj = useMemo(() => Object.fromEntries(photos.map((p, i) => [i, adjust[p.id]])), [photos, adjust]);
-  const ctx: Ctx = useMemo(() => ({ songs: lay, album, photos: slotImgs, adjust: slotAdj, palette, titleFont: settings.titleFont, bodyFont: settings.bodyFont, minPt: settings.minFontPt, fmt }), [lay, album, slotImgs, slotAdj, palette, settings, fmt]);
+  const coverAdj = coverPhoto ? adjust[coverPhoto.id] : undefined;
+  const ctx: Ctx = useMemo(() => ({ songs: lay, album, photos: slotImgs, adjust: slotAdj, palette, titleFont: settings.titleFont, bodyFont: settings.bodyFont, minPt: settings.minFontPt, fmt, cover: coverImg, coverAdj }), [lay, album, slotImgs, slotAdj, palette, settings, fmt, coverImg, coverAdj]);
   const spreads = useMemo(() => { const s: number[][] = [[1]]; for (let p = 2; p < pack; p += 2) s.push([p, p + 1]); s.push([pack]); return s; }, [pack]);
   const cur = spreads[Math.min(spread, spreads.length - 1)];
   useEffect(() => { if (spread > spreads.length - 1) setSpread(spreads.length - 1); }, [spread, spreads.length]);
@@ -185,7 +203,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
       const pages = built.pages.map((p) => renderPage(p, ctx, 110).canvas.toDataURL("image/jpeg", 0.8));
       const layThumbs: Record<string, string> = {};
       for (const l of layouts) {
-        const b = buildBooklet(l.id, pack, lay, album, seeds[l.id] ?? 1, rule);
+        const b = buildBooklet(l.id, pack, lay, album, seeds[l.id] ?? 1, rule, flow);
         const c = document.createElement("canvas"); c.width = 240; c.height = 120;
         const x = c.getContext("2d")!;
         b.pages.filter((p) => p.no === 2 || p.no === 3).forEach((p) => x.drawImage(renderPage(p, ctx, 120).canvas, p.no === 2 ? 0 : 120, 0));
@@ -197,7 +215,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
     }, 300);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, built, ctx, pack, lay, album, seeds, backPhoto]);
+  }, [ready, built, ctx, pack, lay, album, seeds, backPhoto, flow]);
 
   // ---------- tìm lời gợi ý cho tất cả bài chưa có lời (LRCLIB, xếp hàng 2 giây / lần) ----------
   async function findAll(list: Song[]) {
@@ -213,7 +231,8 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
         if (!r && x.alt) r = bestMatch(await searchLyrics(x.alt, x.title), x.alt, x.title, x.duration); // "Ca sĩ - Tên bài": thử chiều ngược lại
         if (r) {
           const text = lyricsOf(r);
-          setSongs((c) => c.map((y) => (y.id === x.id ? { ...y, lyrics: text, pending: true, duration: y.duration || fmtDuration(r!.duration) } : y)));
+          // lời tìm được (đã dọn) điền thẳng vào bài — dàn vào booklet ngay, khách mở ra sửa được bất cứ lúc nào
+          setSongs((c) => c.map((y) => (y.id === x.id ? { ...y, lyrics: text, src: "lrclib", duration: y.duration || fmtDuration(r!.duration) } : y)));
           found.push(x.title);
         } else missing.push(x.title);
       } catch (e) { error = e instanceof Error ? e.message : "Lỗi mạng"; missing.push(...todo.slice(i).map((y) => y.title)); break; }
@@ -237,6 +256,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
     const p = toMM(e.currentTarget, e), h = hitAt(no, p.x, p.y);
     if (!h) { setEditSlot(null); return; }
     if (h.k === "song") { setEditSlot(null); setModal(h.song); return; }
+    if (h.k === "cover") { setEditSlot(null); if (!coverPhoto) coverIn.current?.click(); return; }
     if (!photos[h.slot]) { fileIn.current?.click(); return; } // ô trống: bấm để tải ảnh
     e.currentTarget.setPointerCapture(e.pointerId);
     const ph = photos[h.slot];
@@ -311,7 +331,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
   });
   const saveAccount = () => run(async () => {
     const cover = renderPage(built.pages[0], ctx, 360).canvas.toDataURL("image/jpeg", 0.8);
-    const r = await saveToAccount(doc, [...photos, ...(backPhoto ? [backPhoto] : [])].map((p) => ({ id: p.id, blob: p.blob })), { id: designId, name: album.title || "Booklet Lyrics", thumbnail: cover });
+    const r = await saveToAccount(doc, allPhotos, { id: designId, name: album.title || "Booklet Lyrics", thumbnail: cover });
     setDesignId(r.id); setPhotoPaths(r.paths);
     toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
   });
@@ -385,7 +405,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
             { label: "Bìa sau (JPG)", icon: <ImageIcon size={16} />, onClick: dlBack },
           ]} />
           {orderId
-            ? <Button size="sm" icon={<ShoppingBag size={16} />} onClick={order} disabled={busy || !fits}>Đặt in booklet này</Button>
+            ? <Button size="sm" icon={<ShoppingBag size={16} />} onClick={() => { if (rightsOk) order(); else { setRightsTick(false); setRightsOpen(true); } }} disabled={busy || !fits}>Đặt in booklet này</Button>
             : <Button size="sm" href="/lien-he">Liên hệ tiệm để in {pack} trang</Button>}
         </div>
       </section>
@@ -394,11 +414,37 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
       <aside className="space-y-6 border-[#e5e5e7] bg-white p-6 md:w-[36%] md:min-w-[360px] md:shrink-0 md:overflow-y-auto md:border-l">
         <Section title="Thông tin album">
           <div className="grid gap-2">
-            <In value={album.title} onChange={(v) => setAlbum({ ...album, title: v })} placeholder="Tên album" />
-            <In value={album.artist} onChange={(v) => setAlbum({ ...album, artist: v })} placeholder="Tên nghệ sĩ (hoặc “Dành tặng …”)" />
-            <In value={album.year} onChange={(v) => setAlbum({ ...album, year: v })} placeholder="Năm (không bắt buộc)" />
-            <textarea value={album.credit} onChange={(e) => setAlbum({ ...album, credit: e.target.value })} placeholder="Lời cảm ơn / credit (không bắt buộc, in ở trang cuối)" rows={3}
-              className="w-full rounded-[8px] border border-[#e5e5e7] px-3 py-2 text-[14px] outline-none focus:border-[#ff5fa2]" />
+            {/* ảnh bìa riêng — dùng cho trang 1, không lấy từ mục Ảnh */}
+            <div className="flex items-center gap-3">
+              {coverPhoto ? (
+                <div className="group relative aspect-square w-24 shrink-0 overflow-hidden rounded-[8px] border border-[#e5e5e7]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={coverPhoto.url} alt="Ảnh bìa" className="h-full w-full object-cover" draggable={false} />
+                  <div className="absolute bottom-1 right-1 flex gap-1 md:inset-0 md:items-center md:justify-center md:bg-black/40 md:opacity-0 md:group-hover:opacity-100">
+                    <button type="button" title="Thay ảnh" aria-label="Thay ảnh bìa" onClick={() => coverIn.current?.click()} className="grid h-6 w-6 place-items-center rounded-full bg-white text-[#18181b] shadow"><RefreshCw size={12} /></button>
+                    <button type="button" title="Xoá" aria-label="Xoá ảnh bìa" onClick={() => setCoverPhoto(null)} className="grid h-6 w-6 place-items-center rounded-full bg-white text-[#dc2626] shadow"><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => coverIn.current?.click()} onDragOver={(e) => e.preventDefault()}
+                  onDrop={async (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { try { setCoverPhoto(await readPhoto(f)); } catch { toast("Không đọc được ảnh.", "err"); } } }}
+                  className="grid aspect-square w-24 shrink-0 place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] text-center text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2]">
+                  <span><Plus size={16} className="mx-auto mb-0.5 text-[#a1a1aa]" />Ảnh bìa</span>
+                </button>
+              )}
+              <div className="min-w-0 space-y-1">
+                <p className="text-[13px] font-medium">Ảnh bìa</p>
+                <p className="text-[12px] text-[#71717a]">Dùng cho trang 1 (bìa booklet).</p>
+                <Toggle checked={album.coverText !== false} onChange={(v) => setAlbum({ ...album, coverText: v })} label="Chèn tên album lên bìa" />
+              </div>
+              <input ref={coverIn} type="file" accept={ACCEPT} className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { try { setCoverPhoto(await readPhoto(f)); } catch { toast("Không đọc được ảnh.", "err"); } } }} />
+            </div>
+            {album.coverText !== false && (
+              <>
+                <In value={album.title} onChange={(v) => setAlbum({ ...album, title: v })} placeholder="Tên album" />
+                <In value={album.artist} onChange={(v) => setAlbum({ ...album, artist: v })} placeholder="Tên nghệ sĩ (hoặc “Dành tặng …”)" />
+              </>
+            )}
           </div>
         </Section>
 
@@ -413,7 +459,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
             <div className="flex items-center gap-1.5">
               <span className="mr-1 text-[13px] text-[#52525b]">Số trang</span>
               {PACKS.map((n) => {
-                const ok = packFits(n, lay, rule);
+                const ok = fitsN(n);
                 return (
                   <button key={n} type="button" disabled={!ok} title={ok ? `${n} trang` : `Không đủ chỗ để dàn trang cho ${songs.length} bài`} onClick={() => { setPack(n); setPackPicked(true); setSpread(0); }}
                     className={cx("h-8 min-w-[40px] rounded-full border px-3 text-[13px] font-medium", pack === n ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b]", !ok && "cursor-not-allowed opacity-40")}>{n}</button>
@@ -439,6 +485,11 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
               <span className="mr-1 text-[13px] text-[#52525b]">Kiểu lời</span>
               {LYRIC_STYLES.map(([k, t]) => <button key={k} type="button" onClick={() => setFmt({ ...fmt, style: k })} className={fchip(fmt.style === k)}>{t}</button>)}
             </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[13px] text-[#52525b]">Xếp bài</span>
+              {([["block", "Mỗi bài 1 khối"], ["chain", "Nối đuôi"]] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setFmt({ ...fmt, flow: k })} className={fchip((fmt.flow ?? "block") === k)}>{t}</button>)}
+            </div>
+            {chain && fmt.style === "original" && <p className="text-[12px] text-[#71717a]">Chọn Rút gọn lặp hoặc Liền dòng để tiết kiệm diện tích hơn.</p>}
             {fmt.style !== "original" && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-[#52525b]">
                 <label className="flex items-center gap-1.5">Nhãn đoạn lặp
@@ -471,7 +522,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
           )}
           <ol className="space-y-1.5">
             {songs.map((s, i) => {
-              const has = (!!s.lyrics.trim() || s.titleOnly) && !s.pending;
+              const has = !!s.lyrics.trim() || s.titleOnly;
               return (
                 <li key={s.id} draggable onDragStart={() => setDragSong(i)} onDragEnd={() => setDragSong(null)} onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => { e.preventDefault(); if (dragSong !== null && dragSong !== i) setSongs((c) => { const a = [...c]; const [x] = a.splice(dragSong, 1); a.splice(i, 0, x); return a; }); setDragSong(null); }}
@@ -482,9 +533,9 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
                     className="min-w-0 flex-1 rounded-[6px] px-1.5 py-1 text-[14px] outline-none focus:bg-[#fafafa]" />
                   <input value={s.duration} onChange={(e) => setSongs((c) => c.map((x) => (x.id === s.id ? { ...x, duration: e.target.value.slice(0, 6) } : x)))} placeholder="3:45" aria-label="Thời lượng"
                     className="w-14 shrink-0 rounded-[6px] px-1.5 py-1 text-center text-[13px] tabular-nums outline-none focus:bg-[#fafafa]" />
-                  <button type="button" onClick={() => setModal(i)} title={s.pending ? "Lời gợi ý chờ duyệt — mở để xem, cam kết và Lưu" : has ? "Sửa lyrics" : "Thêm lyrics"} aria-label={has ? "Sửa lyrics" : "Thêm lyrics"}
-                    className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-full", s.pending ? "bg-[#fff7ed]" : has ? "bg-[#ecfdf3] text-[#16a34a]" : "border border-[#e5e5e7] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]")}>
-                    {s.pending ? <span className="h-2.5 w-2.5 rounded-full bg-[#f97316]" /> : has ? <Check size={14} /> : <Plus size={14} />}
+                  <button type="button" onClick={() => setModal(i)} title={has ? "Sửa lyrics" : "Thêm lyrics"} aria-label={has ? "Sửa lyrics" : "Thêm lyrics"}
+                    className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-full", has ? "bg-[#ecfdf3] text-[#16a34a]" : "border border-[#e5e5e7] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]")}>
+                    {has ? <Check size={14} /> : <Plus size={14} />}
                   </button>
                 </li>
               );
@@ -507,7 +558,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
             <button type="button" onClick={() => setSeeds((s) => ({ ...s, [layout]: Math.floor(Math.random() * 1e6) }))}
               className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /> Xáo trộn</button>
             <span className="ml-2 text-[12px] text-[#71717a]">Màu:</span>
-            {[{ id: "auto", name: "Tự động (theo ảnh bìa)", bg: paletteFromImage(photos[0]?.img ?? null)?.bg ?? "#eee" }, ...settings.palettes].map((p) => (
+            {[{ id: "auto", name: "Tự động (theo ảnh bìa)", bg: paletteFromImage(coverImg ?? photos[0]?.img ?? null)?.bg ?? "#eee" }, ...settings.palettes].map((p) => (
               <button key={p.id} type="button" onClick={() => setPaletteId(p.id)} title={p.name} aria-label={p.name}
                 className={cx("h-7 w-7 rounded-full border", paletteId === p.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#d4d4d8]")} style={{ background: p.bg }}>
                 {p.id === "auto" && <span className="text-[9px] font-bold text-[#52525b]">A</span>}
@@ -521,7 +572,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
             className="grid w-full place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] px-4 py-4 text-center hover:border-[#ff5fa2]">
             <Upload size={18} className="mb-1 text-[#a1a1aa]" />
             <span className="text-[14px] font-medium">Kéo thả hoặc chọn nhiều ảnh</span>
-            <span className="text-[12px] text-[#71717a]">Ảnh 1 luôn là ảnh bìa booklet · ảnh chỉ xử lý trên máy bạn</span>
+            <span className="text-[12px] text-[#71717a]">Dùng cho các ô ảnh bên trong booklet · ảnh chỉ xử lý trên máy bạn</span>
           </button>
           <input ref={fileIn} type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }} />
           <input ref={replaceIn} type="file" accept={ACCEPT} className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; const id = replaceId.current; if (f && id) { try { const p = await readPhoto(f); setPhotos((c) => c.map((x) => (x.id === id ? p : x))); } catch { toast("Không đọc được ảnh.", "err"); } } }} />
@@ -533,7 +584,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
                   className={cx("group relative aspect-square cursor-grab overflow-hidden rounded-[8px] border border-[#e5e5e7]", dragPhoto === i && "opacity-40")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.url} alt="" className="h-full w-full object-cover" draggable={false} />
-                  <span className="pointer-events-none absolute left-1 top-1 rounded-[4px] bg-black/70 px-1 text-[10px] font-medium leading-[15px] text-white">{i === 0 ? "Bìa" : i + 1}</span>
+                  <span className="pointer-events-none absolute left-1 top-1 rounded-[4px] bg-black/70 px-1 text-[10px] font-medium leading-[15px] text-white">{i + 1}</span>
                   <div className="absolute bottom-1 right-1 flex gap-1 md:inset-0 md:items-center md:justify-center md:bg-black/40 md:opacity-0 md:group-hover:opacity-100">
                     <button type="button" title="Thay ảnh" aria-label="Thay ảnh" onClick={() => { replaceId.current = p.id; replaceIn.current?.click(); }} className="grid h-6 w-6 place-items-center rounded-full bg-white text-[#18181b] shadow"><RefreshCw size={12} /></button>
                     <button type="button" title="Xoá" aria-label="Xoá" onClick={() => setPhotos((c) => c.filter((x) => x.id !== p.id))} className="grid h-6 w-6 place-items-center rounded-full bg-white text-[#dc2626] shadow"><Trash2 size={12} /></button>
@@ -545,6 +596,12 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
         </Section>
 
         <Section title="Bìa sau">
+          {album.coverText === false && (
+            <div className="mb-3 grid gap-2">
+              <In value={album.title} onChange={(v) => setAlbum({ ...album, title: v })} placeholder="Tên album (in ở gáy và bìa sau)" />
+              <In value={album.artist} onChange={(v) => setAlbum({ ...album, artist: v })} placeholder="Tên nghệ sĩ (in ở gáy)" />
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {backs.map((b) => (
               <button key={b.id} type="button" onClick={() => { setBack(b.id); setTab("back"); }}
@@ -565,7 +622,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
      </div>
       {modal !== null && songs[modal] && (
         <SongModal index={modal} song={songs[modal]} maxLines={settings.maxLines} defaultArtist={album.artist} lang={fmt.lang} globalStyle={fmt.style} onClose={() => setModal(null)}
-          onSave={(s) => { setSongs((c) => c.map((x, i) => (i === modal ? { ...s, pending: false } : x))); setModal(null); }} />
+          onSave={(s) => { setSongs((c) => c.map((x, i) => (i === modal ? s : x))); setModal(null); }} />
       )}
       {importOpen && (
         <ImportModal defaultArtist={album.artist} current={songs.length} onClose={() => setImportOpen(false)}
@@ -586,9 +643,24 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
       {albumOpen && (
         <AlbumModal songs={songs} maxLines={settings.maxLines} onClose={() => setAlbumOpen(false)}
           onConfirm={(segs) => {
-            setSongs((c) => c.map((x, i) => { const g = segs.find((sg) => sg.song === i); return g ? { ...x, lyrics: g.lyrics, pending: false, titleOnly: false } : x; }));
+            setSongs((c) => c.map((x, i) => { const g = segs.find((sg) => sg.song === i); return g ? { ...x, lyrics: cleanLyrics(g.lyrics), src: undefined, titleOnly: false } : x; }));
             setAlbumOpen(false); toast(`Đã điền lời cho ${segs.length} bài`);
           }} />
+      )}
+      {rightsOpen && (
+        <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={() => setRightsOpen(false)}>
+          <div className="w-full max-w-[420px] rounded-[14px] bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <p className="text-[16px] font-semibold">Trước khi đặt in</p>
+            <label className="mt-3 flex items-start gap-2 text-[14px] text-[#3f3f46]">
+              <input type="checkbox" checked={rightsTick} onChange={(e) => setRightsTick(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff5fa2]" />
+              Tôi chịu trách nhiệm về bản quyền nội dung (lời bài hát, hình ảnh) trong thiết kế này.
+            </label>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setRightsOpen(false)}>Huỷ</Button>
+              <Button disabled={!rightsTick} onClick={() => { setRightsOk(true); setRightsOpen(false); order(); }}>Tiếp tục</Button>
+            </div>
+          </div>
+        </div>
       )}
       {summary && (
         <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={() => setSummary(null)}>
@@ -599,7 +671,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
             {summary.found.length > 0 && <p className="text-[13px] text-[#52525b]">{summary.found.join(", ")}</p>}
             <p className="mt-2 text-[13px] font-medium text-[#ea7a12]">Không tìm được {summary.missing.length} bài</p>
             {summary.missing.length > 0 && <p className="text-[13px] text-[#52525b]">{summary.missing.join(", ")}</p>}
-            <p className="mt-3 text-[12px] text-[#71717a]">Bài có chấm cam là lời gợi ý chờ duyệt: mở từng bài để kiểm tra, tick cam kết bản quyền rồi bấm Lưu thì mới được dàn vào booklet.</p>
+            <p className="mt-3 text-[12px] text-[#71717a]">Lời tìm được đã điền thẳng vào từng bài và dàn vào booklet. Bấm vào bài để xem và sửa nếu cần.</p>
             <div className="mt-4 flex justify-end"><Button onClick={() => setSummary(null)}>Đã hiểu</Button></div>
           </div>
         </div>
@@ -627,10 +699,8 @@ function In({ value, onChange, placeholder }: { value: string; onChange: (v: str
 // ---------- Modal lyrics 1 bài ----------
 function SongModal({ index, song, maxLines, defaultArtist, lang, globalStyle, onClose, onSave }: { index: number; song: Song; maxLines: number; defaultArtist: string; lang: "en" | "vi"; globalStyle: LyricStyle; onClose: () => void; onSave: (s: Song) => void }) {
   const [s, setS] = useState(song);
-  const [agree, setAgree] = useState(!!song.lyrics.trim() && !song.pending); // lời gợi ý: vẫn phải tick cam kết
   const [err, setErr] = useState("");
   const [undo, setUndo] = useState<string | null>(null); // bản gốc trước khi dọn lời (nút Hoàn tác)
-  const [suggested, setSuggested] = useState(!!song.pending);
   const [results, setResults] = useState<LrcResult[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchErr, setSearchErr] = useState("");
@@ -652,7 +722,7 @@ function SongModal({ index, song, maxLines, defaultArtist, lang, globalStyle, on
     const el = e.currentTarget, full = el.value.slice(0, el.selectionStart) + t + el.value.slice(el.selectionEnd);
     const cleaned = cleanLyrics(full);
     setUndo(full); setErr("");
-    setS({ ...s, lyrics: cleaned });
+    setS({ ...s, lyrics: cleaned, src: undefined });
   }
   async function find() {
     if (!s.title.trim()) return setSearchErr("Nhập tên bài trước khi tìm.");
@@ -663,8 +733,8 @@ function SongModal({ index, song, maxLines, defaultArtist, lang, globalStyle, on
   }
   function pick(r: LrcResult) {
     const text = lyricsOf(r);
-    setUndo(null); setErr(""); setSuggested(true); setAgree(false); setResults(null);
-    setS({ ...s, lyrics: text, duration: s.duration || fmtDuration(r.duration) });
+    setUndo(null); setErr(""); setResults(null);
+    setS({ ...s, lyrics: text, src: "lrclib", duration: s.duration || fmtDuration(r.duration) });
   }
   const hasLyrics = !!s.lyrics.trim() && !s.titleOnly;
   const effStyle = s.style ?? globalStyle;
@@ -702,7 +772,7 @@ function SongModal({ index, song, maxLines, defaultArtist, lang, globalStyle, on
             </ul>
           ) : <p className="rounded-[10px] bg-[#fafafa] p-3 text-[13px] text-[#52525b]">Không tìm thấy lời cho bài này, bạn vui lòng dán lời vào ô bên dưới.</p>)}
           <div>
-            {suggested && hasLyrics && <p className="mb-1 rounded-[6px] bg-[#fff7ed] px-2 py-1 text-[12px] text-[#c2410c]">Lời gợi ý từ cộng đồng LRCLIB, có thể chưa chính xác. Vui lòng kiểm tra lại trước khi in.</p>}
+            {s.src === "lrclib" && hasLyrics && <p className="mb-1 text-[12px] text-[#a1a1aa]">Lời gợi ý từ cộng đồng LRCLIB, có thể chưa chính xác</p>}
             <textarea value={s.lyrics} onChange={(e) => setLyrics(e.target.value)} onPaste={onPaste} rows={12} placeholder="Dán lyrics vào đây — web tự dọn nhãn [Chorus], dòng rác, mốc thời gian; giữ nguyên ngắt dòng của bạn." disabled={s.titleOnly}
               className="w-full rounded-[8px] border border-[#e5e5e7] px-3 py-2 text-[14px] leading-relaxed outline-none focus:border-[#ff5fa2] disabled:bg-[#fafafa]" />
             <div className="mt-1 flex items-center justify-between gap-2 text-[12px]">
@@ -744,16 +814,10 @@ function SongModal({ index, song, maxLines, defaultArtist, lang, globalStyle, on
               </table>
             </div>
           )}
-          {hasLyrics && (
-            <label className="flex items-start gap-2 text-[13px] text-[#3f3f46]">
-              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff5fa2]" />
-              Tôi có quyền sử dụng lời bài hát này và tự chịu trách nhiệm về bản quyền.
-            </label>
-          )}
         </div>
         <div className="flex justify-end gap-2 border-t border-[#efeff1] px-5 py-3">
           <Button variant="secondary" onClick={onClose}>Huỷ</Button>
-          <Button disabled={(hasLyrics && !agree) || (hasLyrics && over)} onClick={() => onSave({ ...s, lyrics: cleanLyrics(s.lyrics), pending: false })}>Lưu</Button>
+          <Button disabled={hasLyrics && over} onClick={() => onSave({ ...s, lyrics: cleanLyrics(s.lyrics) })}>Lưu</Button>
         </div>
       </div>
     </div>
@@ -820,12 +884,11 @@ function ImportModal({ defaultArtist, current, onClose, onConfirm }: {
 function AlbumModal({ songs, maxLines, onClose, onConfirm }: { songs: Song[]; maxLines: number; onClose: () => void; onConfirm: (segs: Segment[]) => void }) {
   const [text, setText] = useState("");
   const [segs, setSegs] = useState<Segment[]>([]);
-  const [agree, setAgree] = useState(false);
   useEffect(() => { setSegs(splitAlbumLyrics(text, songs.map((x) => x.title))); }, [text, songs]);
   const active = segs.filter((x) => x.song !== null);
   const tooLong = (x: Segment) => x.lyrics.split("\n").length > maxLines || x.lyrics.split("\n").some((l) => l.length > MAX_LINE_CHARS);
   const dup = new Set(active.map((x) => x.song)).size !== active.length;
-  const blocked = !active.length || active.some(tooLong) || dup || !agree;
+  const blocked = !active.length || active.some(tooLong) || dup;
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={onClose}>
       <div className="flex max-h-[92dvh] w-full max-w-[720px] flex-col overflow-hidden rounded-[14px] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -859,12 +922,6 @@ function AlbumModal({ songs, maxLines, onClose, onConfirm }: { songs: Song[]; ma
           )}
           {dup && <p className="text-[13px] text-[#dc2626]">Có 2 đoạn cùng gán vào 1 bài — đổi bài hoặc bỏ bớt 1 đoạn.</p>}
           {active.some(tooLong) && <p className="text-[13px] text-[#dc2626]">Đoạn tô đỏ vượt giới hạn {maxLines} dòng / {MAX_LINE_CHARS} ký tự mỗi dòng — bỏ đoạn đó hoặc sửa khối lời rồi dán lại.</p>}
-          {segs.length > 0 && (
-            <label className="flex items-start gap-2 text-[13px] text-[#3f3f46]">
-              <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff5fa2]" />
-              Tôi có quyền sử dụng lời các bài hát này và tự chịu trách nhiệm về bản quyền.
-            </label>
-          )}
         </div>
         <div className="flex justify-end gap-2 border-t border-[#efeff1] px-5 py-3">
           <Button variant="secondary" onClick={onClose}>Huỷ</Button>

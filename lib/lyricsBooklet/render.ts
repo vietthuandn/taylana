@@ -1,7 +1,8 @@
 "use client";
 
 /* Booklet Lyrics — vẽ 1 trang booklet (120 × 120 mm) và bìa sau có tracklist (150 × 117 mm, 2 gáy 6 mm).
-   Lyrics chia 3 cột (khoảng cách 4 mm), cỡ chữ tự co 7.5pt → tối thiểu (mặc định 6.5pt), line-height 1.3, không tràn khung. */
+   Lyrics chia 3 cột (khoảng cách 4 mm), cỡ chữ tự co 7.5pt → tối thiểu (mặc định 6.5pt), line-height 1.3, không tràn khung.
+   Xếp "Nối đuôi": các bài chảy liên tục qua các cột / trang lyrics (flowLayout), cỡ chữ cố định theo lựa chọn. */
 import { BACK_H_CM, BACK_SPINE_CM, BACK_W_CM, LEFT_SPINE_ROTATION, RIGHT_SPINE_ROTATION } from "@/lib/cdSpecs";
 import { contentBox } from "./layout";
 import { DEFAULT_FORMAT, FONT_SIZES, PAGE_MM as P, PT, type Adjust, type Album, type BackId, type Block, type LyricsFormat, type Page, type Palette, type Song } from "./types";
@@ -12,12 +13,16 @@ export type Ctx = {
   songs: Song[]; album: Album; photos: (Img | null)[]; adjust?: Record<number, Adjust | undefined>; palette: Palette;
   titleFont: string; bodyFont: string; minPt: number; mode?: "preview" | "print"; guides?: boolean; editSlot?: number | null; hoverSlot?: number | null;
   fmt?: LyricsFormat; // cỡ chữ lời + kiểu lời (mặc định: Bình thường · Nguyên bản)
+  cover?: Img | null; coverAdj?: Adjust; // ảnh bìa riêng (trang 1)
 };
-export type PageHit = { k: "photo"; slot: number; x: number; y: number; w: number; h: number; rot: number } | { k: "song"; song: number; x: number; y: number; w: number; h: number; rot: number };
+export type PageHit = { k: "photo"; slot: number; x: number; y: number; w: number; h: number; rot: number } | { k: "song"; song: number; x: number; y: number; w: number; h: number; rot: number }
+  | { k: "cover"; x: number; y: number; w: number; h: number; rot: number };
 
+let fontEpoch = 0; // tăng khi font tải xong → đo lại luồng chữ "Nối đuôi"
 export async function loadBookletFonts(title: string, body: string) {
   if (typeof document === "undefined" || !document.fonts) return;
   await Promise.all([`700 20px "${title}"`, `400 20px "${body}"`, `600 20px "${body}"`, `italic 400 20px "${body}"`].map((f) => document.fonts.load(f, "Aăâđêôơư").catch(() => null)));
+  fontEpoch++;
 }
 
 const rad = (d: number) => (d * Math.PI) / 180;
@@ -85,22 +90,23 @@ function wrapInline(x: CanvasRenderingContext2D, text: string, maxW: number, fir
   if (line) out.push({ t: line, justify: false });
   return out;
 }
+function linesAt(x: CanvasRenderingContext2D, d: ReturnType<typeof displayOf>, s: Song, si: number, size: number, font: string, titleFont: string, colW: number, inlineTitle: boolean): LLine[] {
+  x.font = `400 ${size}px "${font}"`;
+  if (d.mode !== "inline") return d.lines.flatMap((l) => (l.trim() ? wrap(x, l, colW).map((t) => ({ t, justify: false })) : [{ t: "", justify: false }]));
+  const prefix = inlineTitle ? `${si + 1}. ${(s.title || `Bài ${si + 1}`).toUpperCase()} — ` : "";
+  x.font = `700 ${size}px "${titleFont}"`;
+  const pw = prefix ? x.measureText(prefix).width : 0;
+  x.font = `400 ${size}px "${font}"`;
+  const lines = d.paras.flatMap((para, i) => { const L = wrapInline(x, para, colW, i === 0 ? pw : 0); if (i === 0 && prefix && L[0]) L[0].bold = prefix; return L; });
+  return !lines.length && prefix ? [{ t: "", justify: false, bold: prefix }] : lines;
+}
 function laySong(x: CanvasRenderingContext2D, s: Song, si: number, fmt: LyricsFormat, minPt: number, font: string, titleFont: string, colW: number, bodyH: number): Laid {
   const d = displayOf(s, fmt), { pt, min } = sizeOf(fmt, minPt);
   const inlineTitle = d.mode === "inline" && fmt.titleInline;
   let last: Laid | null = null;
   for (let p = pt; p >= min - 1e-6; p -= 0.25) {
     const size = p * PT, lh = size * 1.3;
-    x.font = `400 ${size}px "${font}"`;
-    let lines: LLine[];
-    if (d.mode === "inline") {
-      const prefix = inlineTitle ? `${si + 1}. ${(s.title || `Bài ${si + 1}`).toUpperCase()} — ` : "";
-      x.font = `700 ${size}px "${titleFont}"`;
-      const pw = prefix ? x.measureText(prefix).width : 0;
-      x.font = `400 ${size}px "${font}"`;
-      lines = d.paras.flatMap((para, i) => { const L = wrapInline(x, para, colW, i === 0 ? pw : 0); if (i === 0 && prefix && L[0]) L[0].bold = prefix; return L; });
-      if (!lines.length && prefix) lines = [{ t: "", justify: false, bold: prefix }];
-    } else lines = d.lines.flatMap((l) => (l.trim() ? wrap(x, l, colW).map((t) => ({ t, justify: false })) : [{ t: "", justify: false }]));
+    const lines = linesAt(x, d, s, si, size, font, titleFont, colW, inlineTitle);
     const perCol = Math.max(1, Math.floor(bodyH / lh));
     last = { lines, size, lh, perCol, fits: lines.length <= perCol * 3, titleInline: inlineTitle };
     if (last.fits) return last;
@@ -117,6 +123,78 @@ export function songFits(s: Song, si: number, c: Pick<Ctx, "bodyFont" | "titleFo
   const inl = (s.style ?? fmt.style) === "inline" && fmt.titleInline;
   const bodyH = h - (inl ? 0 : tSize * 1.5) - (s.note.trim() ? 3.4 : 0);
   return laySong(measureCtx!, s, si, fmt, c.minPt, c.bodyFont, c.titleFont, colW, bodyH).fits;
+}
+function drawLine(x: CanvasRenderingContext2D, ln: LLine, t: string, X: number, Y: number, colW: number, size: number, c: Ctx) {
+  let ox = 0;
+  if (ln.bold) { x.font = `700 ${size}px "${c.titleFont}"`; x.fillStyle = c.palette.accent; x.fillText(ln.bold, X, Y); ox = x.measureText(ln.bold).width; }
+  x.font = `400 ${size}px "${c.bodyFont}"`; x.fillStyle = c.palette.ink;
+  const words = t.split(" ");
+  if (ln.justify && words.length > 1) {
+    // căn đều 2 bên trong cột
+    const wsum = words.reduce((a, w) => a + x.measureText(w).width, 0), gap = (colW - ox - wsum) / (words.length - 1);
+    let cx = X + ox;
+    for (const w of words) { x.fillText(w, cx, Y); cx += x.measureText(w).width + gap; }
+  } else x.fillText(t, X + ox, Y);
+}
+
+// ---------- "Nối đuôi": luồng chữ liên tục qua các cột (3 cột / trang lyrics, cột cao bằng khung nội dung) ----------
+export type FlowItem = { si: number; y: number; h: number } & ({ t: "title"; text: string; size: number } | { t: "line"; ln: LLine } | { t: "note"; text: string });
+export type Flow = { cols: FlowItem[][]; size: number; lh: number; colW: number; colH: number; endCol: number[] };
+const COL_GAP = 4;
+let flowCache: { k: unknown[]; v: Flow } | null = null;
+export function flowLayout(c: Pick<Ctx, "songs" | "bodyFont" | "titleFont" | "minPt" | "fmt">): Flow {
+  const key = [c.songs, c.bodyFont, c.titleFont, c.minPt, c.fmt, fontEpoch];
+  if (flowCache && flowCache.k.every((v, i) => v === key[i])) return flowCache.v;
+  const box = contentBox(2), colW = (box.w - COL_GAP * 2) / 3, colH = box.h;
+  const fmt = c.fmt ?? DEFAULT_FORMAT, size = sizeOf(fmt, c.minPt).pt * PT, lh = size * 1.3, tSize = titleSizeOf(fmt), tlh = tSize * 1.25;
+  const out: Flow = { cols: [[]], size, lh, colW, colH, endCol: [] };
+  if (typeof document === "undefined") return out;
+  measureCtx ??= document.createElement("canvas").getContext("2d");
+  const x = measureCtx!;
+  let y = 0;
+  const col = () => out.cols[out.cols.length - 1];
+  const nextCol = () => { out.cols.push([]); y = 0; };
+  const blank = (l: LLine) => !l.t && !l.bold;
+  c.songs.forEach((s, si) => {
+    const has = !s.titleOnly && !!s.lyrics.trim(), d = displayOf(s, fmt);
+    const inl = has && d.mode === "inline" && fmt.titleInline;
+    const lines = has ? linesAt(x, d, s, si, size, c.bodyFont, c.titleFont, colW, inl) : [];
+    while (lines.length && blank(lines[0])) lines.shift();
+    while (lines.length && blank(lines[lines.length - 1])) lines.pop();
+    let title: string[] = [];
+    if (!inl) { x.font = `700 ${tSize}px "${c.titleFont}"`; title = wrap(x, `${si + 1}. ${s.title || `Bài ${si + 1}`}`, colW); }
+    const sep = title.length && lines.length ? tSize * 0.35 : 0;
+    // tên bài không nằm cuối cột: sau tên phải còn chỗ cho ít nhất 2 dòng lời
+    const head = title.length * tlh + sep + Math.min(2, lines.length || 0) * lh;
+    if (y > 0 && y + lh * 1.5 + head > colH) nextCol(); else if (y > 0) y += lh * 1.5;
+    for (const t of title) { col().push({ si, y, h: tlh, t: "title", text: t, size: tSize }); y += tlh; }
+    y += sep;
+    for (const ln of lines) {
+      if (y + lh > colH + 1e-6) { nextCol(); if (blank(ln)) continue; }
+      col().push({ si, y, h: lh, t: "line", ln }); y += lh;
+    }
+    if (s.note.trim()) { if (y + 3.4 > colH) nextCol(); col().push({ si, y, h: 3.4, t: "note", text: s.note.trim() }); y += 3.4; }
+    out.endCol.push(out.cols.length - 1);
+  });
+  flowCache = { k: key, v: out };
+  return out;
+}
+/** số trang lyrics cần cho kiểu "Nối đuôi" (3 cột / trang) */
+export const flowPages = (c: Pick<Ctx, "songs" | "bodyFont" | "titleFont" | "minPt" | "fmt">) => (c.songs.length ? Math.ceil(flowLayout(c).cols.length / 3) : 0);
+function drawFlow(x: CanvasRenderingContext2D, b: Extract<Block, { k: "flow" }>, c: Ctx, hits: PageHit[]) {
+  const f = flowLayout(c);
+  x.textAlign = "left"; x.textBaseline = "top";
+  for (let ci = b.from; ci < Math.min(b.to, f.cols.length); ci++) {
+    const X = b.x + (ci - b.from) * (f.colW + COL_GAP), seg = new Map<number, [number, number]>();
+    for (const it of f.cols[ci]) {
+      const Y = b.y + it.y;
+      if (it.t === "title") { x.font = `700 ${it.size}px "${c.titleFont}"`; x.fillStyle = c.palette.accent; x.fillText(it.text, X, Y); }
+      else if (it.t === "line") drawLine(x, it.ln, it.ln.t, X, Y, f.colW, f.size, c);
+      else { x.font = `italic 400 ${2.3}px "${c.bodyFont}"`; x.fillStyle = c.palette.ink; x.globalAlpha = 0.7; x.fillText(it.text, X, Y + 0.6); x.globalAlpha = 1; }
+      const r = seg.get(it.si); seg.set(it.si, r ? [r[0], it.y + it.h] : [it.y, it.y + it.h]);
+    }
+    for (const [si, [y0, y1]] of seg) hits.push({ k: "song", song: si, x: X + f.colW / 2, y: b.y + (y0 + y1) / 2, w: f.colW, h: y1 - y0, rot: 0 });
+  }
 }
 function fitText(x: CanvasRenderingContext2D, text: string, weight: string, family: string, size: number, maxW: number) {
   let s = size;
@@ -154,16 +232,7 @@ function drawLyrics(x: CanvasRenderingContext2D, b: Extract<Block, { k: "lyrics"
         const X = b.x + col * (colW + colGap), Y = bodyTop + row * L.lh;
         let t = ln.t;
         if (!L.fits && i === max - 1) t = `${t.replace(/.{0,2}$/, "")}…`;
-        let ox = 0;
-        if (ln.bold) { x.font = `700 ${L.size}px "${c.titleFont}"`; x.fillStyle = c.palette.accent; x.fillText(ln.bold, X, Y); ox = x.measureText(ln.bold).width; }
-        x.font = `400 ${L.size}px "${c.bodyFont}"`; x.fillStyle = c.palette.ink;
-        const words = t.split(" ");
-        if (ln.justify && words.length > 1) {
-          // căn đều 2 bên trong cột
-          const wsum = words.reduce((a, w) => a + x.measureText(w).width, 0), gap = (colW - ox - wsum) / (words.length - 1);
-          let cx = X + ox;
-          for (const w of words) { x.fillText(w, cx, Y); cx += x.measureText(w).width + gap; }
-        } else x.fillText(t, X + ox, Y);
+        drawLine(x, ln, t, X, Y, colW, L.size, c);
       });
     }
     if (noteH) { x.font = `italic 400 ${2.3}px "${c.bodyFont}"`; x.fillStyle = c.palette.ink; x.globalAlpha = 0.7; x.fillText(s.note.trim(), b.x, top + h - noteH + 0.6); x.globalAlpha = 1; }
@@ -204,22 +273,27 @@ export function renderPage(page: Page, c: Ctx, size: number) {
       if (!print && (c.editSlot === b.slot || c.hoverSlot === b.slot)) { x.setLineDash([1.4, 1]); x.lineWidth = 0.6; x.strokeStyle = "#ff5fa2"; x.strokeRect(-b.w / 2 + 0.4, -b.h / 2 + 0.4, b.w - 0.8, b.h - 0.8); }
       hits.push({ k: "photo", slot: b.slot, x: b.x + b.w / 2, y: b.y + b.h / 2, w: b.w, h: b.h, rot: b.rot ?? 0 });
     } else if (b.k === "lyrics") drawLyrics(x, b, c, hits);
+    else if (b.k === "flow") drawFlow(x, b, c, hits);
     else if (b.k === "cover") {
-      x.globalAlpha = 0.9; x.fillStyle = c.palette.bg; x.fillRect(b.x, b.y, b.w, b.h); x.globalAlpha = 1;
-      const box = contentBox(1);
-      x.fillStyle = c.palette.ink; x.textAlign = "left"; x.textBaseline = "alphabetic";
-      const ts = fitText(x, c.album.title || "Tên album", "700", c.titleFont, 9, box.w);
-      x.fillText(c.album.title || "Tên album", box.x, b.y + 6 + ts);
-      x.font = `400 ${3.6}px "${c.bodyFont}"`; x.fillStyle = c.palette.accent;
-      x.fillText([c.album.artist, c.album.year].filter(Boolean).join(" · ") || "Tên nghệ sĩ", box.x, b.y + 12 + ts);
-    } else if (b.k === "credit") {
-      x.fillStyle = c.palette.accent; x.textAlign = "center"; x.textBaseline = "top";
-      fitText(x, "Lời cảm ơn", "700", c.titleFont, 6, b.w);
-      x.fillText("Lời cảm ơn", b.x + b.w / 2, b.y + 14);
-      x.font = `400 ${3.1}px "${c.bodyFont}"`; x.fillStyle = c.palette.ink;
-      const lines = c.album.credit.split("\n").flatMap((l) => wrap(x, l, b.w - 10));
-      const lh = 3.1 * 1.45;
-      lines.slice(0, Math.floor((b.h - 30) / lh)).forEach((l, i) => x.fillText(l, b.x + b.w / 2, b.y + 26 + i * lh));
+      // ảnh bìa riêng tràn trang; chưa có ảnh → ô xám "+ Tải ảnh bìa"
+      x.save(); x.beginPath(); x.rect(b.x, b.y, b.w, b.h); x.clip(); x.translate(b.x + b.w / 2, b.y + b.h / 2);
+      if (c.cover) drawPhoto(x, c.cover, b.w, b.h, c.coverAdj, "", false);
+      else {
+        x.fillStyle = print ? c.palette.bg : "#ececef"; x.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+        if (!print) { x.fillStyle = "#71717a"; x.textAlign = "center"; x.textBaseline = "middle"; x.font = `600 ${5}px "${c.bodyFont}"`; x.fillText("+ Tải ảnh bìa", 0, c.album.coverText !== false ? -b.h * 0.12 : 0); }
+      }
+      x.restore();
+      if (c.album.coverText !== false) {
+        const band = { y: b.y + b.h * 0.7, h: b.h * 0.3 };
+        x.globalAlpha = 0.9; x.fillStyle = c.palette.bg; x.fillRect(b.x, band.y, b.w, band.h); x.globalAlpha = 1;
+        const box = contentBox(1);
+        x.fillStyle = c.palette.ink; x.textAlign = "left"; x.textBaseline = "alphabetic";
+        const ts = fitText(x, c.album.title || "Tên album", "700", c.titleFont, 9, box.w);
+        x.fillText(c.album.title || "Tên album", box.x, band.y + 6 + ts);
+        x.font = `400 ${3.6}px "${c.bodyFont}"`; x.fillStyle = c.palette.accent;
+        x.fillText(c.album.artist || "Tên nghệ sĩ", box.x, band.y + 12 + ts);
+      }
+      hits.push({ k: "cover", x: b.x + b.w / 2, y: b.y + b.h / 2, w: b.w, h: b.h, rot: 0 });
     }
     x.restore();
   }
@@ -273,7 +347,6 @@ export function renderBack(style: BackId, c: Ctx, bgPhoto: Img | null, widthPx: 
   // tracklist
   const list = c.songs.map((s, i) => ({ no: i + 1, t: s.title || `Bài ${i + 1}`, d: s.duration.trim() }));
   const area = { x: SP + 9, y: 12, w: BW - SP * 2 - 18, h: BH - 30 };
-  const foot = [c.album.year, c.album.credit.split("\n")[0]].filter((v) => v && v.trim()).join(" · ");
   const drawRows = (rows: typeof list, X: number, Y: number, w: number, size: number, align: "center" | "left") => {
     const lh = size * 1.55;
     rows.forEach((r, i) => {
@@ -319,7 +392,6 @@ export function renderBack(style: BackId, c: Ctx, bgPhoto: Img | null, widthPx: 
     const sz = sizeFor(list.length, h, 3.6), w = Math.min(92, area.w);
     drawRows(list, BW / 2 - w / 2, top + Math.max(0, (h - list.length * sz * 1.55) / 2), w, sz, style === "classic" ? "center" : "left");
   }
-  if (foot) { x.font = `400 ${2.2}px "${c.bodyFont}"`; x.fillStyle = ink; x.globalAlpha = 0.75; x.textAlign = "center"; x.fillText(foot, BW / 2, BH - 9); x.globalAlpha = 1; }
   return cv;
 }
 

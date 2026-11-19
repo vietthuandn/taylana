@@ -1,6 +1,8 @@
 /* Bộ dàn trang Booklet Lyrics: mỗi mẫu là 1 chiến lược dàn (chỉ dùng khối HÌNH CHỮ NHẬT).
-   Trang 1 = bìa (ảnh 1 tràn trang + tên album); trang lyrics tối đa 2 bài; chỗ trống lấp bằng ảnh
-   (tràn trang · nửa trang · tràn 2 trang ở gáy · 1/3 trang · polaroid nghiêng nhẹ); trang cuối = credit hoặc ảnh. */
+   Trang 1 = bìa (ảnh bìa riêng tràn trang, có / không tên album); trang lyrics tối đa 2 bài; chỗ trống lấp bằng ảnh
+   (tràn trang · nửa trang · tràn 2 trang ở gáy · 1/3 trang · polaroid nghiêng nhẹ); trang cuối = ảnh hoặc lyrics.
+   Xếp "Nối đuôi" (flow): các trang lyrics chứa luồng chữ liên tục (3 cột / trang), ảnh đặt ở trang không có lyrics
+   và các cột còn trống cuối luồng chữ. Ô ảnh đánh số từ 0 = ảnh đầu tiên trong mục Ảnh. */
 import { rng } from "@/lib/scrapbook/generate";
 import { isLong, type LongRule } from "./capacity";
 import { GUTTER_MM, PAGE_MM as P, SAFE_MM, type Album, type Block, type LayoutId, type Page, type Song } from "./types";
@@ -22,7 +24,12 @@ export function groupSongs(songs: Song[], longLines: LongRule) {
   return out;
 }
 
-export function buildBooklet(layout: LayoutId, n: number, songs: Song[], album: Album, seed: number, longLines: LongRule) {
+/** Thông tin luồng chữ "Nối đuôi": tổng số cột + cột kết thúc của từng bài */
+export type FlowInfo = { cols: number; endCol: number[] };
+
+export function buildBooklet(layout: LayoutId, n: number, songs: Song[], album: Album, seed: number, longLines: LongRule, flow?: FlowInfo | null) {
+  void album;
+  if (flow) return buildFlow(layout, n, seed, flow);
   const r = rng(seed * 13 + n * 101 + layout.length * 7);
   const groups = groupSongs(songs, longLines).slice(0, n - 1);
   let free = n - 1 - groups.length;
@@ -30,9 +37,9 @@ export function buildBooklet(layout: LayoutId, n: number, songs: Song[], album: 
   const next = () => slot++;
   const pages: Page[] = [];
   // trang 1: bìa
-  pages.push({ no: 1, blocks: [{ k: "photo", slot: next(), x: 0, y: 0, w: P, h: P }, { k: "cover", x: 0, y: P * 0.7, w: P, h: P * 0.3 }] });
+  pages.push({ no: 1, blocks: [{ k: "cover", x: 0, y: 0, w: P, h: P }] });
 
-  // trang cuối: credit / ảnh nếu còn chỗ, không thì chứa lyrics
+  // trang cuối: ảnh nếu còn chỗ, không thì chứa lyrics
   const endFree = free > 0;
   if (endFree) free--;
   const M = n - 2; // số trang ở giữa (2 … n − 1)
@@ -80,16 +87,7 @@ export function buildBooklet(layout: LayoutId, n: number, songs: Song[], album: 
       { k: "photo", slot: next(), x: b.x + b.w - 46, y: P / 2 + 10, w: 42, h: 42, rot: 2 + r() * 3, polaroid: true },
     ];
   };
-  const photoPage = (no: number): Block[] => {
-    if (layout === "minimal") return [{ k: "photo", slot: next(), x: 18, y: 18, w: 84, h: 84 }];
-    if (layout === "polaroid") return [
-      { k: "photo", slot: next(), x: 12, y: 10, w: 52, h: 52, rot: -5 + r() * 2, polaroid: true },
-      { k: "photo", slot: next(), x: 56, y: 22, w: 52, h: 52, rot: 3 + r() * 3, polaroid: true },
-      { k: "photo", slot: next(), x: 30, y: 62, w: 48, h: 48, rot: -2 + r() * 4, polaroid: true },
-    ];
-    if (layout === "magazine") return no % 2 ? [{ k: "photo", slot: next(), x: 0, y: 0, w: P / 2, h: P }, { k: "photo", slot: next(), x: P / 2, y: 0, w: P / 2, h: P }] : [{ k: "photo", slot: next(), x: 0, y: 0, w: P, h: P }];
-    return [{ k: "photo", slot: next(), x: 0, y: 0, w: P, h: P }];
-  };
+  const photoPage = (no: number) => photoPageOf(layout, no, next, r);
   let spreadSlot = -1;
   for (let i = 0; i < M; i++) {
     const no = i + 2, t = tokens[i];
@@ -100,7 +98,48 @@ export function buildBooklet(layout: LayoutId, n: number, songs: Song[], album: 
   }
   // trang cuối
   if (!endFree && g < groups.length) pages.push({ no: n, blocks: lyricPage(n, groups[g++]) });
-  else if (album.credit.trim()) pages.push({ no: n, blocks: [{ k: "credit", ...contentBox(n) }] });
   else pages.push({ no: n, blocks: layout === "minimal" ? [{ k: "photo", slot: next(), x: 18, y: 18, w: 84, h: 84 }] : [{ k: "photo", slot: next(), x: 0, y: 0, w: P, h: P }] });
   return { pages, photoCount: slot, shownSongs: groups.slice(0, g).flat().length };
+}
+
+function photoPageOf(layout: LayoutId, no: number, next: () => number, r: () => number): Block[] {
+    if (layout === "minimal") return [{ k: "photo", slot: next(), x: 18, y: 18, w: 84, h: 84 }];
+    if (layout === "polaroid") return [
+      { k: "photo", slot: next(), x: 12, y: 10, w: 52, h: 52, rot: -5 + r() * 2, polaroid: true },
+      { k: "photo", slot: next(), x: 56, y: 22, w: 52, h: 52, rot: 3 + r() * 3, polaroid: true },
+      { k: "photo", slot: next(), x: 30, y: 62, w: 48, h: 48, rot: -2 + r() * 4, polaroid: true },
+    ];
+    if (layout === "magazine") return no % 2 ? [{ k: "photo", slot: next(), x: 0, y: 0, w: P / 2, h: P }, { k: "photo", slot: next(), x: P / 2, y: 0, w: P / 2, h: P }] : [{ k: "photo", slot: next(), x: 0, y: 0, w: P, h: P }];
+  return [{ k: "photo", slot: next(), x: 0, y: 0, w: P, h: P }];
+}
+
+/** "Nối đuôi": trang lyrics liên tiếp (alternate: xen kẽ với trang ảnh), ảnh ở trang trống + cột trống cuối luồng chữ */
+function buildFlow(layout: LayoutId, n: number, seed: number, flow: FlowInfo) {
+  const r = rng(seed * 13 + n * 101 + layout.length * 7);
+  let slot = 0;
+  const next = () => slot++;
+  const need = Math.ceil(flow.cols / 3), M = n - 1, L = Math.min(need, M);
+  let free = M - L;
+  const tokens: ("L" | "F" | "S1" | "S2")[] = [];
+  if (layout === "alternate") { for (let k = 0; k < L; k++) { tokens.push("L"); if (free > 0 && k < L - 1) { tokens.push("F"); free--; } } }
+  else for (let k = 0; k < L; k++) tokens.push("L");
+  while (tokens.length < M) tokens.push("F");
+  if (layout === "cinema") for (let i = 0; i + 1 < M; i++) { const p = i + 2; if (p % 2 === 0 && tokens[i] === "F" && tokens[i + 1] === "F" && p + 1 < n) { tokens[i] = "S1"; tokens[i + 1] = "S2"; break; } }
+  const pages: Page[] = [{ no: 1, blocks: [{ k: "cover", x: 0, y: 0, w: P, h: P }] }];
+  let col = 0, spreadSlot = -1;
+  tokens.forEach((t, i) => {
+    const no = i + 2;
+    if (t === "L") {
+      const b = contentBox(no), from = col, to = Math.min(col + 3, flow.cols);
+      col += 3;
+      const blocks: Block[] = [{ k: "flow", from, to, ...b }];
+      const used = to - from;
+      if (used < 3) { const cw = (b.w - 8) / 3, x0 = b.x + used * (cw + 4); blocks.push({ k: "photo", slot: next(), x: x0, y: b.y, w: b.x + b.w - x0, h: b.h }); } // cột trống cuối luồng chữ
+      pages.push({ no, blocks });
+    } else if (t === "S1") { spreadSlot = next(); pages.push({ no, blocks: [{ k: "photo", slot: spreadSlot, x: 0, y: 0, w: P * 2, h: P }] }); }
+    else if (t === "S2") pages.push({ no, blocks: [{ k: "photo", slot: spreadSlot, x: -P, y: 0, w: P * 2, h: P }] });
+    else pages.push({ no, blocks: photoPageOf(layout, no, next, r) });
+  });
+  const shownCols = L * 3;
+  return { pages, photoCount: slot, shownSongs: flow.endCol.filter((c) => c < shownCols).length };
 }

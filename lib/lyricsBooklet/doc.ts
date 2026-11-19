@@ -8,6 +8,8 @@ export type LyricsDoc = {
   v: 1; kind: "lyrics-booklet";
   album: Album; songs: Song[]; pack: number; layout: LayoutId; back: BackId; paletteId: string; fmt?: LyricsFormat;
   seeds: Partial<Record<LayoutId, number>>; adjust: Record<string, Adjust>; photoIds: string[]; backPhotoId: string | null;
+  coverPhotoId?: string | null; // ảnh bìa riêng (trang 1); bản nháp cũ không có → ảnh đầu tiên trong photoIds là bìa
+  rightsOk?: boolean; // khách đã tick "Tôi chịu trách nhiệm về bản quyền…" khi đặt in thiết kế này
   photoPaths?: Record<string, string>; // khi lưu lên tài khoản: id ảnh → đường dẫn trong design-assets
 };
 export type DocPhoto = { id: string; blob: Blob };
@@ -23,7 +25,7 @@ export async function loadLocal(): Promise<{ doc: LyricsDoc; photos: DocPhoto[] 
     if (!m) return null;
     const doc = JSON.parse(await m.text()) as LyricsDoc;
     if (doc.kind !== "lyrics-booklet") return null;
-    const ids = [...doc.photoIds, ...(doc.backPhotoId ? [doc.backPhotoId] : [])];
+    const ids = [...doc.photoIds, ...(doc.backPhotoId ? [doc.backPhotoId] : []), ...(doc.coverPhotoId ? [doc.coverPhotoId] : [])];
     const photos: DocPhoto[] = [];
     for (const id of ids) { const b = await getBlob(`lyrics-photo-${id}`); if (b) photos.push({ id, blob: b }); }
     return { doc, photos };

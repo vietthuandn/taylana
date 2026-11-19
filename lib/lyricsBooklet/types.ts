@@ -12,7 +12,8 @@ export type Song = {
   id: string; title: string; duration: string; lyrics: string; note: string; titleOnly: boolean;
   artist?: string; // ca sĩ (tìm lời gợi ý) — trống thì dùng Tên nghệ sĩ của album
   alt?: string; // dòng "A - B" nhập từ danh sách: phía còn lại (tìm lời thử cả 2 chiều)
-  pending?: boolean; // có lời gợi ý nhưng khách chưa mở xem + cam kết + Lưu → chưa dàn vào booklet
+  pending?: boolean; // (cũ — không dùng nữa; bản nháp cũ có cờ này được đổi thành src "lrclib" khi mở)
+  src?: "lrclib"; // lời lấy từ LRCLIB (hiện ghi chú "có thể chưa chính xác" trong modal lyrics)
   style?: LyricStyle; // kiểu lời riêng của bài (trống = theo cài đặt chung)
   labels?: Record<string, string>; // tên nhãn cho từng đoạn lặp (khoá đoạn → tên)
   noMerge?: string[]; // các đoạn lặp KHÔNG gộp
@@ -20,14 +21,16 @@ export type Song = {
 export type LyricStyle = "original" | "collapse" | "inline";
 export type FontSizeId = "normal" | "small" | "xsmall";
 /** Cách trình bày lời cho cả booklet */
-export type LyricsFormat = { size: FontSizeId; style: LyricStyle; lang: "en" | "vi"; paraBreak: "slashes" | "newline"; titleInline: boolean };
-export const DEFAULT_FORMAT: LyricsFormat = { size: "normal", style: "original", lang: "en", paraBreak: "slashes", titleInline: false };
+export type FlowMode = "block" | "chain"; // Xếp bài: mỗi bài 1 khối · nối đuôi (chảy liên tục qua các cột)
+export type LyricsFormat = { size: FontSizeId; style: LyricStyle; lang: "en" | "vi"; paraBreak: "slashes" | "newline"; titleInline: boolean; flow?: FlowMode };
+export const DEFAULT_FORMAT: LyricsFormat = { size: "normal", style: "original", lang: "en", paraBreak: "slashes", titleInline: false, flow: "block" };
 export const FONT_SIZES: { id: FontSizeId; name: string; pt: number; min: number }[] = [
   { id: "normal", name: "Bình thường", pt: 7.5, min: 6.5 },
   { id: "small", name: "Nhỏ", pt: 6.5, min: 5.5 },
   { id: "xsmall", name: "Rất nhỏ", pt: 5.5, min: 5 },
 ];
-export type Album = { title: string; artist: string; year: string; credit: string };
+/** coverText: chèn tên album + nghệ sĩ lên bìa (mặc định bật; tắt → bìa chỉ có ảnh tràn trang) */
+export type Album = { title: string; artist: string; coverText?: boolean };
 export type Palette = { id: string; name: string; bg: string; ink: string; accent: string };
 export type LayoutId = "minimal" | "alternate" | "magazine" | "cinema" | "polaroid";
 export type BackId = "classic" | "twocol" | "photo" | "corner";
@@ -81,7 +84,7 @@ export function mergeSettings(v: Partial<LyricsSettings> | null | undefined): Ly
 export type Block =
   | { k: "photo"; slot: number; x: number; y: number; w: number; h: number; rot?: number; polaroid?: boolean } // có thể tràn ra ngoài trang (ảnh tràn 2 trang)
   | { k: "lyrics"; songs: number[]; x: number; y: number; w: number; h: number }
-  | { k: "cover"; x: number; y: number; w: number; h: number }
-  | { k: "credit"; x: number; y: number; w: number; h: number };
+  | { k: "flow"; from: number; to: number; x: number; y: number; w: number; h: number } // "Nối đuôi": các cột [from, to) của luồng chữ
+  | { k: "cover"; x: number; y: number; w: number; h: number }; // bìa: ảnh bìa riêng (+ tên album nếu bật)
 export type Page = { no: number; blocks: Block[] };
 export type Adjust = { dx: number; dy: number; zoom: number };
