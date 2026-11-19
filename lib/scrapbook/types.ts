@@ -1,5 +1,5 @@
-/* CD Scrapbook — kiểu dữ liệu dùng chung (trang khách + admin).
-   Đơn vị toạ độ: mm trên mặt đĩa 120 × 120 mm, tâm (60, 60). */
+/* Scrapbook — kiểu dữ liệu dùng chung (CD Scrapbook + Booklet Scrapbook, trang khách + admin).
+   Đơn vị toạ độ: mm trên "bề mặt" (surface): đĩa 120 × 120 mm tâm (60, 60) · trang 120 × 120 mm · cặp trang 240 × 120 mm. */
 
 export const DISC_MM = 120;
 export const C = DISC_MM / 2; // tâm
@@ -46,7 +46,18 @@ export type Rect01 = { x0: number; y0: number; x1: number; y1: number };
 export type ScrapAsset = {
   id: string; name: string; grp: AssetGroup; url: string; tone: string; region: Rect01 | null; is_active: boolean; sort_order: number;
 };
-export type TemplateSetting = { n: number; style: Style; seed: number; is_active: boolean; template?: Template | null }; // template: mẫu admin chỉnh tay (đè lên mẫu tạo bằng code)
+/** surface_type: "disc" (CD Scrapbook) · "spread" (Booklet Scrapbook: n = kiểu dàn trang cặp) */
+export type TemplateSetting = { n: number; style: Style; seed: number; is_active: boolean; template?: Template | null; surface_type?: string };
+
+// ---------- thư viện Khung ảnh (admin) ----------
+export type FrameSet = { id: string; name: string; is_active: boolean; sort_order: number };
+/** region: vùng ảnh nằm dưới khung (0..1) · mask_url: ảnh mặt nạ đen trắng (trắng = vùng ảnh) · ratio = cao / rộng của ảnh khung */
+export type Frame = { id: string; set_id: string; name: string; url: string; region: Rect01 | null; mask_url: string | null; ratio: number; is_active: boolean; sort_order: number };
+// ---------- thư viện Lời chúc (admin) ----------
+export type WishTopic = { id: string; name: string; is_active: boolean; sort_order: number };
+export type Wish = { id: string; topic_id: string; content: string; lang: "vi" | "en"; is_active: boolean; sort_order: number };
+export type WishCard = "card" | "note" | "lined" | "label";
+export type SurfaceKind = "disc" | "page" | "spread"; // template: mẫu admin chỉnh tay (đè lên mẫu tạo bằng code)
 
 // ---------- cấu hình 1 mẫu (danh sách lớp) ----------
 export type PhotoShape = "rect" | "polaroid" | "torn" | "circle" | "heart" | "frame";
@@ -54,18 +65,26 @@ export type StickerShape = "star" | "heart" | "flower" | "bow" | "sparkle";
 export type Layer = LayerBase & LayerFlags;
 export type LayerBase =
   | { k: "paper"; x: number; y: number; w: number; h: number; rot: number; paper: "grid" | "note" | "ticket" | "kraft"; color: string; torn: boolean; seed: number; asset?: string }
-  | { k: "photo"; slot: number; x: number; y: number; w: number; h: number; rot: number; shape: PhotoShape; seed: number; asset?: string; border?: string }
+  | { k: "photo"; slot: number; x: number; y: number; w: number; h: number; rot: number; shape: PhotoShape; seed: number; asset?: string; border?: string;
+      photo?: string; // id ảnh của khách gán vào ô ("" = ô trống) — không có thì lấy ảnh theo thứ tự slot (mẫu / admin)
+      frame?: string } // khung PNG từ thư viện Khung ảnh (ảnh nằm dưới khung)
   | { k: "tape"; x: number; y: number; w: number; h: number; rot: number; color: string; pattern: "stripe" | "dots" | "plain"; seed: number; asset?: string }
   | { k: "sticker"; x: number; y: number; s: number; rot: number; shape: StickerShape; color: string; asset?: string }
   | { k: "doodle"; x: number; y: number; s: number; rot: number; shape: "arrow" | "swirl" | "dash"; color: string; asset?: string }
   | { k: "text"; role: "main" | "sub" | "custom"; x: number; y: number; w: number; size: number; rot: number; font: "hand" | "marker" | "label"; color: string; arc?: { r: number; mid: number };
       value?: string; // nội dung riêng (lớp chữ khách thêm); main / sub lấy từ "Chữ trên đĩa"
       family?: string; bold?: boolean; italic?: boolean; stroke?: boolean; // font thường (đè lên font mẫu)
-      cutout?: { font: string; curve: number; chaos: number; spacing: number; seed: number } }; // chữ cắt dán
+      cutout?: { font: string; curve: number; chaos: number; spacing: number; seed: number } } // chữ cắt dán
+  | { k: "wish"; x: number; y: number; w: number; h: number; rot: number; card: WishCard; color: string; ink: string; value: string; seed: number;
+      family?: string; cutout?: { font: string; curve: number; chaos: number; spacing: number; seed: number } }; // khung lời chúc: chữ tự xuống dòng + tự co
 /** cờ chung của mọi lớp: user = khách tự thêm (giữ lại khi đổi mẫu) · locked = admin khoá (khách không chọn được) */
-export type LayerFlags = { user?: boolean; locked?: boolean };
+export type LayerFlags = { user?: boolean; locked?: boolean; auto?: boolean }; // auto = sticker / băng dính tự rải (nút "Xáo trộn" rải lại)
 export type Template = {
   id: string; n: number; style: Style; seed: number;
+  surface?: SurfaceKind; // mặc định "disc"
+  gutter?: "left" | "right"; // trang đơn của booklet: gáy bên trái (trang 1) / bên phải (trang cuối)
+  kind?: number; // cặp trang booklet: kiểu dàn trang (SPREAD_KINDS)
+  accents?: string[]; tone?: string; // bảng màu của mẫu (rải lại sticker)
   bg: { color: string; pattern: "dots" | "grid" | "plain" | "lines"; ink: string; asset?: string };
   layers: Layer[];
 };

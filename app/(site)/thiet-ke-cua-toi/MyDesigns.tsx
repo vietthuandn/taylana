@@ -11,8 +11,8 @@ import { Trash2 } from "lucide-react";
 import { Button, confirmDialog } from "@/components/ui/kit";
 import { btnClass } from "@/components/ui/styles";
 
-// thiết kế Booklet Lyrics mở ở trang riêng, còn lại mở trình chỉnh CD
-const openHref = (r: DesignRow) => (r.kind === "lyrics-booklet" ? `/thiet-ke/booklet-lyrics?design=${r.id}` : `/thiet-ke/cd?design=${r.id}`);
+// thiết kế Booklet Lyrics / Booklet Scrapbook mở ở trang riêng, còn lại mở trình chỉnh CD
+const openHref = (r: DesignRow) => (r.kind === "lyrics-booklet" ? `/thiet-ke/booklet-lyrics?design=${r.id}` : r.kind === "booklet-scrapbook" ? `/thiet-ke/booklet-scrapbook?design=${r.id}` : `/thiet-ke/cd?design=${r.id}`);
 
 export function MyDesigns() {
   const [user, setUser] = useState<User | null | undefined>(undefined);

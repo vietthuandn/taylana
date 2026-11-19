@@ -1,19 +1,27 @@
 "use client";
 
-/* CD Scrapbook — vẽ 1 mẫu (danh sách lớp, đơn vị mm) lên canvas tròn.
+/* Scrapbook — vẽ 1 bề mặt (danh sách lớp, đơn vị mm): đĩa tròn 120 mm · trang 120 × 120 mm · cặp trang 240 × 120 mm.
    Hiệu ứng tạo bằng code: mép giấy xé (răng cưa ngẫu nhiên + viền xơ giấy trắng ngà), bóng đổ mềm cho mọi lớp dán,
    nền giấy có vân + grain. Ảnh khách phủ kín khung (cover), có thể dịch / phóng to theo chỉnh ô của khách.
+   Ô ảnh có thể gắn khung PNG (ảnh nằm dưới khung, cắt theo vùng ảnh / mặt nạ). Khung lời chúc: chữ tự xuống dòng + tự co.
+   Sticker khách thêm luôn vẽ trên cùng.
    mode "print": nền ngoài đĩa + lỗ giữa (Ø 23 mm) trong suốt, không guideline. */
 import { rng } from "./generate";
 import { drawCutout, layoutCutout, type LoadedFont } from "./cutout";
-import { C, R_HOLE, R_HUB, R_OUT, R_PRINT_HOLE, R_SAFE, type Adjust, type DiscText, type Layer, type ScrapAsset, type Template } from "./types";
+import { surfaceOf } from "./surface";
+import { C, R_HOLE, R_HUB, R_OUT, R_PRINT_HOLE, R_SAFE, type Adjust, type DiscText, type Frame, type Layer, type ScrapAsset, type Template } from "./types";
 
 type Img = CanvasImageSource & { width: number; height: number };
 export type PhotoSrc = Img | null;
-export type Hit = { slot: number; x: number; y: number; w: number; h: number; rot: number; shape: string };
+export type Hit = { slot: number; layer: number; x: number; y: number; w: number; h: number; rot: number; shape: string };
+/** khung ảnh đã tải: ảnh khung + mặt nạ vùng ảnh (canvas alpha) nếu có */
+export type LoadedFrame = { img: Img; mask: Img | null; frame: Frame };
 export type TextHit = { role: "main" | "sub" | "custom"; layer: number; x: number; y: number; w: number; h: number; rot: number };
 export type RenderOpts = {
-  template: Template; photos: PhotoSrc[]; adjust?: Record<number, Adjust | undefined>; text: DiscText;
+  template: Template; photos?: PhotoSrc[]; adjust?: Record<number, Adjust | undefined>; text: DiscText;
+  photoMap?: Record<string, PhotoSrc | undefined>; adjustMap?: Record<string, Adjust | undefined>; // ảnh khách theo id (lớp ảnh có trường photo)
+  frames?: Record<string, LoadedFrame | undefined>;
+  editLayer?: number | null; // ô ảnh đang chỉnh (chỉ số lớp)
   assets?: Record<string, { img: Img; asset: ScrapAsset } | undefined>;
   size: number; mode?: "preview" | "print"; guides?: boolean; editSlot?: number | null; hoverSlot?: number | null;
   cutoutFonts?: Record<string, LoadedFont | undefined>; // font cut-out đã tải ảnh
@@ -95,25 +103,25 @@ function grainTile() {
   g.putImageData(d, 0, 0);
   return grain;
 }
-function background(x: X, t: Template, assets: RenderOpts["assets"]) {
-  x.fillStyle = t.bg.color; x.fillRect(0, 0, 120, 120);
+function background(x: X, t: Template, assets: RenderOpts["assets"], W: number, H: number) {
+  x.fillStyle = t.bg.color; x.fillRect(0, 0, W, H);
   const tex = t.bg.asset ? assets?.[t.bg.asset] : undefined;
   if (tex) {
-    const s = Math.max(120 / tex.img.width, 120 / tex.img.height);
+    const s = Math.max(W / tex.img.width, H / tex.img.height);
     x.save(); x.globalAlpha = 0.55; x.globalCompositeOperation = "multiply";
-    x.drawImage(tex.img, 60 - (tex.img.width * s) / 2, 60 - (tex.img.height * s) / 2, tex.img.width * s, tex.img.height * s);
+    x.drawImage(tex.img, W / 2 - (tex.img.width * s) / 2, H / 2 - (tex.img.height * s) / 2, tex.img.width * s, tex.img.height * s);
     x.restore();
   }
   x.save(); x.strokeStyle = t.bg.ink; x.fillStyle = t.bg.ink; x.lineWidth = 0.25;
-  if (t.bg.pattern === "dots") for (let i = 3; i < 120; i += 5) for (let j = 3; j < 120; j += 5) { x.beginPath(); x.arc(i, j, 0.35, 0, Math.PI * 2); x.fill(); }
-  if (t.bg.pattern === "grid") for (let i = 0; i <= 120; i += 5) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 120); x.moveTo(0, i); x.lineTo(120, i); x.stroke(); }
-  if (t.bg.pattern === "lines") for (let i = 2; i <= 120; i += 6) { x.beginPath(); x.moveTo(0, i); x.lineTo(120, i); x.stroke(); }
+  if (t.bg.pattern === "dots") for (let i = 3; i < W; i += 5) for (let j = 3; j < H; j += 5) { x.beginPath(); x.arc(i, j, 0.35, 0, Math.PI * 2); x.fill(); }
+  if (t.bg.pattern === "grid") { for (let i = 0; i <= W; i += 5) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } for (let i = 0; i <= H; i += 5) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); } }
+  if (t.bg.pattern === "lines") for (let i = 2; i <= H; i += 6) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); }
   x.restore();
   // vân giấy: sợi mảnh ngẫu nhiên (cố định theo seed)
   const r = rng(t.seed + 99);
   x.save(); x.lineWidth = 0.12;
-  for (let i = 0; i < 160; i++) {
-    const X0 = r() * 120, Y0 = r() * 120, a = r() * Math.PI * 2, l = 1 + r() * 3;
+  for (let i = 0; i < Math.round((160 * W * H) / 14400); i++) {
+    const X0 = r() * W, Y0 = r() * H, a = r() * Math.PI * 2, l = 1 + r() * 3;
     x.strokeStyle = r() < 0.5 ? "rgba(255,255,255,0.35)" : "rgba(120,100,70,0.1)";
     x.beginPath(); x.moveTo(X0, Y0); x.lineTo(X0 + Math.cos(a) * l, Y0 + Math.sin(a) * l); x.stroke();
   }
@@ -263,28 +271,128 @@ function drawText(x: X, l: Extract<Layer, { k: "text" }>, value: string, idx: nu
   return { role: l.role, layer: idx, x: l.x, y: l.y, w: w + size, h: size * 1.6 + lh * (lines.length - 1), rot: l.rot };
 }
 
-/** Vẽ mặt đĩa. Trả về canvas + vị trí các ô ảnh / chữ (mm) để bấm chọn trên trang. */
-export function renderDisc(o: RenderOpts) {
-  const N = Math.round(o.size), k = N / 120;
+// ---------- khung lời chúc ----------
+function wrapWords(x: X, text: string, maxW: number) {
+  const out: string[] = [];
+  for (const para of text.split("\n")) {
+    let line = "";
+    for (const w of para.split(/\s+/).filter(Boolean)) {
+      const t = line ? `${line} ${w}` : w;
+      if (x.measureText(t).width <= maxW || !line) line = t; else { out.push(line); line = w; }
+    }
+    out.push(line);
+  }
+  return out;
+}
+function cardPath(l: Extract<Layer, { k: "wish" }>) {
+  const p = new Path2D(), w = l.w, h = l.h;
+  if (l.card === "label") p.roundRect(-w / 2, -h / 2, w, h, Math.min(h / 2, 4));
+  else if (l.card === "lined") return tornPath(w, h, l.seed, 0.45);
+  else p.roundRect(-w / 2, -h / 2, w, h, l.card === "card" ? 1.2 : 0.3);
+  return p;
+}
+export const WISH_FONT = "Patrick Hand";
+function drawWish(x: X, l: Extract<Layer, { k: "wish" }>, fonts?: RenderOpts["cutoutFonts"]) {
+  const w = l.w, h = l.h, p = cardPath(l);
+  shadow(x, 1.4, 0.6, 0.2); x.fillStyle = l.color; x.fill(p); noShadow(x);
+  x.save(); x.clip(p);
+  if (l.card === "lined") {
+    x.strokeStyle = "rgba(90,130,200,0.35)"; x.lineWidth = 0.2;
+    for (let j = -h / 2 + 5; j < h / 2; j += 4) { x.beginPath(); x.moveTo(-w / 2, j); x.lineTo(w / 2, j); x.stroke(); }
+    x.strokeStyle = "rgba(230,90,90,0.5)"; x.beginPath(); x.moveTo(-w / 2 + 5, -h / 2); x.lineTo(-w / 2 + 5, h / 2); x.stroke();
+  } else if (l.card === "card") {
+    x.setLineDash([0.9, 0.7]); x.strokeStyle = l.ink; x.globalAlpha = 0.45; x.lineWidth = 0.25; x.strokeRect(-w / 2 + 2, -h / 2 + 2, w - 4, h - 4); x.setLineDash([]); x.globalAlpha = 1;
+  } else if (l.card === "note") {
+    const g = x.createLinearGradient(0, -h / 2, 0, h / 2); g.addColorStop(0, "rgba(255,255,255,0.18)"); g.addColorStop(1, "rgba(0,0,0,0.05)"); x.fillStyle = g; x.fillRect(-w / 2, -h / 2, w, h);
+  }
+  x.restore();
+  if (l.card === "label") { x.lineWidth = 0.45; x.strokeStyle = l.ink; x.stroke(p); }
+  if (l.card === "note") { x.save(); x.globalAlpha = 0.7; x.fillStyle = "#f5e6b8"; x.translate(0, -h / 2); x.rotate(rad(-3)); x.fillRect(-Math.min(14, w * 0.3) / 2, -2, Math.min(14, w * 0.3), 4); x.restore(); }
+  // chữ: tự xuống dòng + tự co cho vừa khung (chừa lề)
+  const v = l.value.trim();
+  if (!v) return;
+  const pad = Math.max(2.2, Math.min(w, h) * 0.1), aw = w - pad * 2 - (l.card === "lined" ? 4 : 0), ah = h - pad * 2, ox = l.card === "lined" ? 2 : 0;
+  if (l.cutout) {
+    const f = fonts?.[l.cutout.font] ?? null, cu = l.cutout;
+    for (let size = Math.min(9, ah); size >= 1.6; size -= 0.4) {
+      const lh = size * 1.3, lines: { pieces: ReturnType<typeof layoutCutout>["pieces"]; bounds: ReturnType<typeof layoutCutout>["bounds"] }[] = [];
+      const lay = (t: string, i: number) => layoutCutout(t, f, { size, curve: 0, chaos: cu.chaos, spacing: cu.spacing, seed: cu.seed + i * 7919 });
+      let ok = true;
+      for (const para of v.split("\n")) {
+        let line = "";
+        for (const wd of para.split(/\s+/).filter(Boolean)) {
+          const t = line ? `${line} ${wd}` : wd, b = lay(t, lines.length).bounds;
+          if (b.x1 - b.x0 <= aw || !line) line = t; else { lines.push(lay(line, lines.length)); line = wd; }
+        }
+        lines.push(lay(line, lines.length));
+      }
+      if (lines.some((L) => L.bounds.x1 - L.bounds.x0 > aw)) ok = false;
+      if ((ok && lines.length * lh <= ah) || size <= 1.7) {
+        lines.forEach((L, i) => { x.save(); x.translate(ox, (i - (lines.length - 1) / 2) * lh); drawCutout(x, L.pieces, px); x.restore(); });
+        return;
+      }
+    }
+    return;
+  }
+  const fam = l.family ?? WISH_FONT;
+  x.fillStyle = l.ink; x.textAlign = "center"; x.textBaseline = "middle";
+  for (let size = Math.min(8, ah); size >= 1.4; size -= 0.2) {
+    x.font = `400 ${size}px "${fam}", "Itim", sans-serif`;
+    const lines = wrapWords(x, v, aw), lh = size * 1.3;
+    if ((lines.length * lh <= ah && lines.every((t) => x.measureText(t).width <= aw)) || size <= 1.5) {
+      lines.forEach((t, i) => x.fillText(t, ox, (i - (lines.length - 1) / 2) * lh));
+      return;
+    }
+  }
+}
+// ảnh trong khung PNG: ảnh vào vùng ảnh (hình chữ nhật hoặc mặt nạ), khung vẽ đè lên
+function drawFramed(x: X, l: Extract<Layer, { k: "photo" }>, fr: LoadedFrame, img: PhotoSrc, adj: Adjust | undefined, label: string | undefined) {
+  const w = l.w, h = l.h, g = fr.frame.region ?? { x0: 0, y0: 0, x1: 1, y1: 1 };
+  const ix = -w / 2 + g.x0 * w, iy = -h / 2 + g.y0 * h, iw = (g.x1 - g.x0) * w, ih = (g.y1 - g.y0) * h;
+  if (fr.mask) {
+    // mặt nạ: dựng riêng ảnh ở độ phân giải hiện tại rồi giữ phần nằm trong mặt nạ
+    const W = Math.max(1, Math.round(w * px)), H = Math.max(1, Math.round(h * px));
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const y = c.getContext("2d")!; y.scale(W / w, H / h); y.translate(ix + iw / 2 + w / 2, iy + ih / 2 + h / 2);
+    drawPhoto(y, img, iw, ih, adj, label);
+    y.setTransform(1, 0, 0, 1, 0, 0); y.globalCompositeOperation = "destination-in"; y.drawImage(fr.mask, 0, 0, W, H);
+    x.drawImage(c, -w / 2, -h / 2, w, h);
+  } else { x.save(); x.beginPath(); x.rect(ix, iy, iw, ih); x.clip(); x.translate(ix + iw / 2, iy + ih / 2); drawPhoto(x, img, iw, ih, adj, label); x.restore(); }
+  shadow(x, 1.3, 0.6, 0.22); x.drawImage(fr.img, -w / 2, -h / 2, w, h); noShadow(x);
+}
+
+/** Vẽ 1 bề mặt (đĩa / trang / cặp trang). size = px bề ngang. Trả về canvas + vị trí các ô ảnh / chữ (mm) để bấm chọn. */
+export function renderSurface(o: RenderOpts) {
+  const S = surfaceOf(o.template);
+  const N = Math.round(o.size), k = N / S.w, NH = Math.round(S.h * k);
   px = k;
-  const c = document.createElement("canvas"); c.width = c.height = N;
+  const c = document.createElement("canvas"); c.width = N; c.height = NH;
   const x = c.getContext("2d")!;
   x.imageSmoothingQuality = "high";
   x.scale(k, k);
   x.save();
-  x.beginPath(); x.arc(C, C, R_OUT, 0, Math.PI * 2); x.clip(); // trang trí được tràn ra mép, cắt theo hình tròn
-  background(x, o.template, o.assets);
+  x.beginPath(); if (S.round) x.arc(C, C, R_OUT, 0, Math.PI * 2); else x.rect(0, 0, S.w, S.h); x.clip(); // trang trí được tràn ra mép, cắt theo bề mặt
+  background(x, o.template, o.assets, S.w, S.h);
   const hits: Hit[] = [], texts: TextHit[] = [];
+  // sticker khách thêm luôn nằm trên cùng
+  const order = o.template.layers.map((l, i) => i);
+  order.sort((a, b) => Number(isTopSticker(o.template.layers[a])) - Number(isTopSticker(o.template.layers[b])) || a - b);
 
-  for (const [li, l] of o.template.layers.entries()) {
+  for (const li of order) {
+    const l = o.template.layers[li];
     x.save();
     if (l.k === "text") { const h = drawText(x, l, textOf(l, o.text), li, o.cutoutFonts); if (h) texts.push(h); x.restore(); continue; }
     x.translate(l.x, l.y); x.rotate(rad(l.rot));
-    if (l.k === "photo") {
-      const img = o.photos[l.slot] ?? null, adj = o.adjust?.[l.slot];
+    if (l.k === "wish") drawWish(x, l, o.cutoutFonts);
+    else if (l.k === "photo") {
+      const byId = l.photo !== undefined;
+      const img = byId ? (l.photo ? o.photoMap?.[l.photo] ?? null : null) : o.photos?.[l.slot] ?? null;
+      const adj = byId ? (l.photo ? o.adjustMap?.[l.photo] : undefined) : o.adjust?.[l.slot];
       const fa = l.asset ? o.assets?.[l.asset] : undefined;
-      const label = o.mode === "print" ? undefined : String(l.slot + 1);
-      if (l.shape === "frame" && fa?.asset.region) {
+      const label = o.mode === "print" ? undefined : byId ? "+" : String(l.slot + 1);
+      const fr = l.frame ? o.frames?.[l.frame] : undefined;
+      if (fr) drawFramed(x, l, fr, img, adj, label);
+      else if (l.shape === "frame" && fa?.asset.region) {
         // khung ảnh của admin: ảnh vào vùng đặt ảnh, khung vẽ đè lên
         const g = fa.asset.region, fw = l.w / (g.x1 - g.x0), fh = fw * (fa.img.height / fa.img.width);
         const ix = -fw / 2 + g.x0 * fw, iy = -fh / 2 + g.y0 * fh, iw = (g.x1 - g.x0) * fw, ih = (g.y1 - g.y0) * fh;
@@ -309,10 +417,10 @@ export function renderDisc(o: RenderOpts) {
         noShadow(x);
         x.save(); x.clip(inner); drawPhoto(x, img, l.w, l.h, adj, label); x.restore();
       }
-      if (o.editSlot === l.slot || o.hoverSlot === l.slot) {
+      if (o.editLayer === li || (!byId && (o.editSlot === l.slot || o.hoverSlot === l.slot))) {
         x.save(); x.setLineDash([1.2, 0.9]); x.lineWidth = 0.6; x.strokeStyle = "#ff5fa2"; x.stroke(shapePath(l.shape === "heart" || l.shape === "circle" ? l.shape : "rect", l.w + 1, l.h + 1, l.seed)); x.restore();
       }
-      hits.push({ slot: l.slot, x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot, shape: l.shape });
+      hits.push({ slot: l.slot, layer: li, x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot, shape: l.shape });
     } else if (l.k === "tape") {
       const a = l.asset ? o.assets?.[l.asset] : undefined;
       if (a) { const h = l.w * (a.img.height / a.img.width); shadow(x, 0.8, 0.3, 0.14); x.globalAlpha = 0.92; x.drawImage(a.img, -l.w / 2, -h / 2, l.w, h); }
@@ -329,11 +437,21 @@ export function renderDisc(o: RenderOpts) {
     x.restore();
   }
 
-  // grain toàn mặt đĩa
+  // grain toàn bề mặt
   x.save(); x.globalAlpha = 0.05; x.globalCompositeOperation = "overlay";
-  x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = x.createPattern(grainTile(), "repeat")!; x.fillRect(0, 0, N, N);
+  x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = x.createPattern(grainTile(), "repeat")!; x.fillRect(0, 0, N, NH);
   x.restore();
   x.restore();
+  if (!S.round) {
+    if (o.mode !== "print" && o.guides) {
+      x.save(); x.lineWidth = 0.3; x.setLineDash([1.4, 1.2]); x.strokeStyle = "rgba(60,60,70,0.45)";
+      if (S.kind === "spread") { x.strokeRect(5, 5, 110 - 2, 110); x.strokeRect(127, 5, 108, 110); }
+      else x.strokeRect(S.safe.x0, S.safe.y0, S.safe.x1 - S.safe.x0, S.safe.y1 - S.safe.y0);
+      if (S.gutter !== null) { x.setLineDash([]); x.strokeStyle = "rgba(255,95,162,0.7)"; x.beginPath(); x.moveTo(S.gutter, 0); x.lineTo(S.gutter, S.h); x.stroke(); }
+      x.restore();
+    }
+    return { canvas: c, hits, texts };
+  }
 
   // lỗ giữa + vùng nhựa trong quanh lỗ
   x.save(); x.globalCompositeOperation = "destination-out";
@@ -356,6 +474,10 @@ export function renderDisc(o: RenderOpts) {
   }
   return { canvas: c, hits, texts };
 }
+
+/** (tên cũ) vẽ mặt đĩa */
+export const renderDisc = renderSurface;
+const isTopSticker = (l: Layer) => l.k === "sticker" && !!l.user;
 
 /** Điểm (mm) có nằm trong ô (hình chữ nhật xoay) không */
 export function inBox(px0: number, py0: number, b: { x: number; y: number; w: number; h: number; rot: number }) {

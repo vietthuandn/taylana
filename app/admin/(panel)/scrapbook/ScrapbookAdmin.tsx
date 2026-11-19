@@ -96,7 +96,7 @@ export function ScrapbookAdmin() {
             <div className="grid gap-3 sm:grid-cols-3">
               <Field label="Tên"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ví dụ: Washi hồng chấm bi" /></Field>
               <Field label="Nhóm">
-                <Select value={form.grp} onChange={(e) => setForm({ ...form, grp: e.target.value as AssetGroup })}>{ASSET_GROUPS.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</Select>
+                <Select value={form.grp} onChange={(e) => setForm({ ...form, grp: e.target.value as AssetGroup })}>{ASSET_GROUPS.filter((g) => g.id !== "frame").map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</Select>
               </Field>
               <Field label="Tông màu">
                 <Select value={form.tone} onChange={(e) => setForm({ ...form, tone: e.target.value })}>{TONES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</Select>
@@ -127,8 +127,9 @@ export function ScrapbookAdmin() {
 
       {ASSET_GROUPS.map((g) => {
         const items = list.filter((a) => a.grp === g.id);
+        if (g.id === "frame" && !items.length) return null; // khung ảnh: quản lý ở tab "Khung ảnh"
         return (
-          <Card key={g.id} title={`${g.name} (${items.length})`}>
+          <Card key={g.id} title={`${g.name} (${items.length})`} description={g.id === "frame" ? "Khung cũ — đã chuyển sang tab “Khung ảnh” khi chạy migration_booklet_scrapbook.sql. Quản lý khung mới ở tab đó." : undefined}>
             {items.length ? (
               <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
                 {items.map((a, i) => (

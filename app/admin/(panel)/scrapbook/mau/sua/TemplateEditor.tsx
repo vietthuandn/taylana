@@ -1,6 +1,7 @@
 "use client";
 
-/* Admin → Xem mẫu Scrapbook → "Sửa mẫu": chỉnh tay 1 mẫu (N ảnh × phong cách) trên mặt đĩa 120 mm.
+/* Admin → Xem mẫu Scrapbook → "Sửa mẫu": chỉnh tay 1 mẫu — CD Scrapbook (N ảnh × phong cách, mặt đĩa 120 mm)
+   hoặc Booklet Scrapbook (?surface=spread: kiểu dàn trang cặp × phong cách, cặp trang 240 × 120 mm).
    Bấm chọn lớp → kéo để di chuyển, kéo 4 góc để phóng to / thu nhỏ (giữ tỉ lệ, Shift = tự do), núm tròn để xoay,
    phím mũi tên dịch 0.5 mm, Delete xoá lớp. Panel phải: danh sách lớp (thứ tự trên / dưới), thuộc tính, đổi chất liệu, nền.
    Lưu → scrapbook_template_settings.template (đè lên mẫu tạo bằng code). "Khôi phục mẫu gốc" → bỏ bản chỉnh. */
@@ -15,6 +16,8 @@ import { createClient } from "@/lib/supabase/client";
 import { revalidatePublic } from "@/app/admin/actions";
 import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { generate } from "@/lib/scrapbook/generate";
+import { SPREAD_KINDS, generateSpread } from "@/lib/scrapbook/booklet";
+import { surfaceOf } from "@/lib/scrapbook/surface";
 import { loadFonts, renderDisc } from "@/lib/scrapbook/render";
 import { samplePhotos } from "@/lib/scrapbook/samples";
 import { settingOf } from "@/lib/scrapbook/templates";
@@ -23,7 +26,7 @@ import { Button, Toggle, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
 
 type Box = { x: number; y: number; w: number; h: number; rot: number };
-const LABEL: Record<Layer["k"], string> = { photo: "Ô ảnh", paper: "Mảnh giấy", tape: "Băng dính", sticker: "Sticker", doodle: "Doodle", text: "Chữ" };
+const LABEL: Record<Layer["k"], string> = { photo: "Ô ảnh", paper: "Mảnh giấy", tape: "Băng dính", sticker: "Sticker", doodle: "Doodle", text: "Chữ", wish: "Lời chúc" };
 const GRP: Partial<Record<Layer["k"], ScrapAsset["grp"]>> = { tape: "tape", sticker: "sticker", doodle: "doodle", paper: "paper" };
 
 function boxOf(l: Layer): Box | null {
@@ -44,8 +47,11 @@ const r1 = (v: number) => Math.round(v * 10) / 10;
 
 export function TemplateEditor() {
   const params = useSearchParams();
-  const n = Math.min(10, Math.max(5, Number(params.get("n")) || 5));
+  const spread = params.get("surface") === "spread";
+  const n = spread ? Math.min(SPREAD_KINDS.length, Math.max(1, Number(params.get("n")) || 1)) : Math.min(10, Math.max(5, Number(params.get("n")) || 5));
   const style = (STYLES.find((s) => s.id === params.get("style"))?.id ?? "polaroid") as Style;
+  const surfaceType = spread ? "spread" : "disc";
+  const make = useCallback((seed: number, list: ScrapAsset[]) => (spread ? generateSpread(n, style, seed, list) : generate(n, style, seed, list)), [spread, n, style]);
   const [row, setRow] = useState<TemplateSetting | null>(null);
   const [assets, setAssets] = useState<ScrapAsset[]>([]);
   const [imgs, setImgs] = useState<Awaited<ReturnType<typeof loadAssetImages>>>({});
@@ -65,34 +71,36 @@ export function TemplateEditor() {
   useEffect(() => {
     (async () => {
       const sb = createClient();
-      const [t, a] = await Promise.all([sb.from("scrapbook_template_settings").select("*").eq("n", n).eq("style", style).maybeSingle(), sb.from("scrapbook_assets").select("*").eq("is_active", true).order("grp").order("sort_order")]);
+      const [t, a] = await Promise.all([sb.from("scrapbook_template_settings").select("*").eq("n", n).eq("style", style), sb.from("scrapbook_assets").select("*").eq("is_active", true).order("grp").order("sort_order")]);
       const list = (a.data ?? []) as ScrapAsset[];
-      const r = settingOf(t.data ? [t.data as TemplateSetting] : [], n, style);
+      const rowsT = ((t.data ?? []) as TemplateSetting[]).filter((x) => (x.surface_type ?? "disc") === surfaceType);
+      const r = spread ? rowsT[0] ?? { n, style, seed: n * 1000 + STYLES.findIndex((x) => x.id === style) + 1, is_active: true, surface_type: "spread" } : settingOf(rowsT, n, style);
       setRow(r); setAssets(list);
-      setTpl(r.template ? structuredClone({ ...r.template, n, style }) : generate(n, style, r.seed, list));
+      setTpl(r.template ? structuredClone({ ...r.template, n, style, ...(spread ? { surface: "spread" as const, kind: n } : {}) }) : make(r.seed, list));
       setPhotos(samplePhotos());
       await loadFonts();
       setImgs(await loadAssetImages(list));
     })();
-  }, [n, style]);
+  }, [n, style, spread, surfaceType, make]);
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setCssW(Math.max(240, Math.min(el.clientWidth, el.clientHeight) - 24)));
+    const ro = new ResizeObserver(() => setCssW(Math.max(240, Math.min(el.clientWidth - 24, (el.clientHeight - 24) * (spread ? 2 : 1)))));
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [spread]);
   useEffect(() => {
     const c = view.current;
     if (!c || !tpl) return;
     const px = Math.round(cssW * Math.min(2, window.devicePixelRatio || 1));
     const r = renderDisc({ template: tpl, photos, text, assets: imgs, size: px, guides });
-    c.width = px; c.height = px; c.getContext("2d")!.drawImage(r.canvas, 0, 0);
+    c.width = r.canvas.width; c.height = r.canvas.height; c.getContext("2d")!.drawImage(r.canvas, 0, 0);
   }, [tpl, photos, text, imgs, guides, cssW]);
 
   const update = useCallback((i: number, f: (l: Layer) => Layer) => { setTpl((t) => (t ? { ...t, layers: t.layers.map((l, j) => (j === i ? f(l) : l)) } : t)); setDirty(true); }, []);
-  const k = cssW / 120; // px / mm
-  const mm = (e: { clientX: number; clientY: number }) => { const r = view.current!.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * 120, y: ((e.clientY - r.top) / r.height) * 120 }; };
+  const S = surfaceOf(tpl);
+  const k = cssW / S.w; // px / mm
+  const mm = (e: { clientX: number; clientY: number }) => { const r = view.current!.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * S.w, y: ((e.clientY - r.top) / r.height) * S.h }; };
 
   function downCanvas(e: React.PointerEvent) {
     if (!tpl) return;
@@ -161,7 +169,7 @@ export function TemplateEditor() {
   }
   function addLayer(kind: "sticker" | "tape" | "paper" | "doodle") {
     if (!tpl) return;
-    const base = { x: 60, y: 30, rot: 0 };
+    const base = { x: S.w / 2, y: 30, rot: 0 };
     const l: Layer = kind === "sticker" ? { k: "sticker", ...base, s: 8, shape: "star", color: "#ff8fab" }
       : kind === "tape" ? { k: "tape", ...base, w: 16, h: 4.2, color: "#9bd1e5", pattern: "stripe", seed: Date.now() % 1e6 }
       : kind === "doodle" ? { k: "doodle", ...base, s: 9, shape: "arrow", color: "#3f3f46" }
@@ -171,11 +179,11 @@ export function TemplateEditor() {
   async function save(reset = false) {
     if (!row || !tpl) return;
     setSaving(true);
-    const { error } = await createClient().from("scrapbook_template_settings").upsert({ n, style, seed: row.seed, is_active: row.is_active, template: reset ? null : tpl, updated_at: new Date().toISOString() });
+    const { error } = await createClient().from("scrapbook_template_settings").upsert({ surface_type: surfaceType, n, style, seed: row.seed, is_active: row.is_active, template: reset ? null : tpl, updated_at: new Date().toISOString() }, { onConflict: "surface_type,n,style" });
     setSaving(false);
-    if (error) return toast(/template/.test(error.message) ? "Thiếu cột template — cần chạy supabase/migration_scrapbook_edit.sql." : error.message, "err");
-    await revalidatePublic(["/thiet-ke/scrapbook"]);
-    if (reset) { setTpl(generate(n, style, row.seed, assets)); setRow({ ...row, template: null }); toast("Đã khôi phục mẫu gốc"); }
+    if (error) return toast(/template|surface_type/.test(error.message) ? "Thiếu cột — cần chạy supabase/migration_scrapbook_edit.sql và migration_booklet_scrapbook.sql." : error.message, "err");
+    await revalidatePublic(["/thiet-ke/scrapbook", "/thiet-ke/booklet-scrapbook"]);
+    if (reset) { setTpl(make(row.seed, assets)); setRow({ ...row, template: null }); toast("Đã khôi phục mẫu gốc"); }
     else { setRow({ ...row, template: tpl }); toast("Đã lưu mẫu"); }
     setDirty(false);
   }
@@ -191,7 +199,7 @@ export function TemplateEditor() {
       <div className="relative flex min-w-0 flex-1 flex-col">
         <div className="flex flex-wrap items-center gap-3 border-b border-[#e5e5e7] bg-white px-4 py-2">
           <Link href="/admin/scrapbook?tab=mau" className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Mẫu</Link>
-          <p className="text-[14px] font-semibold">{STYLES.find((s) => s.id === style)?.name} · {n} ảnh</p>
+          <p className="text-[14px] font-semibold">{STYLES.find((s) => s.id === style)?.name} · {spread ? `Booklet: ${SPREAD_KINDS.find((x) => x.id === n)?.name}` : `${n} ảnh`}</p>
           {row?.template && <span className="rounded-full bg-[#fff0f6] px-2 text-[12px] font-medium text-[#db2777]">Đã chỉnh</span>}
           <div className="ml-auto flex items-center gap-2">
             <Toggle checked={guides} onChange={setGuides} label="Guideline" />
@@ -200,7 +208,7 @@ export function TemplateEditor() {
           </div>
         </div>
         <div ref={wrap} className="relative grid flex-1 place-items-center overflow-hidden p-3" onPointerMove={moveAny} onPointerUp={upAny} onPointerCancel={upAny}>
-          <div className="relative" style={{ width: cssW, height: cssW }}>
+          <div className="relative" style={{ width: cssW, height: (cssW * S.h) / S.w }}>
             <canvas ref={view} className="block h-full w-full cursor-pointer touch-none" onPointerDown={downCanvas} />
             {B && (
               <div className="pointer-events-none absolute border-2 border-[#2563eb]"
@@ -248,7 +256,7 @@ export function TemplateEditor() {
           <ul className="max-h-[220px] space-y-0.5 overflow-y-auto">
             {tpl.layers.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => (
               <li key={i} className={cx("flex items-center gap-1 rounded-[6px] px-2 py-1 text-[12px]", sel === i ? "bg-[#eff6ff] text-[#2563eb]" : "hover:bg-[#fafafa]")}>
-                <button type="button" onClick={() => setSel(i)} className="min-w-0 flex-1 truncate text-left">{LABEL[l.k]}{l.k === "photo" ? ` ${l.slot + 1}${l.slot === 0 ? " (chính)" : ""}` : l.k === "text" ? ` · ${l.role === "main" ? "dòng chính" : "dòng phụ"}` : l.asset ? " · chất liệu" : ""}</button>
+                <button type="button" onClick={() => setSel(i)} className="min-w-0 flex-1 truncate text-left">{LABEL[l.k]}{l.k === "photo" ? ` ${l.slot + 1}${l.slot === 0 ? " (chính)" : ""}` : l.k === "text" ? ` · ${l.role === "main" ? "dòng chính" : l.role === "sub" ? "dòng phụ" : "chữ riêng"}` : "asset" in l && l.asset ? " · chất liệu" : ""}</button>
                 <button type="button" onClick={() => order(i, 1)} aria-label="Lên trên" className="text-[#a1a1aa] hover:text-[#18181b]"><ArrowUp size={12} /></button>
                 <button type="button" onClick={() => order(i, -1)} aria-label="Xuống dưới" className="text-[#a1a1aa] hover:text-[#18181b]"><ArrowDown size={12} /></button>
               </li>
@@ -286,7 +294,7 @@ export function TemplateEditor() {
               <>
                 <Row label="Khung"><Sel value={L.shape} onChange={(v) => update(sel, (l) => ({ ...l, shape: v as typeof L.shape }) as Layer)} opts={[["rect", "Chữ nhật"], ["polaroid", "Polaroid"], ["torn", "Giấy xé"], ["circle", "Tròn"], ["heart", "Tim"], ["frame", "Khung ảnh (chất liệu)"]]} /></Row>
                 {L.shape === "frame" && <Row label="Chất liệu"><Sel value={L.asset ?? ""} onChange={(v) => update(sel, (l) => ({ ...l, asset: v || undefined }) as Layer)} opts={[["", "Polaroid mặc định"], ...assetOpts.map((a) => [a.id, a.name] as [string, string])]} /></Row>}
-                <Row label="Ảnh số"><Sel value={String(L.slot)} onChange={(v) => update(sel, (l) => ({ ...l, slot: Number(v) }) as Layer)} opts={Array.from({ length: n }, (_, i) => [String(i), `${i + 1}${i === 0 ? " (chính)" : ""}`] as [string, string])} /></Row>
+                <Row label="Ảnh số"><Sel value={String(L.slot)} onChange={(v) => update(sel, (l) => ({ ...l, slot: Number(v) }) as Layer)} opts={Array.from({ length: spread ? Math.max(3, tpl.layers.filter((x) => x.k === "photo").length) : n }, (_, i) => [String(i), `${i + 1}${i === 0 && !spread ? " (chính)" : ""}`] as [string, string])} /></Row>
               </>
             )}
             {(L.k === "tape" || L.k === "sticker" || L.k === "doodle" || L.k === "paper") && (
@@ -300,6 +308,13 @@ export function TemplateEditor() {
               <>
                 <Row label="Loại giấy"><Sel value={L.paper} onChange={(v) => update(sel, (l) => ({ ...l, paper: v }) as Layer)} opts={[["note", "Giấy note"], ["grid", "Giấy kẻ ô"], ["ticket", "Vé"], ["kraft", "Giấy kraft"]]} /></Row>
                 <Row label="Mép xé"><input type="checkbox" checked={L.torn} onChange={(e) => update(sel, (l) => ({ ...l, torn: e.target.checked }) as Layer)} className="h-4 w-4 accent-[#ff5fa2]" /></Row>
+              </>
+            )}
+            {L.k === "wish" && (
+              <>
+                <Row label="Kiểu khung"><Sel value={L.card} onChange={(v) => update(sel, (l) => ({ ...l, card: v }) as Layer)} opts={[["card", "Thiệp nhỏ"], ["note", "Giấy note"], ["lined", "Giấy kẻ dòng"], ["label", "Nhãn"]]} /></Row>
+                <Row label="Màu chữ"><input type="color" value={L.ink} onChange={(e) => update(sel, (l) => ({ ...l, ink: e.target.value }) as Layer)} /></Row>
+                <textarea value={L.value} onChange={(e) => update(sel, (l) => ({ ...l, value: e.target.value }) as Layer)} rows={3} className="w-full rounded-[6px] border border-[#e5e5e7] px-2 py-1 text-[12px]" aria-label="Lời chúc mẫu" />
               </>
             )}
             {L.k === "text" && (

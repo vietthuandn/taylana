@@ -2,19 +2,22 @@
    Mỗi số ảnh N (5–10) × 5 phong cách = 30 mẫu. Ảnh nằm trong vành khuyên [hub 23 mm … an toàn 57 mm],
    ảnh chính (ô 0) luôn to nhất, đặt ở đỉnh; dải dưới cùng dành cho chữ (trừ phong cách "Vòng tròn": chữ chạy cong vòng ngoài).
    Trang trí (sticker, băng dính, mảnh giấy) được phép tràn ra mép — khi vẽ sẽ cắt theo hình tròn. */
-import { C, R_HUB, R_SAFE, STYLES, type Layer, type PhotoShape, type ScrapAsset, type StickerShape, type Style, type Template } from "./types";
+import { SCRAP_CONFIG } from "./config";
+import { placeStickers } from "./place";
+import { surfaceOf } from "./surface";
+import { C, R_HUB, R_SAFE, STYLES, type Frame, type Layer, type PhotoShape, type ScrapAsset, type StickerShape, type Style, type Template } from "./types";
 
 export function rng(seed: number) {
   let a = (seed * 2654435761) >>> 0;
   return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 type R = () => number;
-const pick = <T,>(r: R, a: T[]) => a[Math.floor(r() * a.length) % a.length];
-const jit = (r: R, d: number) => (r() * 2 - 1) * d;
+export const pick = <T,>(r: R, a: T[]) => a[Math.floor(r() * a.length) % a.length];
+export const jit = (r: R, d: number) => (r() * 2 - 1) * d;
 const rad = (deg: number) => (deg * Math.PI) / 180;
 
 // bảng màu theo phong cách: nền giấy + màu điểm nhấn + tông (để chọn chất liệu hợp màu)
-const PALETTES: Record<Style, { bg: string; ink: string; tone: string; accents: string[] }[]> = {
+export const PALETTES: Record<Style, { bg: string; ink: string; tone: string; accents: string[] }[]> = {
   polaroid: [
     { bg: "#fbf3e6", ink: "#d9c7a8", tone: "cream", accents: ["#f4a6b8", "#9ec5e8", "#f6d36b", "#a8d5ba"] },
     { bg: "#fde7ea", ink: "#f2b8c3", tone: "pink", accents: ["#ff8fab", "#ffd166", "#9bd1e5", "#c3aed6"] },
@@ -43,7 +46,7 @@ const PALETTES: Record<Style, { bg: string; ink: string; tone: string; accents: 
 };
 
 // chất liệu admin hợp tông (không có thì undefined → bộ vẽ dùng hình mặc định)
-function asset(r: R, assets: ScrapAsset[], grp: ScrapAsset["grp"], tone: string, chance = 0.7) {
+export function asset(r: R, assets: ScrapAsset[], grp: ScrapAsset["grp"], tone: string, chance = 0.7) {
   const list = assets.filter((a) => a.grp === grp && a.is_active && (grp !== "frame" || a.region));
   if (!list.length || r() > chance) return undefined;
   const same = list.filter((a) => a.tone === tone || a.tone === "any");
@@ -75,8 +78,8 @@ function ringSlots(n: number, o: { start: number; span: number; maxS: number; ma
   });
 }
 
-// trang trí rải quanh đĩa (tránh tâm các ô ảnh)
-function scatter(r: R, k: number, avoid: Slot[], rMin: number, rMax: number) {
+// (cũ) trang trí rải quanh đĩa — nay dùng placeStickers (lưới chiếm chỗ)
+export function scatter(r: R, k: number, avoid: Slot[], rMin: number, rMax: number) {
   const out: { x: number; y: number }[] = [];
   for (let t = 0; t < k * 30 && out.length < k; t++) {
     const a = r() * Math.PI * 2, d = rMin + r() * (rMax - rMin);
@@ -87,7 +90,7 @@ function scatter(r: R, k: number, avoid: Slot[], rMin: number, rMax: number) {
   }
   return out;
 }
-const tapeOn = (r: R, s: Slot, rot: number, pal: { accents: string[] }, assets: ScrapAsset[], tone: string): Layer => {
+export const tapeOn = (r: R, s: Slot, rot: number, pal: { accents: string[] }, assets: ScrapAsset[], tone: string): Layer => {
   // băng dính ở mép trên ô (theo góc xoay của ô)
   const t = rad(rot), dy = -s.h / 2 - 0.5;
   return { k: "tape", x: s.x - dy * Math.sin(t), y: s.y + dy * Math.cos(t), w: Math.max(10, s.w * 0.5), h: 4.2, rot: rot + jit(r, 18),
@@ -95,7 +98,42 @@ const tapeOn = (r: R, s: Slot, rot: number, pal: { accents: string[] }, assets: 
 };
 const stickerShapes: StickerShape[] = ["star", "heart", "flower", "bow", "sparkle"];
 
-export function generate(n: number, style: Style, seed: number, assets: ScrapAsset[] = []): Template {
+/** hàm tạo sticker / băng dính hợp màu mẫu (dùng cho rải tự động + nút "Xáo trộn") */
+export function decorMakers(r: R, accents: string[], assets: ScrapAsset[], tone: string, shapes: StickerShape[] = stickerShapes) {
+  return {
+    sticker: (x: number, y: number, s: number, rot: number): Layer => ({ k: "sticker", x, y, s, rot, shape: pick(r, shapes), color: pick(r, accents), asset: asset(r, assets, "sticker", tone, 0.5) }),
+    tape: (x: number, y: number, w: number, rot: number): Layer => ({ k: "tape", x, y, w, h: 4.2, rot, color: pick(r, accents), pattern: pick(r, ["stripe", "dots", "plain"] as const), seed: Math.floor(r() * 1e6), asset: asset(r, assets, "tape", tone) }),
+  };
+}
+const DECOR: Record<Style, { count: number; size: number; shapes: StickerShape[] }> = {
+  polaroid: { count: 6, size: 6.5, shapes: stickerShapes },
+  torn: { count: 4, size: 6.5, shapes: stickerShapes },
+  ring: { count: 3, size: 4.5, shapes: ["sparkle", "star", "heart"] },
+  magazine: { count: 4, size: 6.5, shapes: ["star", "sparkle", "heart"] },
+  floral: { count: 12, size: 6, shapes: ["flower", "flower", "bow", "star", "heart", "sparkle"] },
+};
+/** rải sticker tự động cho 1 bề mặt (bỏ các sticker auto cũ, rải lại theo seed) */
+export function autoDecorate(t: Template, seed: number, assets: ScrapAsset[], count?: number): Template {
+  const r = rng(seed * 17 + 5), d = DECOR[t.style] ?? DECOR.polaroid;
+  const keep = t.layers.filter((l) => !l.auto);
+  const old = t.layers.length - keep.length;
+  const m = decorMakers(r, t.accents?.length ? t.accents : ["#ff8fab", "#ffd166", "#9bd1e5"], assets, t.tone ?? "any", d.shapes);
+  const n = count ?? (old || Math.round(d.count * (t.surface === "spread" ? 1.4 : 1)));
+  return { ...t, layers: [...keep, ...placeStickers(surfaceOf(t), keep, r, n, d.size, m.sticker, m.tape)] };
+}
+/** gắn khung ngẫu nhiên (theo seed) cho ~60% ô ảnh; ô có khung đổi chiều cao theo tỉ lệ ảnh khung */
+export function applyFrames(layers: Layer[], frames: Frame[], seed: number, ratio = SCRAP_CONFIG.frameRatio): Layer[] {
+  const list = frames.filter((f) => f.is_active && (f.region || f.mask_url));
+  if (!list.length) return layers;
+  const r = rng(seed * 7 + 777);
+  return layers.map((l) => {
+    if (l.k !== "photo" || r() >= ratio) return l;
+    const f = pick(r, list);
+    return { ...l, frame: f.id, h: l.w * (f.ratio || 1) };
+  });
+}
+
+export function generate(n: number, style: Style, seed: number, assets: ScrapAsset[] = [], frames: Frame[] = []): Template {
   const r = rng(seed * 31 + n * 7 + STYLES.findIndex((s) => s.id === style) * 1009);
   const pal = pick(r, PALETTES[style]);
   const L: Layer[] = [];
@@ -115,7 +153,6 @@ export function generate(n: number, style: Style, seed: number, assets: ScrapAss
       L.push({ k: "photo", slot: s.slot, x: s.x, y: s.y, w: s.w, h: s.w, rot, shape: frame ? "frame" : "polaroid", seed: Math.floor(r() * 1e6), asset: frame });
       if (r() < 0.75) L.push(tapeOn(r, { ...s, h: s.w * 1.22 }, rot, pal, assets, T));
     });
-    scatter(r, 5, slots, 24, 60).forEach((p) => L.push({ k: "sticker", x: p.x, y: p.y, s: 5 + r() * 3, rot: jit(r, 25), shape: pick(r, stickerShapes), color: pick(r, pal.accents), asset: asset(r, assets, "sticker", T, 0.5) }));
     txt("hand", "#3f3f46");
   } else if (style === "torn") {
     bg = { ...bg, pattern: "lines" };
@@ -165,8 +202,9 @@ export function generate(n: number, style: Style, seed: number, assets: ScrapAss
     // floral: khung tròn + khung tim, rất nhiều sticker hoa / nơ / sao
     const slots = ringSlots(n, { start: 90 + 40, span: 280, maxS: 25, mainScale: 1.3, spacing: 1.0 });
     slots.forEach((s, i) => L.push({ k: "photo", slot: s.slot, x: s.x, y: s.y, w: s.w, h: s.w, rot: i % 2 ? jit(r, 10) : 0, shape: i % 2 ? "heart" : "circle", seed: Math.floor(r() * 1e6), border: "#ffffff" }));
-    scatter(r, 10 + Math.floor(r() * 4), slots, 22, 63).forEach((p) => L.push({ k: "sticker", x: p.x, y: p.y, s: 4.5 + r() * 4, rot: jit(r, 40), shape: pick(r, ["flower", "flower", "bow", "star", "heart", "sparkle"] as const), color: pick(r, pal.accents), asset: asset(r, assets, "sticker", T, 0.5) }));
     txt("hand", pick(r, pal.accents));
   }
-  return { id: `${n}-${style}`, n, style, seed, bg, layers: L };
+  // sticker tự rải theo lưới chiếm chỗ + khung ảnh ngẫu nhiên từ thư viện
+  const base: Template = { id: `${n}-${style}`, n, style, seed, bg, layers: applyFrames(L, frames, seed), accents: pal.accents, tone: T };
+  return autoDecorate(base, seed, assets, DECOR[style].count);
 }

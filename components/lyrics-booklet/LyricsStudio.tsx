@@ -175,7 +175,16 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const pagePx = Math.max(140, Math.floor(Math.min(tab === "back" ? box.w : box.w / 2, tab === "back" ? box.h * (150 / 117) : box.h) - 8));
+  // cuốn sách to nhất có thể: 1 trang = min(cao × 0.85, rộng × 0.92 / 2)
+  const pagePx = Math.max(140, Math.floor(tab === "back" ? Math.min(box.w, box.h * (150 / 117)) - 8 : Math.min(box.h * 0.85, (box.w * 0.92) / 2)));
+  const [zoomPage, setZoomPage] = useState<number | null>(null);
+  useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === "Escape") setZoomPage(null); }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, []);
+  const zoomUrl = useMemo(() => {
+    if (zoomPage === null || typeof window === "undefined") return "";
+    const page = built.pages.find((p) => p.no === zoomPage);
+    if (!page) return "";
+    return renderPage(page, ctx, Math.min(1800, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.9 * Math.min(2, window.devicePixelRatio || 1)))).canvas.toDataURL("image/jpeg", 0.92);
+  }, [zoomPage, built, ctx]);
   const dpr = typeof window !== "undefined" ? Math.min(2, window.devicePixelRatio || 1) : 1;
 
   const [views, setViews] = useState<Record<number, string>>({});
@@ -353,14 +362,14 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
           </div>
           <div className="ml-auto"><Toggle checked={guides} onChange={setGuides} label="Hiển thị guideline" /></div>
         </div>
-        <div ref={area} className="relative flex min-h-[300px] flex-1 items-center justify-center px-4 py-3">
+        <div ref={area} className="relative flex min-h-[300px] flex-1 items-center justify-center px-2 py-1">
           {tab === "booklet" ? (
             <div className="flex items-center justify-center shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
               {cur.map((no) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 views[no] ? <img key={no} src={views[no]} alt={`Trang ${no}`} data-page={no} draggable={false}
                   className={cx("block touch-none select-none", editSlot !== null ? "cursor-move" : "cursor-pointer")} style={{ width: pagePx, height: pagePx }}
-                  onPointerDown={(e) => onDown(no, e)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = null; setHoverSlot(null); }} />
+                  onPointerDown={(e) => onDown(no, e)} onDoubleClick={() => { setEditSlot(null); setModal(null); setZoomPage(no); }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = null; setHoverSlot(null); }} />
                   : <div key={no} className="animate-pulse bg-[#ececef]" style={{ width: pagePx, height: pagePx }} />
               ))}
             </div>
@@ -379,17 +388,17 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
         </div>
         {tab === "booklet" && (
           <div className="px-4">
-            <div className="flex items-center justify-center gap-2">
-              <Button variant="secondary" size="sm" icon={<ChevronLeft size={16} />} onClick={() => setSpread((s) => Math.max(0, s - 1))} disabled={spread === 0}>Trước</Button>
-              <span className="min-w-[120px] text-center text-[13px] tabular-nums text-[#3f3f46]">{label}</span>
-              <Button variant="secondary" size="sm" onClick={() => setSpread((s) => Math.min(spreads.length - 1, s + 1))} disabled={spread >= spreads.length - 1}>Sau <ChevronRight size={16} /></Button>
+            <div className="flex items-center justify-center gap-1.5">
+              <button type="button" onClick={() => setSpread((s) => Math.max(0, s - 1))} disabled={spread === 0} aria-label="Trang trước" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40"><ChevronLeft size={14} /></button>
+              <span className="min-w-[96px] text-center text-[12px] tabular-nums text-[#3f3f46]">{label}</span>
+              <button type="button" onClick={() => setSpread((s) => Math.min(spreads.length - 1, s + 1))} disabled={spread >= spreads.length - 1} aria-label="Trang sau" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40"><ChevronRight size={14} /></button>
             </div>
-            <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto pb-1">
+            <div className="no-scrollbar mt-1 flex justify-center gap-1.5 overflow-x-auto pb-1">
               {spreads.map((sp, i) => (
                 <button key={i} type="button" onClick={() => setSpread(i)} className={cx("flex shrink-0 gap-px rounded-[6px] border p-0.5", i === spread ? "border-[#ff5fa2]" : "border-[#e5e5e7]")}>
                   {sp.map((no) => (
                     // eslint-disable-next-line @next/next/no-img-element
-                    thumbs.pages[no - 1] ? <img key={no} src={thumbs.pages[no - 1]} alt="" className="h-11 w-11" /> : <span key={no} className="h-11 w-11 bg-[#ececef]" />
+                    thumbs.pages[no - 1] ? <img key={no} src={thumbs.pages[no - 1]} alt="" className="h-12 w-12" /> : <span key={no} className="h-12 w-12 bg-[#ececef]" />
                   ))}
                 </button>
               ))}
@@ -397,7 +406,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
           </div>
         )}
         {/* hành động */}
-        <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2">
           {user && <Button variant="secondary" size="sm" icon={<Save size={16} />} onClick={saveAccount} loading={busy}>Lưu</Button>}
           <DownloadMenu busy={busy} up items={[
             { label: "Các trang booklet (.zip)", icon: <FileStack size={16} />, onClick: dlPages },
@@ -646,6 +655,13 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
             setSongs((c) => c.map((x, i) => { const g = segs.find((sg) => sg.song === i); return g ? { ...x, lyrics: cleanLyrics(g.lyrics), src: undefined, titleOnly: false } : x; }));
             setAlbumOpen(false); toast(`Đã điền lời cho ${segs.length} bài`);
           }} />
+      )}
+      {zoomPage !== null && zoomUrl && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/80 p-4" onClick={() => setZoomPage(null)} role="dialog" aria-modal>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={zoomUrl} alt={`Trang ${zoomPage}`} className="max-h-[90dvh] max-w-[90vw] shadow-2xl" />
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[12px] text-white/80">Trang {zoomPage} · bấm ra ngoài hoặc Esc để thoát</p>
+        </div>
       )}
       {rightsOpen && (
         <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={() => setRightsOpen(false)}>

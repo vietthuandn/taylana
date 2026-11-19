@@ -1,4 +1,4 @@
-/* Sửa mẫu scrapbook (khách + admin): khung bao của lớp, phóng / thu / xoay, đường gióng vào tâm đĩa và các vòng tròn đồng tâm. */
+/* Sửa mẫu scrapbook (khách + admin): khung bao của lớp, phóng / thu / xoay, đường gióng vào tâm đĩa và các vòng tròn đồng tâm (chỉ mặt đĩa). */
 import { C, R_HUB, R_SAFE, type Layer } from "./types";
 
 export type Box = { x: number; y: number; w: number; h: number; rot: number };
