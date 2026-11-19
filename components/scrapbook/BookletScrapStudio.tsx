@@ -33,13 +33,14 @@ import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { loadFonts, renderSurface } from "@/lib/scrapbook/render";
 import { applyFrames, autoDecorate, resolveFrameSets } from "@/lib/scrapbook/generate";
-import { BOOKLET_PAGES, SPREAD_KINDS, bookletSets, spreadTemplate, type BookletSet } from "@/lib/scrapbook/booklet";
+import { BOOKLET_PAGES, SPREAD_KINDS, spreadTemplate, type BookletSet } from "@/lib/scrapbook/booklet";
+import { bookletCatalogSets } from "@/lib/scrapbook/catalog";
 import { loadScrapFromAccount, saveScrapToAccount } from "@/lib/scrapbook/account";
 import { samplePhotos } from "@/lib/scrapbook/samples";
 import { setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
-import { STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting, type Wish, type WishTopic } from "@/lib/scrapbook/types";
+import { STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting, type CustomTemplate, type Wish, type WishTopic } from "@/lib/scrapbook/types";
 import { BgPicker } from "@/components/mockup-viewer/BgPicker";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
 import { Button, toast } from "@/components/ui/kit";
@@ -58,8 +59,8 @@ const withPhotos = (t: Template, list: { id: string }[]): Template => ({ ...clon
 /** số trang của bề mặt i (bìa = 1, cặp i = 2i–2i+1, trang cuối = n) */
 const pagesOf = (i: number, n: number, count: number) => (i === 0 ? [1] : i === count - 1 ? [n] : [i * 2, i * 2 + 1]);
 
-export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, frameSets, stickerCfg, topics, wishes, backgrounds, packIds }: {
-  assets: ScrapAsset[]; settings: TemplateSetting[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; stickerCfg: StickerCfg;
+export function BookletScrapStudio({ assets, settings, customs = [], fonts, glyphs, frames, frameSets, stickerCfg, topics, wishes, backgrounds, packIds }: {
+  assets: ScrapAsset[]; settings: TemplateSetting[]; customs?: CustomTemplate[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; stickerCfg: StickerCfg;
   topics: WishTopic[]; wishes: Wish[]; backgrounds: MockupBackground[]; packIds: Record<number, string>;
 }) {
   setStickerConfig(stickerCfg); // cài đặt sticker tự rải của admin (trước khi sinh mẫu)
@@ -108,7 +109,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   }, [st.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- bộ mẫu cho số trang đang chọn ----------
-  const sets = useMemo(() => bookletSets(pages, assets, frames, spreadSettings), [pages, assets, frames, spreadSettings]);
+  const sets = useMemo(() => bookletCatalogSets(pages, settings, customs, assets, frames), [pages, settings, customs, assets, frames]);
   const samples = useMemo(() => samplePhotos(), []);
   const thumbPhotos = useMemo(() => Array.from({ length: 48 }, (_, i) => photos[i]?.img ?? samples[i % samples.length]), [photos, samples]);
   const tText = st.text; // tiêu đề bìa = 1 lớp chữ bình thường của mẫu (bấm để sửa, chọn rồi xoá nếu không muốn)
@@ -117,7 +118,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   const groups: GalleryGroup[] = useMemo(() => [{
     id: String(pages), title: `Booklet ${pages} trang`, chip: `${pages} trang`, match: false,
     items: sets.map((s) => ({
-      id: s.id, label: STYLES.find((x) => x.id === s.style)?.name ?? s.style, sub: `Cần ${s.photoCount} ảnh`, key: `${s.id}|${pKey}|${tText.main}|${Object.keys(st.assetImgs).length}|${Object.keys(st.frameImgs).length}`,
+      id: s.id, label: s.name ?? STYLES.find((x) => x.id === s.style)?.name ?? s.style, sub: `Cần ${s.photoCount} ảnh`, key: `${s.id}|${pKey}|${tText.main}|${Object.keys(st.assetImgs).length}|${Object.keys(st.frameImgs).length}`,
       make: () => {
         const c = document.createElement("canvas"); c.width = 360; c.height = 120;
         const x = c.getContext("2d")!; x.fillStyle = "#f4f4f5"; x.fillRect(0, 0, 360, 120);
@@ -150,7 +151,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
     setPages(n);
     if (doc) {
       const style = sets.find((s) => s.id === st.applied)?.style ?? "polaroid";
-      const s = bookletSets(n, assets, frames, spreadSettings).find((x) => x.style === style);
+      const list = bookletCatalogSets(n, settings, customs, assets, frames), s = list.find((x) => x.style === style) ?? list[0];
       if (s) apply(s, photos, false);
     }
   }

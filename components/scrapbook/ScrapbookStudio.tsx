@@ -27,12 +27,12 @@ import { loadSprites } from "@/lib/mockup/system/sprites";
 import { saveBlob } from "@/lib/imageTools";
 import { savePendingDisc } from "@/lib/scrapbook/pending";
 import { loadFonts, renderSurface } from "@/lib/scrapbook/render";
-import { templatesFor } from "@/lib/scrapbook/templates";
+import { discTemplates } from "@/lib/scrapbook/catalog";
 import { autoDecorate } from "@/lib/scrapbook/generate";
 import { samplePhotos } from "@/lib/scrapbook/samples";
 import { setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
-import { MAX_PHOTOS, MIN_PHOTOS, PRINT_PX, STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting, type Wish, type WishTopic } from "@/lib/scrapbook/types";
+import { MAX_PHOTOS, MIN_PHOTOS, PRINT_PX, STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting, type CustomTemplate, type Wish, type WishTopic } from "@/lib/scrapbook/types";
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
 import { BgPicker } from "@/components/mockup-viewer/BgPicker";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
@@ -49,8 +49,8 @@ const NO_EXTRA = {};
 /** chép mẫu thành thiết kế của khách: ô ảnh thứ i ← ảnh thứ i của khách (thiếu thì ô trống "+") */
 export const fromTemplate = (t: Template, photos: { id: string }[]): Template => ({ ...clone(t), layers: clone(t.layers).map((l) => (l.k === "photo" ? { ...l, photo: photos[l.slot]?.id ?? "" } : l)) });
 
-export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frameSets, stickerCfg, topics, wishes, backgrounds, boxPackageId }: {
-  assets: ScrapAsset[]; settings: TemplateSetting[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; stickerCfg: StickerCfg;
+export function ScrapbookStudio({ assets, settings, customs = [], fonts, glyphs, frames, frameSets, stickerCfg, topics, wishes, backgrounds, boxPackageId }: {
+  assets: ScrapAsset[]; settings: TemplateSetting[]; customs?: CustomTemplate[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; stickerCfg: StickerCfg;
   topics: WishTopic[]; wishes: Wish[]; backgrounds: MockupBackground[]; boxPackageId: string | null;
 }) {
   const T = topics.length ? topics : DEFAULT_TOPICS, W = wishes.length ? wishes : DEFAULT_WISHES;
@@ -71,7 +71,7 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
 
 
   // ---------- mẫu: tất cả mẫu 5–10 ảnh ----------
-  const all = useMemo(() => Array.from({ length: MAX_PHOTOS - MIN_PHOTOS + 1 }, (_, i) => templatesFor(MIN_PHOTOS + i, settings, assets, {}, false, frames)).flat(), [settings, assets, frames]);
+  const { templates: all, labels } = useMemo(() => discTemplates(settings, customs, assets, frames), [settings, customs, assets, frames]);
   const fit = Math.min(MAX_PHOTOS, Math.max(MIN_PHOTOS, photos.length));
   const samples = useMemo(() => samplePhotos(), []);
   const thumbPhotos = useMemo(() => Array.from({ length: MAX_PHOTOS }, (_, i) => photos[i]?.img ?? samples[i]), [photos, samples]);
@@ -79,10 +79,10 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
   const groups: GalleryGroup[] = useMemo(() => Array.from({ length: MAX_PHOTOS - MIN_PHOTOS + 1 }, (_, i) => MIN_PHOTOS + i).map((n) => ({
     id: String(n), title: `${n} ảnh`, chip: String(n), match: photos.length > 0 && n === fit,
     items: all.filter((t) => t.n === n).map((t) => ({
-      id: t.id, label: STYLES.find((s) => s.id === t.style)?.name ?? t.style, key: `${t.id}|${pKey}|${st.text.main}|${Object.keys(st.assetImgs).length}|${Object.keys(st.frameImgs).length}`,
+      id: t.id, label: labels[t.id] ?? STYLES.find((s) => s.id === t.style)?.name ?? t.style, key: `${t.id}|${pKey}|${st.text.main}|${Object.keys(st.assetImgs).length}|${Object.keys(st.frameImgs).length}`,
       make: () => renderSurface({ template: t, photos: thumbPhotos, text: st.text, assets: st.renderOpts.assets, frames: st.frameImgs, size: 200 }).canvas.toDataURL("image/jpeg", 0.85),
     })),
-  })), [all, fit, photos.length, pKey, thumbPhotos, st.text, st.assetImgs, st.frameImgs, st.renderOpts.assets]);
+  })), [all, labels, fit, photos.length, pKey, thumbPhotos, st.text, st.assetImgs, st.frameImgs, st.renderOpts.assets]);
   const apply = useCallback(async (id: string, list: Photo[], ask = true) => {
     const t = all.find((x) => x.id === id);
     if (!t) return;

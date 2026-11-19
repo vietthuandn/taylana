@@ -47,7 +47,9 @@ export type ScrapAsset = {
   id: string; name: string; grp: AssetGroup; url: string; tone: string; region: Rect01 | null; is_active: boolean; sort_order: number;
 };
 /** surface_type: "disc" (CD Scrapbook) · "spread" (Booklet Scrapbook: n = kiểu dàn trang cặp) */
-export type TemplateSetting = { n: number; style: Style; seed: number; is_active: boolean; template?: Template | null; surface_type?: string };
+export type TemplateSetting = { n: number; style: Style; seed: number; is_active: boolean; template?: Template | null; surface_type?: string; name?: string | null; sort_order?: number | null };
+/** mẫu CD / Booklet Scrapbook admin tạo mới / nhân bản (bảng scrapbook_templates). CD: n = số ảnh · Booklet: n = số trang */
+export type CustomTemplate = { id: string; name: string; surface: "disc" | "booklet"; n: number; style: Style | null; config: { surfaces: Template[] }; is_active: boolean; sort_order: number; created_at?: string };
 
 // ---------- thư viện Khung ảnh (admin) ----------
 export type FrameSet = { id: string; name: string; is_active: boolean; sort_order: number };

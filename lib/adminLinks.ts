@@ -18,13 +18,9 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
     { href: "/admin/lien-he", label: "Liên hệ", icon: "phone", group: "Nội dung" },
   ] },
   { title: "Thiết kế", links: [
-    { href: "/admin/mau-cd", label: "Mẫu Custom CD", icon: "disc", group: "Thiết kế" },
-    { href: "/admin/photostrip", label: "Khung Photostrip", icon: "strip", group: "Thiết kế" },
-    { href: "/admin/mockup", label: "Mẫu mockup", icon: "frame", group: "Thiết kế" },
-    { href: "/admin/scrapbook", label: "Chất liệu Scrapbook", icon: "sticker", group: "Thiết kế" },
-    { href: "/admin/booklet-lyrics", label: "Booklet Lyrics", icon: "book2", group: "Thiết kế" },
-    { href: "/admin/template-canva", label: "Template Canva", icon: "layout", group: "Thiết kế" },
-    { href: "/admin/link-chia-se", label: "Link chia sẻ", icon: "frame", group: "Thiết kế" },
+    { href: "/admin/thiet-ke/chat-lieu", label: "Quản lý chất liệu", icon: "sticker", group: "Thiết kế" },
+    { href: "/admin/thiet-ke/template", label: "Quản lý template", icon: "layout", group: "Thiết kế" },
+    { href: "/admin/link-chia-se", label: "Link chia sẻ", icon: "share", group: "Thiết kế" },
   ] },
   { title: "Công cụ", links: [
     { href: "/admin/cong-cu/dan-trang", label: "Dàn trang booklet", icon: "book2", group: "Công cụ" },
@@ -44,4 +40,4 @@ export const activeAdminLink = (path: string) =>
   adminLinks.filter((l) => (l.href === "/admin" ? path === "/admin" : path.startsWith(l.href))).at(-1);
 
 // Trang cần workspace lớn (full màn hình, không padding)
-export const isWorkspacePath = (path: string) => path.startsWith("/admin/mau-cd") || path.startsWith("/admin/photostrip") || /^\/admin\/mockup\/.+/.test(path) || path.startsWith("/admin/scrapbook/mau/sua");
+export const isWorkspacePath = (path: string) => /^\/admin\/thiet-ke\/template\/(cd-nang-cao|photostrip|sua)/.test(path) || /^\/admin\/mockup\/.+/.test(path);

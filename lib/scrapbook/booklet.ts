@@ -77,7 +77,7 @@ export function generateBack(style: Style, seed: number, slot: number, assets: S
 const slotsOf = (t: Template) => t.layers.filter((l) => l.k === "photo").length;
 const offset = (t: Template, by: number): Template => ({ ...t, layers: t.layers.map((l) => (l.k === "photo" ? { ...l, slot: l.slot + by } : l)) });
 
-export type BookletSet = { id: string; style: Style; seed: number; pages: number; surfaces: Template[]; photoCount: number };
+export type BookletSet = { id: string; style: Style; seed: number; pages: number; surfaces: Template[]; photoCount: number; name?: string };
 /** spreadSettings: cài đặt admin cho kiểu cặp trang (surface_type "spread", n = kiểu): mẫu sửa tay + bật / tắt */
 export function generateBooklet(pages: number, style: Style, seed: number, assets: ScrapAsset[] = [], frames: Frame[] = [], spreadSettings: TemplateSetting[] = []): BookletSet {
   const r = rng(seed * 13 + pages * 101 + STYLES.findIndex((s) => s.id === style) * 7);

@@ -29,9 +29,10 @@ type Kind = "disc" | "spread";
 const settingFor = (list: TemplateSetting[], kind: Kind, n: number, style: Style): TemplateSetting =>
   kind === "disc" ? settingOf(list, n, style) : list.find((s) => s.surface_type === "spread" && s.n === n && s.style === style) ?? { n, style, seed: n * 1000 + STYLES.findIndex((x) => x.id === style) + 1, is_active: true, surface_type: "spread" };
 
-export function TemplatePreview() {
-  const [kind, setKind] = useState<Kind>("disc");
-  const [n, setN] = useState(MIN_PHOTOS);
+/** only="spread": chỉ các kiểu cặp trang Booklet (dùng trong tab Booklet Scrapbook của Quản lý template) */
+export function TemplatePreview({ only }: { only?: "spread" } = {}) {
+  const [kind, setKind] = useState<Kind>(only ? "spread" : "disc");
+  const [n, setN] = useState(only ? 1 : MIN_PHOTOS);
   const [settings, setSettings] = useState<TemplateSetting[]>([]);
   const [assets, setAssets] = useState<ScrapAsset[]>([]);
   const [imgs, setImgs] = useState<Awaited<ReturnType<typeof loadAssetImages>>>({});
@@ -44,7 +45,7 @@ export function TemplatePreview() {
 
   const load = useCallback(async () => {
     const sb = createClient();
-    const [t, a, sc] = await Promise.all([sb.from("scrapbook_template_settings").select("*"), sb.from("scrapbook_assets").select("*").eq("is_active", true), sb.from("site_settings").select("value").eq("key", "scrap_stickers").maybeSingle()]);
+    const [t, a, sc] = await Promise.all([sb.from("scrapbook_template_settings").select("*"), sb.from("scrapbook_assets").select("*").eq("is_active", true), sb.from("site_settings").select("value").eq("key", only ? "scrap_stickers_booklet" : "scrap_stickers").maybeSingle()]);
     const c = mergeStickerCfg((sc.data?.value as Partial<StickerCfg>) ?? null);
     setStickerConfig(c); setCfg(c);
     const fs = await sb.from("frame_sets").select("*").eq("is_active", true).order("sort_order");
@@ -83,9 +84,9 @@ export function TemplatePreview() {
 
   return (
     <div className="space-y-6">
-      {cfg && <StickerSettings value={cfg} onSaved={setCfg} sets={fsets} />}
-      <Card title="Loại mẫu">
-        <div className="mb-3 flex flex-wrap gap-2">
+      {cfg && !only && <StickerSettings value={cfg} onSaved={setCfg} sets={fsets} />}
+      <Card title={only ? "Kiểu cặp trang" : "Loại mẫu"} description={only ? "Bộ mẫu booklet tự sinh ghép ngẫu nhiên các kiểu cặp trang đang hiện. Sửa tay 1 kiểu = mọi bộ tự sinh dùng bản đã sửa." : undefined}>
+        <div className={cx("mb-3 flex flex-wrap gap-2", only && "hidden")}>
           <button type="button" onClick={() => { setKind("disc"); setN(MIN_PHOTOS); }} className={chip(kind === "disc")}>CD Scrapbook</button>
           <button type="button" onClick={() => { setKind("spread"); setN(1); }} className={chip(kind === "spread")}>Booklet Scrapbook</button>
         </div>
@@ -106,7 +107,7 @@ export function TemplatePreview() {
             <div className="mt-3 flex items-center justify-between gap-2">
               <span className="text-[12px] tabular-nums text-[#71717a]">Seed {s.seed}</span>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="secondary" href={`/admin/scrapbook/mau/sua?n=${n}&style=${s.style}${kind === "spread" ? "&surface=spread" : ""}`} icon={<Pencil size={14} />}>Sửa mẫu</Button>
+                <Button size="sm" variant="secondary" href={`/admin/thiet-ke/template/sua?n=${n}&style=${s.style}${kind === "spread" ? "&surface=spread" : ""}`} icon={<Pencil size={14} />}>Sửa mẫu</Button>
                 <Button size="sm" variant="secondary" icon={<Dices size={14} />} disabled={!!s.template} title={s.template ? "Mẫu đã chỉnh tay — khôi phục mẫu gốc trong trình sửa để đổi seed" : undefined} onClick={() => save(s.style, { seed: Math.floor(Math.random() * 1e6) }, "Đã đổi seed.")}>Đổi seed</Button>
                 <Toggle checked={s.is_active} onChange={(v) => save(s.style, { is_active: v }, v ? "Đã hiện mẫu với khách." : "Đã ẩn mẫu.")} label="" />
               </div>

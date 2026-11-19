@@ -34,7 +34,7 @@ const cfg = {
 
 const specOf = (mode: Mode, r: Row) => (mode === "strip" ? SPECS.photostrip : r.target === "disc" ? SPECS.disc : !r.target || r.target === "front" ? SPECS.front : SPECS.back);
 
-export function TemplateAdmin({ mode }: { mode: Mode }) {
+export function TemplateAdmin({ mode, header }: { mode: Mode; header?: React.ReactNode }) {
   const { table, path, folder } = cfg[mode];
   const [rows, setRows] = useState<Row[]>([]);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -113,6 +113,7 @@ export function TemplateAdmin({ mode }: { mode: Mode }) {
 
   return (
     <AdminPage>
+      {header}
       <PageHeader title={info.title}
         actions={<Button icon={<Plus size={16} />} onClick={() => setEditing(blank())}>Tạo mẫu mới</Button>} />
       <Message msg={msg} />

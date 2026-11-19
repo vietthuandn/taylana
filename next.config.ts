@@ -16,6 +16,17 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/custom-cd", destination: "/thiet-ke/cd", permanent: false },
+      // Admin → Thiết kế: trang cũ → Quản lý chất liệu / Quản lý template
+      ...([["khung", "khung"], ["font", "font"], ["loi-chuc", "loi-chuc"]] as const).map(([a, b]) => ({ source: "/admin/scrapbook", has: [{ type: "query" as const, key: "tab", value: a }], destination: `/admin/thiet-ke/chat-lieu?tab=${b}`, permanent: false })),
+      { source: "/admin/scrapbook", has: [{ type: "query", key: "tab", value: "mau" }], destination: "/admin/thiet-ke/template/cd-scrapbook", permanent: false },
+      { source: "/admin/scrapbook", destination: "/admin/thiet-ke/chat-lieu?tab=sticker", permanent: false },
+      { source: "/admin/scrapbook/mau", destination: "/admin/thiet-ke/template/cd-scrapbook", permanent: false },
+      { source: "/admin/scrapbook/mau/sua", destination: "/admin/thiet-ke/template/sua", permanent: false },
+      { source: "/admin/mau-cd", destination: "/admin/thiet-ke/template/cd-nang-cao", permanent: false },
+      { source: "/admin/photostrip", destination: "/admin/thiet-ke/template/photostrip", permanent: false },
+      { source: "/admin/booklet-lyrics", destination: "/admin/thiet-ke/template/booklet-lyrics", permanent: false },
+      { source: "/admin/template-canva", destination: "/admin/thiet-ke/template/canva", permanent: false },
+      { source: "/admin/mockup", destination: "/admin/thiet-ke/template/mockup", permanent: false },
       // Gửi file đang ẩn (lib/features.ts) → mọi đường dẫn Gửi file chuyển sang "Lên mockup"
       ...(FEATURE_UPLOAD_FILES ? [
         { source: "/gui-file-in", destination: "/gui-file/cd", permanent: false },

@@ -1,6 +1,6 @@
 "use client";
 
-/* Admin → Chất liệu Scrapbook → Mẫu → "Cài đặt sticker tự rải" (site_settings "scrap_stickers"):
+/* Admin → Quản lý template → nút "Cài đặt rải sticker" (site_settings "scrap_stickers" / "scrap_stickers_booklet"):
    khoảng kích thước (% của 120 mm: sticker thường, điểm nhấn, doodle), khoảng số lượng cho trang / cặp trang / đĩa,
    băng dính mỗi ảnh, bật / tắt sticker mặc định vẽ bằng code, mức ưu tiên tông màu. Mặc định: lib/scrapbook/decor.ts. */
 import { useState } from "react";
@@ -25,13 +25,13 @@ function Pair({ label, v, onChange, unit, step = 1 }: { label: string; v: Range;
   );
 }
 
-export function StickerSettings({ value, onSaved, sets = [] }: { value: StickerCfg; onSaved: (v: StickerCfg) => void; sets?: FrameSet[] }) {
+export function StickerSettings({ value, onSaved, sets = [], storeKey = "scrap_stickers", title = "Cài đặt sticker tự rải" }: { value: StickerCfg; onSaved: (v: StickerCfg) => void; sets?: FrameSet[]; storeKey?: string; title?: string }) {
   const [c, setC] = useState<StickerCfg>(value);
   const [saving, setSaving] = useState(false);
   async function save() {
     const v = mergeStickerCfg(c);
     setSaving(true);
-    const { error } = await createClient().from("site_settings").upsert({ key: "scrap_stickers", value: v, updated_at: new Date().toISOString() });
+    const { error } = await createClient().from("site_settings").upsert({ key: storeKey, value: v, updated_at: new Date().toISOString() });
     setSaving(false);
     if (error) return toast(error.message, "err");
     setStickerConfig(v); setC(v); onSaved(v);
@@ -39,7 +39,7 @@ export function StickerSettings({ value, onSaved, sets = [] }: { value: StickerC
     toast("Đã lưu cài đặt sticker tự rải");
   }
   return (
-    <Card title="Cài đặt sticker tự rải" description="Áp dụng khi khách áp mẫu mới và khi bấm “Xáo trộn”. Kích thước tính theo % bề rộng 1 trang / đường kính đĩa (12 cm).">
+    <Card title={title} description="Áp dụng khi khách áp mẫu mới và khi bấm “Xáo trộn”. Kích thước tính theo % bề rộng 1 trang / đường kính đĩa (12 cm).">
       <div className="grid gap-6 md:grid-cols-3">
         <div className="space-y-2">
           <p className="text-[13px] font-semibold">Kích thước (%)</p>

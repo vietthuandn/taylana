@@ -5,7 +5,7 @@
    - Kích thước theo % bề rộng 1 trang / đường kính đĩa (120 mm), giữ tỉ lệ gốc (khi vẽ không phóng quá 2× cỡ gốc ở 300 DPI).
    - Vị trí: lưới chiếm chỗ (vùng trống lớn nhất trước, rồi mép / góc ảnh). Điểm nhấn đè góc / mép 1 ảnh, che ≤ 20% ảnh, không đè
      50% diện tích giữa ảnh. Sticker chồng nhau ≤ 15%, tràn mép tối đa vùng bleed, xoay −15°…15°, không vắt qua gáy cặp trang.
-   Cài đặt (admin → Chất liệu Scrapbook → Mẫu → "Cài đặt sticker tự rải") lưu ở site_settings "scrap_stickers". */
+   Cài đặt (admin → Quản lý template → CD / Booklet Scrapbook → "Cài đặt rải sticker") lưu ở site_settings "scrap_stickers" / "scrap_stickers_booklet". */
 import { deepest, grid, mark } from "./place";
 import { surfaceOf, type Surface } from "./surface";
 import { C, R_HUB, R_OUT, type FrameSet, type Layer, type ScrapAsset, type StickerShape, type Style, type Template } from "./types";
