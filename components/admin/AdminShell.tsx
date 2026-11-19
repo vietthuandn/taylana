@@ -7,15 +7,17 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen, BookOpenText, ChevronsUpDown, Frame, Crop, CreditCard, Disc3, ExternalLink, FileStack, Home, LayoutDashboard, LogOut,
   LayoutTemplate, Menu, Package, Phone, ShoppingBag, Star, Tag, Trash2, Truck, X, type LucideIcon,
-  Sticker,
+  Sticker, Users, Share2,
 } from "lucide-react";
 import { adminGroups, activeAdminLink, isWorkspacePath } from "@/lib/adminLinks";
+import { canAccess, type StaffRole } from "@/lib/roles";
+import { toast } from "@/components/ui/kit";
 import { createClient } from "@/lib/supabase/client";
 import { AdminOverlays, btnClass, cx } from "./ui";
 
 const icons: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard, orders: ShoppingBag, package: Package, star: Star, home: Home,
-  book: BookOpen, phone: Phone, disc: Disc3, strip: FileStack, trash: Trash2, card: CreditCard, tag: Tag, truck: Truck, layout: LayoutTemplate, book2: BookOpenText, crop: Crop, frame: Frame, sticker: Sticker,
+  book: BookOpen, phone: Phone, disc: Disc3, strip: FileStack, trash: Trash2, card: CreditCard, tag: Tag, truck: Truck, layout: LayoutTemplate, book2: BookOpenText, crop: Crop, frame: Frame, sticker: Sticker, users: Users, share: Share2,
 };
 
 async function logout(router: ReturnType<typeof useRouter>) {
@@ -24,7 +26,7 @@ async function logout(router: ReturnType<typeof useRouter>) {
   router.refresh();
 }
 
-function Sidebar({ email, onNavigate }: { email: string; onNavigate?: () => void }) {
+function Sidebar({ email, role, onNavigate }: { email: string; role: StaffRole; onNavigate?: () => void }) {
   const path = usePathname();
   const router = useRouter();
   const active = activeAdminLink(path);
@@ -45,7 +47,7 @@ function Sidebar({ email, onNavigate }: { email: string; onNavigate?: () => void
         <span className="rounded-[4px] border border-[#e5e5e7] px-1.5 text-[11px] font-medium text-[#71717a]">Admin</span>
       </div>
       <nav className="flex-1 overflow-y-auto px-3 py-3">
-        {adminGroups.map((g) => (
+        {adminGroups.map((g) => ({ ...g, links: g.links.filter((l) => canAccess(role, l.href)) })).filter((g) => g.links.length).map((g) => (
           <div key={g.title} className="mb-4">
             <p className="mb-1 px-2 text-[11px] font-medium uppercase tracking-[0.06em] text-[#a1a1aa]">{g.title}</p>
             {g.links.map((l) => {
@@ -85,8 +87,13 @@ function Sidebar({ email, onNavigate }: { email: string; onNavigate?: () => void
   );
 }
 
-export function AdminShell({ email, children }: { email: string; children: React.ReactNode }) {
+export function AdminShell({ email, role = "admin", children }: { email: string; role?: StaffRole; children: React.ReactNode }) {
   const path = usePathname();
+  // bị chuyển về do không có quyền (proxy / layout) → báo 1 lần
+  useEffect(() => {
+    const u = new URL(location.href);
+    if (u.searchParams.get("khong-quyen")) { toast("Bạn không có quyền truy cập trang này", "err"); u.searchParams.delete("khong-quyen"); history.replaceState(null, "", u.pathname + u.search); }
+  }, [path]);
   const [open, setOpen] = useState(false);
   const active = activeAdminLink(path);
   const crumbs = [active?.group, active && active.label !== active.group ? active.label : null,
@@ -97,7 +104,7 @@ export function AdminShell({ email, children }: { email: string; children: React
     <div className="admin-ui min-h-dvh">
       {/* sidebar máy tính */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] border-r border-[#e5e5e7] bg-white md:block">
-        <Sidebar email={email} />
+        <Sidebar email={email} role={role} />
       </aside>
       {/* sidebar điện thoại */}
       {open && (
@@ -105,7 +112,7 @@ export function AdminShell({ email, children }: { email: string; children: React
           <div className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
           <aside className="absolute inset-y-0 left-0 w-[260px] bg-white shadow-xl">
             <button className="absolute right-2 top-3 grid h-8 w-8 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5]" onClick={() => setOpen(false)} aria-label="Đóng menu"><X size={16} /></button>
-            <Sidebar email={email} onNavigate={() => setOpen(false)} />
+            <Sidebar email={email} role={role} onNavigate={() => setOpen(false)} />
           </aside>
         </div>
       )}

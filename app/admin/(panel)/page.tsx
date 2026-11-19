@@ -7,8 +7,28 @@ import { statusTone } from "@/components/admin/tones";
 
 const QUOTA = 1024 ** 3; // gói Supabase Free: 1GB Storage
 
+// Tổng quan rút gọn cho Nhà thiết kế: chỉ lối tắt tới 2 mục được phép
+function DesignerHome() {
+  const card = (href: string, title: string, desc: string) => (
+    <Link href={href} className="block rounded-[12px] border border-[#e5e5e7] bg-white p-5 transition-colors hover:border-[#ff5fa2]">
+      <p className="text-[16px] font-semibold text-[#18181b]">{title}</p>
+      <p className="mt-1 text-[13px] text-[#71717a]">{desc}</p>
+    </Link>
+  );
+  return (
+    <AdminPage>
+      <PageHeader title="Tổng quan" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        {card("/admin/thiet-ke/chat-lieu", "Quản lý chất liệu", "Sticker & trang trí, khung ảnh, font chữ cut-out, lời chúc.")}
+        {card("/admin/thiet-ke/template", "Quản lý template", "Mẫu CD Scrapbook, Booklet Scrapbook, CD nâng cao, Photostrip, Booklet Lyrics, Canva.")}
+      </div>
+    </AdminPage>
+  );
+}
+
 export default async function AdminHome() {
-  const { supabase } = await requireAdmin();
+  const { supabase, role } = await requireAdmin();
+  if (role === "designer") return <DesignerHome />;
   const [{ count: newOrders }, { count: doing }, { data: usage }, { data: recent }, { count: payPending }] = await Promise.all([
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "in_progress"),

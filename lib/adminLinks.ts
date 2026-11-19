@@ -34,6 +34,7 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
     { href: "/admin/thanh-toan", label: "Thanh toán", icon: "card", group: "Hệ thống" },
     { href: "/admin/van-chuyen", label: "Vận chuyển", icon: "truck", group: "Hệ thống" },
     { href: "/admin/don-file", label: "Dọn file", icon: "trash", group: "Hệ thống" },
+    { href: "/admin/tai-khoan", label: "Quản lý tài khoản", icon: "users", group: "Hệ thống" },
   ] },
 ];
 
