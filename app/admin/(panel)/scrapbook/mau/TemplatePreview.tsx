@@ -13,7 +13,8 @@ import { revalidatePublic } from "@/app/admin/actions";
 import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { generate } from "@/lib/scrapbook/generate";
 import { SPREAD_KINDS, generateSpread } from "@/lib/scrapbook/booklet";
-import { mergeStickerCfg, setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
+import { mergeStickerCfg, setFrameLibrary, setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
+import type { FrameSet } from "@/lib/scrapbook/types";
 import { StickerSettings } from "./StickerSettings";
 import { loadFonts, renderDisc } from "@/lib/scrapbook/render";
 import { settingOf } from "@/lib/scrapbook/templates";
@@ -38,6 +39,7 @@ export function TemplatePreview() {
   const [msg, setMsg] = useState<Msg>(null);
   const [ready, setReady] = useState(false);
   const [cfg, setCfg] = useState<StickerCfg | null>(null);
+  const [fsets, setFsets] = useState<FrameSet[]>([]);
   const photos = useMemo(() => (typeof document === "undefined" ? [] : samplePhotos()), []);
 
   const load = useCallback(async () => {
@@ -45,6 +47,8 @@ export function TemplatePreview() {
     const [t, a, sc] = await Promise.all([sb.from("scrapbook_template_settings").select("*"), sb.from("scrapbook_assets").select("*").eq("is_active", true), sb.from("site_settings").select("value").eq("key", "scrap_stickers").maybeSingle()]);
     const c = mergeStickerCfg((sc.data?.value as Partial<StickerCfg>) ?? null);
     setStickerConfig(c); setCfg(c);
+    const fs = await sb.from("frame_sets").select("*").eq("is_active", true).order("sort_order");
+    setFsets((fs.data ?? []) as FrameSet[]); setFrameLibrary((fs.data ?? []) as FrameSet[]);
     if (t.error) setMsg({ type: "err", text: "Chưa có bảng mẫu — cần chạy supabase/migration_scrapbook.sql." });
     setSettings((t.data ?? []) as TemplateSetting[]);
     const list = (a.data ?? []) as ScrapAsset[];
@@ -79,7 +83,7 @@ export function TemplatePreview() {
 
   return (
     <div className="space-y-6">
-      {cfg && <StickerSettings value={cfg} onSaved={setCfg} />}
+      {cfg && <StickerSettings value={cfg} onSaved={setCfg} sets={fsets} />}
       <Card title="Loại mẫu">
         <div className="mb-3 flex flex-wrap gap-2">
           <button type="button" onClick={() => { setKind("disc"); setN(MIN_PHOTOS); }} className={chip(kind === "disc")}>CD Scrapbook</button>

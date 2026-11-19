@@ -14,8 +14,9 @@ const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[len
 export { ASSET_DRAG };
 export type UserStickerItem = { id: string; url: string };
 
-export function StickerTab({ assets, onAdd, mine = [], onUpload, onAddMine, onRemoveMine }: {
+export function StickerTab({ assets, onAdd, mine = [], onUpload, onAddMine, onRemoveMine, decor = [], onAddDecor }: {
   assets: ScrapAsset[]; onAdd: (a: ScrapAsset) => void;
+  decor?: { id: string; url: string; name: string }[]; onAddDecor?: (id: string) => void; // khung trang trí (khung PNG không chứa ảnh)
   mine?: UserStickerItem[]; onUpload?: (files: File[]) => void; onAddMine?: (id: string) => void; onRemoveMine?: (id: string) => void;
 }) {
   const upIn = useRef<HTMLInputElement>(null);
@@ -60,6 +61,21 @@ export function StickerTab({ assets, onAdd, mine = [], onUpload, onAddMine, onRe
             </div>
           ) : <p className="text-[12px] text-[#a1a1aa]">PNG nền trong suốt dùng luôn · ảnh chụp sẽ được xoá nền, thêm viền trắng tuỳ chọn.</p>}
         </section>
+      )}
+      {decor.length > 0 && onAddDecor && (
+        <details className="rounded-[10px] border border-[#e5e5e7]">
+          <summary className="cursor-pointer select-none px-3 py-2 text-[13px] font-semibold">Khung trang trí <span className="font-normal text-[#a1a1aa]">({decor.length})</span></summary>
+          <div className="grid grid-cols-4 gap-2 border-t border-[#efeff1] p-3">
+            {decor.map((f) => (
+              <button key={f.id} type="button" title={f.name} onClick={() => onAddDecor(f.id)} draggable
+                onDragStart={(e) => { e.dataTransfer.setData(ASSET_DRAG, `f:${f.id}`); e.dataTransfer.effectAllowed = "copy"; }}
+                className={cx("grid aspect-square place-items-center overflow-hidden rounded-[8px] border border-[#e5e5e7] p-1.5 hover:border-[#ff5fa2]", checker)}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={f.url} alt={f.name} className="max-h-full max-w-full object-contain" loading="lazy" draggable={false} />
+              </button>
+            ))}
+          </div>
+        </details>
       )}
       <label className="relative block">
         <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a1aa]" />

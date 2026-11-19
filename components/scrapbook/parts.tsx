@@ -3,8 +3,7 @@
 /* Phần giao diện dùng chung của CD Scrapbook + Booklet Scrapbook: danh sách ảnh (đánh dấu đang dùng / chưa dùng, kéo thả lên ô),
    chọn ảnh cho ô, thêm ô ảnh (hình dạng / khung), đổi khung, xác nhận bản quyền khi đặt in. */
 import { useMemo, useRef, useState } from "react";
-import { Circle, Heart, RectangleHorizontal, RefreshCw, Square, Trash2, Upload, X } from "lucide-react";
-import type { Frame, FrameSet, PhotoShape } from "@/lib/scrapbook/types";
+import { RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 import { PHOTO_DRAG } from "./SurfaceView";
@@ -20,7 +19,6 @@ export async function readPhoto(file: Blob, name: string, id = uid()): Promise<P
   const x = c.getContext("2d")!; x.imageSmoothingQuality = "high"; x.drawImage(im, 0, 0, c.width, c.height);
   return { id, name, blob: file, url, img: c };
 }
-const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
 
 function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   return (
@@ -97,57 +95,6 @@ export function PickPhotoModal({ photos, used, onPick, onUpload, onClose }: { ph
         ))}
       </div>
       <input ref={fileIn} type="file" accept={ACCEPT} className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onUpload(f); }} />
-    </Modal>
-  );
-}
-
-// ---------- khung ảnh ----------
-function FrameGrid({ frames, sets, current, onPick }: { frames: Frame[]; sets: FrameSet[]; current?: string | null; onPick: (f: Frame) => void }) {
-  if (!frames.length) return <p className="rounded-[10px] bg-[#fafafa] p-3 text-[13px] text-[#71717a]">Tiệm chưa có khung ảnh nào.</p>;
-  return (
-    <div className="space-y-3">
-      {sets.map((s) => {
-        const list = frames.filter((f) => f.set_id === s.id);
-        if (!list.length) return null;
-        return (
-          <div key={s.id}>
-            <p className="mb-1 text-[12px] font-medium text-[#52525b]">{s.name}</p>
-            <div className="grid grid-cols-4 gap-2">
-              {list.map((f) => (
-                <button key={f.id} type="button" onClick={() => onPick(f)} title={f.name}
-                  className={cx("grid aspect-square place-items-center overflow-hidden rounded-[8px] border p-1.5", checker, current === f.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#ff5fa2]")}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={f.url} alt={f.name} className="max-h-full max-w-full object-contain" loading="lazy" />
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-export function FramePicker({ frames, sets, current, onPick, onClose }: { frames: Frame[]; sets: FrameSet[]; current: string | null; onPick: (f: Frame | null) => void; onClose: () => void }) {
-  return (
-    <Modal title="Đổi khung" onClose={onClose} wide>
-      <button type="button" onClick={() => onPick(null)} className={cx("mb-3 h-9 rounded-full border px-4 text-[13px] font-medium", !current ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] hover:border-[#ff5fa2]")}>Không khung</button>
-      <FrameGrid frames={frames} sets={sets} current={current} onPick={onPick} />
-    </Modal>
-  );
-}
-export type NewSlot = { shape: PhotoShape; ratio: number; frame?: Frame };
-export function AddSlotModal({ frames, sets, onPick, onClose }: { frames: Frame[]; sets: FrameSet[]; onPick: (v: NewSlot) => void; onClose: () => void }) {
-  const shapes: [PhotoShape, number, string, React.ReactNode][] = [["rect", 0.78, "Chữ nhật", <RectangleHorizontal key="r" size={22} />], ["rect", 1, "Vuông", <Square key="s" size={22} />], ["circle", 1, "Tròn", <Circle key="c" size={22} />], ["heart", 1, "Tim", <Heart key="h" size={22} />]];
-  return (
-    <Modal title="Thêm ô ảnh" onClose={onClose} wide>
-      <p className="mb-2 text-[13px] font-medium">Hình dạng</p>
-      <div className="mb-4 grid grid-cols-4 gap-2">
-        {shapes.map(([s, ratio, name, icon]) => (
-          <button key={name} type="button" onClick={() => onPick({ shape: s, ratio })} className="grid h-20 place-items-center rounded-[10px] border border-[#e5e5e7] text-[12px] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><span className="grid place-items-center gap-1">{icon}{name}</span></button>
-        ))}
-      </div>
-      {frames.length > 0 && <p className="mb-2 text-[13px] font-medium">Hoặc chọn 1 khung</p>}
-      {frames.length > 0 && <FrameGrid frames={frames} sets={sets} onPick={(f) => onPick({ shape: "rect", ratio: f.ratio || 1, frame: f })} />}
     </Modal>
   );
 }

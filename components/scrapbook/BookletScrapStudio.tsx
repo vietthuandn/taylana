@@ -31,7 +31,7 @@ import { savePendingFiles, type PendingFile } from "@/lib/pendingOrderFiles";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { loadFonts, renderSurface } from "@/lib/scrapbook/render";
-import { applyFrames, autoDecorate } from "@/lib/scrapbook/generate";
+import { applyFrames, autoDecorate, resolveFrameSets } from "@/lib/scrapbook/generate";
 import { BOOKLET_PAGES, SPREAD_KINDS, bookletSets, spreadTemplate, type BookletSet } from "@/lib/scrapbook/booklet";
 import { loadScrapFromAccount, saveScrapToAccount } from "@/lib/scrapbook/account";
 import { samplePhotos } from "@/lib/scrapbook/samples";
@@ -47,7 +47,9 @@ import { StickerTab } from "./StickerTab";
 import { TextTab } from "./TextTab";
 import { SurfaceView } from "./SurfaceView";
 import { TemplateGallery, type GalleryGroup } from "./TemplateGallery";
-import { AddSlotModal, FramePicker, PhotoPanel, PickPhotoModal, RightsModal, readPhoto, type Photo } from "./parts";
+import { PhotoPanel, PickPhotoModal, RightsModal, readPhoto, type Photo } from "./parts";
+import { FramePicker } from "./FramePicker";
+import { setFrameLibrary } from "@/lib/scrapbook/decor";
 import { UserStickerModal } from "./UserStickerModal";
 import { customizeText, useScrapStudio, type UserSticker } from "./useScrapStudio";
 import { clone } from "./useScrapDoc";
@@ -64,6 +66,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   topics: WishTopic[]; wishes: Wish[]; backgrounds: MockupBackground[]; packIds: Record<number, string>;
 }) {
   setStickerConfig(stickerCfg); // cài đặt sticker tự rải của admin (trước khi sinh mẫu)
+  setFrameLibrary(frameSets); // tên bộ khung → ưu tiên khung hợp phong cách
   const router = useRouter();
   const params = useSearchParams();
   const [tab, setTab] = useState<"anh" | "sticker" | "chu">("anh");
@@ -162,7 +165,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
     const style = cur.style, k = SPREAD_KINDS.findIndex((x) => x.id === cur.kind), kind = SPREAD_KINDS[(k + 1) % SPREAD_KINDS.length].id;
     const seed = Math.floor(Math.random() * 1e6);
     let t = spreadTemplate(kind, style, seed, assets, spreadSettings);
-    t = autoDecorate({ ...t, layers: applyFrames(t.layers, frames, seed) }, seed, assets);
+    t = autoDecorate({ ...t, layers: applyFrames(resolveFrameSets(t.layers, frames, seed), frames, seed, style) }, seed, assets);
     const ids = cur.layers.flatMap((l) => (l.k === "photo" && l.photo ? [l.photo] : []));
     const mine = cur.layers.filter((l) => l.user && l.k !== "photo");
     const next = withPhotos(t, ids.map((id) => ({ id })));
@@ -290,7 +293,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
           </>
         )}
         {tab === "sticker" && (
-          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
+          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} decor={frames.filter((f) => st.frameImgs[f.id]).map((f) => ({ id: f.id, url: f.url, name: f.name }))} onAddDecor={(id) => st.addAsset(`f:${id}`)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
             onUpload={(f) => st.setStickerFiles(f)} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
         )}
         {tab === "chu" && (
@@ -317,7 +320,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
           ) : st.ready && (
             <SurfaceView key={st.active} t={cur} width={cur.surface === "spread" ? pagePx * 2 : pagePx} render={ro} guides={guides} sel={st.sel} onSel={st.setSel} editLayer={st.editLayer} onEditLayer={st.setEditLayer}
               begin={st.D.begin} setLayers={st.setLayers} adjustOf={(id) => st.adjust[id]} setAdjust={(id, a) => st.setAdjust((c) => ({ ...c, [id]: a }))}
-              onDropAsset={(id, at) => { if (id.startsWith("u:")) st.addAsset(id, at); else { const a = assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
+              onDropAsset={(id, at) => { if (id.startsWith("u:") || id.startsWith("f:")) st.addAsset(id, at); else { const a = assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
               onDropPhoto={(pid, i) => st.assignPhoto(st.active, i, pid)} onEmptySlot={(i) => st.setPickFor(i)} editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
               onBackgroundDbl={(at) => setZoomPage(nos[cur.surface === "spread" && at.x >= 120 ? 1 : 0])} tools={st.tools} />
           )}
@@ -365,9 +368,9 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
           onUpload={async (f) => { const i = st.pickFor!; const [p] = await st.addFiles([f]); if (p) st.assignPhoto(st.active, i, p.id); st.setPickFor(null); }} />
       )}
       {st.frameFor !== null && st.L[st.frameFor]?.k === "photo" && (
-        <FramePicker frames={frames} sets={frameSets} current={(st.L[st.frameFor] as { frame?: string }).frame ?? null} onPick={(f) => st.setFrame(st.frameFor!, f)} onClose={() => st.setFrameFor(null)} />
+        <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Đổi khung" current={(st.L[st.frameFor] as { frame?: string }).frame ?? null} onPick={(c) => st.setFrame(st.frameFor!, c)} onClose={() => st.setFrameFor(null)} />
       )}
-      {st.addSlotOpen && <AddSlotModal frames={frames} sets={frameSets} onPick={st.addSlot} onClose={() => st.setAddSlotOpen(false)} />}
+      {st.addSlotOpen && <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Thêm ô ảnh" allowNone={false} onPick={st.addSlot} onClose={() => st.setAddSlotOpen(false)} />}
       {st.stickerFiles && <UserStickerModal files={st.stickerFiles} onAdd={(b) => st.addUserSticker(b)} onClose={() => st.setStickerFiles(null)} />}
     </div>
   );

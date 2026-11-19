@@ -15,7 +15,8 @@ import { addPoint, surfaceOf } from "@/lib/scrapbook/surface";
 import { drawCutout, layoutCutout, loadCutoutFont, type CutoutFont, type Glyph, type LoadedFont } from "@/lib/scrapbook/cutout";
 import type { Adjust, DiscText, Frame, Layer, ScrapAsset, Template } from "@/lib/scrapbook/types";
 import { toast } from "@/components/ui/kit";
-import { readPhoto, uid, type NewSlot, type Photo } from "./parts";
+import { readPhoto, uid, type Photo } from "./parts";
+import type { FrameChoice } from "./FramePicker";
 import { clone, useScrapDoc } from "./useScrapDoc";
 
 /** chữ của mẫu (dòng chính / phụ) → lớp chữ bình thường mang nội dung riêng (khách bấm để sửa, chọn rồi xoá nếu không muốn) */
@@ -129,8 +130,10 @@ export function useScrapStudio(o: {
   const assetsMap = useMemo(() => {
     const m: NonNullable<RenderOpts["assets"]> = { ...assetImgs };
     for (const s of ustickers) m[`u:${s.id}`] = { img: s.img, asset: { id: `u:${s.id}`, name: "Sticker của bạn", grp: "sticker", url: "", tone: "any", region: null, is_active: true, sort_order: 0 } };
+    // khung trang trí: khung PNG dùng như sticker (không chứa ảnh)
+    for (const [id, f] of Object.entries(frameImgs)) m[`f:${id}`] = { img: f.img, asset: { id: `f:${id}`, name: f.frame.name, grp: "sticker", url: f.frame.url, tone: "any", region: null, is_active: true, sort_order: 0 } };
     return m;
-  }, [assetImgs, ustickers]);
+  }, [assetImgs, ustickers, frameImgs]);
 
   // ---------- font: font thường trên thiết kế + font cắt dán (tải ảnh mảnh khi cần) ----------
   const allLayers = useMemo(() => (doc ?? []).flatMap((t) => t.layers), [doc]);
@@ -180,7 +183,7 @@ export function useScrapStudio(o: {
     if (!cur) { toast("Tải ảnh và chọn mẫu trước khi thêm sticker.", "err"); return; }
     const S = surfaceOf(cur), k = L.filter((l) => l.k === "sticker" && l.user).length, p = at ?? addPoint(S, k);
     let l: Layer;
-    if (typeof a === "string") l = { k: "sticker", x: p.x, y: p.y, s: S.round ? 18 : 26, rot: 0, shape: "star", color: "#ff8fab", asset: a, user: true };
+    if (typeof a === "string") l = { k: "sticker", x: p.x, y: p.y, s: a.startsWith("f:") ? (S.round ? 34 : 46) : S.round ? 18 : 26, rot: 0, shape: "star", color: "#ff8fab", asset: a, user: true };
     else {
       const im = img ?? assetImgs[a.id]?.img, ar = im ? im.height / im.width : 0.3;
       const base0 = { x: p.x, y: p.y, rot: 0, asset: a.id, user: true };
@@ -241,17 +244,25 @@ export function useScrapStudio(o: {
     }
     D.begin(); setLayers((ls) => [...ls, l], l); setWishOpenS(false); setSel(L.length);
   }
-  function addSlot(v: NewSlot) {
+  /** áp khung / hình dạng cho ô ảnh: giữ tâm + chiều rộng, chiều cao theo tỉ lệ khung; ảnh trong ô tự coverCrop vào vùng mới */
+  const withChoice = (x: Extract<Layer, { k: "photo" }>, c: FrameChoice): Layer => (
+    c.kind === "frame" ? { ...x, frame: c.frame.id, frameSets: undefined, shape: "rect", h: x.w * (c.frame.ratio || 1), border: undefined }
+      : c.kind === "shape" ? { ...x, frame: undefined, frameSets: undefined, asset: undefined, shape: c.shape, h: x.w * c.ratio, border: c.shape === "circle" || c.shape === "heart" ? "#ffffff" : undefined }
+        : { ...x, frame: undefined, frameSets: undefined, asset: undefined, shape: x.shape === "frame" ? "rect" : x.shape });
+  /** "+ Thêm ô ảnh": ô mới (khung / hình dạng đã chọn) ở vùng trống lớn nhất của bề mặt đang xem */
+  function addSlot(c: FrameChoice) {
     if (!cur) return;
     const S = surfaceOf(cur), e = largestEmpty(S, L), def = S.round ? 30 : 48;
-    const w = Math.max(14, Math.min(def, (e.r * 2 * 0.95) / Math.hypot(1, v.ratio)));
-    const l: Layer = { k: "photo", slot: 999, x: e.x, y: e.y, w, h: w * v.ratio, rot: 0, shape: v.shape, seed: Math.floor(Math.random() * 1e6), border: v.shape === "circle" || v.shape === "heart" ? "#ffffff" : undefined, photo: "", frame: v.frame?.id };
+    const ratio = c.kind === "frame" ? c.frame.ratio || 1 : c.kind === "shape" ? c.ratio : 0.78;
+    const w = Math.max(14, Math.min(def, (e.r * 2 * 0.95) / Math.hypot(1, ratio)));
+    const base: Extract<Layer, { k: "photo" }> = { k: "photo", slot: 999, x: e.x, y: e.y, w, h: w * ratio, rot: 0, shape: "rect", seed: Math.floor(Math.random() * 1e6), photo: "" };
+    const l = withChoice(base, c);
     D.begin(); setLayers((ls) => [...ls, l]); setSel(L.length); setAddSlotOpen(false);
     setPickFor(L.length);
   }
-  function setFrame(i: number, f: Frame | null) {
+  function setFrame(i: number, c: FrameChoice) {
     const l = L[i]; if (l?.k !== "photo") return;
-    D.begin(); setLayers((ls) => ls.map((x, j) => (j === i && x.k === "photo" ? { ...x, frame: f?.id, h: f ? x.w * (f.ratio || 1) : x.h, shape: f ? "rect" : x.shape } : x)));
+    D.begin(); setLayers((ls) => ls.map((x, j) => (j === i && x.k === "photo" ? withChoice(x, c) : x)));
     setFrameFor(null);
   }
 

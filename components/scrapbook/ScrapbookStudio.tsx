@@ -42,7 +42,9 @@ import { StickerTab } from "./StickerTab";
 import { TextTab } from "./TextTab";
 import { SurfaceView } from "./SurfaceView";
 import { TemplateGallery, type GalleryGroup } from "./TemplateGallery";
-import { AddSlotModal, FramePicker, PhotoPanel, PickPhotoModal, type Photo } from "./parts";
+import { PhotoPanel, PickPhotoModal, type Photo } from "./parts";
+import { FramePicker } from "./FramePicker";
+import { setFrameLibrary } from "@/lib/scrapbook/decor";
 import { UserStickerModal } from "./UserStickerModal";
 import { customizeText, useScrapStudio } from "./useScrapStudio";
 import { clone } from "./useScrapDoc";
@@ -58,6 +60,7 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
 }) {
   const T = topics.length ? topics : DEFAULT_TOPICS, W = wishes.length ? wishes : DEFAULT_WISHES;
   setStickerConfig(stickerCfg); // cài đặt sticker tự rải của admin (trước khi sinh mẫu)
+  setFrameLibrary(frameSets); // tên bộ khung → ưu tiên khung hợp phong cách
   const router = useRouter();
   const [tab, setTab] = useState<"anh" | "sticker" | "chu">("anh");
   const [guides, setGuides] = useState(true);
@@ -179,7 +182,7 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
           </>
         )}
         {tab === "sticker" && (
-          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
+          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} decor={frames.filter((f) => st.frameImgs[f.id]).map((f) => ({ id: f.id, url: f.url, name: f.name }))} onAddDecor={(id) => st.addAsset(`f:${id}`)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
             onUpload={(f) => st.setStickerFiles(f)} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
         )}
         {tab === "chu" && (
@@ -210,7 +213,7 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
           ) : st.ready && (
             <SurfaceView t={t0} width={width || 400} render={st.renderOpts} guides={guides} sel={st.sel} onSel={st.setSel} editLayer={st.editLayer} onEditLayer={st.setEditLayer}
               begin={st.D.begin} setLayers={st.setLayers} adjustOf={(id) => st.adjust[id]} setAdjust={(id, a) => st.setAdjust((c) => ({ ...c, [id]: a }))}
-              onDropAsset={(id, at) => { if (id.startsWith("u:")) st.addAsset(id, at); else { const a = assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
+              onDropAsset={(id, at) => { if (id.startsWith("u:") || id.startsWith("f:")) st.addAsset(id, at); else { const a = assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
               onDropPhoto={(pid, i) => st.assignPhoto(0, i, pid)} onEmptySlot={(i) => st.setPickFor(i)} editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue} tools={st.tools} />
           )}
         </div>
@@ -230,9 +233,9 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
           onUpload={async (f) => { const i = st.pickFor!; const [p] = await st.addFiles([f]); if (p) st.assignPhoto(st.active, i, p.id); st.setPickFor(null); }} />
       )}
       {st.frameFor !== null && st.L[st.frameFor]?.k === "photo" && (
-        <FramePicker frames={frames} sets={frameSets} current={(st.L[st.frameFor] as { frame?: string }).frame ?? null} onPick={(f) => st.setFrame(st.frameFor!, f)} onClose={() => st.setFrameFor(null)} />
+        <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Đổi khung" current={(st.L[st.frameFor] as { frame?: string }).frame ?? null} onPick={(c) => st.setFrame(st.frameFor!, c)} onClose={() => st.setFrameFor(null)} />
       )}
-      {st.addSlotOpen && <AddSlotModal frames={frames} sets={frameSets} onPick={st.addSlot} onClose={() => st.setAddSlotOpen(false)} />}
+      {st.addSlotOpen && <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Thêm ô ảnh" allowNone={false} onPick={st.addSlot} onClose={() => st.setAddSlotOpen(false)} />}
       {st.stickerFiles && <UserStickerModal files={st.stickerFiles} onAdd={(b) => st.addUserSticker(b)} onClose={() => st.setStickerFiles(null)} />}
     </div>
   );

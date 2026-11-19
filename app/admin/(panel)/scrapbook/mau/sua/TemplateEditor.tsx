@@ -18,7 +18,13 @@ import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { generate } from "@/lib/scrapbook/generate";
 import { SPREAD_KINDS, generateSpread } from "@/lib/scrapbook/booklet";
 import { surfaceOf } from "@/lib/scrapbook/surface";
-import { mergeStickerCfg, setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
+import { mergeStickerCfg, setFrameLibrary, setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
+import { loadFrameImages } from "@/lib/scrapbook/frames";
+import { largestEmpty } from "@/lib/scrapbook/place";
+import type { LoadedFrame } from "@/lib/scrapbook/render";
+import type { Frame, FrameSet } from "@/lib/scrapbook/types";
+import { FramePicker, shapeName, type FrameChoice } from "@/components/scrapbook/FramePicker";
+import { Dices } from "lucide-react";
 import { loadFonts, renderDisc } from "@/lib/scrapbook/render";
 import { samplePhotos } from "@/lib/scrapbook/samples";
 import { settingOf } from "@/lib/scrapbook/templates";
@@ -52,7 +58,11 @@ export function TemplateEditor() {
   const n = spread ? Math.min(SPREAD_KINDS.length, Math.max(1, Number(params.get("n")) || 1)) : Math.min(10, Math.max(5, Number(params.get("n")) || 5));
   const style = (STYLES.find((s) => s.id === params.get("style"))?.id ?? "polaroid") as Style;
   const surfaceType = spread ? "spread" : "disc";
-  const make = useCallback((seed: number, list: ScrapAsset[]) => (spread ? generateSpread(n, style, seed, list) : generate(n, style, seed, list)), [spread, n, style]);
+  const make = useCallback((seed: number, list: ScrapAsset[], fr: Frame[] = []) => (spread ? generateSpread(n, style, seed, list) : generate(n, style, seed, list, fr)), [spread, n, style]);
+  const [frames, setFrames] = useState<Frame[]>([]);
+  const [frameSets, setFrameSets] = useState<FrameSet[]>([]);
+  const [frameImgs, setFrameImgs] = useState<Record<string, LoadedFrame>>({});
+  const [picker, setPicker] = useState<null | "photo" | "add" | "decor">(null);
   const [row, setRow] = useState<TemplateSetting | null>(null);
   const [assets, setAssets] = useState<ScrapAsset[]>([]);
   const [imgs, setImgs] = useState<Awaited<ReturnType<typeof loadAssetImages>>>({});
@@ -66,19 +76,29 @@ export function TemplateEditor() {
   const wrap = useRef<HTMLDivElement>(null);
   const view = useRef<HTMLCanvasElement>(null);
   const [cssW, setCssW] = useState(600);
+  // khung trang trí: khung PNG dùng như sticker (asset "f:<id>")
+  const allImgs = useMemo(() => {
+    const m: typeof imgs = { ...imgs };
+    for (const [id, f] of Object.entries(frameImgs)) m[`f:${id}`] = { img: f.img as HTMLImageElement, asset: { id: `f:${id}`, name: f.frame.name, grp: "sticker", url: f.frame.url, tone: "any", region: null, is_active: true, sort_order: 0 } };
+    return m;
+  }, [imgs, frameImgs]);
   const drag = useRef<{ mode: "move" | "scale" | "rotate"; i: number; b0: Box; px: number; py: number } | null>(null);
   const photoIn = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     (async () => {
       const sb = createClient();
-      const [t, a, sc] = await Promise.all([sb.from("scrapbook_template_settings").select("*").eq("n", n).eq("style", style), sb.from("scrapbook_assets").select("*").eq("is_active", true).order("grp").order("sort_order"), sb.from("site_settings").select("value").eq("key", "scrap_stickers").maybeSingle()]);
+      const [t, a, sc, fs, fr] = await Promise.all([sb.from("scrapbook_template_settings").select("*").eq("n", n).eq("style", style), sb.from("scrapbook_assets").select("*").eq("is_active", true).order("grp").order("sort_order"), sb.from("site_settings").select("value").eq("key", "scrap_stickers").maybeSingle(),
+        sb.from("frame_sets").select("*").eq("is_active", true).order("sort_order"), sb.from("frames").select("*").eq("is_active", true).order("sort_order")]);
       setStickerConfig(mergeStickerCfg((sc.data?.value as Partial<StickerCfg>) ?? null));
+      const fsl = (fs.data ?? []) as FrameSet[], frl = ((fr.data ?? []) as Frame[]).filter((f) => fsl.some((x) => x.id === f.set_id));
+      setFrameLibrary(fsl); setFrameSets(fsl); setFrames(frl);
+      loadFrameImages(frl).then(setFrameImgs);
       const list = (a.data ?? []) as ScrapAsset[];
       const rowsT = ((t.data ?? []) as TemplateSetting[]).filter((x) => (x.surface_type ?? "disc") === surfaceType);
       const r = spread ? rowsT[0] ?? { n, style, seed: n * 1000 + STYLES.findIndex((x) => x.id === style) + 1, is_active: true, surface_type: "spread" } : settingOf(rowsT, n, style);
       setRow(r); setAssets(list);
-      setTpl(r.template ? structuredClone({ ...r.template, n, style, ...(spread ? { surface: "spread" as const, kind: n } : {}) }) : make(r.seed, list));
+      setTpl(r.template ? structuredClone({ ...r.template, n, style, ...(spread ? { surface: "spread" as const, kind: n } : {}) }) : make(r.seed, list, frl));
       setPhotos(samplePhotos());
       await loadFonts();
       setImgs(await loadAssetImages(list));
@@ -95,9 +115,9 @@ export function TemplateEditor() {
     const c = view.current;
     if (!c || !tpl) return;
     const px = Math.round(cssW * Math.min(2, window.devicePixelRatio || 1));
-    const r = renderDisc({ template: tpl, photos, text, assets: imgs, size: px, guides });
+    const r = renderDisc({ template: tpl, photos, text, assets: allImgs, frames: frameImgs, size: px, guides });
     c.width = r.canvas.width; c.height = r.canvas.height; c.getContext("2d")!.drawImage(r.canvas, 0, 0);
-  }, [tpl, photos, text, imgs, guides, cssW]);
+  }, [tpl, photos, text, allImgs, frameImgs, guides, cssW]);
 
   const update = useCallback((i: number, f: (l: Layer) => Layer) => { setTpl((t) => (t ? { ...t, layers: t.layers.map((l, j) => (j === i ? f(l) : l)) } : t)); setDirty(true); }, []);
   const S = surfaceOf(tpl);
@@ -178,6 +198,52 @@ export function TemplateEditor() {
       : { k: "paper", ...base, w: 28, h: 20, paper: "note", color: "#fffdf5", torn: true, seed: Date.now() % 1e6 };
     setTpl({ ...tpl, layers: [...tpl.layers, l] }); setSel(tpl.layers.length); setDirty(true);
   }
+  /** áp lựa chọn từ FramePicker: đổi khung ô ảnh đang chọn · thêm ô ảnh mới · thêm khung trang trí */
+  function pickFrame(c: FrameChoice) {
+    if (!tpl) return;
+    const mode = picker; setPicker(null);
+    const S = surfaceOf(tpl);
+    const ratio = c.kind === "frame" ? c.frame.ratio || 1 : c.kind === "shape" ? c.ratio : 0.78;
+    const apply = (x: Extract<Layer, { k: "photo" }>): Layer => (c.kind === "frame" ? { ...x, frame: c.frame.id, frameSets: undefined, asset: undefined, shape: "rect", h: r1(x.w * ratio) }
+      : c.kind === "shape" ? { ...x, frame: undefined, frameSets: undefined, asset: undefined, shape: c.shape, h: r1(x.w * ratio), border: c.shape === "circle" || c.shape === "heart" ? "#ffffff" : undefined }
+        : { ...x, frame: undefined, frameSets: undefined, asset: undefined, shape: x.shape === "frame" ? "rect" : x.shape });
+    if (mode === "photo" && typeof sel === "number" && tpl.layers[sel]?.k === "photo") { update(sel, (l) => apply(l as Extract<Layer, { k: "photo" }>)); return; }
+    const e = largestEmpty(S, tpl.layers);
+    if (mode === "decor") {
+      if (c.kind !== "frame") return;
+      const l: Layer = { k: "sticker", x: e.x, y: e.y, s: S.round ? 34 : 46, rot: 0, shape: "star", color: "#ffffff", asset: `f:${c.frame.id}` };
+      setTpl({ ...tpl, layers: [...tpl.layers, l] }); setSel(tpl.layers.length); setDirty(true); return;
+    }
+    const slot = Math.max(-1, ...tpl.layers.flatMap((l) => (l.k === "photo" ? [l.slot] : []))) + 1;
+    const w = Math.max(16, Math.min(S.round ? 30 : 48, (e.r * 2 * 0.95) / Math.hypot(1, ratio)));
+    const l = apply({ k: "photo", slot, x: r1(e.x), y: r1(e.y), w: r1(w), h: r1(w * ratio), rot: 0, shape: "rect", seed: Date.now() % 1e6 });
+    setTpl({ ...tpl, layers: [...tpl.layers, l] }); setSel(tpl.layers.length); setDirty(true);
+  }
+  // tên lớp dễ đọc: "Ô ảnh 3 · Polaroid trắng", "Sticker · Mèo đen", "Băng dính · Washi hồng"…
+  const frameName = (id?: string) => frames.find((f) => f.id === id)?.name;
+  const assetName = (id?: string) => (id?.startsWith("f:") ? frameName(id.slice(2)) : assets.find((a) => a.id === id)?.name);
+  const SHAPE_VI: Record<string, string> = { star: "Ngôi sao", heart: "Trái tim", flower: "Bông hoa", bow: "Nơ", sparkle: "Lấp lánh", arrow: "Mũi tên", swirl: "Xoắn", dash: "Vòng nét đứt", note: "Giấy note", grid: "Giấy kẻ ô", ticket: "Vé", kraft: "Giấy kraft" };
+  const setNames = (ids: string[]) => ids.map((id) => frameSets.find((s) => s.id === id)?.name ?? "?").join(", ");
+  function layerName(l: Layer) {
+    if (l.k === "photo") return `Ô ảnh ${l.slot + 1} · ${l.frameSets?.length ? `Ngẫu nhiên: ${setNames(l.frameSets)}` : l.frame ? frameName(l.frame) ?? "Khung" : shapeName(l.shape, l.h / l.w)}`;
+    if (l.k === "text") return `Chữ · ${l.role === "main" ? "dòng chính" : l.role === "sub" ? "dòng phụ" : (l.value ?? "").slice(0, 24) || "chữ riêng"}`;
+    if (l.k === "wish") return `Lời chúc · ${l.value.slice(0, 24)}`;
+    if (l.k === "sticker") return `${l.asset?.startsWith("f:") ? "Khung trang trí" : "Sticker"} · ${assetName(l.asset) ?? SHAPE_VI[l.shape] ?? l.shape}`;
+    if (l.k === "doodle") return `Doodle · ${assetName(l.asset) ?? SHAPE_VI[l.shape] ?? l.shape}`;
+    if (l.k === "tape") return `Băng dính · ${assetName(l.asset) ?? `Washi ${l.pattern === "dots" ? "chấm bi" : l.pattern === "stripe" ? "sọc" : "trơn"}`}`;
+    return `Mảnh giấy · ${assetName(l.asset) ?? SHAPE_VI[l.paper] ?? l.paper}`;
+  }
+  /** "Ngẫu nhiên từ bộ…": xem trước bằng 1 khung bất kỳ trong các bộ đã chọn */
+  function previewRandom(i: number, ids: string[]) {
+    const list = frames.filter((f) => ids.includes(f.set_id));
+    update(i, (l) => {
+      if (l.k !== "photo") return l;
+      if (!ids.length) return { ...l, frameSets: undefined };
+      const f = list[Math.floor(Math.random() * list.length)];
+      return { ...l, frameSets: ids, frame: f?.id ?? l.frame, shape: "rect", h: f ? r1(l.w * (f.ratio || 1)) : l.h };
+    });
+  }
+
   async function save(reset = false) {
     if (!row || !tpl) return;
     setSaving(true);
@@ -191,6 +257,11 @@ export function TemplateEditor() {
   }
 
   const L = typeof sel === "number" && tpl ? tpl.layers[sel] : null;
+  const pickerEl = picker && (
+    <FramePicker frames={frames} sets={frameSets} loaded={frameImgs} mode={picker === "decor" ? "decor" : "photo"} allowNone={picker === "photo"}
+      title={picker === "add" ? "Thêm ô ảnh" : picker === "decor" ? "Thêm khung trang trí" : "Đổi khung"}
+      current={picker === "photo" && L?.k === "photo" ? L.frame ?? null : null} onPick={pickFrame} onClose={() => setPicker(null)} />
+  );
   const B = L ? boxOf(L) : null;
   const assetOpts = useMemo(() => (L && GRP[L.k] ? assets.filter((a) => a.grp === GRP[L.k]) : L?.k === "photo" ? assets.filter((a) => a.grp === "frame" && a.region) : []), [L, assets]);
 
@@ -249,6 +320,8 @@ export function TemplateEditor() {
           <div className="mb-2 flex items-center justify-between">
             <p className="text-[13px] font-semibold">Lớp ({tpl.layers.length})</p>
             <div className="flex gap-1">
+              <button type="button" onClick={() => setPicker("add")} title="Thêm ô ảnh (chọn khung)" className="inline-flex h-7 items-center gap-0.5 rounded-[6px] border border-[#e5e5e7] px-1.5 text-[11px] hover:border-[#ff5fa2]"><Plus size={11} />Ô ảnh</button>
+              <button type="button" onClick={() => setPicker("decor")} title="Thêm khung PNG chỉ để trang trí" className="inline-flex h-7 items-center gap-0.5 rounded-[6px] border border-[#e5e5e7] px-1.5 text-[11px] hover:border-[#ff5fa2]"><Plus size={11} />Khung trang trí</button>
               {(["sticker", "tape", "paper", "doodle"] as const).map((kk) => (
                 <button key={kk} type="button" onClick={() => addLayer(kk)} title={`Thêm ${LABEL[kk].toLowerCase()}`} className="inline-flex h-7 items-center gap-0.5 rounded-[6px] border border-[#e5e5e7] px-1.5 text-[11px] hover:border-[#ff5fa2]"><Plus size={11} />{LABEL[kk]}</button>
               ))}
@@ -258,7 +331,7 @@ export function TemplateEditor() {
           <ul className="max-h-[220px] space-y-0.5 overflow-y-auto">
             {tpl.layers.map((l, i) => ({ l, i })).reverse().map(({ l, i }) => (
               <li key={i} className={cx("flex items-center gap-1 rounded-[6px] px-2 py-1 text-[12px]", sel === i ? "bg-[#eff6ff] text-[#2563eb]" : "hover:bg-[#fafafa]")}>
-                <button type="button" onClick={() => setSel(i)} className="min-w-0 flex-1 truncate text-left">{LABEL[l.k]}{l.k === "photo" ? ` ${l.slot + 1}${l.slot === 0 ? " (chính)" : ""}` : l.k === "text" ? ` · ${l.role === "main" ? "dòng chính" : l.role === "sub" ? "dòng phụ" : "chữ riêng"}` : "asset" in l && l.asset ? " · chất liệu" : ""}</button>
+                <button type="button" onClick={() => setSel(i)} title={layerName(l)} className="min-w-0 flex-1 truncate text-left">{layerName(l)}</button>
                 <button type="button" onClick={() => order(i, 1)} aria-label="Lên trên" className="text-[#a1a1aa] hover:text-[#18181b]"><ArrowUp size={12} /></button>
                 <button type="button" onClick={() => order(i, -1)} aria-label="Xuống dưới" className="text-[#a1a1aa] hover:text-[#18181b]"><ArrowDown size={12} /></button>
               </li>
@@ -294,13 +367,37 @@ export function TemplateEditor() {
             )}
             {L.k === "photo" && (
               <>
-                <Row label="Khung"><Sel value={L.shape} onChange={(v) => update(sel, (l) => ({ ...l, shape: v as typeof L.shape }) as Layer)} opts={[["rect", "Chữ nhật"], ["polaroid", "Polaroid"], ["torn", "Giấy xé"], ["circle", "Tròn"], ["heart", "Tim"], ["frame", "Khung ảnh (chất liệu)"]]} /></Row>
-                {L.shape === "frame" && <Row label="Chất liệu"><Sel value={L.asset ?? ""} onChange={(v) => update(sel, (l) => ({ ...l, asset: v || undefined }) as Layer)} opts={[["", "Polaroid mặc định"], ...assetOpts.map((a) => [a.id, a.name] as [string, string])]} /></Row>}
+                <div className="text-[12px] text-[#52525b]">
+                  <span className="mb-1 block">Khung</span>
+                  <button type="button" onClick={() => setPicker("photo")} className="flex w-full items-center gap-2 rounded-[8px] border border-[#e5e5e7] p-1.5 text-left hover:border-[#ff5fa2]">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-[6px] bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:10px_10px]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {L.frame && frames.find((f) => f.id === L.frame) ? <img src={frames.find((f) => f.id === L.frame)!.url} alt="" className="max-h-full max-w-full object-contain" /> : <span className="text-[10px] text-[#a1a1aa]">{shapeName(L.shape, L.h / L.w)}</span>}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] text-[#18181b]">{L.frameSets?.length ? `Ngẫu nhiên: ${setNames(L.frameSets)}` : L.frame ? frameName(L.frame) ?? "Khung" : shapeName(L.shape, L.h / L.w)}</span>
+                    <span className="text-[12px] text-[#ff5fa2]">Đổi</span>
+                  </button>
+                </div>
+                {frameSets.length > 0 && (
+                  <div className="rounded-[8px] border border-[#e5e5e7] p-2 text-[12px] text-[#52525b]">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span>Ngẫu nhiên từ bộ…</span>
+                      {!!L.frameSets?.length && <button type="button" onClick={() => previewRandom(sel, L.frameSets!)} title="Xem khung khác" className="inline-flex items-center gap-1 text-[#ff5fa2]"><Dices size={13} /> Xem khung khác</button>}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      {frameSets.map((fs) => (
+                        <label key={fs.id} className="flex items-center gap-1"><input type="checkbox" className="accent-[#ff5fa2]" checked={!!L.frameSets?.includes(fs.id)}
+                          onChange={(e) => previewRandom(sel, e.target.checked ? [...(L.frameSets ?? []), fs.id] : (L.frameSets ?? []).filter((x) => x !== fs.id))} />{fs.name}</label>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-[11px] text-[#a1a1aa]">Khách áp mẫu: ô này lấy ngẫu nhiên 1 khung trong các bộ đã chọn (theo seed thiết kế).</p>
+                  </div>
+                )}
                 <Row label="Ảnh số"><Sel value={String(L.slot)} onChange={(v) => update(sel, (l) => ({ ...l, slot: Number(v) }) as Layer)} opts={Array.from({ length: spread ? Math.max(3, tpl.layers.filter((x) => x.k === "photo").length) : n }, (_, i) => [String(i), `${i + 1}${i === 0 && !spread ? " (chính)" : ""}`] as [string, string])} /></Row>
               </>
             )}
             {(L.k === "tape" || L.k === "sticker" || L.k === "doodle" || L.k === "paper") && (
-              <Row label="Chất liệu"><Sel value={L.asset ?? ""} onChange={(v) => update(sel, (l) => ({ ...l, asset: v || undefined }) as Layer)} opts={[["", "Mặc định (vẽ bằng code)"], ...assetOpts.map((a) => [a.id, a.name] as [string, string])]} /></Row>
+              <Row label="Chất liệu"><Sel value={L.asset ?? ""} onChange={(v) => update(sel, (l) => ({ ...l, asset: v || undefined }) as Layer)} opts={[["", "Mặc định (vẽ bằng code)"], ...assetOpts.map((a) => [a.id, a.name] as [string, string]), ...(L.k === "sticker" ? frames.map((f) => [`f:${f.id}`, `Khung trang trí: ${f.name}`] as [string, string]) : [])]} /></Row>
             )}
             {"color" in L && <Row label="Màu"><input type="color" value={L.color} onChange={(e) => update(sel, (l) => ({ ...l, color: e.target.value }) as Layer)} /></Row>}
             {L.k === "tape" && <Row label="Hoạ tiết"><Sel value={L.pattern} onChange={(v) => update(sel, (l) => ({ ...l, pattern: v }) as Layer)} opts={[["stripe", "Sọc"], ["dots", "Chấm"], ["plain", "Trơn"]]} /></Row>}
@@ -331,6 +428,7 @@ export function TemplateEditor() {
           </section>
         )}
       </aside>
+      {pickerEl}
     </div>
   );
 }

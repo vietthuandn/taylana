@@ -67,7 +67,8 @@ export type LayerBase =
   | { k: "paper"; x: number; y: number; w: number; h: number; rot: number; paper: "grid" | "note" | "ticket" | "kraft"; color: string; torn: boolean; seed: number; asset?: string }
   | { k: "photo"; slot: number; x: number; y: number; w: number; h: number; rot: number; shape: PhotoShape; seed: number; asset?: string; border?: string;
       photo?: string; // id ảnh của khách gán vào ô ("" = ô trống) — không có thì lấy ảnh theo thứ tự slot (mẫu / admin)
-      frame?: string } // khung PNG từ thư viện Khung ảnh (ảnh nằm dưới khung)
+      frame?: string; // khung PNG từ thư viện Khung ảnh (ảnh nằm dưới khung)
+      frameSets?: string[] } // mẫu admin: "Ngẫu nhiên từ bộ…" — khi khách áp mẫu, lấy 1 khung ngẫu nhiên trong các bộ này (theo seed)
   | { k: "tape"; x: number; y: number; w: number; h: number; rot: number; color: string; pattern: "stripe" | "dots" | "plain"; seed: number; asset?: string }
   | { k: "sticker"; x: number; y: number; s: number; rot: number; shape: StickerShape; color: string; asset?: string }
   | { k: "doodle"; x: number; y: number; s: number; rot: number; shape: "arrow" | "swirl" | "dash"; color: string; asset?: string }

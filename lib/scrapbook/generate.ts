@@ -3,7 +3,7 @@
    ảnh chính (ô 0) luôn to nhất, đặt ở đỉnh; dải dưới cùng dành cho chữ (trừ phong cách "Vòng tròn": chữ chạy cong vòng ngoài).
    Trang trí (sticker, băng dính, mảnh giấy) được phép tràn ra mép — khi vẽ sẽ cắt theo hình tròn. */
 import { SCRAP_CONFIG } from "./config";
-import { autoDecorate } from "./decor";
+import { autoDecorate, frameLibrary, stickerConfig } from "./decor";
 import { surfaceOf } from "./surface";
 import { C, R_HUB, R_SAFE, STYLES, type Frame, type Layer, type PhotoShape, type ScrapAsset, type StickerShape, type Style, type Template } from "./types";
 
@@ -103,13 +103,36 @@ const stickerShapes: StickerShape[] = ["star", "heart", "flower", "bow", "sparkl
 
 // sticker / doodle / băng dính tự rải: lib/scrapbook/decor.ts
 export { autoDecorate } from "./decor";
-/** gắn khung ngẫu nhiên (theo seed) cho ~60% ô ảnh; ô có khung đổi chiều cao theo tỉ lệ ảnh khung */
-export function applyFrames(layers: Layer[], frames: Frame[], seed: number, ratio = SCRAP_CONFIG.frameRatio): Layer[] {
+/** từ khoá tên bộ khung hợp từng phong cách (ưu tiên khi tự tạo mẫu) */
+const STYLE_KEYS: Record<Style, string[]> = { polaroid: ["polaroid"], floral: ["hoa", "flower", "floral"], torn: ["xé", "giấy", "paper"], magazine: ["tạp chí", "tem", "magazine"], ring: ["tròn", "circle"] };
+const norm = (s: string) => s.normalize("NFC").toLowerCase();
+/** khung được phép cho phong cách: theo cài đặt admin → bộ có tên hợp phong cách → bất kỳ */
+export function framesForStyle(frames: Frame[], style: Style): Frame[] {
   const list = frames.filter((f) => f.is_active && (f.region || f.mask_url));
-  if (!list.length) return layers;
+  const chosen = stickerConfig().frameSets[style];
+  if (chosen?.length) { const l = list.filter((f) => chosen.includes(f.set_id)); if (l.length) return l; }
+  const sets = frameLibrary().filter((s) => STYLE_KEYS[style].some((k) => norm(s.name).includes(k)));
+  const pref = list.filter((f) => sets.some((s) => s.id === f.set_id));
+  return pref.length ? pref : list;
+}
+/** gắn khung ngẫu nhiên (theo seed) cho ~frameRatio% ô ảnh; ô có khung đổi chiều cao theo tỉ lệ ảnh khung (giữ tâm + chiều rộng) */
+export function applyFrames(layers: Layer[], frames: Frame[], seed: number, style: Style = "polaroid", ratio = stickerConfig().frameRatio / 100): Layer[] {
+  const list = framesForStyle(frames, style);
+  if (!list.length || ratio <= 0) return layers;
   const r = rng(seed * 7 + 777);
   return layers.map((l) => {
-    if (l.k !== "photo" || r() >= ratio) return l;
+    if (l.k !== "photo" || l.frame || r() >= ratio) return l;
+    const f = pick(r, list);
+    return { ...l, frame: f.id, h: l.w * (f.ratio || 1) };
+  });
+}
+/** mẫu admin "Ngẫu nhiên từ bộ…": mỗi ô lấy 1 khung trong các bộ đã chọn (theo seed của thiết kế) */
+export function resolveFrameSets(layers: Layer[], frames: Frame[], seed: number): Layer[] {
+  const r = rng(seed * 13 + 4242);
+  return layers.map((l) => {
+    if (l.k !== "photo" || !l.frameSets?.length) return l;
+    const list = frames.filter((f) => f.is_active && l.frameSets!.includes(f.set_id));
+    if (!list.length) return l;
     const f = pick(r, list);
     return { ...l, frame: f.id, h: l.w * (f.ratio || 1) };
   });
@@ -184,6 +207,6 @@ export function generate(n: number, style: Style, seed: number, assets: ScrapAss
     txt("hand", pick(r, pal.accents));
   }
   // sticker tự rải theo lưới chiếm chỗ + khung ảnh ngẫu nhiên từ thư viện
-  const base: Template = { id: `${n}-${style}`, n, style, seed, bg, layers: applyFrames(L, frames, seed), accents: pal.accents, tone: T };
+  const base: Template = { id: `${n}-${style}`, n, style, seed, bg, layers: applyFrames(L, frames, seed, style), accents: pal.accents, tone: T };
   return autoDecorate(base, seed, assets);
 }

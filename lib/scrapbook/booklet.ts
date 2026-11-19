@@ -3,7 +3,7 @@
    Phong cách (Polaroid, Xé dán, Vòng tròn, Tạp chí, Hoa lá) dùng chung bảng màu + chất liệu với CD Scrapbook.
    Ô ảnh đánh số toàn cuốn (slot 0 = ảnh bìa). Admin có thể sửa tay từng kiểu cặp trang × phong cách (surface_type "spread"). */
 import { DEFAULT_WISHES } from "./wishes";
-import { PALETTES, applyFrames, asset, jit, pick, rng } from "./generate";
+import { PALETTES, applyFrames, asset, jit, pick, resolveFrameSets, rng } from "./generate";
 import { autoDecorate, makeDeck } from "./decor";
 import { STYLES, type Frame, type Layer, type PhotoShape, type ScrapAsset, type Style, type Template, type TemplateSetting, type WishCard } from "./types";
 
@@ -91,7 +91,7 @@ export function generateBooklet(pages: number, style: Style, seed: number, asset
   const push = (t: Template) => {
     const o = offset(t, slot);
     // mẫu admin sửa tay: giữ nguyên lớp (cả sticker), chỉ bổ sung nếu còn ít hơn mức tối thiểu
-    const d = autoDecorate(t.fixed ? o : { ...o, layers: applyFrames(o.layers, frames, t.seed + out.length) }, t.seed + out.length * 31, assets, { deck, topUp: !!t.fixed });
+    const d = autoDecorate(t.fixed ? { ...o, layers: resolveFrameSets(o.layers, frames, seed + out.length) } : { ...o, layers: applyFrames(o.layers, frames, t.seed + out.length, style) }, t.seed + out.length * 31, assets, { deck, topUp: !!t.fixed });
     slot += slotsOf(t); out.push(d);
   };
   push(cover);

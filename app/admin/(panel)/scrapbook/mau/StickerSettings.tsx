@@ -7,6 +7,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { revalidatePublic } from "@/app/admin/actions";
 import { DEFAULT_STICKER_CFG, mergeStickerCfg, setStickerConfig, type Range, type StickerCfg } from "@/lib/scrapbook/decor";
+import { STYLES, type FrameSet } from "@/lib/scrapbook/types";
 import { Button, Card, Toggle, toast } from "@/components/admin/ui";
 
 function Pair({ label, v, onChange, unit, step = 1 }: { label: string; v: Range; onChange: (v: Range) => void; unit?: string; step?: number }) {
@@ -24,7 +25,7 @@ function Pair({ label, v, onChange, unit, step = 1 }: { label: string; v: Range;
   );
 }
 
-export function StickerSettings({ value, onSaved }: { value: StickerCfg; onSaved: (v: StickerCfg) => void }) {
+export function StickerSettings({ value, onSaved, sets = [] }: { value: StickerCfg; onSaved: (v: StickerCfg) => void; sets?: FrameSet[] }) {
   const [c, setC] = useState<StickerCfg>(value);
   const [saving, setSaving] = useState(false);
   async function save() {
@@ -64,12 +65,36 @@ export function StickerSettings({ value, onSaved }: { value: StickerCfg; onSaved
             <input type="number" step={0.1} min={1} max={5} value={c.toneBoost} onChange={(e) => setC({ ...c, toneBoost: Number(e.target.value) })} className="h-8 w-16 rounded-[6px] border border-[#e5e5e7] px-1.5 text-[13px]" />
           </label>
           <p className="text-[12px] text-[#71717a]">Sticker lấy ngẫu nhiên không lặp từ toàn bộ nhóm Sticker + Doodle đang bật; tông màu chỉ tăng xác suất được chọn.</p>
-          <div className="flex gap-2">
+        </div>
+      </div>
+      <div className="mt-6 space-y-2 border-t border-[#efeff1] pt-4">
+        <p className="text-[13px] font-semibold">Khung ảnh khi tự tạo mẫu</p>
+        <label className="flex max-w-[360px] items-center justify-between gap-2 text-[13px] text-[#3f3f46]">Tỉ lệ ô ảnh có khung (%)
+          <input type="number" min={0} max={100} step={5} value={c.frameRatio} onChange={(e) => setC({ ...c, frameRatio: Number(e.target.value) })} className="h-8 w-16 rounded-[6px] border border-[#e5e5e7] px-1.5 text-[13px]" />
+        </label>
+        {sets.length > 0 ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            {STYLES.map((st) => (
+              <div key={st.id} className="rounded-[8px] border border-[#e5e5e7] p-2 text-[12px]">
+                <p className="mb-1 font-medium">{st.name}</p>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  {sets.map((fs) => (
+                    <label key={fs.id} className="flex items-center gap-1"><input type="checkbox" className="accent-[#ff5fa2]" checked={!!c.frameSets[st.id]?.includes(fs.id)}
+                      onChange={(e) => setC({ ...c, frameSets: { ...c.frameSets, [st.id]: e.target.checked ? [...(c.frameSets[st.id] ?? []), fs.id] : (c.frameSets[st.id] ?? []).filter((x) => x !== fs.id) } })} />{fs.name}</label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : <p className="text-[12px] text-[#71717a]">Chưa có bộ khung đang bật (tab “Khung ảnh”).</p>}
+        <p className="text-[12px] text-[#71717a]">Không chọn bộ nào cho 1 phong cách → tự ưu tiên bộ có tên hợp phong cách (vd “Polaroid” cho Lưới polaroid, “Hoa” cho Hoa lá), không có thì lấy bất kỳ.</p>
+      </div>
+      <div className="mt-4 flex gap-2">
+        <div className="flex gap-2">
             <Button size="sm" onClick={save} loading={saving}>Lưu cài đặt</Button>
             <Button size="sm" variant="secondary" onClick={() => setC(DEFAULT_STICKER_CFG)}>Về mặc định</Button>
           </div>
         </div>
-      </div>
     </Card>
   );
 }

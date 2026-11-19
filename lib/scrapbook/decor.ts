@@ -8,7 +8,7 @@
    Cài đặt (admin → Chất liệu Scrapbook → Mẫu → "Cài đặt sticker tự rải") lưu ở site_settings "scrap_stickers". */
 import { deepest, grid, mark } from "./place";
 import { surfaceOf, type Surface } from "./surface";
-import { C, R_HUB, R_OUT, type Layer, type ScrapAsset, type StickerShape, type Template } from "./types";
+import { C, R_HUB, R_OUT, type FrameSet, type Layer, type ScrapAsset, type StickerShape, type Style, type Template } from "./types";
 
 export type Range = [number, number];
 export type StickerCfg = {
@@ -19,13 +19,15 @@ export type StickerCfg = {
   tapes: Range; // số miếng băng dính mỗi ảnh
   defaults: boolean; // cho phép sticker vẽ bằng code khi thư viện có < 6 sticker
   toneBoost: number; // ưu tiên sticker hợp tông
+  frameRatio: number; // % ô ảnh có khung khi tự tạo mẫu
+  frameSets: Partial<Record<Style, string[]>>; // bộ khung được dùng cho từng phong cách (trống = tự chọn theo tên bộ)
 };
 export const DEFAULT_STICKER_CFG: StickerCfg = {
   normal: [18, 28], accent: [30, 38], doodle: [8, 14],
   disc: { stickers: [4, 7], accents: [1, 2], doodles: [2, 4] },
   page: { stickers: [3, 5], doodles: [1, 3] },
   spread: { stickers: [5, 8], doodles: [2, 5] },
-  tapes: [1, 2], defaults: true, toneBoost: 1.5,
+  tapes: [1, 2], defaults: true, toneBoost: 1.5, frameRatio: 60, frameSets: {},
 };
 const rg = (v: unknown, d: Range): Range => (Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === "number" && isFinite(n)) ? [Math.min(v[0], v[1]), Math.max(v[0], v[1])] : d);
 export function mergeStickerCfg(v?: Partial<StickerCfg> | null): StickerCfg {
@@ -36,12 +38,18 @@ export function mergeStickerCfg(v?: Partial<StickerCfg> | null): StickerCfg {
     page: { stickers: rg(x.page?.stickers, d.page.stickers), doodles: rg(x.page?.doodles, d.page.doodles) },
     spread: { stickers: rg(x.spread?.stickers, d.spread.stickers), doodles: rg(x.spread?.doodles, d.spread.doodles) },
     tapes: rg(x.tapes, d.tapes), defaults: x.defaults ?? d.defaults, toneBoost: typeof x.toneBoost === "number" && x.toneBoost > 0 ? x.toneBoost : d.toneBoost,
+    frameRatio: typeof x.frameRatio === "number" ? Math.min(100, Math.max(0, x.frameRatio)) : d.frameRatio,
+    frameSets: x.frameSets && typeof x.frameSets === "object" ? x.frameSets : {},
   };
 }
 let CFG = DEFAULT_STICKER_CFG;
 /** gọi trước khi sinh mẫu (trang khách / admin) để dùng cài đặt của admin */
 export function setStickerConfig(v?: Partial<StickerCfg> | null) { CFG = mergeStickerCfg(v); }
 export const stickerConfig = () => CFG;
+let SETS: FrameSet[] = [];
+/** các bộ khung đang bật (tên bộ dùng để ưu tiên khung hợp phong cách khi tự tạo mẫu) */
+export function setFrameLibrary(sets: FrameSet[]) { SETS = sets; }
+export const frameLibrary = () => SETS;
 
 const MAX_COVER = 0.2, MAX_OVERLAP = 0.15, BLEED = 3, ROT = 15, GUTTER = 1.5;
 type R = () => number;

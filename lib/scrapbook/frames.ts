@@ -34,3 +34,17 @@ export async function loadFrameImages(frames: Frame[]) {
   }));
   return out;
 }
+
+/** ảnh thu nhỏ của khung kèm ảnh thử nằm trong vùng ảnh (để thấy rõ vùng ảnh) */
+export function framePreview(lf: LoadedFrame, photo: CanvasImageSource & { width: number; height: number }, size = 120) {
+  const W = size, H = Math.max(1, Math.round(size * (lf.img.height / lf.img.width)));
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d")!;
+  const g = lf.frame.region ?? { x0: 0, y0: 0, x1: 1, y1: 1 }, ix = g.x0 * W, iy = g.y0 * H, iw = (g.x1 - g.x0) * W, ih = (g.y1 - g.y0) * H;
+  const p = document.createElement("canvas"); p.width = W; p.height = H;
+  const px = p.getContext("2d")!, s = Math.max(iw / photo.width, ih / photo.height);
+  px.save(); px.beginPath(); px.rect(ix, iy, iw, ih); px.clip(); px.drawImage(photo, ix + iw / 2 - (photo.width * s) / 2, iy + ih / 2 - (photo.height * s) / 2, photo.width * s, photo.height * s); px.restore();
+  if (lf.mask) { px.globalCompositeOperation = "destination-in"; px.drawImage(lf.mask, 0, 0, W, H); }
+  x.drawImage(p, 0, 0); x.drawImage(lf.img, 0, 0, W, H);
+  return c.toDataURL("image/png");
+}
