@@ -38,7 +38,7 @@ function allGroups(): Group[] {
     {
       id: "thiet-ke", title: "Thiết kế", hint: "Tự làm bìa, xem thử trên hộp CD", tone: "#f3f0ff",
       items: [
-        ...designTools.map((t) => ({ href: t.href, title: t.title, desc: t.desc, icon: t.kind === "cd-mockup" ? <Boxes size={18} /> : <Disc3 size={18} /> })),
+        ...designTools.filter((t) => !t.hidden).map((t) => ({ href: t.href, title: t.title, desc: t.desc, icon: t.kind === "cd-mockup" ? <Boxes size={18} /> : <Disc3 size={18} /> })),
         { href: "/thiet-ke-cua-toi", title: "Thiết kế của tôi", desc: "Mở lại các bản thiết kế đã lưu", icon: <Palette size={18} /> },
         ...(FEATURE_PHOTOSTRIP ? [{ href: "/photostrip", title: "Làm Photostrip", desc: "Ghép dải ảnh 3–4 khung", icon: <Images size={18} /> }] : []),
       ],

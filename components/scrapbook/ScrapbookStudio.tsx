@@ -110,7 +110,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
   const printBlob = async () => {
     if (!doc) throw new Error("Chưa có thiết kế");
     await loadFonts();
-    return toBlob(renderSurface({ template: doc[0], ...st.renderOpts, size: PRINT_PX, mode: "print" }).canvas, "image/png");
+    return toBlob(renderSurface({ template: doc[0], ...st.renderOpts, size: PRINT_PX, mode: "print", fullDisc: true }).canvas, "image/png"); // không khoét lỗ giữa
   };
   async function downloadPrint() {
     setBusy(true);
@@ -134,7 +134,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
 
   return (
     <ScrapbookEditor mode="customer" st={st} assets={assets} assetGroups={assetGroups} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
-      guides={guides} setGuides={setGuides} onRestore={restore} canRestore={!!st.applied && !!doc}
+      guides={guides} setGuides={setGuides}
       toolbar={<Toggle checked={boxView} onChange={(v) => { setBoxView(v); st.setEditLayer(null); st.setSel(null); }} label="Xem trong hộp" />}
       overlay={boxView && doc ? (boxUrl
         // eslint-disable-next-line @next/next/no-img-element
@@ -152,11 +152,8 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
       )}
       bottom={(
         <div className="flex h-14 shrink-0 items-center gap-3 border-t border-[#efeff1] bg-[#f7f7f8] px-4">
-          <div className="min-w-0 flex-1"><BgPicker value={bg} onChange={setBg} shop={backgrounds} /></div>
-          <DownloadMenu busy={busy} up items={[
-            { label: "File in mặt đĩa (PNG 300 DPI)", icon: <Download size={16} />, onClick: downloadPrint },
-            { label: "Ảnh mockup (JPG)", icon: <Box size={16} />, onClick: downloadMockup },
-          ]} />
+          <span className="flex-1" />
+          <Button size="sm" variant="secondary" icon={<Download size={16} />} onClick={downloadPrint} loading={busy}>Tải file in (PNG)</Button>
           <Button size="sm" icon={<ShoppingBag size={16} />} onClick={order} disabled={!doc || busy}>Đặt in CD này</Button>
         </div>
       )} />

@@ -25,7 +25,8 @@ export type RenderOpts = {
   hideLayer?: number | null; // lớp chữ đang sửa trực tiếp (ô nhập đè lên) — tạm ẩn khi vẽ
   bgImages?: Record<string, Img | undefined>; // ảnh nền theo khoá bg.image (link ảnh admin / "u:<id>" ảnh khách)
   assets?: Record<string, { img: Img; asset: ScrapAsset } | undefined>;
-  size: number; mode?: "preview" | "print"; guides?: boolean; editSlot?: number | null; hoverSlot?: number | null;
+  size: number; mode?: "preview" | "print"; fullDisc?: boolean; // fullDisc: file in mặt đĩa phủ kín hình tròn 12 cm (không khoét lỗ / hub)
+  guides?: boolean; editSlot?: number | null; hoverSlot?: number | null;
   cutoutFonts?: Record<string, LoadedFont | undefined>; // font cut-out đã tải ảnh
 };
 
@@ -498,7 +499,8 @@ export function renderSurface(o: RenderOpts) {
     return { canvas: c, hits, texts };
   }
 
-  // lỗ giữa + vùng nhựa trong quanh lỗ
+  // lỗ giữa + vùng nhựa trong quanh lỗ (file in đầy đủ — fullDisc: bỏ qua, chỉ phần ngoài hình tròn trong suốt)
+  if (o.fullDisc) return { canvas: c, hits, texts };
   x.save(); x.globalCompositeOperation = "destination-out";
   x.beginPath(); x.arc(C, C, o.mode === "print" ? R_PRINT_HOLE : R_HOLE, 0, Math.PI * 2); x.fill();
   if (o.mode !== "print") { x.globalAlpha = 0.55; x.beginPath(); x.arc(C, C, R_PRINT_HOLE, 0, Math.PI * 2); x.arc(C, C, R_HOLE, 0, Math.PI * 2, true); x.fill("evenodd"); }

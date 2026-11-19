@@ -14,7 +14,7 @@ export default async function DesignToolsPage() {
   return (
     <>
       <PageHeader title="Thiết Kế" />
-      <div className="mx-auto w-full max-w-[1200px] px-4 lg:px-6"><ToolGrid tools={designTools} /></div>
+      <div className="mx-auto w-full max-w-[1200px] px-4 lg:px-6"><ToolGrid tools={designTools.filter((t) => !t.hidden)} /></div>
       <Suspense><CanvaModal templates={canva.templates} button={canva.button} /></Suspense>
     </>
   );

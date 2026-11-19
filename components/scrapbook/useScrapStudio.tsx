@@ -26,7 +26,7 @@ export function customizeText(t: Template, text: DiscText): Template {
 /** cỡ mặc định của ô ảnh mới thêm: ~45% bề rộng 1 trang (12 cm) / đường kính đĩa */
 export const SLOT_W = 54;
 export type UserSticker = { id: string; blob: Blob; url: string; img: HTMLCanvasElement };
-const btn = "inline-flex h-7 items-center gap-1 rounded-[6px] px-2 text-[12px] hover:bg-[#f4f4f5]";
+const ibtn = "grid h-8 w-8 place-items-center rounded-[6px] text-[#3f3f46] hover:bg-[#f4f4f5]";
 
 export function useScrapStudio(o: {
   prefix: string; max: number; assets: ScrapAsset[]; frames: Frame[]; fonts: CutoutFont[]; glyphs: Glyph[]; defaultText: DiscText;
@@ -336,17 +336,14 @@ export function useScrapStudio(o: {
   });
 
   const selL = sel !== null ? L[sel] : null;
+  // thanh công cụ nổi: 1 hàng nút icon 32px, tên chức năng ở tooltip
   const tools = selL ? (
     <>
-      {selL.k === "photo" ? (
-        <>
-          {!o.template && <button type="button" onClick={() => setPickFor(sel)} className={btn}><ImagePlus size={13} /> {selL.photo ? "Đổi ảnh" : "Chọn ảnh"}</button>}
-          <button type="button" onClick={() => setFrameFor(sel)} className={btn}><FrameIcon size={13} /> Đổi khung</button>
-        </>
-      ) : <button type="button" onClick={() => duplicate(sel!)} title="Nhân bản (Ctrl+D)" className={btn}><Copy size={13} /> Nhân bản</button>}
-      <button type="button" onClick={() => reorder(sel!, 1)} title="Đưa lên trên" className={btn}><ArrowUp size={13} /> Lên trên</button>
-      <button type="button" onClick={() => reorder(sel!, -1)} title="Đưa xuống dưới" className={btn}><ArrowDown size={13} /> Xuống dưới</button>
-      <button type="button" onClick={() => removeLayer(sel!)} title="Xoá (Delete)" className={`${btn} text-[#dc2626] hover:bg-[#fef2f2]`}><Trash2 size={13} /> {selL.k === "photo" ? "Xoá ô ảnh" : "Xoá"}</button>
+      <button type="button" onClick={() => duplicate(sel!)} title="Nhân bản (Ctrl+D)" aria-label="Nhân bản" className={ibtn}><Copy size={16} /></button>
+      <button type="button" onClick={() => reorder(sel!, 1)} title="Lên trên" aria-label="Lên trên" className={ibtn}><ArrowUp size={16} /></button>
+      <button type="button" onClick={() => reorder(sel!, -1)} title="Xuống dưới" aria-label="Xuống dưới" className={ibtn}><ArrowDown size={16} /></button>
+      {selL.k === "photo" && <button type="button" onClick={() => setFrameFor(sel)} title="Đổi khung" aria-label="Đổi khung" className={ibtn}><FrameIcon size={16} /></button>}
+      <button type="button" onClick={() => removeLayer(sel!)} title={selL.k === "photo" ? "Xoá ô ảnh (Delete)" : "Xoá (Delete)"} aria-label="Xoá" className={`${ibtn} text-[#dc2626] hover:bg-[#fef2f2]`}><Trash2 size={16} /></button>
     </>
   ) : null;
 

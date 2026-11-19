@@ -283,7 +283,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
   return (
     <>
       <ScrapbookEditor mode="customer" st={st} assets={assets} assetGroups={assetGroups} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
-        render={ro} guides={guides} setGuides={setGuides} onRestore={restore} canRestore={!!st.applied && !!doc}
+        render={ro} guides={guides} setGuides={setGuides}
         pageLabel={(i, n) => { const no = pagesOf(i, pages, n); return `${no.length === 1 ? `Trang ${no[0]}${i === 0 ? " (bìa)" : ""}` : `Trang ${no[0]}–${no[1]}`} / ${pages}`; }}
         templateTab={templateTab}
         onBackgroundDbl={(at) => setZoomPage(nos[cur?.surface === "spread" && at.x >= 120 ? 1 : 0])}
@@ -300,8 +300,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
             {user && <Button variant="secondary" size="sm" icon={<Save size={16} />} onClick={saveAccount} loading={busy} disabled={!doc}>Lưu</Button>}
             <DownloadMenu busy={busy} up items={[
               { label: "Các trang (.zip)", icon: <FileStack size={16} />, onClick: dlPages },
-              { label: "Dàn trang in (.zip)", icon: <Download size={16} />, onClick: dlImposed },
-              { label: "Ảnh mockup (JPG)", icon: <Box size={16} />, onClick: dlMockup },
+              ...(pages === 2 ? [] : [{ label: "Dàn trang in (.zip)", icon: <Download size={16} />, onClick: dlImposed }]),
             ]} />
             <Button size="sm" icon={<ShoppingBag size={16} />} disabled={!doc || busy} onClick={() => { if (rightsOk) order(); else setRightsOpen(true); }}>Đặt in booklet này</Button>
           </div>

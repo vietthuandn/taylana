@@ -249,10 +249,17 @@ export function SurfaceView(p: SurfaceViewProps) {
         <InlineText key={editing} l={L[editing] as Extract<Layer, { k: "text" | "wish" }>} hit={textBoxes.current[editing]} k={k} value={p.textValue(editing)} selectAll={!!p.selectAllText}
           onChange={(v) => p.onTextValue!(editing, v)} onExit={() => p.onEditText?.(null)} />
       )}
-      {SB && p.tools && !menu && (
-        <div className="absolute z-10 flex max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-full flex-wrap justify-center gap-0.5 rounded-[8px] border border-[#e5e5e7] bg-white p-0.5 shadow"
-          style={{ left: Math.min(Math.max(SB.x * k, 160), width - 160), top: Math.max(34, (SB.y - Math.max(SB.w, SB.h) / 2) * k - 26) }}>{p.tools}</div>
-      )}
+      {SB && p.tools && !menu && (() => {
+        // 1 hàng nút icon: đặt phía trên lớp, sát mép trên thì lật xuống dưới lớp, luôn nằm gọn trong bề mặt
+        const TW = 182, TH = 40, ext = (Math.abs(SB.w * Math.sin((SB.rot * Math.PI) / 180)) + Math.abs(SB.h * Math.cos((SB.rot * Math.PI) / 180))) / 2;
+        const above = (SB.y - ext) * k - 8 - TH, below = (SB.y + ext) * k + 8;
+        const top = above >= 0 ? above : below + TH <= height ? below : Math.max(0, Math.min(height - TH, above));
+        const left = Math.min(Math.max(SB.x * k, TW / 2 + 2), Math.max(TW / 2 + 2, width - TW / 2 - 2));
+        return (
+          <div data-keep-sel className="absolute z-10 flex -translate-x-1/2 flex-nowrap gap-0.5 rounded-[8px] border border-[#e5e5e7] bg-white p-0.5 shadow"
+            style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>{p.tools}</div>
+        );
+      })()}
       {menu && p.sel !== null && p.tools && (
         <div className="absolute z-20 flex flex-col rounded-[8px] border border-[#e5e5e7] bg-white p-1 shadow-lg" style={{ left: menu.x, top: menu.y }} onPointerDown={(e) => e.stopPropagation()}>{p.tools}</div>
       )}

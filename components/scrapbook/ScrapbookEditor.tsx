@@ -6,7 +6,7 @@
    nhiều bề mặt (booklet) thì có thanh chuyển trang + thumbnail. Phải (mode template): panel admin truyền vào.
    Mọi logic dùng chung nằm ở useScrapStudio; component này chỉ ghép giao diện. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Image as ImageIcon, LayoutTemplate, PaintBucket, Redo2, RotateCcw, Smile, Type, Undo2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize, Minus, Plus, Image as ImageIcon, LayoutTemplate, PaintBucket, Redo2, RotateCcw, Smile, Type, Undo2, X } from "lucide-react";
 import { renderSurface, type RenderOpts } from "@/lib/scrapbook/render";
 import { surfaceOf } from "@/lib/scrapbook/surface";
 import type { CutoutFont } from "@/lib/scrapbook/cutout";
@@ -68,12 +68,23 @@ export function ScrapbookEditor(p: {
     return () => r.disconnect();
   }, []);
   const S = surfaceOf(cur);
-  const width = Math.max(160, Math.floor(S.round ? Math.min(box.w, box.h) * 0.96 : Math.min(box.w * 0.92, box.h * 0.85 * (S.w / S.h))));
+  const fitW = Math.max(160, Math.floor(S.round ? Math.min(box.w, box.h) * 0.96 : Math.min(box.w * 0.92, box.h * 0.85 * (S.w / S.h))));
+  // zoom khu xem trước: 1 = "Vừa màn hình" (mặc định) · 25%–300% · Ctrl + cuộn chuột
+  const [zoom, setZoom] = useState(1);
+  const clampZ = (z: number) => Math.min(3, Math.max(0.25, Math.round(z * 100) / 100));
+  const width = Math.round(fitW * zoom);
+  useEffect(() => {
+    const el = area.current;
+    if (!el) return;
+    const h = (e: WheelEvent) => { if (!e.ctrlKey) return; e.preventDefault(); setZoom((z) => clampZ(z * (e.deltaY < 0 ? 1.1 : 1 / 1.1))); };
+    el.addEventListener("wheel", h, { passive: false });
+    return () => el.removeEventListener("wheel", h);
+  }, []);
   // thumbnail các bề mặt (booklet)
   const [thumbs, setThumbs] = useState<string[]>([]);
   useEffect(() => {
     if (!doc || doc.length < 2) return;
-    const t = setTimeout(() => setThumbs(doc.map((s) => renderSurface({ template: s, ...ro, size: s.surface === "spread" ? 96 : 48 }).canvas.toDataURL("image/jpeg", 0.8))), 400);
+    const t = setTimeout(() => setThumbs(doc.map((s) => renderSurface({ template: s, ...ro, size: s.surface === "spread" ? 300 : 150 }).canvas.toDataURL("image/jpeg", 0.8))), 400);
     return () => clearTimeout(t);
   }, [doc, ro]);
   const go = (i: number) => { st.setActive(Math.max(0, Math.min(count - 1, i))); st.setSel(null); st.setEditLayer(null); };
@@ -115,7 +126,7 @@ export function ScrapbookEditor(p: {
         })}
       </nav>
       {open && <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setCollapsed(true)} aria-hidden />}
-      <aside className={cx("border-[#e5e5e7] bg-white", open ? "fixed inset-x-0 bottom-[58px] z-40 max-h-[62dvh] overflow-y-auto rounded-t-[16px] p-4 shadow-[0_-8px_24px_rgb(0_0_0/0.12)] md:static md:z-auto md:order-1 md:block md:max-h-none md:w-[320px] md:shrink-0 md:rounded-none md:border-r md:p-4 md:shadow-none" : "hidden")}>
+      <aside className={cx("border-[#e5e5e7] bg-white", open ? "fixed inset-x-0 bottom-[58px] z-40 max-h-[62dvh] overflow-y-auto rounded-t-[16px] p-4 shadow-[0_-8px_24px_rgb(0_0_0/0.12)] md:static md:z-auto md:order-1 md:block md:max-h-none md:w-[380px] md:shrink-0 md:rounded-none md:border-r md:p-4 md:shadow-none" : "hidden")}>
        <div className="space-y-5">
         <div className="flex items-center justify-between md:hidden"><p className="text-[15px] font-semibold">{title}</p><button type="button" onClick={() => setCollapsed(true)} aria-label="Đóng" className="grid h-8 w-8 place-items-center rounded-full hover:bg-[#f4f4f5]"><X size={16} /></button></div>
         {p.tab === "mau" && p.templateTab}
@@ -151,7 +162,9 @@ export function ScrapbookEditor(p: {
           <span className="flex-1" />
           <Toggle checked={p.guides} onChange={p.setGuides} label="Guideline" />
         </div>
-        <div ref={area} className="relative flex min-h-[300px] flex-1 items-center justify-center overflow-hidden px-2 py-1">
+        <div className="relative flex min-h-[300px] flex-1 flex-col md:min-h-0">
+        <div ref={area} className="flex min-h-0 flex-1 overflow-auto px-2 py-1">
+         <div className="m-auto">
           {p.overlay ?? (!cur ? p.empty : st.ready && (
             <SurfaceView key={st.active} t={cur} width={width} render={ro} guides={p.guides} sel={st.sel} onSel={st.setSel} editLayer={st.editLayer} onEditLayer={st.setEditLayer}
               begin={st.D.begin} setLayers={st.setLayers} adjustOf={(id) => st.adjust[id]} setAdjust={(id, a) => st.setAdjust((c) => ({ ...c, [id]: a }))}
@@ -160,6 +173,16 @@ export function ScrapbookEditor(p: {
               editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
               onBackgroundDbl={p.onBackgroundDbl} tools={st.tools} />
           ))}
+         </div>
+        </div>
+        {!p.overlay && cur && (
+          <div data-keep-sel className="absolute bottom-2 right-3 z-10 flex items-center gap-0.5 rounded-full border border-[#e5e5e7] bg-white/95 p-0.5 text-[12px] shadow-sm">
+            <button type="button" onClick={() => setZoom((z) => clampZ(z - 0.1))} disabled={zoom <= 0.25} title="Thu nhỏ" aria-label="Thu nhỏ" className="grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5] disabled:opacity-40"><Minus size={14} /></button>
+            <span className="w-11 text-center tabular-nums text-[#3f3f46]">{Math.round(zoom * 100)}%</span>
+            <button type="button" onClick={() => setZoom((z) => clampZ(z + 0.1))} disabled={zoom >= 3} title="Phóng to" aria-label="Phóng to" className="grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5] disabled:opacity-40"><Plus size={14} /></button>
+            <button type="button" onClick={() => setZoom(1)} title="Vừa màn hình" aria-label="Vừa màn hình" className={cx("grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5]", zoom === 1 && "text-[#ff5fa2]")}><Maximize size={13} /></button>
+          </div>
+        )}
         </div>
         {doc && count > 1 && !p.overlay && (
           <div className="px-3">
@@ -168,11 +191,12 @@ export function ScrapbookEditor(p: {
               <span className="min-w-[96px] text-center text-[12px] tabular-nums text-[#3f3f46]">{p.pageLabel?.(st.active, count) ?? `${st.active + 1} / ${count}`}</span>
               <button type="button" onClick={() => go(st.active + 1)} disabled={st.active >= count - 1} aria-label="Trang sau" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40"><ChevronRight size={14} /></button>
             </div>
-            <div className="no-scrollbar mt-1 flex justify-center gap-1.5 overflow-x-auto pb-1">
+            {/* các trang: lưới 2 cột (mỗi ô = 1 trang đơn hoặc 1 cặp trang), cuộn dọc khi nhiều */}
+            <div className="mx-auto mt-1 grid max-h-[176px] max-w-[560px] grid-cols-2 gap-2 overflow-y-auto pb-1">
               {doc.map((s, i) => (
-                <button key={i} type="button" onClick={() => go(i)} className={cx("shrink-0 rounded-[4px] border p-px", i === st.active ? "border-[#ff5fa2]" : "border-[#e5e5e7]")}>
+                <button key={i} type="button" onClick={() => go(i)} title={p.pageLabel?.(i, count)} className={cx("grid h-20 place-items-center rounded-[6px] border bg-white p-1", i === st.active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {thumbs[i] ? <img src={thumbs[i]} alt="" className="h-12" style={{ width: s.surface === "spread" ? 96 : 48 }} /> : <span className="block h-12 bg-[#ececef]" style={{ width: s.surface === "spread" ? 96 : 48 }} />}
+                  {thumbs[i] ? <img src={thumbs[i]} alt="" className="max-h-full max-w-full object-contain" /> : <span className={cx("block h-full bg-[#ececef]", s.surface === "spread" ? "aspect-[2/1]" : "aspect-square")} />}
                 </button>
               ))}
             </div>

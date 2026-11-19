@@ -33,9 +33,9 @@ export function CanvaModal({ templates, button }: { templates: CanvaTemplate[]; 
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               {templates.map((t) => (
                 <li key={t.id} className="flex flex-col rounded-[14px] border border-[#e5e5e7] p-3">
-                  <div className="grid h-[200px] place-items-center overflow-hidden rounded-[12px] bg-[#f7f7f8] p-4">
+                  <div className="flex h-[200px] items-center justify-center overflow-hidden rounded-[12px] bg-[#f7f7f8] p-4">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {t.image_url ? <img src={t.image_url} alt={t.name} className="max-h-full max-w-full object-contain drop-shadow-[0_6px_14px_rgba(0,0,0,0.16)]" /> : <CanvaShape kind={t.kind} size={t.size_label} />}
+                    {t.image_url ? <img src={t.image_url} alt={t.name} className="h-full w-full object-contain object-center drop-shadow-[0_6px_14px_rgba(0,0,0,0.16)]" /> : <CanvaShape kind={t.kind} size={t.size_label} />}
                   </div>
                   <p className="mt-3 text-[15px] font-semibold text-[#18181b]">{t.name}</p>
                   <p className="text-[13px] text-[#71717a]">{t.size_label}</p>
