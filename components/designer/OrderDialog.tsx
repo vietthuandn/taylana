@@ -1,4 +1,5 @@
 "use client";
+import { uploadFile } from "@/lib/storage/client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -57,9 +58,9 @@ export function OrderDialog({ orderType, title, packages = [], quantityLabel, ge
       for (const f of files) {
         n++;
         setStep(`Đang gửi file ${n}/${files.length}...`);
-        const path = `${order_id}/${f.kind}-thiet-ke-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.png`;
-        const up = await sb.storage.from("order-files").upload(path, f.blob, { contentType: "image/png", upsert: false });
-        if (up.error) throw new Error("Gửi file thất bại: " + up.error.message);
+        let path: string;
+        try { path = (await uploadFile("order", f.blob, { folder: order_id, contentType: "image/png" })).path; }
+        catch (e) { throw new Error("Gửi file thất bại: " + (e instanceof Error ? e.message : "")); }
         const bmp = await createImageBitmap(f.blob);
         const reg = await sb.rpc("register_order_file", {
           p_order_id: order_id, p_kind: f.kind, p_storage_path: path, p_file_name: f.name,

@@ -9,7 +9,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { uploadHref } from "@/lib/uploadTools";
-import { randomName } from "@/lib/upload";
+import { readUrls, uploadFile } from "@/lib/storage/client";
 import type { PackLayout } from "@/lib/matchFileName";
 import { CdUploadPanel } from "@/components/cd/CdUploadPanel";
 import { saveHandoff } from "@/lib/mockup/handoff";
@@ -105,9 +105,9 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
     // ảnh đã gửi: chủ đơn (đã đăng nhập) xem được ảnh
     const paths = o.files.filter((f) => f.mime_type.startsWith("image/")).map((f) => f.storage_path);
     if (paths.length) {
-      const { data: urls } = await sb.storage.from("order-files").createSignedUrls(paths, 3600);
+      const urls = await readUrls(paths.map((p) => `order-files/${p}`)).catch(() => ({} as Record<string, string>));
       const m: Record<string, string> = {};
-      urls?.forEach((u) => { if (u.path && u.signedUrl) m[u.path] = u.signedUrl; });
+      for (const p of paths) if (urls[`order-files/${p}`]) m[p] = urls[`order-files/${p}`];
       setPreviews(m);
     }
   }, []);
@@ -198,9 +198,9 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
         n++;
         setSending(`Đang gửi ảnh ${n}/${todo.length}...`);
         // FILE GỐC, không nén
-        const path = `${target.id}/${s.kind}${s.page ? `-p${String(s.page).padStart(2, "0")}` : ""}-${randomName(p.file)}`;
-        const up = await sb.storage.from("order-files").upload(path, p.file, { contentType: p.file.type, upsert: false });
-        if (up.error) throw new Error(`Gửi "${s.full}" thất bại: ${up.error.message}`);
+        let path: string;
+        try { path = (await uploadFile("order", p.file, { folder: target.id, filename: p.file.name, contentType: p.file.type })).path; }
+        catch (e) { throw new Error(`Gửi "${s.full}" thất bại: ${e instanceof Error ? e.message : ""}`); }
         const reg = await sb.rpc("register_order_file", {
           p_order_id: target.id, p_kind: s.kind, p_storage_path: path, p_file_name: p.file.name,
           p_mime_type: p.file.type, p_size_bytes: p.file.size, p_page: s.page,

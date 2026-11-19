@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Combine, Link2, Plus, Square, Trash2, Upload, Wand2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { loadImg } from "@/lib/mockup/images";
-import { randomName } from "@/lib/upload";
+import { uploadFile, deleteFiles } from "@/lib/storage/client";
 import { itemCanvas, itemFromRect, itemsFromSheet, mergeItems, readSheet, runSlice, type Item, type Sheet } from "@/lib/stickerSlicer";
 import { DIACRITICS, SECTIONS, TONES, charLabel, drawCutout, keyToChar, kindOf, layoutCutout, loadCutoutFont, missingChars, type CutoutFont, type Glyph } from "@/lib/scrapbook/cutout";
 import { revalidatePublic } from "@/app/admin/actions";
@@ -29,7 +29,7 @@ import "@fontsource/roboto-slab/700.css";
 type Msg = { type: "ok" | "err"; text: string } | null;
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
 const PATHS = ["/thiet-ke/scrapbook"];
-const storagePath = (url: string) => { const p = url.split("/storage/v1/object/public/scrapbook/")[1]; return p ? decodeURIComponent(p) : null; };
+const storagePath = (url: string) => url; // xoá theo link (lib/storage nhận cả link R2 lẫn Supabase cũ)
 
 // ảnh xem trước: chữ "Taylana" dựng bằng chính bộ font
 async function previewOf(fontId: string, glyphs: Glyph[]) {
@@ -81,7 +81,7 @@ export function CutoutAdmin() {
     const paths = glyphs.filter((g) => g.font_id === f.id).map((g) => storagePath(g.url)).filter(Boolean) as string[];
     const { error } = await sb.from("cutout_fonts").delete().eq("id", f.id);
     if (error) return setMsg({ type: "err", text: error.message });
-    if (paths.length) await sb.storage.from("scrapbook").remove(paths);
+    if (paths.length) await deleteFiles({ urls: paths }).catch(() => 0);
     if (open === f.id) setOpen(null);
     await after("Đã xoá bộ font.");
   }
@@ -107,7 +107,7 @@ export function CutoutAdmin() {
     const sb = createClient();
     const { error } = await sb.from("cutout_glyphs").delete().eq("id", g.id);
     if (error) return setMsg({ type: "err", text: error.message });
-    const p = storagePath(g.url); if (p) await sb.storage.from("scrapbook").remove([p]);
+    await deleteFiles({ urls: [g.url] }).catch(() => 0);
     await after("Đã xoá biến thể.");
   }
 
@@ -390,10 +390,9 @@ function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void })
       if (!c) continue;
       const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/png"));
       if (!blob) continue;
-      const path = `cutout/${fontId}/${randomName(new File([blob], "g.png", { type: "image/png" }))}`;
-      const up = await sb.storage.from("scrapbook").upload(path, blob, { contentType: "image/png", cacheControl: "31536000", upsert: false });
-      if (up.error) { toast("Tải ảnh thất bại: " + up.error.message, "err"); break; }
-      const url = sb.storage.from("scrapbook").getPublicUrl(path).data.publicUrl;
+      let url: string;
+      try { url = (await uploadFile("scrapbook", blob, { folder: `cutout/${fontId}`, contentType: "image/png" })).url!; }
+      catch (e) { toast("Tải ảnh thất bại: " + (e instanceof Error ? e.message : ""), "err"); break; }
       const ins = await sb.from("cutout_glyphs").insert({ font_id: fontId, ch: it.ch, kind: kindOf(it.ch), url, w: c.width, h: c.height, sort_order: i }).select("id").single();
       if (ins.error) { toast(ins.error.message, "err"); break; }
       // dữ liệu học: vector đặc trưng của mảnh + ký tự admin đã gán

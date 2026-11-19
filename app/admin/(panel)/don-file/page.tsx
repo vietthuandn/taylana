@@ -1,9 +1,10 @@
+import { STORAGE_QUOTA, storageUsageRows } from "@/lib/storage";
 import { requireAdmin } from "@/lib/admin";
 import { formatBytes } from "@/lib/format";
 import { CleanupList, type CleanupOrder } from "./CleanupList";
 import { AdminPage, Card, PageHeader } from "@/components/admin/ui";
 
-const QUOTA = 1024 ** 3; // gói Supabase Free: 1GB Storage
+const QUOTA = STORAGE_QUOTA; // gói miễn phí: R2 10GB (Supabase Free 1GB khi STORAGE_PROVIDER=supabase)
 
 type FileRow = {
   order_id: string;
@@ -15,7 +16,7 @@ type FileRow = {
 export default async function CleanupPage() {
   const { supabase } = await requireAdmin();
   const [{ data: usage, error: usageErr }, { data: files, error: filesErr }] = await Promise.all([
-    supabase.rpc("storage_usage"),
+    storageUsageRows(),
     supabase
       .from("order_files")
       .select("order_id, size_bytes, storage_path, orders!inner(code, customer_name, delivered_at, status)")
@@ -45,7 +46,7 @@ export default async function CleanupPage() {
       <PageHeader title="Dọn file" />
 
       <div className="space-y-6">
-        <Card title="Dung lượng Storage đang dùng" description="Gói Supabase Free có 1GB.">
+        <Card title="Dung lượng Storage đang dùng" description={`Gói miễn phí có ${formatBytes(QUOTA)}.`}>
           {usageErr ? (
             <p className="text-[13px] text-[#dc2626]">{usageErr.message}</p>
           ) : (
@@ -57,7 +58,7 @@ export default async function CleanupPage() {
               <ul className="mt-4 divide-y divide-[#efeff1] text-[13px]">
                 {rows.map((r) => (
                   <li key={r.bucket} className="flex justify-between py-2">
-                    <span className="text-[#3f3f46]">{r.bucket === "order-files" ? "File khách gửi" : r.bucket === "public-assets" ? "Ảnh trên web" : r.bucket}</span>
+                    <span className="text-[#3f3f46]">{r.bucket === "order-files" ? "File khách gửi" : r.bucket === "public-assets" ? "Ảnh trên web" : r.bucket === "scrapbook" ? "Chất liệu Scrapbook" : r.bucket === "mockups" ? "Ảnh mockup" : r.bucket === "design-assets" ? "Thiết kế của khách" : r.bucket === "mockup-shares" ? "Link chia sẻ" : r.bucket}</span>
                     <span className="text-[#71717a]">{formatBytes(Number(r.total_bytes))} · {r.file_count} file</span>
                   </li>
                 ))}

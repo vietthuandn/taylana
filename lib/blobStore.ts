@@ -1,7 +1,7 @@
 "use client";
 /* Kho ảnh cục bộ (IndexedDB) cho bản nháp — localStorage quá nhỏ để chứa ảnh.
    Ảnh khách tải lên có src dạng "idb:<id>"; ảnh đã lưu lên tài khoản: "sb:<đường dẫn trong bucket design-assets>". */
-import { createClient } from "./supabase/client";
+import { readUrls } from "./storage/client";
 
 const DB = "taylana-cd", STORE = "blobs";
 function open(): Promise<IDBDatabase> {
@@ -47,8 +47,11 @@ export function resolveSrc(src: string): Promise<string | null> {
         const b = await getBlob(src.slice(4));
         return b ? URL.createObjectURL(b) : null;
       }
-      const { data } = await createClient().storage.from("design-assets").createSignedUrl(src.slice(3), 60 * 60 * 6);
-      return data?.signedUrl ?? null;
+      const k = `design-assets/${src.slice(3)}`;
+      const u = (await readUrls([k]).catch(() => ({} as Record<string, string>)))[k] ?? null;
+      if (!u) cache.delete(src);
+      else setTimeout(() => cache.delete(src), 50 * 60 * 1000); // link đọc hạn 1 giờ
+      return u;
     })());
   }
   return cache.get(src)!;

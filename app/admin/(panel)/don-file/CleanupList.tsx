@@ -1,4 +1,5 @@
 "use client";
+import { deleteFiles } from "@/lib/storage/client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -36,8 +37,7 @@ export function CleanupList({ orders }: { orders: CleanupOrder[] }) {
     try {
       for (let i = 0; i < paths.length; i += 100) {
         setBusy(`Đang xoá ${Math.min(i + 100, paths.length)}/${paths.length} file...`);
-        const { error } = await sb.storage.from("order-files").remove(paths.slice(i, i + 100));
-        if (error) throw error;
+        await deleteFiles({ keys: paths.slice(i, i + 100).map((p) => `order-files/${p}`) });
       }
       const ids = list.map((o) => o.id);
       const del = await sb.from("order_files").delete().in("order_id", ids);

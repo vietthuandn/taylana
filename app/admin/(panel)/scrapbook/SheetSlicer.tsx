@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Brush, Combine, Eraser, Link2, MousePointer2, RotateCcw, Scissors, Square, Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { randomName } from "@/lib/upload";
+import { uploadFile } from "@/lib/storage/client";
 import { brush, itemCanvas, itemFromRect, itemsFromSheet, mergeItems, readSheet, runSlice, splitItem, type Item, type Sheet } from "@/lib/stickerSlicer";
 import { ASSET_GROUPS, TONES } from "@/lib/scrapbook/types";
 import { Button, Select, toast } from "@/components/admin/ui";
@@ -174,10 +174,9 @@ export function SheetSlicer({ onDone }: { onDone: () => void }) {
       if (!c) continue;
       const blob = await new Promise<Blob | null>((r) => c.toBlob(r, "image/png"));
       if (!blob) continue;
-      const path = `${it.grp}/${randomName(new File([blob], "sticker.png", { type: "image/png" }))}`;
-      const up = await sb.storage.from("scrapbook").upload(path, blob, { contentType: "image/png", cacheControl: "31536000", upsert: false });
-      if (up.error) { toast("Tải ảnh thất bại: " + up.error.message, "err"); break; }
-      const url = sb.storage.from("scrapbook").getPublicUrl(path).data.publicUrl;
+      let url: string;
+      try { url = (await uploadFile("scrapbook", blob, { folder: it.grp, contentType: "image/png" })).url!; }
+      catch (e) { toast("Tải ảnh thất bại: " + (e instanceof Error ? e.message : ""), "err"); break; }
       const ins = await sb.from("scrapbook_assets").insert({ name: it.name.trim() || `Sticker ${i + 1}`, grp: it.grp, tone: it.tone, url, sort_order: Date.now() % 1e6 + i });
       if (ins.error) { toast(ins.error.message, "err"); break; }
       ok++;

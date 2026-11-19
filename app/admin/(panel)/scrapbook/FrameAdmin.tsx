@@ -1,4 +1,5 @@
 "use client";
+import { deleteFiles } from "@/lib/storage/client";
 
 /* Admin → Chất liệu Scrapbook → tab "Khung ảnh": quản lý theo BỘ KHUNG (tên, bật/tắt, thứ tự).
    Mỗi khung: ảnh PNG (upload hoặc link), vùng ảnh nằm dưới khung (tự dò vùng trong suốt bên trong / kéo 4 góc /
@@ -21,7 +22,7 @@ import { cx } from "@/components/admin/styles";
 type Msg = { type: "ok" | "err"; text: string } | null;
 const PATHS = ["/thiet-ke/scrapbook", "/thiet-ke/booklet-scrapbook"];
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
-const storagePath = (url: string) => { const p = url.split("/storage/v1/object/public/scrapbook/")[1]; return p ? decodeURIComponent(p) : null; };
+const storagePath = (url: string) => url; // xoá theo link (lib/storage nhận cả link R2 lẫn Supabase cũ)
 
 /** ảnh xem trước: ảnh thử nằm dưới khung, cắt theo vùng ảnh / mặt nạ */
 async function previewOf(f: Pick<Frame, "url" | "region" | "mask_url">, photo: HTMLCanvasElement, size = 220) {
@@ -89,7 +90,7 @@ export function FrameAdmin() {
     const sb = createClient(), paths = frames.filter((f) => f.set_id === s.id).flatMap((f) => [storagePath(f.url), f.mask_url ? storagePath(f.mask_url) : null]).filter(Boolean) as string[];
     const { error } = await sb.from("frame_sets").delete().eq("id", s.id);
     if (error) return setMsg({ type: "err", text: error.message });
-    if (paths.length) await sb.storage.from("scrapbook").remove(paths);
+    if (paths.length) await deleteFiles({ urls: paths }).catch(() => 0);
     await after("Đã xoá bộ khung.");
   }
   async function moveSet(i: number, d: number) {
@@ -133,7 +134,7 @@ export function FrameAdmin() {
     const sb = createClient(), paths = [storagePath(f.url), f.mask_url ? storagePath(f.mask_url) : null].filter(Boolean) as string[];
     const { error } = await sb.from("frames").delete().eq("id", f.id);
     if (error) return setMsg({ type: "err", text: error.message });
-    if (paths.length) await sb.storage.from("scrapbook").remove(paths);
+    if (paths.length) await deleteFiles({ urls: paths }).catch(() => 0);
     await after("Đã xoá khung.");
   }
   async function moveFrame(i: number, d: number) {

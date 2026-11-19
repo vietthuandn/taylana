@@ -10,6 +10,7 @@ const supabase = (() => {
   }
 })();
 const isLocal = supabase?.hostname === "localhost" || supabase?.hostname === "127.0.0.1";
+const r2 = (() => { try { return new URL(process.env.NEXT_PUBLIC_R2_PUBLIC_URL ?? ""); } catch { return null; } })();
 
 const nextConfig: NextConfig = {
   // Đường dẫn cũ → trang mới (giữ nguyên tham số, ví dụ ?don=<mã>, ?ma=<mã>, ?design=<id>)
@@ -35,7 +36,10 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    // ảnh lưu ở Cloudflare R2 (đã có cache CDN 1 năm) → dùng thẳng URL gốc, không qua tối ưu ảnh của Vercel
+    unoptimized: true,
     remotePatterns: [
+      ...(r2 ? [{ protocol: "https" as const, hostname: r2.hostname }] : []),
       { protocol: "https", hostname: "*.supabase.co" },
       ...(supabase ? [{ protocol: supabase.protocol.replace(":", "") as "http" | "https", hostname: supabase.hostname, port: supabase.port }] : []),
     ],

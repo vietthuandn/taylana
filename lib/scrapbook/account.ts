@@ -1,4 +1,5 @@
 "use client";
+import { downloadPrivate, uploadFile } from "@/lib/storage/client";
 /* Booklet Scrapbook: lưu vào "Thiết kế của tôi" (bảng designs) — ảnh + sticker của khách lên bucket riêng tư design-assets/<user_id>/
    (chỉ khi khách đã đăng nhập và bấm "Lưu"). */
 import { createClient } from "@/lib/supabase/client";
@@ -15,9 +16,9 @@ export async function saveScrapToAccount(data: ScrapDesign, files: { id: string;
   const paths: Record<string, string> = { ...(data.paths ?? {}) };
   for (const f of files) {
     if (paths[f.id]) continue;
-    const path = `${u.user.id}/bscrap-${f.id}.${f.blob.type === "image/png" ? "png" : "jpg"}`;
-    const { error } = await sb.storage.from("design-assets").upload(path, f.blob, { contentType: f.blob.type || "image/jpeg", upsert: true });
-    if (error) throw new Error("Tải ảnh lên thất bại: " + error.message);
+    let path: string;
+    try { path = (await uploadFile("design", f.blob, { contentType: f.blob.type === "image/png" ? "image/png" : "image/jpeg" })).path; }
+    catch (e) { throw new Error("Tải ảnh lên thất bại: " + (e instanceof Error ? e.message : "")); }
     paths[f.id] = path;
   }
   const row = { name: opts.name.trim() || "Booklet Scrapbook", data: { ...data, paths }, thumbnail: opts.thumbnail };
@@ -36,6 +37,6 @@ export async function loadScrapFromAccount(id: string): Promise<{ data: ScrapDes
   const d = data?.data as ScrapDesign | undefined;
   if (!d || d.kind !== "booklet-scrapbook") return null;
   const blobs: Record<string, Blob> = {};
-  for (const [fid, path] of Object.entries(d.paths ?? {})) { const r = await sb.storage.from("design-assets").download(path); if (r.data) blobs[fid] = r.data; }
+  for (const [fid, path] of Object.entries(d.paths ?? {})) { const b = await downloadPrivate(`design-assets/${path}`); if (b) blobs[fid] = b; }
   return { data: d, blobs };
 }

@@ -2,7 +2,8 @@
 /* Tạo link chia sẻ mockup (admin, trên trình duyệt): nén ảnh (cạnh dài ≤ 2400px, JPG 0.88; PNG nếu có vùng trong suốt)
    → tải lên bucket riêng tư "mockup-shares/<id>/" → lưu 1 dòng mockup_shares (RLS: chỉ admin). */
 import { createClient } from "@/lib/supabase/client";
-import { SHARE_BUCKET, SHARE_TTL_MS, newToken, type ShareBg, type ShareState } from "./types";
+import { deleteFiles, uploadFile } from "@/lib/storage/client";
+import { SHARE_TTL_MS, newToken, type ShareBg, type ShareState } from "./types";
 
 type Img = CanvasImageSource & { width: number; height: number };
 function hasAlpha(c: HTMLCanvasElement) {
@@ -31,9 +32,10 @@ export async function createShare(inp: ShareInput, onProgress: (done: number, to
   let done = 0;
   const tick = () => onProgress(++done, total);
   const put = async (name: string, img: Img, max?: number, jpg?: boolean) => {
-    const e = await encode(img, max, jpg), path = `${id}/${name}.${e.ext}`;
-    const { error } = await sb.storage.from(SHARE_BUCKET).upload(path, e.blob, { contentType: e.type, upsert: true });
-    if (error) throw new Error("Tải ảnh lên thất bại: " + error.message + (/bucket not found/i.test(error.message) ? " (cần chạy supabase/migration_mockup_shares.sql)" : ""));
+    const e = await encode(img, max, jpg);
+    let path: string;
+    try { path = (await uploadFile("share", e.blob, { folder: id, filename: `${name}.${e.ext}`, contentType: e.type })).path; }
+    catch (x) { throw new Error("Tải ảnh lên thất bại: " + (x instanceof Error ? x.message : "")); }
     tick();
     return path;
   };
@@ -48,7 +50,7 @@ export async function createShare(inp: ShareInput, onProgress: (done: number, to
   const expires = new Date(Date.now() + SHARE_TTL_MS).toISOString();
   const { error } = await sb.from("mockup_shares").insert({ id, token, state, expires_at: expires });
   if (error) {
-    await sb.storage.from(SHARE_BUCKET).remove([...Object.values(slots), ...(bg.kind === "file" ? [bg.path] : []), ...(thumb ? [thumb] : [])]);
+    await deleteFiles({ prefixes: [`mockup-shares/${id}/`] }).catch(() => 0);
     throw new Error(error.code === "42P01" || error.code === "PGRST205" ? "Chưa có bảng chia sẻ — cần chạy supabase/migration_mockup_shares.sql." : error.message);
   }
   tick();
@@ -57,9 +59,7 @@ export async function createShare(inp: ShareInput, onProgress: (done: number, to
 /** thu hồi ngay: xoá mọi file trong thư mục của link (Storage API) rồi xoá dòng dữ liệu */
 export async function revokeShare(id: string) {
   const sb = createClient();
-  const { data } = await sb.storage.from(SHARE_BUCKET).list(id, { limit: 1000 });
-  const paths = (data ?? []).map((f) => `${id}/${f.name}`);
-  if (paths.length) { const r = await sb.storage.from(SHARE_BUCKET).remove(paths); if (r.error) throw new Error(r.error.message); }
+  await deleteFiles({ prefixes: [`mockup-shares/${id}/`] });
   const { error } = await sb.from("mockup_shares").delete().eq("id", id);
   if (error) throw new Error(error.message);
 }

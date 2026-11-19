@@ -1,4 +1,5 @@
 "use client";
+import { deleteFiles, uploadFile } from "./storage/client";
 // Lưu / mở thiết kế Custom CD của khách (bảng designs + bucket riêng tư design-assets/<user_id>/...)
 import { createClient } from "./supabase/client";
 import { srcToBlob } from "./blobStore";
@@ -28,9 +29,10 @@ async function uploadImages(data: DesignData, userId: string): Promise<DesignDat
     const blob = await srcToBlob(src);
     if (!blob) return src;
     const ext = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : blob.type === "image/gif" ? "gif" : "jpg";
-    const path = `${userId}/${src.slice(4)}.${ext}`;
-    const { error } = await sb.storage.from("design-assets").upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: true });
-    if (error) throw new Error("Tải ảnh lên thất bại: " + error.message);
+    void userId;
+    let path: string;
+    try { path = (await uploadFile("design", blob, { contentType: ext === "jpg" ? "image/jpeg" : `image/${ext}` })).path; }
+    catch (e) { throw new Error("Tải ảnh lên thất bại: " + (e instanceof Error ? e.message : "")); }
     uploaded.set(src, `sb:${path}`);
     return `sb:${path}`;
   };
@@ -73,7 +75,25 @@ export async function renameDesign(id: string, name: string) {
   const { error } = await createClient().from("designs").update({ name: name.trim() || "Thiết kế không tên" }).eq("id", id);
   if (error) throw new Error(error.message);
 }
+/** đường dẫn ảnh (design-assets/<user_id>/…) mà 1 thiết kế đang dùng — ảnh "sb:…", photoPaths, paths */
+function assetPaths(data: unknown): Set<string> {
+  const out = new Set<string>();
+  const re = /^(?:sb:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[A-Za-z0-9._-]+\.(?:jpg|jpeg|png|webp|gif))$/i;
+  const walk = (v: unknown) => {
+    if (typeof v === "string") { const m = re.exec(v); if (m) out.add(m[1]); }
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") Object.values(v).forEach(walk);
+  };
+  walk(data);
+  return out;
+}
 export async function deleteDesign(id: string) {
-  const { error } = await createClient().from("designs").delete().eq("id", id);
+  const sb = createClient();
+  const { data: all } = await sb.from("designs").select("id, data");
+  const { error } = await sb.from("designs").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  // xoá ảnh của thiết kế trên kho lưu trữ — trừ ảnh còn được thiết kế khác dùng chung (bản sao)
+  const mine = assetPaths(all?.find((d) => d.id === id)?.data);
+  for (const d of all ?? []) if (d.id !== id) for (const p of assetPaths(d.data)) mine.delete(p);
+  if (mine.size) await deleteFiles({ keys: [...mine].map((p) => `design-assets/${p}`) }).catch(() => 0);
 }

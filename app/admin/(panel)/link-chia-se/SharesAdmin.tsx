@@ -1,4 +1,5 @@
 "use client";
+import { readUrls, storageUsage } from "@/lib/storage/client";
 
 /* Admin → Link chia sẻ: link xem mockup còn hạn (ảnh nhỏ, ngày tạo, hết hạn sau, lượt xem) — Sao chép · Mở ·
    "Gia hạn thêm 24 giờ" · "Thu hồi ngay" (xoá file qua Storage API + xoá dữ liệu). Đầu trang: dung lượng bucket mockup-shares. */
@@ -6,7 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Clock, Copy, ExternalLink, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { revokeShare } from "@/lib/mockupShare/create";
-import { SHARE_BUCKET, SHARE_TTL_MS, fmtLeft, type ShareRow } from "@/lib/mockupShare/types";
+import { SHARE_TTL_MS, fmtLeft, type ShareRow } from "@/lib/mockupShare/types";
 import { Button, Card, EmptyState, Message, confirmDialog, toast } from "@/components/admin/ui";
 
 type Msg = { type: "ok" | "err"; text: string } | null;
@@ -21,14 +22,14 @@ export function SharesAdmin() {
   const [now, setNow] = useState(() => Date.now());
   const load = useCallback(async () => {
     const sb = createClient();
-    const [r, u] = await Promise.all([sb.from("mockup_shares").select("*").gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }), sb.rpc("mockup_shares_usage")]);
+    const [r, u] = await Promise.all([sb.from("mockup_shares").select("*").gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }), storageUsage("mockup-shares/").catch(() => null)]);
     if (r.error) setMsg({ type: "err", text: "Chưa có bảng chia sẻ — cần chạy supabase/migration_mockup_shares.sql." });
     const list = (r.data ?? []) as ShareRow[];
-    setRows(list); setUsage(typeof u.data === "number" ? u.data : u.data ? Number(u.data) : 0); setNow(Date.now());
+    setRows(list); setUsage(u ? u.total_bytes : 0); setNow(Date.now());
     const paths = list.map((x) => x.state?.thumb).filter(Boolean) as string[];
     if (paths.length) {
-      const s = await sb.storage.from(SHARE_BUCKET).createSignedUrls(paths, 3600);
-      setThumbs(Object.fromEntries((s.data ?? []).filter((x) => x.path && x.signedUrl).map((x) => [x.path!, x.signedUrl as string])));
+      const s = await readUrls(paths.map((p) => `mockup-shares/${p}`)).catch(() => ({} as Record<string, string>));
+      setThumbs(Object.fromEntries(paths.filter((p) => s[`mockup-shares/${p}`]).map((p) => [p, s[`mockup-shares/${p}`]])));
     }
     setReady(true);
   }, []);

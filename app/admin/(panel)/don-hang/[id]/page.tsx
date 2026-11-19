@@ -1,3 +1,4 @@
+import { getSignedReadUrls } from "@/lib/storage";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/admin";
@@ -46,8 +47,8 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
   // Link tải tạm thời (hết hạn sau 1 giờ) cho file trong bucket riêng tư
   const signed = new Map<string, string>();
   if (files.length) {
-    const { data } = await supabase.storage.from("order-files").createSignedUrls(files.map((f) => f.storage_path), 3600);
-    data?.forEach((d) => d.path && d.signedUrl && signed.set(d.path, d.signedUrl));
+    const urls = await getSignedReadUrls(files.map((f) => `order-files/${f.storage_path}`), 3600).catch(() => ({} as Record<string, string>));
+    for (const f of files) { const u = urls[`order-files/${f.storage_path}`]; if (u) signed.set(f.storage_path, u); }
   }
 
   return (

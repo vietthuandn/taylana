@@ -1,4 +1,5 @@
 "use client";
+import { deleteFiles } from "@/lib/storage/client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,8 +31,8 @@ export function OrderControls({ order, fileCount, paths }: { order: Order; fileC
     setBusy(true);
     const sb = createClient();
     if (paths.length) {
-      const { error } = await sb.storage.from("order-files").remove(paths);
-      if (error) { setBusy(false); return setMsg({ type: "err", text: error.message }); }
+      try { await deleteFiles({ keys: paths.map((p) => `order-files/${p}`) }); }
+      catch (e) { setBusy(false); return setMsg({ type: "err", text: e instanceof Error ? e.message : "Xoá file thất bại" }); }
     }
     const { error } = await sb.from("orders").delete().eq("id", order.id);
     setBusy(false);

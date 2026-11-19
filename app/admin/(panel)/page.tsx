@@ -1,3 +1,4 @@
+import { STORAGE_QUOTA, storageUsageRows } from "@/lib/storage";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
 import { formatBytes, formatDate, formatVND, orderTypeLabels, statusLabels } from "@/lib/format";
@@ -5,7 +6,7 @@ import type { Order } from "@/lib/types";
 import { AdminPage, Badge, Button, Card, EmptyState, PageHeader, Table } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/tones";
 
-const QUOTA = 1024 ** 3; // gói Supabase Free: 1GB Storage
+const QUOTA = STORAGE_QUOTA; // gói miễn phí: R2 10GB (Supabase Free 1GB khi STORAGE_PROVIDER=supabase)
 
 // Tổng quan rút gọn cho Nhà thiết kế: chỉ lối tắt tới 2 mục được phép
 function DesignerHome() {
@@ -32,7 +33,7 @@ export default async function AdminHome() {
   const [{ count: newOrders }, { count: doing }, { data: usage }, { data: recent }, { count: payPending }] = await Promise.all([
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "in_progress"),
-    supabase.rpc("storage_usage"),
+    storageUsageRows(),
     supabase.from("orders").select("id, code, order_type, customer_name, phone, total, status, created_at")
       .order("created_at", { ascending: false }).limit(8),
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("payment_status", "pending"),

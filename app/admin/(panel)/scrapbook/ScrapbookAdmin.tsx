@@ -1,4 +1,5 @@
 "use client";
+import { deleteFiles } from "@/lib/storage/client";
 
 /* Admin → Chất liệu Scrapbook: băng dính, sticker, khung ảnh, doodle, texture, mảnh giấy (PNG trong suốt, upload hoặc link).
    Khung ảnh có thêm vùng đặt ảnh (kéo 4 góc hoặc tự dò vùng trong suốt). */
@@ -64,10 +65,10 @@ export function ScrapbookAdmin() {
     if (!ids.length) return;
     if (!await confirmDialog(ids.length === 1 ? `Xoá "${list.find((a) => a.id === ids[0])?.name}"?` : `Xoá ${ids.length} chất liệu đã chọn?`, { danger: true, ok: "Xoá" })) return;
     const sb = createClient();
-    const paths = list.filter((a) => ids.includes(a.id)).map((a) => a.url.split("/storage/v1/object/public/scrapbook/")[1]).filter(Boolean).map((p) => decodeURIComponent(p!));
+    const paths = list.filter((a) => ids.includes(a.id)).map((a) => a.url);
     const { error } = await sb.from("scrapbook_assets").delete().in("id", ids);
     if (error) return setMsg({ type: "err", text: error.message });
-    if (paths.length) await sb.storage.from("scrapbook").remove(paths);
+    if (paths.length) await deleteFiles({ urls: paths }).catch(() => 0); // link ngoài tự bỏ qua
     setSel([]);
     await after(ids.length === 1 ? "Đã xoá." : `Đã xoá ${ids.length} chất liệu.`);
   }

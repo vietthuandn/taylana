@@ -4,6 +4,7 @@ import "@fontsource/anton/400.css";
 import "@fontsource/bricolage-grotesque/700.css";
 import "./globals.css";
 import { ClipDefs } from "@/components/ui/Shapes";
+import { UploadProgress } from "@/components/ui/UploadProgress";
 
 // Font thân bài toàn web
 const inter = Inter({
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-dvh">
         <ClipDefs />
         {children}
+        <UploadProgress />
       </body>
     </html>
   );

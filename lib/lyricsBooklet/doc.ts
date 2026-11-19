@@ -1,4 +1,5 @@
 "use client";
+import { downloadPrivate, uploadFile } from "@/lib/storage/client";
 /* Bản nháp Booklet Lyrics (IndexedDB) + lưu vào "Thiết kế của tôi" (bảng designs, ảnh lên bucket riêng tư design-assets/<user_id>/). */
 import { getBlob, putBlob } from "@/lib/blobStore";
 import { createClient } from "@/lib/supabase/client";
@@ -39,9 +40,9 @@ export async function saveToAccount(doc: LyricsDoc, photos: DocPhoto[], opts: { 
   const paths: Record<string, string> = { ...(doc.photoPaths ?? {}) };
   for (const p of photos) {
     if (paths[p.id]) continue;
-    const path = `${u.user.id}/lyrics-${p.id}.${p.blob.type === "image/png" ? "png" : "jpg"}`;
-    const { error } = await sb.storage.from("design-assets").upload(path, p.blob, { contentType: p.blob.type || "image/jpeg", upsert: true });
-    if (error) throw new Error("Tải ảnh lên thất bại: " + error.message);
+    let path: string;
+    try { path = (await uploadFile("design", p.blob, { contentType: p.blob.type === "image/png" ? "image/png" : "image/jpeg" })).path; }
+    catch (e) { throw new Error("Tải ảnh lên thất bại: " + (e instanceof Error ? e.message : "")); }
     paths[p.id] = path;
   }
   const row = { name: opts.name.trim() || "Booklet Lyrics", data: { ...doc, photoPaths: paths }, thumbnail: opts.thumbnail };
@@ -61,8 +62,8 @@ export async function loadFromAccount(id: string): Promise<{ doc: LyricsDoc; pho
   if (!doc || doc.kind !== "lyrics-booklet") return null;
   const photos: DocPhoto[] = [];
   for (const [pid, path] of Object.entries(doc.photoPaths ?? {})) {
-    const r = await sb.storage.from("design-assets").download(path);
-    if (r.data) photos.push({ id: pid, blob: r.data });
+    const b = await downloadPrivate(`design-assets/${path}`);
+    if (b) photos.push({ id: pid, blob: b });
   }
   return { doc, photos };
 }

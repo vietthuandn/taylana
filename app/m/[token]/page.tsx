@@ -1,13 +1,13 @@
+import { getSignedReadUrls } from "@/lib/storage";
 /* Trang xem link chia sẻ mockup /m/<token>: công khai, chỉ đọc, không cần đăng nhập.
    Server kiểm tra token theo GIỜ SERVER ngay lúc truy cập (RPC get_mockup_share: chỉ trả state khi token đúng + còn hạn,
    đồng thời tăng view_count). Còn hạn → signed URL cho từng ảnh (thời hạn = thời gian còn lại của link, tối đa 24 giờ). */
 import { after } from "next/server";
 import Link from "next/link";
 import { publicClient } from "@/lib/supabase/public";
-import { serviceClient } from "@/lib/supabase/service";
 import { getMockupData } from "@/lib/mockup/load";
 import { cleanupExpiredShares } from "@/lib/mockupShare/cleanup";
-import { SHARE_BUCKET, type ShareState } from "@/lib/mockupShare/types";
+import { type ShareState } from "@/lib/mockupShare/types";
 import { Logo } from "@/components/site/Header";
 import { ShareViewerLoader } from "./ShareViewerLoader";
 
@@ -47,14 +47,13 @@ export default async function Page({ params }: { params: Promise<{ token: string
     after(async () => { await cleanupExpiredShares().catch(() => null); }); // dự phòng: dọn link hết hạn (chạy nền)
     return <Expired />;
   }
-  const svc = serviceClient();
-  if (!svc) return <Expired text="Trang xem mockup chưa được cấu hình xong" />;
   const st = row.state;
   const paths = [...Object.values(st.slots), ...(st.bg.kind === "file" ? [st.bg.path] : [])];
   const ttl = Math.max(60, Math.min(24 * 3600, Math.floor(left / 1000)));
-  const signed = paths.length ? await svc.storage.from(SHARE_BUCKET).createSignedUrls(paths, ttl) : { data: [] };
+  const signed = await getSignedReadUrls(paths.map((p) => `mockup-shares/${p}`), ttl).catch(() => null); // link hết hạn cùng lúc với link chia sẻ
+  if (!signed) return <Expired text="Trang xem mockup chưa được cấu hình xong" />;
   const urls: Record<string, string> = {};
-  for (const s of signed.data ?? []) if (s.path && s.signedUrl) urls[s.path] = s.signedUrl;
+  for (const p of paths) if (signed[`mockup-shares/${p}`]) urls[p] = signed[`mockup-shares/${p}`];
   const mock = await getMockupData();
   return (
     <Shell>

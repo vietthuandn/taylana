@@ -1,4 +1,5 @@
 "use client";
+import { uploadFile } from "@/lib/storage/client";
 /* File thiết kế chờ gắn vào đơn (dùng chung: Booklet Lyrics…): giữ trong IndexedDB trên máy khách cho tới khi đơn được tạo,
    rồi tải lên bucket order-files + register_order_file (giống Gửi file). Ảnh khách KHÔNG lên server trước bước này. */
 import { getBlob, putBlob } from "@/lib/blobStore";
@@ -26,10 +27,8 @@ export async function attachPendingFiles(orderId: string) {
     for (const f of list) {
       const blob = await getBlob(f.id);
       if (!blob) continue;
-      const ext = blob.type === "image/png" ? "png" : "jpg";
-      const path = `${orderId}/${f.kind}-${f.page ?? "x"}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${ext}`;
-      const up = await sb.storage.from("order-files").upload(path, blob, { contentType: blob.type || "image/jpeg", upsert: false });
-      if (up.error) continue;
+      const path = await uploadFile("order", blob, { folder: orderId, contentType: blob.type === "image/png" ? "image/png" : "image/jpeg" }).then((r) => r.path).catch(() => null);
+      if (!path) continue;
       const reg = await sb.rpc("register_order_file", {
         p_order_id: orderId, p_kind: f.kind, p_storage_path: path, p_file_name: f.name,
         p_mime_type: blob.type || "image/jpeg", p_size_bytes: blob.size, p_page: f.page, p_width_px: f.w, p_height_px: f.h,

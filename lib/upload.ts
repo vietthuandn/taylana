@@ -1,5 +1,7 @@
 "use client";
-import { createClient } from "./supabase/client";
+/* Tải ảnh công khai lên kho lưu trữ (Cloudflare R2 — lib/storage): xin link rồi PUT thẳng từ trình duyệt, trả về link ảnh công khai. */
+import { deleteFiles, uploadFile, type UploadScope } from "./storage/client";
+import { keyFromUrl } from "./storage/keys";
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 const SVG = "image/svg+xml";
@@ -9,85 +11,57 @@ function extOf(file: File) {
   if (fromName && fromName.length <= 5) return fromName;
   return file.type.split("/")[1] ?? "bin";
 }
-
 export function randomName(file: File) {
   const id = crypto.randomUUID().slice(0, 8);
   return `${Date.now()}-${id}.${extOf(file)}`;
 }
 
-// Tải ảnh lên bucket công khai "public-assets", trả về link ảnh.
+async function put(scope: UploadScope, file: Blob, folder: string, contentType?: string) {
+  const r = await uploadFile(scope, file, { folder, contentType }).catch((e) => { throw new Error("Tải ảnh thất bại: " + (e instanceof Error ? e.message : "")); });
+  if (!r.url) throw new Error("Tải ảnh thất bại");
+  return r.url;
+}
+
+// Ảnh công khai (thư mục gốc "public-assets"), trả về link ảnh.
 export async function uploadPublicImage(file: File, folder: string, maxMB = 15, allowSvg = false) {
   if (!IMAGE_TYPES.includes(file.type) && !(allowSvg && file.type === SVG)) throw new Error(allowSvg ? "Chỉ nhận ảnh PNG, SVG, JPG hoặc WEBP" : "Chỉ nhận ảnh JPG, PNG, WEBP hoặc GIF");
   if (file.size > maxMB * 1024 * 1024) throw new Error(`Ảnh tối đa ${maxMB}MB`);
-  const supabase = createClient();
-  const path = `${folder}/${randomName(file)}`;
-  const { error } = await supabase.storage
-    .from("public-assets")
-    .upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
-  if (error) throw new Error("Tải ảnh thất bại: " + error.message);
-  return supabase.storage.from("public-assets").getPublicUrl(path).data.publicUrl;
+  return put("public-assets", file, folder);
 }
 
-// Lấy đường dẫn trong bucket từ link công khai (để xoá file khi xoá mục)
+// Đường dẫn trong "public-assets" từ link công khai (R2 hoặc Supabase cũ)
 export function publicPathFromUrl(url: string | null | undefined) {
-  if (!url) return null;
-  const marker = "/storage/v1/object/public/public-assets/";
-  const i = url.indexOf(marker);
-  return i >= 0 ? decodeURIComponent(url.slice(i + marker.length)) : null;
+  const k = keyFromUrl(url);
+  return k?.startsWith("public-assets/") ? k.slice("public-assets/".length) : null;
 }
-
 export async function removePublicImage(url: string | null | undefined) {
-  const path = publicPathFromUrl(url);
-  if (path) await createClient().storage.from("public-assets").remove([path]);
+  if (keyFromUrl(url)) await deleteFiles({ urls: [url] }).catch(() => 0);
 }
 
-// Tải ảnh khung / mặt nạ mockup lên bucket công khai "mockups" (chỉ admin)
+// Ảnh khung / mặt nạ mockup → "mockups/<folder>" (admin / nhà thiết kế)
 export async function uploadMockupImage(file: File, folder = "frames") {
   if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) throw new Error("Chỉ nhận ảnh PNG, JPG hoặc WEBP");
   if (file.size > 15 * 1024 * 1024) throw new Error("Ảnh tối đa 15MB");
-  const supabase = createClient();
-  const path = `${folder}/${randomName(file)}`;
-  const { error } = await supabase.storage.from("mockups").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
-  if (!error) return supabase.storage.from("mockups").getPublicUrl(path).data.publicUrl;
-  // Chưa có bucket "mockups" (chưa chạy migration_mockups.sql) → lưu tạm vào bucket công khai "public-assets"
-  if (/bucket not found/i.test(error.message)) {
-    const alt = `mockups/${path}`;
-    const r = await supabase.storage.from("public-assets").upload(alt, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
-    if (r.error) throw new Error("Tải ảnh thất bại: " + r.error.message);
-    return supabase.storage.from("public-assets").getPublicUrl(alt).data.publicUrl;
-  }
-  throw new Error("Tải ảnh thất bại: " + error.message);
+  return put("mockups", file, folder);
 }
 
-// Mô hình 3D hộp CD (.glb) → bucket "mockups/models" (chỉ admin)
+// Mô hình 3D hộp CD (.glb) → "mockups/models"
 export async function uploadMockupModel(file: File) {
   if (!/\.glb$/i.test(file.name)) throw new Error("Chỉ nhận file .glb");
   if (file.size > 30 * 1024 * 1024) throw new Error("File tối đa 30MB");
-  const supabase = createClient();
-  const path = `models/${randomName(file)}`;
-  const { error } = await supabase.storage.from("mockups").upload(path, file, { contentType: "model/gltf-binary", cacheControl: "31536000", upsert: false });
-  if (!error) return supabase.storage.from("mockups").getPublicUrl(path).data.publicUrl;
-  throw new Error("Tải mô hình thất bại: " + error.message + (/mime|type/i.test(error.message) ? " (cần chạy supabase/migration_mockup_glb.sql)" : ""));
+  return put("mockups", file, "models", "model/gltf-binary").catch((e) => { throw new Error(String(e instanceof Error ? e.message : e).replace("Tải ảnh", "Tải mô hình")); });
 }
 
-// Chất liệu CD Scrapbook (PNG trong suốt…) → bucket công khai "scrapbook" (chỉ admin)
-export async function uploadScrapbookAsset(file: File) {
+// Chất liệu Scrapbook (PNG trong suốt…) → "scrapbook/<folder>"
+export async function uploadScrapbookAsset(file: Blob & { type: string }, folder = "assets") {
   if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.type)) throw new Error("Chỉ nhận PNG, JPG, WEBP hoặc SVG");
   if (file.size > 10 * 1024 * 1024) throw new Error("Ảnh tối đa 10MB");
-  const supabase = createClient();
-  const path = `assets/${randomName(file)}`;
-  const { error } = await supabase.storage.from("scrapbook").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
-  if (error) throw new Error("Tải ảnh thất bại: " + error.message + (/bucket not found/i.test(error.message) ? " (cần chạy supabase/migration_scrapbook.sql)" : ""));
-  return supabase.storage.from("scrapbook").getPublicUrl(path).data.publicUrl;
+  return put("scrapbook", file, folder);
 }
 
-// Ảnh xem trước / icon nút của Template Canva → bucket công khai "mockups/canva" (chỉ admin; icon nhận cả SVG)
+// Ảnh xem trước / icon nút Template Canva → "mockups/canva" (icon nhận cả SVG)
 export async function uploadCanvaImage(file: File) {
   if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.type)) throw new Error("Chỉ nhận ảnh PNG, JPG, WEBP hoặc SVG");
   if (file.size > 10 * 1024 * 1024) throw new Error("Ảnh tối đa 10MB");
-  const supabase = createClient();
-  const path = `canva/${randomName(file)}`;
-  const { error } = await supabase.storage.from("mockups").upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: false });
-  if (error) throw new Error("Tải ảnh thất bại: " + error.message + (/mime|type/i.test(error.message) ? " (cần chạy supabase/migration_canva_templates.sql)" : ""));
-  return supabase.storage.from("mockups").getPublicUrl(path).data.publicUrl;
+  return put("mockups", file, "canva");
 }
