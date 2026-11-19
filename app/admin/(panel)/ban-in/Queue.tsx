@@ -15,7 +15,7 @@ import { promptDialog } from "@/components/ui/dialog";
 import { Button, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
 
-export function Queue({ batch, orders, packs, items, slotsFor, onBatch, onOrders, onClose }: {
+export function Queue({ batch, orders, packs, addons, items, slotsFor, onBatch, onOrders, onClose }: {
   batch: Batch; orders: Order[]; packs: Pack[]; addons: Addon[]; items: Item[]; slotsFor: (o: Order) => Slot[]; onBatch: (b: Batch) => void; onOrders: (ids: string[], v: Partial<Order>) => void; onClose: () => void;
 }) {
   const run = batch.progress!.run!;
@@ -62,7 +62,7 @@ export function Queue({ batch, orders, packs, items, slotsFor, onBatch, onOrders
         <p className="text-[16px] font-semibold">Hàng đợi in · {list.length} đơn</p>
         <span className="text-[13px] text-[#71717a]">{run.mode === "group" ? "Theo nhóm" : "Theo từng đơn"} · {run.merge ? "gộp nhiều đơn / tờ" : "không gộp"} · đã in {nDone}/{steps.length} bước</span>
         <span className="flex-1" />
-        <Button size="sm" variant="secondary" icon={<FileText size={14} />} onClick={async () => { const b = await pickingListPdf(list, packs, slotsFor, sections); downloadPdf(b, `${batch.name}-danh-sach-soan-hang.pdf`); }}>In danh sách soạn hàng</Button>
+        <Button size="sm" variant="secondary" icon={<FileText size={14} />} onClick={async () => { const b = await pickingListPdf(list, packs, addons, sections, `Danh sách soạn hàng · ${batch.name}`); openPdf(b); }}>In danh sách soạn hàng</Button>
         <Button size="sm" variant="secondary" icon={<Settings2 size={14} />} onClick={() => setShowPr((v) => !v)}>Hồ sơ in</Button>
         <button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-[8px] hover:bg-[#f4f4f5]" aria-label="Đóng"><X size={18} /></button>
       </div>

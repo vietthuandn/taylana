@@ -5,7 +5,7 @@
    Ảnh chỉ lưu trên máy (IndexedDB). Lọc: Tất cả / Thiếu ảnh / Đủ ảnh / Đã in / Chưa xác định · tìm username · chọn đơn để in. */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Check, FolderInput, Music, Plus, RotateCw, Search, Settings, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, FileText, FolderInput, Music, Plus, RotateCw, Search, Settings, Trash2, Upload, X } from "lucide-react";
 import { mmToPx } from "@/lib/print";
 import { deleteItem, deleteOrder, getBatch, insertOrders, insertRule, listAddons, listItems, listOrders, listRules, patchOrder, upsertItem } from "@/lib/printShop/db";
 import { delFile, fileKey, getFile, putFile } from "@/lib/printShop/files";
@@ -19,6 +19,8 @@ import { cx } from "@/components/admin/styles";
 import { ImportModal, type NewOrder } from "./ImportModal";
 import { SettingsModal } from "./SettingsModal";
 import { PrintBar } from "./PrintBar";
+import { pickingListPdf } from "@/lib/printShop/picking";
+import { openPdf } from "@/lib/printShop/pdf";
 
 type Filter = "all" | "missing" | "full" | "printed" | "unresolved";
 const DRAG = "text/ban-in-slot";
@@ -171,6 +173,7 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
         <h1 className="text-[20px] font-semibold">{batch?.name ?? "…"}</h1>
         {batch && (batch.status === "done" ? <Badge tone="green">Đã xong</Badge> : <Badge tone="amber">Đang làm</Badge>)}
         <span className="flex-1" />
+        <Button variant="secondary" icon={<FileText size={15} />} disabled={!orders.length} onClick={async () => { const b = await pickingListPdf(sels.length ? sels : orders, packs, addons, [], `Danh sách soạn hàng · ${batch?.name ?? ""}`); openPdf(b); }}>In danh sách soạn hàng</Button>
         <Button variant="secondary" icon={<Settings size={15} />} onClick={() => setSettings(true)}>Quy tắc & món lẻ</Button>
         <Button icon={<Plus size={15} />} onClick={() => setImporting(true)}>Thêm đơn</Button>
       </div>
