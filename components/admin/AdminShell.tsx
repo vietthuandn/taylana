@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen, BookOpenText, ChevronsUpDown, Frame, Crop, CreditCard, Disc3, ExternalLink, FileStack, Home, LayoutDashboard, LogOut,
   LayoutTemplate, Menu, Package, Phone, ShoppingBag, Star, Tag, Trash2, Truck, X, type LucideIcon,
-  Sticker, Users, Share2,
+  Sticker, Users, Share2, Printer,
 } from "lucide-react";
 import { adminGroups, activeAdminLink, isWorkspacePath } from "@/lib/adminLinks";
 import { canAccess, type StaffRole } from "@/lib/roles";
@@ -17,7 +17,7 @@ import { AdminOverlays, btnClass, cx } from "./ui";
 
 const icons: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard, orders: ShoppingBag, package: Package, star: Star, home: Home,
-  book: BookOpen, phone: Phone, disc: Disc3, strip: FileStack, trash: Trash2, card: CreditCard, tag: Tag, truck: Truck, layout: LayoutTemplate, book2: BookOpenText, crop: Crop, frame: Frame, sticker: Sticker, users: Users, share: Share2,
+  book: BookOpen, phone: Phone, disc: Disc3, strip: FileStack, trash: Trash2, card: CreditCard, tag: Tag, truck: Truck, layout: LayoutTemplate, book2: BookOpenText, crop: Crop, frame: Frame, sticker: Sticker, users: Users, share: Share2, printer: Printer,
 };
 
 async function logout(router: ReturnType<typeof useRouter>) {

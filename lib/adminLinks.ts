@@ -23,6 +23,7 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
     { href: "/admin/link-chia-se", label: "Link chia sẻ", icon: "share", group: "Thiết kế" },
   ] },
   { title: "Công cụ", links: [
+    { href: "/admin/ban-in", label: "Bàn in", icon: "printer", group: "Công cụ" },
     { href: "/admin/cong-cu/dan-trang", label: "Dàn trang booklet", icon: "book2", group: "Công cụ" },
     { href: "/admin/cong-cu/cat-kho", label: "Cắt đúng khổ", icon: "crop", group: "Công cụ" },
   ] },
