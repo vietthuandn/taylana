@@ -1,5 +1,5 @@
 "use client";
-/* Bàn in — "Danh sách soạn hàng": PDF A4 dạng bảng (STT, username, mã đơn, gói, món lẻ, ghi nhạc, số lượng, ô tick Đã in,
+/* Bàn in — "Danh sách soạn hàng": PDF A4 dạng bảng (STT, username, mã đơn, gói, món lẻ, số lượng, ô tick Đã in,
    ô tick Đã đóng gói), xếp đúng thứ tự in. Vẽ bằng canvas (chữ tiếng Việt đầy đủ, không cần nhúng font) → mỗi trang 1 ảnh. */
 import { PDFDocument } from "pdf-lib";
 import type { Step } from "./layout";
@@ -15,7 +15,7 @@ export function printOrder(orders: Order[], sections: { steps: Step[] }[]) {
 export async function pickingListPdf(orders: Order[], packs: Pack[], addons: Addon[], sections: { steps: Step[] }[], title = "Danh sách soạn hàng") {
   const list = printOrder(orders, sections);
   const doc = await PDFDocument.create();
-  const cols: [string, number][] = [["STT", 11], ["Username", 36], ["Mã đơn", 30], ["Gói", 40], ["Món lẻ", 33], ["Ghi nhạc", 14], ["SL", 9], ["Đã in", 12], ["Đóng gói", 15]];
+  const cols: [string, number][] = [["STT", 11], ["Username", 36], ["Mã đơn", 30], ["Gói", 40], ["Món lẻ", 47], ["SL", 9], ["Đã in", 12], ["Đóng gói", 15]];
   const rowH = 9, top = 24, perPage = Math.floor((A4.h - top - 12) / rowH) - 1;
   const addonText = (o: Order) => { const m = new Map<string, number>(); for (const id of o.addons) m.set(id, (m.get(id) ?? 0) + 1); return [...m].map(([id, n]) => `${addons.find((a) => a.id === id)?.name ?? "?"}${n > 1 ? ` ×${n}` : ""}`).join(", "); };
   for (let p = 0; p < Math.max(1, Math.ceil(list.length / perPage)); p++) {
@@ -33,11 +33,11 @@ export async function pickingListPdf(orders: Order[], packs: Pack[], addons: Add
     let cx = 10; for (const [h, w] of cols) { cell(h, cx, y, w, true); cx += w; }
     y += rowH;
     for (const o of list.slice(p * perPage, (p + 1) * perPage)) {
-      const vals = [String(o.seq), o.username, o.order_code, packs.find((k) => k.id === o.package_id)?.name ?? (o.unresolved ? "Chưa xác định" : "—"), addonText(o), o.music ? "Có" : "", String(o.qty)];
+      const vals = [String(o.seq), o.username, o.order_code, packs.find((k) => k.id === o.package_id)?.name ?? (o.unresolved ? "Chưa xác định" : "—"), addonText(o), String(o.qty)];
       cx = 10; x.fillStyle = "#18181b";
       vals.forEach((v, i) => { cell(v, cx, y, cols[i][1]); cx += cols[i][1]; });
       x.strokeStyle = "#52525b"; x.lineWidth = 0.25;
-      for (const w of [cols[7][1], cols[8][1]]) { x.strokeRect(cx + w / 2 - 2.2, y + rowH / 2 - 2.2, 4.4, 4.4); cx += w; }
+      for (const w of [cols[6][1], cols[7][1]]) { x.strokeRect(cx + w / 2 - 2.2, y + rowH / 2 - 2.2, 4.4, 4.4); cx += w; }
       x.strokeStyle = "#e4e4e7"; x.beginPath(); x.moveTo(10, y + rowH); x.lineTo(200, y + rowH); x.stroke();
       y += rowH;
     }

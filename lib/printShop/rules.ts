@@ -32,7 +32,7 @@ export function resolve(lines: Line[], rules: Rule[], packs: Pack[], addons: Add
     for (const r of rs) {
       if (r.result === "package") { const p = packOfRule(r, packs); if (p) { if (!pack) { pack = p; qty = Math.max(1, l.qty); } ok = true; } }
       else if (r.result === "addon") { const a = addonOfRule(r, addons); if (a) { for (let i = 0; i < Math.max(1, l.qty); i++) ads.push(a.id); ok = true; } }
-      else if (r.result === "music") { music = true; ok = true; }
+      else if (r.result === "music") ok = true; // "Ghi nhạc" đã bỏ khỏi web — coi như không cần in
       else ok = true; // không cần in
     }
     if (!ok) unresolved = true;

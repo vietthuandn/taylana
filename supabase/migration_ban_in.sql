@@ -87,7 +87,7 @@ insert into public.print_variation_rules (pattern, result, package_front, addon_
   ('Bìa sau', 'addon', null, 'bia-sau', 7),
   ('Card bo góc', 'addon', null, 'card-bo-goc', 8),
   ('Giá Đỡ', 'skip', null, null, 9),
-  ('Ghi nhạc', 'music', null, null, 10)
+  ('Ghi nhạc', 'skip', null, null, 10) -- web không ghi nhạc: bỏ qua
 on conflict (pattern) do nothing;
 update public.print_variation_rules r set addon_id = a.id from public.print_addons a where r.addon_id is null and r.addon_code = a.code;
 

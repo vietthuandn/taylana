@@ -1,5 +1,5 @@
 "use client";
-/* Bàn in → Cài đặt: "Quy tắc quy đổi" (cụm chữ trong tên sản phẩm / phân loại → gói CD · món in lẻ · Không cần in · Ghi nhạc)
+/* Bàn in → Cài đặt: "Quy tắc quy đổi" (cụm chữ trong tên sản phẩm / phân loại → gói CD · món in lẻ · Không cần in)
    và "Món in lẻ" (tên, khổ cm, các mặt, bo góc, nhóm in). */
 import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
@@ -10,7 +10,7 @@ import { Button, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
 
 const inp = "h-8 rounded-[6px] border border-[#e5e5e7] bg-white px-2 text-[13px] outline-none focus:border-[#ff5fa2]";
-const RESULTS: [Rule["result"], string][] = [["package", "Gói CD"], ["addon", "Món in lẻ"], ["skip", "Không cần in"], ["music", "Ghi nhạc"]];
+const RESULTS: [Rule["result"], string][] = [["package", "Gói CD"], ["addon", "Món in lẻ"], ["skip", "Không cần in"]];
 const GROUPS: [Addon["group_key"], string][] = [["front", "Bìa trước (12×12)"], ["back", "Bìa sau"], ["card", "Card"]];
 
 export function SettingsModal({ packs, rules, addons, onRules, onAddons, onClose }: {
@@ -42,7 +42,7 @@ export function SettingsModal({ packs, rules, addons, onRules, onAddons, onClose
                     return (
                       <tr key={r.id} className="border-t border-[#efeff1]">
                         <td className="p-1.5"><input defaultValue={r.pattern} onBlur={(e) => { if (e.target.value.trim() && e.target.value !== r.pattern) setRule(r, { pattern: e.target.value.trim() }); }} className={cx(inp, "w-full")} /></td>
-                        <td className="p-1.5"><select value={r.result} onChange={(e) => setRule(r, { result: e.target.value as Rule["result"] })} className={inp}>{RESULTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></td>
+                        <td className="p-1.5"><select value={r.result === "music" ? "skip" : r.result} onChange={(e) => setRule(r, { result: e.target.value as Rule["result"] })} className={inp}>{RESULTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></td>
                         <td className="p-1.5">
                           {r.result === "package" && (
                             <select value={p?.id ?? ""} onChange={(e) => setRule(r, { package_id: e.target.value || null })} className={cx(inp, "w-full", !p && "border-[#f59e0b] bg-[#fffbeb]")}>

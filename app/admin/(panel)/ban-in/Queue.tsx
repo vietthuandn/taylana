@@ -24,7 +24,7 @@ export function Queue({ batch, orders, packs, addons, items, slotsFor, onBatch, 
   const [busy, setBusy] = useState("");
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   const list = useMemo(() => run.orderIds.map((id) => orders.find((o) => o.id === id)).filter(Boolean) as Order[], [run.orderIds, orders]);
-  const sections = useMemo(() => plan(list, slotsFor, run.mode, run.merge, pr), [list, slotsFor, run.mode, run.merge, pr]);
+  const sections = useMemo(() => plan(list, slotsFor, run.mode, run.merge, pr, (o, s) => items.some((i) => i.order_id === o.id && i.slot === s)), [list, slotsFor, run.mode, run.merge, pr, items]);
   const steps = sections.flatMap((s) => s.steps);
   const done = batch.progress?.done ?? {};
   const src: ImgSrc = async (o, s) => { const f = await getFile(fileKey(batch.id, o, s)); const it = items.find((i) => i.order_id === o && i.slot === s); return f ? { blob: f.blob, rot: it?.rot ?? 0 } : null; };
@@ -70,7 +70,8 @@ export function Queue({ batch, orders, packs, addons, items, slotsFor, onBatch, 
         <div className="mx-auto max-w-[1200px] space-y-5 p-5">
           {showPr && (
             <div className="grid gap-3 rounded-[12px] border border-[#e5e5e7] bg-white p-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
-              <label>Lề tràn (mm)<input type="number" step={0.5} min={0} max={5} value={pr.bleed} onChange={(e) => P("bleed", Math.max(0, Number(e.target.value)))} className="mt-1 h-8 w-full rounded-[6px] border border-[#e5e5e7] px-2" /></label>
+              <label>Phóng mặt trong mỗi cạnh (mm)<input type="number" step={0.5} min={0} max={5} value={pr.innerGrow} onChange={(e) => P("innerGrow", Math.max(0, Number(e.target.value)))} className="mt-1 h-8 w-full rounded-[6px] border border-[#e5e5e7] px-2" title="Bìa trước 2 mặt · mặt trong và Bìa sau · mặt trong in to hơn 1 chút để bù lệch 2 mặt" /></label>
+              <label>Lề tràn (mm, thường để 0)<input type="number" step={0.5} min={0} max={5} value={pr.bleed} onChange={(e) => P("bleed", Math.max(0, Number(e.target.value)))} className="mt-1 h-8 w-full rounded-[6px] border border-[#e5e5e7] px-2" /></label>
               <label>Lệch mặt sau ngang (mm)<input type="number" step={0.1} value={pr.backDx} onChange={(e) => P("backDx", Number(e.target.value))} className="mt-1 h-8 w-full rounded-[6px] border border-[#e5e5e7] px-2" /></label>
               <label>Lệch mặt sau dọc (mm)<input type="number" step={0.1} value={pr.backDy} onChange={(e) => P("backDy", Number(e.target.value))} className="mt-1 h-8 w-full rounded-[6px] border border-[#e5e5e7] px-2" /></label>
               <label>Kiểu lật giấy<select value={pr.flip} onChange={(e) => P("flip", e.target.value as Profile["flip"])} className="mt-1 h-8 w-full rounded-[6px] border border-[#e5e5e7] px-2"><option value="long">Lật cạnh dài</option><option value="short">Lật cạnh ngắn</option></select></label>
@@ -81,7 +82,7 @@ export function Queue({ batch, orders, packs, addons, items, slotsFor, onBatch, 
             </div>
           )}
           <div className="rounded-[12px] border border-[#fde68a] bg-[#fffbeb] p-3 text-[13px] text-[#92400e]">
-            <b>Cài đặt máy in mỗi lần in:</b> chọn đúng khổ giấy ghi ở từng bước (A4 / A5 / A6 / 12 × 12 cm) · Tỉ lệ <b>100% / Actual size</b> (tắt “Fit to page”, “Vừa trang”) · In <b>1 mặt</b> · Chất lượng cao · đúng loại giấy. Mặt sau in sau khi lật xấp giấy theo hướng dẫn.
+            <b>Cài đặt máy in mỗi lần in:</b> chọn đúng khổ giấy ghi ở từng bước (A4 / A5 / A6 / 12 × 12 cm) · Tỉ lệ <b>100% / Actual size / Kích thước thực</b> — KHÔNG chọn “Fit to page”, “Vừa trang”, “Fit to printable area” (máy sẽ thu nhỏ ~97%: tờ booklet 24 × 12 ra 23,3 × 11,6 cm) · In <b>1 mặt</b> · Chất lượng cao · đúng loại giấy. Mặt sau in sau khi lật xấp giấy theo hướng dẫn.
           </div>
           {sections.map((sec) => (
             <section key={sec.title}>
@@ -104,9 +105,9 @@ export function Queue({ batch, orders, packs, addons, items, slotsFor, onBatch, 
                       ) : (
                         <>
                           <p className="text-[12px] text-[#71717a]">{st.sheets.length} tờ · {st.sheets[0]?.paper}{st.note ? ` · ${st.note}` : ""}</p>
-                          <div className="my-2 grid h-[150px] place-items-center rounded-[8px] bg-[#f4f4f5] p-2">
+                          <div className="my-2 flex h-[160px] items-center justify-center overflow-hidden rounded-[8px] bg-[#f4f4f5] p-2">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            {thumbs[st.key] ? <img src={thumbs[st.key]} alt="" className="max-h-full max-w-full shadow" /> : <span className="text-[12px] text-[#a1a1aa]">Đang dựng…</span>}
+                            {thumbs[st.key] ? <img src={thumbs[st.key]} alt="" className="h-full w-full object-contain drop-shadow" /> : <span className="text-[12px] text-[#a1a1aa]">Đang dựng…</span>}
                           </div>
                           <div className="mt-auto flex flex-wrap gap-1.5">
                             <Button size="sm" icon={<Printer size={14} />} loading={busy.startsWith(st.key)} onClick={async () => { const b = await pdf(st); if (b) { openPdf(b); await mark(st, true); } }}>{prog ? `Đang tạo ${prog}` : "In bước này"}</Button>

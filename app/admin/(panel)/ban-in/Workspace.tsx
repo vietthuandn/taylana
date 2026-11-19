@@ -1,15 +1,16 @@
 "use client";
-/* Bàn in → 1 phiên: lưới thẻ đơn (2–3 cột). Mỗi thẻ: username, mã đơn, Gói, món lẻ (thêm / bớt), Ghi nhạc, số lượng, trạng thái
+/* Bàn in → 1 phiên: lưới thẻ đơn (2–3 cột). Mỗi thẻ: username, mã đơn, Gói, món lẻ (thêm / bớt), số lượng, trạng thái
    ảnh; các ô ảnh đúng theo gói + món, hình dạng thật, cảnh báo độ phân giải thấp / sai tỉ lệ. Kéo thả 1 file vào 1 ô · nhiều file
    lên thẻ (xếp theo tên file) · thư mục lớn / .zip lên đầu trang (thư mục con ≈ username / mã đơn) · kéo ảnh giữa các ô để đổi chỗ.
    Ảnh chỉ lưu trên máy (IndexedDB). Lọc: Tất cả / Thiếu ảnh / Đủ ảnh / Đã in / Chưa xác định · tìm username · chọn đơn để in. */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Check, FileText, FolderInput, Music, Plus, RotateCw, Search, Settings, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Box, Check, FileText, FolderInput, Plus, RotateCw, Search, Settings, Trash2, Upload, X } from "lucide-react";
 import { mmToPx } from "@/lib/print";
 import { deleteItem, deleteOrder, getBatch, insertOrders, insertRule, listAddons, listItems, listOrders, listRules, patchOrder, upsertItem } from "@/lib/printShop/db";
 import { delFile, fileKey, getFile, putFile } from "@/lib/printShop/files";
-import { dims, foldersFromDrop, similar, thumbUrl, type Folder } from "@/lib/printShop/img";
+import { IMG_RE, dims, foldersFromDrop, similar, thumbUrl, type Folder } from "@/lib/printShop/img";
+import { MockupModal } from "./MockupModal";
 import { assign } from "@/lib/printShop/match";
 import { resolve } from "@/lib/printShop/rules";
 import { slotsOf, type Addon, type Batch, type Item, type Order, type Pack, type Rule, type Slot } from "@/lib/printShop/types";
@@ -43,6 +44,7 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
   const [unmatched, setUnmatched] = useState<{ orderId: string; files: File[] }[]>([]);
   const [folderMap, setFolderMap] = useState<{ folders: Folder[]; to: Record<string, string> } | null>(null);
   const [dropOver, setDropOver] = useState(false);
+  const [mock, setMock] = useState<Order | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -75,7 +77,7 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
   const itemOf = (o: Order, s: string) => items.find((i) => i.order_id === o.id && i.slot === s);
   /** ô có ảnh thật sự trên máy này (dữ liệu có nhưng IndexedDB bị xoá → coi như thiếu) */
   const has = (o: Order, s: string) => !!itemOf(o, s) && thumbs[fileKey(batchId, o.id, s)] !== "";
-  const stat = useCallback((o: Order) => { const ss = slotsFor(o); const n = ss.filter((s) => has(o, s.key)).length; return { total: ss.length, n, full: ss.length > 0 && n === ss.length }; }, [slotsFor, items, thumbs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stat = useCallback((o: Order) => { const ss = slotsFor(o).filter((s) => !s.optional); const n = ss.filter((s) => has(o, s.key)).length; return { total: ss.length, n, full: slotsFor(o).length > 0 && n === ss.length }; }, [slotsFor, items, thumbs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shown = useMemo(() => orders.filter((o) => {
     const s = stat(o);
@@ -141,7 +143,11 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
     setThumbs((m) => { const n = { ...m }; delete n[fileKey(batchId, a.o, a.s)]; delete n[fileKey(batchId, b.o, b.s)]; return n; });
   }
   /** nhiều file lên 1 thẻ → xếp theo tên file, còn lại chọn tay */
-  async function dropFiles(o: Order, files: File[]) {
+  async function dropFiles(o: Order, all: File[]) {
+    // chỉ nhận ảnh — bỏ thẳng file nhạc / video (mp3, wav, mp4…) và file khác
+    const files = all.filter((f) => f.type.startsWith("image/") || IMG_RE.test(f.name));
+    if (files.length < all.length) toast(`Bỏ qua ${all.length - files.length} file không phải ảnh (nhạc / video…)`);
+    if (!files.length) return;
     const { placed, left } = assign(files, slotsFor(o), packOf(o), new Set(items.filter((i) => i.order_id === o.id).map((i) => i.slot)));
     for (const p of placed) await saveFile(o, p.slot, p.file, p.file.name);
     if (left.length) setUnmatched((c) => [...c, { orderId: o.id, files: left }]);
@@ -197,7 +203,7 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
         {shown.map((o) => (
           <OrderCard key={o.id} o={o} packs={packs} addons={addons} slots={slotsFor(o)} stat={stat(o)} batchId={batchId} thumbs={thumbs} itemOf={(s) => itemOf(o, s)}
             selected={sel.has(o.id)} onSelect={() => toggle(o.id)} onPatch={(v, rem) => setOrder(o, v, rem)}
-            onDropSlot={(slot, f) => saveFile(o, slot, f, f.name)} onDropFiles={(fs) => dropFiles(o, fs)} onSwap={swap} onOpen={(s) => setViewer({ order: o, slot: s })}
+            onMockup={() => setMock(o)} onDropSlot={(slot, f) => saveFile(o, slot, f, f.name)} onDropFiles={(fs) => dropFiles(o, fs)} onSwap={swap} onOpen={(s) => setViewer({ order: o, slot: s })}
             onDelete={async () => { if (await confirmDialog({ title: `Xoá đơn ${o.username || o.order_code}?`, confirmText: "Xoá", danger: true })) { for (const s of slotsFor(o)) await delFile(fileKey(batchId, o.id, s.key)).catch(() => undefined); await deleteOrder(o.id); setOrders((c) => c.filter((x) => x.id !== o.id)); } }} />
         ))}
       </div>
@@ -206,6 +212,7 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
         onBatch={setBatch} onOrders={(ids, v) => setOrders((c) => c.map((o) => (ids.includes(o.id) ? { ...o, ...v } : o)))} />
 
       {importing && <ImportModal packs={packs} addons={addons} rules={rules} existing={orders} onAdd={addOrders} onClose={() => setImporting(false)} />}
+      {mock && <MockupModal o={mock} pack={packOf(mock)} batchId={batchId} items={items.filter((i) => i.order_id === mock.id)} onClose={() => setMock(null)} />}
       {settings && <SettingsModal packs={packs} rules={rules} addons={addons} onRules={setRules} onAddons={setAddons} onClose={() => setSettings(false)} />}
       {viewer && <Viewer o={viewer.order} slot={viewer.slot} batchId={batchId} item={itemOf(viewer.order, viewer.slot.key)} onClose={() => setViewer(null)}
         onReplace={(f) => saveFile(viewer.order, viewer.slot.key, f, f.name)} onRotate={() => rotate(viewer.order, viewer.slot.key)} onDelete={async () => { await removeFile(viewer.order, viewer.slot.key); setViewer(null); }} />}
@@ -253,9 +260,9 @@ function warn(s: Slot, it?: Item) {
   return out.length ? out : null;
 }
 
-function OrderCard({ o, packs, addons, slots, stat, batchId, thumbs, itemOf, selected, onSelect, onPatch, onDropSlot, onDropFiles, onSwap, onOpen, onDelete }: {
+function OrderCard({ o, packs, addons, slots, stat, batchId, thumbs, itemOf, selected, onSelect, onPatch, onMockup, onDropSlot, onDropFiles, onSwap, onOpen, onDelete }: {
   o: Order; packs: Pack[]; addons: Addon[]; slots: Slot[]; stat: { total: number; n: number; full: boolean }; batchId: string; thumbs: Record<string, string>;
-  itemOf: (s: string) => Item | undefined; selected: boolean; onSelect: () => void; onPatch: (v: Partial<Order>, rem?: { result: "package" | "addon"; id: string }) => void;
+  itemOf: (s: string) => Item | undefined; selected: boolean; onSelect: () => void; onPatch: (v: Partial<Order>, rem?: { result: "package" | "addon"; id: string }) => void; onMockup: () => void;
   onDropSlot: (slot: string, f: File) => void; onDropFiles: (fs: File[]) => void; onSwap: (a: { o: string; s: string }, b: { o: string; s: string }) => void; onOpen: (s: Slot) => void; onDelete: () => void;
 }) {
   const [over, setOver] = useState<string | null>(null);
@@ -289,7 +296,7 @@ function OrderCard({ o, packs, addons, slots, stat, batchId, thumbs, itemOf, sel
             <option value="">— món —</option>{addons.filter((a) => a.is_active).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         ) : <button type="button" onClick={() => setAdding(true)} className="h-7 rounded-full border border-dashed border-[#d4d4d8] px-2.5 text-[12px] text-[#52525b] hover:border-[#ff5fa2]">+ Món</button>}
-        <button type="button" onClick={() => onPatch({ music: !o.music })} className={cx("inline-flex h-7 items-center gap-1 rounded-full border px-2.5 text-[12px]", o.music ? "border-[#7c3aed] bg-[#f5f3ff] text-[#7c3aed]" : "border-[#e5e5e7] text-[#a1a1aa]")} title="Ghi nhạc"><Music size={12} /> Ghi nhạc</button>
+        {o.package_id && <button type="button" onClick={onMockup} className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e5e5e7] px-2.5 text-[12px] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]" title="Xem mockup hộp CD từ ảnh của đơn"><Box size={12} /> Xem mockup</button>}
         <label className="ml-auto inline-flex items-center gap-1 text-[12px] text-[#52525b]">SL<input type="number" min={1} value={o.qty} onChange={(e) => onPatch({ qty: Math.max(1, Number(e.target.value) || 1) })} className="h-7 w-12 rounded-[6px] border border-[#e5e5e7] px-1 text-center" /></label>
       </div>
       {slots.length > 0 ? (

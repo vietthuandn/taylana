@@ -19,7 +19,7 @@ export const GROUPS: { key: GroupKey; name: string }[] = [
   { key: "booklet", name: "Booklet" }, { key: "front", name: "Bìa trước" }, { key: "back", name: "Bìa sau" }, { key: "card", name: "Card bo góc" }, { key: "disc", name: "Mặt đĩa" },
 ];
 /** 1 ô ảnh của đơn */
-export type Slot = { key: string; label: string; group: GroupKey; w: number; h: number; shape: "rect" | "disc" | "rounded"; piece: string; side: number };
+export type Slot = { key: string; label: string; group: GroupKey; w: number; h: number; shape: "rect" | "disc" | "rounded"; piece: string; side: number; optional?: boolean }; // optional: mặt đĩa — không có ảnh thì bỏ khỏi hàng đợi in
 
 /** các ô ảnh của 1 đơn theo gói + món lẻ. piece = 1 vật in (1 hoặc 2 mặt); side 0 = mặt trước / ngoài, 1 = mặt sau / trong */
 export function slotsOf(o: Pick<Order, "addons">, pack: Pack | null | undefined, addons: Addon[]): Slot[] {
@@ -30,7 +30,7 @@ export function slotsOf(o: Pick<Order, "addons">, pack: Pack | null | undefined,
     else if (pack.front === 1) out.push({ key: "f1", label: "Bìa trước", group: "front", w: 120, h: 120, shape: "rect", piece: "front", side: 0 });
     if (pack.back >= 1) out.push({ key: "b1", label: "Bìa sau · ngoài", group: "back", w: 150, h: 117, shape: "rect", piece: "back", side: 0 });
     if (pack.back >= 2) out.push({ key: "b2", label: "Bìa sau · trong", group: "back", w: 150, h: 117, shape: "rect", piece: "back", side: 1 });
-    if (pack.disc) out.push({ key: "d", label: "Mặt đĩa", group: "disc", w: 120, h: 120, shape: "disc", piece: "disc", side: 0 });
+    if (pack.disc) out.push({ key: "d", label: "Mặt đĩa (tuỳ chọn)", group: "disc", w: 120, h: 120, shape: "disc", piece: "disc", side: 0, optional: true });
   }
   // món lẻ: mỗi lần chọn = 1 vật in riêng (a:<id>:<lần>:<mặt>)
   const seen: Record<string, number> = {};

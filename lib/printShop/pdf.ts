@@ -1,8 +1,11 @@
 "use client";
 /* Bàn in — tạo PDF in trên trình duyệt (pdf-lib): mỗi tờ giấy = 1 trang PDF đúng khổ (A4 / A5 / A6 / 12 × 12 cm), ảnh 300 DPI
-   phủ kín khung cắt + lề tràn ở các mép ngoài, vạch cắt ở 4 góc, chữ ghi chú 5pt xám ngoài vùng cắt ("#2 username · Bìa sau").
+   in ĐÚNG kích thước file khách gửi (không chừa lề, không phóng — trừ mặt trong của bìa trước 2 mặt / bìa sau được phóng nhẹ
+   theo hồ sơ in để bù lệch 2 mặt). Vạch cắt chỉ ở mặt trước của tờ: 8 vạch đúng 4 cạnh của hình (nằm ngoài hình), bìa sau mặt
+   ngoài thêm 4 vạch gấp gáy (cách cạnh 0,6 cm). Chữ ghi chú 5pt xám ngoài vùng cắt. PDF đặt "in 100%, không co giãn".
    Mặt đĩa: phủ kín hình tròn 12 cm, không khoét lỗ (ngoài hình tròn để trắng). Có lệnh tự mở hộp thoại in khi mở PDF. */
-import { PDFDocument, rgb } from "pdf-lib";
+import { PDFDocument, PrintScaling, rgb } from "pdf-lib";
+import { BACK_SPINE_MM } from "@/lib/print";
 import type { Piece, Profile, Sheet } from "./layout";
 
 export type ImgSrc = (orderId: string, slot: string) => Promise<{ blob: Blob; rot: number } | null>;
@@ -40,8 +43,11 @@ function labelCanvas(t: string) {
   return c;
 }
 /** khung ảnh của từng nội dung trên tờ (mm), mở rộng lề tràn ở các mép ngoài của vật in */
-export function boxes(pl: { piece: Piece; side: number; x: number; y: number; rot180: boolean }, bleed: number) {
-  const p = pl.piece, disc = p.group === "disc", b = disc ? 0 : bleed;
+export function boxes(pl: { piece: Piece; side: number; x: number; y: number; rot180: boolean }, bleed: number, innerGrow = 0) {
+  const p = pl.piece, disc = p.group === "disc";
+  // mặt trong (mặt 2) của bìa trước 2 mặt / bìa sau: phóng nhẹ mỗi cạnh để bù lệch khi in 2 mặt
+  const grow = pl.side === 1 && (p.group === "front" || p.group === "back") ? innerGrow : 0;
+  const b = disc ? 0 : bleed + grow;
   return (p.sides[pl.side] ?? []).map((c) => {
     const cx = pl.rot180 ? p.w - c.x - c.w : c.x;
     const L = cx <= 0.01 ? b : 0, R = cx + c.w >= p.w - 0.01 ? b : 0;
@@ -58,7 +64,7 @@ export async function buildPdf(sheets: Sheet[], pr: Profile, src: ImgSrc, o: { a
     const Y = (y: number, h: number) => (s.ph - y - h) * MM;
     for (const pl of s.places) {
       const disc = pl.piece.group === "disc";
-      for (const bx of boxes(pl, pr.bleed)) {
+      for (const bx of boxes(pl, pr.bleed, pr.innerGrow)) {
         const img = await src(pl.piece.order.id, bx.slot);
         if (!img) continue;
         const c = await paint(img, `${pl.piece.order.id}/${bx.slot}`, bx.w, bx.h, pl.rot180 ? 180 : 0, disc);
@@ -67,23 +73,26 @@ export async function buildPdf(sheets: Sheet[], pr: Profile, src: ImgSrc, o: { a
       }
       if (disc) continue;
       const { x, y } = pl, w = pl.piece.w, h = pl.piece.h, b = pr.bleed;
-      // vạch cắt ở 4 góc (ngoài lề tràn)
-      if (pr.marks) {
-        const L = 4, g = b + 1, line = (x1: number, y1: number, x2: number, y2: number) => page.drawLine({ start: { x: x1 * MM, y: (s.ph - y1) * MM }, end: { x: x2 * MM, y: (s.ph - y2) * MM }, thickness: 0.3, color: rgb(0.35, 0.35, 0.35) });
+      // vạch cắt — chỉ ở mặt trước của tờ: 8 vạch nằm trên đúng 4 cạnh của hình, kéo ra ngoài hình (cách góc 1 mm, dài 5 mm)
+      if (pr.marks && pl.side === 0) {
+        const L = 5, g = 1, line = (x1: number, y1: number, x2: number, y2: number) => page.drawLine({ start: { x: x1 * MM, y: (s.ph - y1) * MM }, end: { x: x2 * MM, y: (s.ph - y2) * MM }, thickness: 0.25, color: rgb(0, 0, 0) });
         for (const [cx, sx] of [[x, -1], [x + w, 1]] as const) for (const [cy, sy] of [[y, -1], [y + h, 1]] as const) {
           line(cx + sx * g, cy, cx + sx * (g + L), cy);
           line(cx, cy + sy * g, cx, cy + sy * (g + L));
         }
+        // bìa sau mặt ngoài: 4 vạch gấp gáy, cách cạnh trái / phải 0,6 cm (trên + dưới hình)
+        if (pl.piece.group === "back" && Math.abs(w - 150) < 0.5) for (const fx of [x + BACK_SPINE_MM, x + w - BACK_SPINE_MM]) { line(fx, y - g, fx, y - g - L); line(fx, y + h + g, fx, y + h + g + L); }
       }
       // chữ ghi chú 5pt: dưới khung (hết chỗ thì phía trên), ngoài vùng cắt
       const t = labelCanvas(`#${pl.piece.order.seq} ${pl.piece.order.username || pl.piece.order.order_code} · ${pl.piece.label}${pl.side ? " · mặt sau" : ""}`);
       const th = 2.2, tw = (t.width / t.height) * th;
-      let ly = y + h + b + 1.2;
-      if (ly + th > s.ph - 1) ly = Math.max(0.5, y - b - 1.2 - th);
+      let ly = y + h + b + 7; // dưới vạch cắt
+      if (ly + th > s.ph - 1) ly = Math.max(0.5, y - b - 7 - th);
       const lx = Math.min(Math.max(0.5, x), s.pw - tw - 0.5);
       page.drawImage(await doc.embedPng(await png(t)), { x: lx * MM, y: Y(ly, th), width: tw * MM, height: th * MM });
     }
   }
+  doc.catalog.getOrCreateViewerPreferences().setPrintScaling(PrintScaling.None); // in 100% (không "vừa trang")
   if (o.autoprint) doc.addJavaScript("print", "this.print({bUI: true, bSilent: false, bShrinkToFit: false});");
   o.onProgress?.(sheets.length, sheets.length);
   return doc.save();
@@ -92,7 +101,7 @@ export async function buildPdf(sheets: Sheet[], pr: Profile, src: ImgSrc, o: { a
 export async function previewSheet(s: Sheet, pr: Profile, src: ImgSrc, wPx = 220) {
   const k = wPx / s.pw, c = document.createElement("canvas"); c.width = wPx; c.height = Math.round(s.ph * k);
   const x = c.getContext("2d")!; x.fillStyle = "#ffffff"; x.fillRect(0, 0, c.width, c.height);
-  for (const pl of s.places) for (const bx of boxes(pl, pr.bleed)) {
+  for (const pl of s.places) for (const bx of boxes(pl, pr.bleed, pr.innerGrow)) {
     const img = await src(pl.piece.order.id, bx.slot);
     if (!img) { x.fillStyle = "#fee2e2"; x.fillRect(bx.x * k, bx.y * k, bx.w * k, bx.h * k); continue; }
     const p = await paint(img, `${pl.piece.order.id}/${bx.slot}`, bx.w, bx.h, pl.rot180 ? 180 : 0, pl.piece.group === "disc", 0.12);

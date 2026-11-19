@@ -140,7 +140,6 @@ export function ImportModal({ packs, addons, rules, existing, onAdd, onClose }: 
                     <div className="flex flex-wrap gap-1 pt-0.5">
                       {pack && <span className="rounded-full bg-[#eff6ff] px-2 py-0.5 text-[12px] font-medium text-[#1d4ed8]">{pack.name}{res.qty > 1 ? ` × ${res.qty}` : ""}</span>}
                       {[...ad].map(([id, n]) => <span key={id} className="rounded-full bg-[#f4f4f5] px-2 py-0.5 text-[12px]">{addons.find((a) => a.id === id)?.name}{n > 1 ? ` × ${n}` : ""}</span>)}
-                      {res.music && <span className="rounded-full bg-[#f5f3ff] px-2 py-0.5 text-[12px] text-[#7c3aed]">Ghi nhạc</span>}
                       {res.unresolved && <span className="rounded-full bg-[#fef2f2] px-2 py-0.5 text-[12px] font-medium text-[#b91c1c]">Chưa xác định — chọn tay sau</span>}
                     </div>
                     <button type="button" onClick={() => setRows((c) => c.filter((x) => x.key !== r.key))} className="grid h-8 place-items-center text-[#a1a1aa] hover:text-[#dc2626]" aria-label="Xoá đơn"><Trash2 size={14} /></button>
@@ -176,7 +175,6 @@ export function ImportModal({ packs, addons, rules, existing, onAdd, onClose }: 
                   })}
                 </div>
               </div>
-              <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={man.music} onChange={(e) => setMan({ ...man, music: e.target.checked })} className="accent-[#ff5fa2]" /> Ghi nhạc</label>
             </div>
           )}
         </div>
