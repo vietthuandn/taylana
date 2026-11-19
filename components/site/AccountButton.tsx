@@ -13,6 +13,7 @@ export function AccountButton() {
   const [user, setUser] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [staff, setStaff] = useState(false); // admin / nhà thiết kế → hiện "Trang quản trị"
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,6 +23,10 @@ export function AccountButton() {
     const { data } = sb.auth.onAuthStateChange((_e, s) => setUser(s?.user ?? null));
     return () => data.subscription.unsubscribe();
   }, []);
+  useEffect(() => {
+    if (!user || !hasSupabase) { setStaff(false); return; }
+    createClient().rpc("my_staff_role").then((r) => setStaff(!r.error && (r.data === "admin" || r.data === "designer")), () => setStaff(false));
+  }, [user]);
   useEffect(() => {
     if (!menu) return;
     const close = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setMenu(false); };
@@ -39,7 +44,7 @@ export function AccountButton() {
       </>
     );
   }
-  const name = (user.user_metadata?.display_name as string) || (user.user_metadata?.phone as string) || "Tài khoản";
+  const name = (user.user_metadata?.display_name as string) || (user.user_metadata?.phone as string) || (user.email?.split("@")[0] ?? "") || "Tài khoản";
   return (
     <div ref={box} className="relative shrink-0">
       <button onClick={() => setMenu(!menu)} className="flex h-9 max-w-[150px] items-center gap-2 rounded-[8px] border border-[#e5e5e7] bg-white px-2 text-[14px] font-medium text-[#18181b] hover:bg-[#f4f4f5]">
@@ -48,6 +53,7 @@ export function AccountButton() {
       </button>
       {menu && (
         <div className="absolute right-0 mt-2 w-52 rounded-[12px] border border-[#e5e5e7] bg-white p-1 font-sans text-[14px] text-[#18181b] shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
+          {staff && <><Link href="/admin" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 font-medium text-[#ff5fa2] hover:bg-[#fff0f6]">Trang quản trị</Link><div className="my-1 h-px bg-[#efeff1]" /></>}
           <Link href="/don-hang-cua-toi" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Đơn hàng của tôi</Link>
           <Link href="/thiet-ke-cua-toi" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Thiết kế của tôi</Link>
           <div className="my-1 h-px bg-[#efeff1]" />

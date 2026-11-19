@@ -3,8 +3,8 @@
 /* Quản lý tài khoản nội bộ: bảng (tên hiển thị, email, vai trò, trạng thái, lần đăng nhập gần nhất) · "Tạo tài khoản"
    (mật khẩu tạo ngẫu nhiên / sao chép) · mỗi dòng: Đổi vai trò, Đặt lại mật khẩu, Tạm khoá / Mở khoá, Xoá.
    Mọi thao tác qua /api/admin/staff (server kiểm tra quyền + Supabase Auth Admin API). */
-import { useCallback, useEffect, useState } from "react";
-import { Copy, KeyRound, Lock, Plus, Shuffle, Trash2, Unlock, UserCog } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Copy, KeyRound, Lock, MoreVertical, Plus, Shuffle, Trash2, Unlock, UserCog } from "lucide-react";
 import { ROLE_LABEL, type StaffRole } from "@/lib/roles";
 import { confirmDialog, promptDialog } from "@/components/ui/dialog";
 import { Badge, Button, Card, EmptyState, Field, Input, Select, toast } from "@/components/admin/ui";
@@ -61,16 +61,16 @@ export function StaffAdmin() {
                       <td className="pr-3">{r.disabled ? <Badge tone="amber">Tạm khoá</Badge> : <Badge tone="green">Hoạt động</Badge>}</td>
                       <td className="pr-3 text-[#71717a]">{r.last_sign_in_at ? new Date(r.last_sign_in_at).toLocaleString("vi-VN") : "Chưa đăng nhập"}</td>
                       <td className="py-2">
-                        <div className="flex flex-wrap justify-end gap-1">
-                          <Button size="sm" variant="secondary" icon={<UserCog size={14} />} disabled={self} title={self ? "Không thể tự đổi vai trò" : undefined}
-                            onClick={async () => { const to: StaffRole = r.role === "admin" ? "designer" : "admin"; if (await confirmDialog({ title: `Đổi sang ${ROLE_LABEL[to]}?`, message: `${r.display_name || r.email} sẽ ${to === "admin" ? "có toàn quyền quản trị" : "chỉ vào được Quản lý chất liệu và Quản lý template"}.`, confirmText: "Đổi vai trò" })) act(() => api("PATCH", { user_id: r.user_id, action: "role", value: to }), "Đã đổi vai trò"); }}>Đổi vai trò</Button>
-                          <Button size="sm" variant="secondary" icon={<KeyRound size={14} />}
-                            onClick={async () => { const v = await promptDialog({ title: "Đặt lại mật khẩu", message: r.email, label: "Mật khẩu mới (tối thiểu 8 ký tự)", defaultValue: randomPassword(), confirmText: "Đặt mật khẩu" }); if (v) act(async () => { await api("PATCH", { user_id: r.user_id, action: "password", value: v }); await copy(v); }, "Đã đặt lại mật khẩu (đã sao chép)"); }}>Đặt lại mật khẩu</Button>
-                          <Button size="sm" variant="secondary" icon={r.disabled ? <Unlock size={14} /> : <Lock size={14} />} disabled={self && !r.disabled}
-                            onClick={() => act(() => api("PATCH", { user_id: r.user_id, action: r.disabled ? "enable" : "disable" }), r.disabled ? "Đã mở khoá" : "Đã tạm khoá")}>{r.disabled ? "Mở khoá" : "Tạm khoá"}</Button>
-                          <Button size="sm" variant="secondary" className="!text-[#dc2626]" icon={<Trash2 size={14} />} disabled={self}
-                            onClick={async () => { if (await confirmDialog({ title: "Xoá tài khoản?", message: `${r.display_name || r.email} sẽ không đăng nhập được nữa. Không thể hoàn tác.`, confirmText: "Xoá tài khoản", danger: true })) act(() => api("DELETE", { user_id: r.user_id }), "Đã xoá tài khoản"); }}>Xoá</Button>
-                        </div>
+                        <RowMenu items={[
+                          { label: "Đổi vai trò", icon: <UserCog size={14} />, disabled: self, title: self ? "Không thể tự đổi vai trò" : undefined,
+                            onClick: async () => { const to: StaffRole = r.role === "admin" ? "designer" : "admin"; if (await confirmDialog({ title: `Đổi sang ${ROLE_LABEL[to]}?`, message: `${r.display_name || r.email} sẽ ${to === "admin" ? "có toàn quyền quản trị" : "chỉ vào được Quản lý chất liệu và Quản lý template"}.`, confirmText: "Đổi vai trò" })) act(() => api("PATCH", { user_id: r.user_id, action: "role", value: to }), "Đã đổi vai trò"); } },
+                          { label: "Đặt lại mật khẩu", icon: <KeyRound size={14} />,
+                            onClick: async () => { const v = await promptDialog({ title: "Đặt lại mật khẩu", message: r.email, label: "Mật khẩu mới (tối thiểu 8 ký tự)", defaultValue: randomPassword(), confirmText: "Đặt mật khẩu" }); if (v) act(async () => { await api("PATCH", { user_id: r.user_id, action: "password", value: v }); await copy(v); }, "Đã đặt lại mật khẩu (đã sao chép)"); } },
+                          { label: r.disabled ? "Mở khoá" : "Tạm khoá", icon: r.disabled ? <Unlock size={14} /> : <Lock size={14} />, disabled: self && !r.disabled, title: self && !r.disabled ? "Không thể tự khoá tài khoản của bạn" : undefined,
+                            onClick: () => act(() => api("PATCH", { user_id: r.user_id, action: r.disabled ? "enable" : "disable" }), r.disabled ? "Đã mở khoá" : "Đã tạm khoá") },
+                          { label: "Xoá", icon: <Trash2 size={14} />, danger: true, disabled: self, title: self ? "Không thể tự xoá tài khoản của bạn" : undefined,
+                            onClick: async () => { if (await confirmDialog({ title: "Xoá tài khoản?", message: `${r.display_name || r.email} sẽ không đăng nhập được nữa. Không thể hoàn tác.`, confirmText: "Xoá tài khoản", danger: true })) act(() => api("DELETE", { user_id: r.user_id }), "Đã xoá tài khoản"); } },
+                        ]} />
                       </td>
                     </tr>
                   );
@@ -97,6 +97,38 @@ export function StaffAdmin() {
             <p className="text-[12px] text-[#71717a]">Tài khoản được xác nhận email sẵn, đăng nhập ngay ở /admin/login. Gửi email + mật khẩu cho người dùng qua kênh riêng.</p>
             <div className="flex justify-end gap-2 pt-1"><Button variant="secondary" onClick={() => setForm(null)}>Huỷ</Button><Button onClick={create} loading={busy}>Tạo tài khoản</Button></div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type MenuItem = { label: string; icon: React.ReactNode; onClick: () => void; disabled?: boolean; danger?: boolean; title?: string };
+/** nút ⋮ mở menu thao tác của 1 dòng */
+function RowMenu({ items }: { items: MenuItem[] }) {
+  const [open, setOpen] = useState<{ top: number; right: number } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(null); };
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
+    const close = () => setOpen(null);
+    document.addEventListener("mousedown", h); document.addEventListener("keydown", k); window.addEventListener("scroll", close, true); window.addEventListener("resize", close);
+    return () => { document.removeEventListener("mousedown", h); document.removeEventListener("keydown", k); window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative flex justify-end">
+      <button type="button" onClick={(e) => { if (open) return setOpen(null); const b = e.currentTarget.getBoundingClientRect(); setOpen({ top: Math.min(b.bottom + 4, window.innerHeight - 180), right: window.innerWidth - b.right }); }} aria-label="Thao tác" aria-haspopup="menu" aria-expanded={!!open}
+        className="grid h-8 w-8 place-items-center rounded-[6px] text-[#52525b] hover:bg-[#f4f4f5]"><MoreVertical size={16} /></button>
+      {open && (
+        <div role="menu" style={{ top: open.top, right: open.right }} className="fixed z-[80] min-w-[190px] overflow-hidden rounded-[10px] border border-[#e5e5e7] bg-white py-1 shadow-[0_8px_24px_rgb(0_0_0/0.12)]">
+          {items.map((it) => (
+            <button key={it.label} type="button" role="menuitem" disabled={it.disabled} title={it.title}
+              onClick={() => { setOpen(null); it.onClick(); }}
+              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-40 ${it.danger ? "text-[#dc2626] hover:bg-[#fef2f2]" : "text-[#18181b] hover:bg-[#f4f4f5]"}`}>
+              {it.icon}{it.label}
+            </button>
+          ))}
         </div>
       )}
     </div>

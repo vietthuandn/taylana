@@ -112,7 +112,7 @@ export function TemplateAdmin({ mode, header }: { mode: Mode; header?: React.Rea
     : { title: "Khung Photostrip", desc: "Khổ 2 x 6 inch (600 x 1800 px). Mỗi khung có 3 hoặc 4 ô ảnh, màu nền và ảnh trang trí phía trước (tuỳ chọn)." };
 
   return (
-    <AdminPage>
+    <AdminPage wide={!!header}>
       {header}
       <PageHeader title={info.title}
         actions={<Button icon={<Plus size={16} />} onClick={() => setEditing(blank())}>Tạo mẫu mới</Button>} />

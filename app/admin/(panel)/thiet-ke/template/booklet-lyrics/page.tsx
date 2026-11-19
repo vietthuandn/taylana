@@ -4,7 +4,7 @@ import { LyricsAdmin } from "../../../booklet-lyrics/LyricsAdmin";
 
 export default function Page() {
   return (
-    <AdminPage>
+    <AdminPage wide>
       <TemplateTabs tab="booklet-lyrics" />
       <LyricsAdmin />
     </AdminPage>

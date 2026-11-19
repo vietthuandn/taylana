@@ -23,7 +23,8 @@ import { createClient } from "@/lib/supabase/client";
 import { revalidatePublic } from "@/app/admin/actions";
 import { uploadScrapbookAsset } from "@/lib/upload";
 import { generate } from "@/lib/scrapbook/generate";
-import { SPREAD_KINDS, generateSpread } from "@/lib/scrapbook/booklet";
+import { BOOKLET_PAGES, SPREAD_KINDS, generateBooklet, generateSpread } from "@/lib/scrapbook/booklet";
+import { bookletOverride, bookletSettingOf } from "@/lib/scrapbook/catalog";
 import { mergeStickerCfg, setFrameLibrary, setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import { samplePhotos } from "@/lib/scrapbook/samples";
 import { settingOf } from "@/lib/scrapbook/templates";
@@ -38,7 +39,7 @@ import { Button, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
 
 type Img = HTMLCanvasElement;
-type Src = { kind: "custom"; id: string; surface: "disc" | "booklet"; n: number } | { kind: "override"; surface: "disc" | "spread"; n: number; style: Style };
+type Src = { kind: "custom"; id: string; surface: "disc" | "booklet"; n: number } | { kind: "override"; surface: "disc" | "spread" | "booklet"; n: number; style: Style };
 const r1 = (v: number) => Math.round(v * 10) / 10;
 const SHAPE_VI: Record<string, string> = { star: "Ngôi sao", heart: "Trái tim", flower: "Bông hoa", bow: "Nơ", sparkle: "Lấp lánh", arrow: "Mũi tên", swirl: "Xoắn", dash: "Vòng nét đứt", note: "Giấy note", grid: "Giấy kẻ ô", ticket: "Vé", kraft: "Giấy kraft" };
 const TEXT0 = { main: "Happy Birthday", sub: "Ghi chú nhỏ" };
@@ -48,6 +49,11 @@ export function TemplateEditor() {
   const src = useMemo<Src>(() => {
     const id = params.get("id");
     if (id) return { kind: "custom", id, surface: "disc", n: 0 };
+    const style = (STYLES.find((s) => s.id === params.get("style"))?.id ?? "polaroid") as Style;
+    if (params.get("surface") === "booklet") { // bộ mẫu Booklet tự sinh (n = số trang) — sửa trực tiếp
+      const pages = Number(params.get("n"));
+      return { kind: "override", surface: "booklet", n: (BOOKLET_PAGES as readonly number[]).includes(pages) ? pages : 8, style };
+    }
     const spread = params.get("surface") === "spread";
     const n = spread ? Math.min(SPREAD_KINDS.length, Math.max(1, Number(params.get("n")) || 1)) : Math.min(10, Math.max(5, Number(params.get("n")) || 5));
     return { kind: "override", surface: spread ? "spread" : "disc", n, style: (STYLES.find((s) => s.id === params.get("style"))?.id ?? "polaroid") as Style };
@@ -84,7 +90,8 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
   const [original, setOriginal] = useState<Template[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [booklet, setBooklet] = useState(src.kind === "override" && src.surface === "spread");
+  const [booklet, setBooklet] = useState(src.kind === "override" && src.surface !== "disc");
+  const [spreadRows, setSpreadRows] = useState<TemplateSetting[]>([]);
   const photoIn = useRef<HTMLInputElement>(null);
   const st = useScrapStudio({
     prefix: "tpl", max: 0, assets: lib.assets, frames: lib.frames, fonts: lib.fonts, glyphs: lib.glyphs, defaultText: TEXT0, extra: EMPTY, onLoad: () => undefined,
@@ -93,7 +100,9 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
   const framePhotos = useMemo(() => samples.map((c, i) => ({ id: `s${i}`, url: c.toDataURL("image/jpeg", 0.6) })), [samples]);
 
   // ---------- nạp mẫu ----------
-  const generated = (seed: number): Template[] => src.kind === "override" ? [src.surface === "spread" ? generateSpread(src.n, src.style, seed, lib.assets) : generate(src.n, src.style, seed, lib.assets, lib.frames)] : [];
+  const generated = (seed: number, spread = spreadRows): Template[] => src.kind !== "override" ? []
+    : src.surface === "booklet" ? generateBooklet(src.n, src.style, seed, lib.assets, lib.frames, spread).surfaces
+    : [src.surface === "spread" ? generateSpread(src.n, src.style, seed, lib.assets) : generate(src.n, src.style, seed, lib.assets, lib.frames)];
   useEffect(() => {
     if (!st.ready || loaded) return;
     (async () => {
@@ -104,6 +113,14 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
         if (error || !data) { toast("Không tìm thấy mẫu (cần chạy migration_staff_templates.sql?)", "err"); return; }
         doc = (data.config?.surfaces ?? []) as Template[];
         setName(data.name ?? ""); setBooklet(data.surface === "booklet");
+      } else if (src.surface === "booklet") {
+        const { data } = await sb.from("scrapbook_template_settings").select("*");
+        const all = (data ?? []) as TemplateSetting[], spread = all.filter((x) => x.surface_type === "spread");
+        setSpreadRows(spread);
+        const r = bookletSettingOf(all, src.n, src.style);
+        setRow(r);
+        setName(r.name ?? `${STYLES.find((x) => x.id === src.style)?.name} · ${src.n} trang`);
+        doc = bookletOverride(r) ? structuredClone(bookletOverride(r)!) : generated(r.seed, spread);
       } else {
         const { data } = await sb.from("scrapbook_template_settings").select("*").eq("n", src.n).eq("style", src.style);
         const rows = ((data ?? []) as TemplateSetting[]).filter((x) => (x.surface_type ?? "disc") === src.surface);
@@ -128,7 +145,7 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
     if (src.kind === "custom") {
       ({ error } = await sb.from("scrapbook_templates").update({ name: name.trim() || "Mẫu mới", config: { surfaces: doc }, updated_at: new Date().toISOString() }).eq("id", src.id));
     } else if (row) {
-      ({ error } = await sb.from("scrapbook_template_settings").upsert({ surface_type: src.surface, n: src.n, style: src.style, seed: row.seed, is_active: row.is_active, template: doc[0], name: name.trim() || null, updated_at: new Date().toISOString() }, { onConflict: "surface_type,n,style" }));
+      ({ error } = await sb.from("scrapbook_template_settings").upsert({ surface_type: src.surface, n: src.n, style: src.style, seed: row.seed, is_active: row.is_active, template: src.surface === "booklet" ? { surfaces: doc } : doc[0], name: name.trim() || null, updated_at: new Date().toISOString() }, { onConflict: "surface_type,n,style" }));
     }
     setSaving(false);
     if (error) return toast(/name|surface_type|template/.test(error.message) ? "Thiếu cột — cần chạy supabase/migration_staff_templates.sql." : error.message, "err");
@@ -248,7 +265,7 @@ function Workbench({ src, lib }: { src: Src; lib: { assets: ScrapAsset[]; frames
       )}
     </>
   );
-  const title = src.kind === "custom" ? (booklet ? "Booklet Scrapbook" : "CD Scrapbook") : src.surface === "spread" ? "Booklet · kiểu cặp trang" : "CD Scrapbook · mẫu tự tạo";
+  const title = src.kind === "custom" ? (booklet ? "Booklet Scrapbook" : "CD Scrapbook") : src.surface === "booklet" ? "Booklet Scrapbook · mẫu tự sinh" : src.surface === "spread" ? "Booklet · kiểu cặp trang" : "CD Scrapbook · mẫu tự tạo";
   return (
     <div className="flex h-[calc(100dvh-var(--header-h,57px))] min-h-[560px] flex-col">
       <div className="flex flex-wrap items-center gap-3 border-b border-[#e5e5e7] bg-white px-4 py-2">

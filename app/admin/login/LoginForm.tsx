@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
+import { normalizePhone, phoneToEmail } from "@/lib/phoneAuth";
 import { Button, Field, Input } from "@/components/admin/ui";
 
 export function LoginForm() {
@@ -22,14 +23,18 @@ export function LoginForm() {
     }
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    // dùng chung đăng nhập với trang khách: email (tài khoản nội bộ) hoặc số điện thoại
+    const id = email.trim(), phone = id.includes("@") ? null : normalizePhone(id);
+    const { error } = await supabase.auth.signInWithPassword({ email: phone ? phoneToEmail(phone) : id, password });
     if (error) {
       setLoading(false);
-      setError("Sai email hoặc mật khẩu.");
+      setError("Sai email / số điện thoại hoặc mật khẩu.");
       return;
     }
-    const { data: isAdmin } = await supabase.rpc("is_admin");
-    if (!isAdmin) {
+    // admin hoặc nhà thiết kế đều vào được (mỗi vai trò thấy đúng trang của mình)
+    const r = await supabase.rpc("my_staff_role");
+    const staff = r.error ? (await supabase.rpc("is_admin")).data === true : r.data === "admin" || r.data === "designer";
+    if (!staff) {
       await supabase.auth.signOut();
       setLoading(false);
       setError("Tài khoản này không có quyền quản trị.");
@@ -47,10 +52,10 @@ export function LoginForm() {
         <span className="rounded-[4px] border border-[#e5e5e7] px-1.5 text-[11px] font-medium text-[#71717a]">Admin</span>
       </div>
       <h1>Đăng nhập</h1>
-      <p className="mb-5 mt-1 text-[13px] text-[#71717a]">Chỉ dành cho chủ tiệm.</p>
+      <p className="mb-5 mt-1 text-[13px] text-[#71717a]">Dành cho quản trị viên và nhà thiết kế.</p>
 
-      <Field label="Email" className="mb-4">
-        <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Field label="Email hoặc số điện thoại" className="mb-4">
+        <Input id="email" type="text" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
       </Field>
       <Field label="Mật khẩu" className="mb-4">
         <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />

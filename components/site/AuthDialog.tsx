@@ -19,7 +19,9 @@ export function AuthDialog({ onClose, onDone, title }: { onClose: () => void; on
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr("");
-    const p = normalizePhone(phone);
+    // Đăng nhập: số điện thoại (khách) hoặc email (tài khoản nội bộ: admin / nhà thiết kế)
+    const byEmail = tab === "login" && phone.includes("@");
+    const p = byEmail ? phone.trim() : normalizePhone(phone);
     if (!p) return setErr(`${PHONE_ERROR} (ví dụ 0905 546 694).`);
     if (pass.length < 6) return setErr("Mật khẩu tối thiểu 6 ký tự.");
     const sb = createClient();
@@ -34,8 +36,8 @@ export function AuthDialog({ onClose, onDone, title }: { onClose: () => void; on
         if (r.error) { setBusy(false); return setErr("Đã tạo tài khoản nhưng chưa đăng nhập được. Tiệm cần tắt xác nhận email trong Supabase."); }
       }
     } else {
-      const { error } = await sb.auth.signInWithPassword({ email: phoneToEmail(p), password: pass });
-      if (error) { setBusy(false); return setErr("Sai số điện thoại hoặc mật khẩu."); }
+      const { error } = await sb.auth.signInWithPassword({ email: byEmail ? p : phoneToEmail(p), password: pass });
+      if (error) { setBusy(false); return setErr(byEmail ? "Sai email hoặc mật khẩu." : "Sai số điện thoại hoặc mật khẩu."); }
     }
     // gắn các đơn đã đặt bằng SĐT này (khi chưa đăng nhập) vào tài khoản
     await sb.rpc("claim_my_orders").then(() => undefined, () => undefined);
@@ -61,7 +63,7 @@ export function AuthDialog({ onClose, onDone, title }: { onClose: () => void; on
           ))}
         </div>
         <div className="space-y-2.5">
-          <input className={input} type="tel" inputMode="tel" autoComplete="tel" placeholder="Số điện thoại" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <input className={input} type={tab === "login" ? "text" : "tel"} inputMode={tab === "login" ? "text" : "tel"} autoComplete={tab === "login" ? "username" : "tel"} placeholder={tab === "login" ? "Số điện thoại hoặc email" : "Số điện thoại"} value={phone} onChange={(e) => setPhone(e.target.value)} />
           {tab === "register" && <input className={input} placeholder="Tên hiển thị" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} />}
           <input className={input} type="password" autoComplete={tab === "login" ? "current-password" : "new-password"} placeholder="Mật khẩu (tối thiểu 6 ký tự)" value={pass} onChange={(e) => setPass(e.target.value)} />
           {tab === "register" && <input className={input} type="password" autoComplete="new-password" placeholder="Nhập lại mật khẩu" value={pass2} onChange={(e) => setPass2(e.target.value)} />}

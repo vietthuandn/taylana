@@ -17,6 +17,12 @@ export function bookletSettingOf(settings: TemplateSetting[], pages: number, sty
   return settings.find((s) => s.surface_type === "booklet" && s.n === pages && s.style === style) ?? { n: pages, style, seed: bookletSeed(pages, style), is_active: true, surface_type: "booklet" };
 }
 
+/** bộ Booklet tự sinh đã được admin sửa trực tiếp: lưu ở cột template dạng { surfaces: Template[] } */
+export const bookletOverride = (s?: TemplateSetting | null): Template[] | null => {
+  const v = s?.template as unknown as { surfaces?: Template[] } | null | undefined;
+  return v?.surfaces?.length ? v.surfaces : null;
+};
+
 /** tất cả mẫu (cả đang ẩn) của 1 loại, xếp theo nhóm (n) rồi thứ tự admin */
 export function catalog(surface: "disc" | "booklet", settings: TemplateSetting[], customs: CustomTemplate[]): CatalogItem[] {
   const ns = surface === "disc" ? Array.from({ length: MAX_PHOTOS - MIN_PHOTOS + 1 }, (_, i) => MIN_PHOTOS + i) : [...BOOKLET_PAGES];
@@ -56,7 +62,12 @@ export function discTemplates(settings: TemplateSetting[], customs: CustomTempla
 export function bookletCatalogSets(pages: number, settings: TemplateSetting[], customs: CustomTemplate[], assets: ScrapAsset[], frames: Frame[]): BookletSet[] {
   const spread = settings.filter((s) => s.surface_type === "spread");
   return catalog("booklet", settings, customs).filter((x) => x.active && x.n === pages).map((it): BookletSet => {
-    if (it.kind === "gen") return { ...generateBooklet(pages, it.style, it.setting!.seed, assets, frames, spread), name: it.name };
+    if (it.kind === "gen") {
+      const o = bookletOverride(it.setting);
+      if (!o) return { ...generateBooklet(pages, it.style, it.setting!.seed, assets, frames, spread), name: it.name };
+      const surfaces = o.map((t, i) => ({ ...structuredClone(t), id: `${it.key}${i ? `-${i}` : ""}`, fixed: true, layers: resolveFrameSets(structuredClone(t.layers), frames, i + 7) }));
+      return { id: `${pages}-${it.style}`, style: it.style, seed: it.setting!.seed, pages, surfaces, photoCount: photoCountOf(surfaces), name: it.name };
+    }
     const surfaces = customSurfaces(it.custom!, frames);
     return { id: it.key, style: it.style, seed: 0, pages, surfaces, photoCount: photoCountOf(surfaces), name: it.name };
   });

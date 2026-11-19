@@ -7,7 +7,7 @@
 import "@fontsource/dancing-script/700.css";
 import "@fontsource/patrick-hand/400.css";
 import "@fontsource/pangolin/400.css";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Copy, Eye, EyeOff, GripVertical, Pencil, Plus, Settings, Trash2, Type, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -17,7 +17,7 @@ import { loadFrameImages } from "@/lib/scrapbook/frames";
 import { templatesFor } from "@/lib/scrapbook/templates";
 import { BOOKLET_PAGES, generateBooklet } from "@/lib/scrapbook/booklet";
 import { generate, resolveFrameSets } from "@/lib/scrapbook/generate";
-import { catalog, photoCountOf, type CatalogItem } from "@/lib/scrapbook/catalog";
+import { bookletOverride, catalog, photoCountOf, type CatalogItem } from "@/lib/scrapbook/catalog";
 import { mergeStickerCfg, setFrameLibrary, setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import { loadFonts, renderSurface, type LoadedFrame } from "@/lib/scrapbook/render";
 import { samplePhotos } from "@/lib/scrapbook/samples";
@@ -85,13 +85,13 @@ export function ScrapTemplates({ surface }: { surface: Surface }) {
   useEffect(() => { load(); }, [load]);
 
   const items = useMemo(() => catalog(surface, settings, customs), [surface, settings, customs]);
-  const shown = filter ? items.filter((x) => x.n === filter) : items;
+  const shown = useMemo(() => (filter ? items.filter((x) => x.n === filter) : items), [items, filter]);
 
   /** các bề mặt của 1 mẫu (để dựng ảnh thu nhỏ / nhân bản) */
   const surfacesOf = useCallback((it: CatalogItem): Template[] => {
     if (it.kind === "custom") return (it.custom!.config?.surfaces ?? []).map((t, i) => ({ ...t, layers: resolveFrameSets(t.layers, frames, i + 7) }));
     if (disc) return templatesFor(it.n, settings, assets, {}, true, frames).filter((t) => t.style === it.style);
-    return generateBooklet(it.n, it.style, it.setting!.seed, assets, frames, settings.filter((s) => s.surface_type === "spread")).surfaces;
+    return bookletOverride(it.setting) ?? generateBooklet(it.n, it.style, it.setting!.seed, assets, frames, settings.filter((s) => s.surface_type === "spread")).surfaces;
   }, [disc, settings, assets, frames]);
 
   // ảnh nền admin tải lên (khoá = link ảnh)
@@ -100,30 +100,37 @@ export function ScrapTemplates({ surface }: { surface: Surface }) {
     urls.forEach((u) => { if (!bgImgs[u]) loadImg(u).then((im) => setBgImgs((m) => ({ ...m, [u]: im }))).catch(() => {}); });
   }, [customs, settings]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ảnh thu nhỏ: dựng dần từng mẫu, nhớ theo nội dung (không dựng lại khi đổi bộ lọc / bật tắt)
+  const cache = useRef(new Map<string, string>());
+  const sigOf = useCallback((it: CatalogItem) => `${it.key}|${it.kind === "custom" ? it.custom!.created_at ?? "" : ""}|${JSON.stringify(it.kind === "custom" ? it.custom!.config : it.setting?.template ?? it.setting?.seed ?? "").length}|${Object.keys(bgImgs).length}`, [bgImgs]);
   useEffect(() => {
     if (!ready) return;
     let stop = false;
-    const out: Record<string, string> = {};
     const o = { photos, text: { main: "Happy Birthday", sub: "Ghi chú nhỏ" }, assets: imgs, frames: frameImgs, bgImages: bgImgs };
     (async () => {
       for (const it of shown) {
         if (stop) return;
-        const ss = surfacesOf(it);
-        if (!ss.length) { out[it.key] = ""; continue; }
-        if (disc) out[it.key] = renderSurface({ template: ss[0], ...o, size: 260 }).canvas.toDataURL("image/jpeg", 0.85);
-        else {
-          const c = document.createElement("canvas"); c.width = 540; c.height = 180;
-          const x = c.getContext("2d")!; x.fillStyle = "#f4f4f5"; x.fillRect(0, 0, 540, 180);
-          x.drawImage(renderSurface({ template: ss[0], ...o, size: 174 }).canvas, 0, 3);
-          if (ss[1]) x.drawImage(renderSurface({ template: ss[1], ...o, size: 354 }).canvas, 184, 3);
-          out[it.key] = c.toDataURL("image/jpeg", 0.85);
-        }
-        setThumbs({ ...out });
-        await new Promise((r) => setTimeout(r, 0));
+        const sig = sigOf(it);
+        if (cache.current.has(sig)) { setThumbs((m) => (m[it.key] === cache.current.get(sig) ? m : { ...m, [it.key]: cache.current.get(sig)! })); continue; }
+        let url = "";
+        try {
+          const ss = surfacesOf(it);
+          if (ss.length && disc) url = renderSurface({ template: ss[0], ...o, size: 260 }).canvas.toDataURL("image/jpeg", 0.85);
+          else if (ss.length) {
+            const c = document.createElement("canvas"); c.width = 540; c.height = 180;
+            const x = c.getContext("2d")!; x.fillStyle = "#f4f4f5"; x.fillRect(0, 0, 540, 180);
+            x.drawImage(renderSurface({ template: ss[0], ...o, size: 174 }).canvas, 0, 3);
+            if (ss[1]) x.drawImage(renderSurface({ template: ss[1], ...o, size: 354 }).canvas, 184, 3);
+            url = c.toDataURL("image/jpeg", 0.85);
+          }
+        } catch { url = ""; } // 1 mẫu lỗi không chặn các mẫu sau
+        cache.current.set(sig, url);
+        setThumbs((m) => ({ ...m, [it.key]: url }));
+        await new Promise((res) => setTimeout(res, 0));
       }
     })();
     return () => { stop = true; };
-  }, [ready, shown, surfacesOf, disc, photos, imgs, frameImgs, bgImgs]);
+  }, [ready, shown, surfacesOf, sigOf, disc, photos, imgs, frameImgs, bgImgs]);
 
   // ---------- lưu ----------
   async function saveSetting(it: CatalogItem, v: Partial<TemplateSetting>) {
@@ -155,14 +162,7 @@ export function ScrapTemplates({ surface }: { surface: Surface }) {
 
   async function edit(it: CatalogItem) {
     if (it.kind === "custom") return router.push(`${EDITOR}?id=${it.custom!.id}`);
-    if (disc) return router.push(`${EDITOR}?n=${it.n}&style=${it.style}`);
-    // bộ booklet tự sinh: sửa trên 1 bản sao (mẫu tạo mới) — bộ gốc được tắt để khách chỉ thấy bản đã sửa
-    if (!(await confirmDialog({ title: "Sửa bộ mẫu booklet này?", message: "Bộ mẫu tự sinh sẽ được sao chép thành 1 mẫu mới để sửa; bộ gốc tự tắt (bật lại được bất cứ lúc nào).", confirmText: "Tạo bản sửa" }))) return;
-    const c = await insert(it.name, it.n, it.style, surfacesOf(it));
-    if (!c) return;
-    await saveSetting(it, { is_active: false });
-    await revalidatePublic(PATHS);
-    router.push(`${EDITOR}?id=${c.id}`);
+    router.push(`${EDITOR}?n=${it.n}&style=${it.style}${disc ? "" : "&surface=booklet"}`); // sửa trực tiếp mẫu tự sinh
   }
   async function rename(it: CatalogItem) {
     const v = await promptDialog({ title: "Đổi tên mẫu", label: "Tên mẫu", defaultValue: it.name });
@@ -261,6 +261,7 @@ export function ScrapTemplates({ surface }: { surface: Surface }) {
         </Modal>
       )}
       {creating && <CreateModal disc={disc} ns={ns} onClose={() => setCreating(false)} onCreate={async (name, n, style) => {
+       try {
         let ss: Template[];
         if (disc) {
           const t = generate(n, style ?? "polaroid", Math.floor(Math.random() * 1e6), assets, frames);
@@ -271,8 +272,10 @@ export function ScrapTemplates({ surface }: { surface: Surface }) {
         }
         const c = await insert(name, n, style, ss);
         if (!c) return;
-        await revalidatePublic(PATHS);
+        toast("Đã tạo mẫu — đang mở trình sửa…");
         router.push(`${EDITOR}?id=${c.id}`);
+        revalidatePublic(PATHS).catch(() => undefined);
+       } catch (e) { toast(e instanceof Error ? e.message : "Không tạo được mẫu", "err"); }
       }} />}
     </div>
   );
