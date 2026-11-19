@@ -1,10 +1,10 @@
 "use client";
 
-/* Trang "Booklet Template" (/thiet-ke/booklet): dùng chung bộ máy của CD Template (lib/scrapbook) trên các bề mặt
-   trang / cặp trang: Trang 1 (bìa, đơn) → 2–3 → 4–5 → … → trang cuối (đơn). Mỗi cặp trang mở đôi là 1 surface "spread" để ảnh,
-   sticker, băng dính vắt qua gáy. Trái: tab Ảnh (ảnh, số trang, bộ mẫu) · Sticker · Chữ (lời chúc có sẵn). Phải: cuốn sách to nhất
-   có thể (1 trang = min(cao × 0.85, rộng × 0.92 / 2)), thumbnail các trang 48px, bấm đúp 1 trang để xem riêng (Esc thoát).
-   Thanh dưới: Nền · Tải về (các trang .zip, dàn trang in .zip, ảnh mockup) · Đặt in. Ảnh khách chỉ xử lý trên trình duyệt. */
+/* Trang "Booklet Template" (/thiet-ke/booklet): dùng chung bộ máy của CD Template (lib/scrapbook). Booklet 2 trang = 2 trang đơn;
+   4 / 8 / 12 trang = Trang 1 (đơn) → 2–3 → 4–5 → … (trang đôi, ảnh / sticker vắt qua gáy) → trang cuối (đơn). Mở ra là các trang trống.
+   Mục "Mẫu": mặc định mẫu theo trang đang chọn (Trang đơn 3 cột / Trang đôi 2 cột, theo danh mục) — chọn = thay toàn bộ trang đó;
+   "Đổi mẫu" = các BỘ mẫu (Trình tạo template) đúng số trang — chọn = thay cả cuốn. Ảnh tự điền vào ô trống theo thứ tự.
+   Thanh dưới: Số trang 2 · 4 · 8 · 12 · Lưu · Tải về · Đặt in. Ảnh khách chỉ xử lý trên trình duyệt. */
 import { confirmDialog } from "@/components/ui/dialog";
 import "@fontsource/dancing-script/400.css";
 import "@fontsource/dancing-script/700.css";
@@ -19,7 +19,7 @@ import "@fontsource/be-vietnam-pro/400-italic.css";
 import "@fontsource/be-vietnam-pro/700-italic.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Box, Dices, Download, FileStack, Image as ImageIcon, LayoutTemplate, Save, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Box, Download, Eye, FileStack, LayoutTemplate, Save, ShoppingBag } from "lucide-react";
 import { GRADIENTS, paintBackground, type BgChoice } from "@/lib/mockup/backgrounds";
 import type { MockupBackground } from "@/lib/mockup/types";
 import { defaultGlass } from "@/lib/mockup/types";
@@ -32,47 +32,42 @@ import { savePendingFiles, type PendingFile } from "@/lib/pendingOrderFiles";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
 import { loadFonts, renderSurface } from "@/lib/scrapbook/render";
-import { applyFrames, autoDecorate, resolveFrameSets } from "@/lib/scrapbook/generate";
-import { BOOKLET_PAGES, SPREAD_KINDS, spreadTemplate, type BookletSet } from "@/lib/scrapbook/booklet";
-import { bookletCatalogSets } from "@/lib/scrapbook/catalog";
+import { BUNDLE_PAGES, blankBooklet, bundleSlots, fillDoc, fillSlots, groupByCategory, libTemplate, type Bundle, type DesignTpl, type Library } from "@/lib/scrapbook/library";
 import { loadScrapFromAccount, saveScrapToAccount } from "@/lib/scrapbook/account";
-import { samplePhotos } from "@/lib/scrapbook/samples";
-import { setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
-import { STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting, type CustomTemplate, type Wish, type WishTopic } from "@/lib/scrapbook/types";
-import { BgPicker } from "@/components/mockup-viewer/BgPicker";
+import type { Frame, FrameSet, ScrapAsset, Template, Wish, WishTopic } from "@/lib/scrapbook/types";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
 import { Button, toast } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 import { ScrapbookEditor, type EditorTab } from "./ScrapbookEditor";
-import { TemplateGallery, type GalleryGroup } from "./TemplateGallery";
+import { LibraryGrid } from "./LibraryGrid";
 import { PhotoPanel, RightsModal, readPhoto, type Photo } from "./parts";
 import { setFrameLibrary } from "@/lib/scrapbook/decor";
 import { customizeText, useScrapStudio, type UserSticker } from "./useScrapStudio";
-import { clone } from "./useScrapDoc";
 
 const MAX = 40;
 const pad = (n: number) => String(n).padStart(2, "0");
 const toBlob = (c: HTMLCanvasElement, type = "image/jpeg", q = JPG_QUALITY) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Không xuất được ảnh"))), type, q));
-const withPhotos = (t: Template, list: { id: string }[]): Template => ({ ...clone(t), layers: clone(t.layers).map((l) => (l.k === "photo" ? { ...l, photo: list[l.slot]?.id ?? "" } : l)) });
-/** số trang của bề mặt i (bìa = 1, cặp i = 2i–2i+1, trang cuối = n) */
-const pagesOf = (i: number, n: number, count: number) => (i === 0 ? [1] : i === count - 1 ? [n] : [i * 2, i * 2 + 1]);
+/** số trang của bề mặt i (booklet 2 trang: 1, 2 · còn lại: bìa = 1, cặp i = 2i–2i+1, trang cuối = n) */
+const pagesOf = (i: number, n: number, count: number) => (n === 2 ? [i + 1] : i === 0 ? [1] : i === count - 1 ? [n] : [i * 2, i * 2 + 1]);
 
-export function BookletScrapStudio({ assets, settings, customs = [], fonts, glyphs, frames, frameSets, stickerCfg, topics, wishes, backgrounds, packIds }: {
-  assets: ScrapAsset[]; settings: TemplateSetting[]; customs?: CustomTemplate[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; stickerCfg: StickerCfg;
+export function BookletScrapStudio({ assets, library, fonts, glyphs, frames, frameSets, topics, wishes, backgrounds, packIds }: {
+  assets: ScrapAsset[]; library: Library; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[];
   topics: WishTopic[]; wishes: Wish[]; backgrounds: MockupBackground[]; packIds: Record<number, string>;
 }) {
-  setStickerConfig(stickerCfg); // cài đặt sticker tự rải của admin (trước khi sinh mẫu)
-  setFrameLibrary(frameSets); // tên bộ khung → ưu tiên khung hợp phong cách
+  void backgrounds;
+  setFrameLibrary(frameSets);
   const router = useRouter();
   const params = useSearchParams();
-  const [tab, setTab] = useState<EditorTab>("anh");
+  const [tab, setTab] = useState<EditorTab>("mau");
+  const [bundleMode, setBundleMode] = useState(false); // mục Mẫu: false = mẫu theo trang · true = bộ mẫu ("Đổi mẫu")
+  const [peek, setPeek] = useState<Bundle | null>(null);
   const [pages, setPages] = useState<number>(8);
   const [rightsOk, setRightsOk] = useState(false);
   const [rightsOpen, setRightsOpen] = useState(false);
   const [guides, setGuides] = useState(true);
-  const [bg, setBg] = useState<BgChoice>({ kind: "gradient", g: GRADIENTS[0] });
+  const [bg] = useState<BgChoice>({ kind: "gradient", g: GRADIENTS[0] }); // nền ảnh mockup tải về
   const [busy, setBusy] = useState(false);
   const [zoomPage, setZoomPage] = useState<number | null>(null);
   const [user, setUser] = useState(false);
@@ -81,11 +76,10 @@ export function BookletScrapStudio({ assets, settings, customs = [], fonts, glyp
   const extra = useMemo(() => ({ pages, rightsOk }), [pages, rightsOk]);
   const st = useScrapStudio({
     prefix: "bscrap", max: MAX, assets, frames, fonts, glyphs, defaultText: { main: "Our Memories", sub: "" }, extra, wantAllFonts: tab === "chu",
-    onLoad: (m) => { if (m.pages && (BOOKLET_PAGES as readonly number[]).includes(m.pages)) setPages(m.pages); setRightsOk(!!m.rightsOk); },
+    onLoad: (m) => { if (m.pages && (BUNDLE_PAGES as readonly number[]).includes(m.pages)) setPages(m.pages); setRightsOk(!!m.rightsOk); },
   });
   const { doc, photos } = st;
 
-  const spreadSettings = useMemo(() => settings.filter((s) => s.surface_type === "spread"), [settings]);
   const T = topics.length ? topics : DEFAULT_TOPICS, W = wishes.length ? wishes : DEFAULT_WISHES;
 
   // ---------- đăng nhập + mở thiết kế đã lưu (?design=) ----------
@@ -108,72 +102,57 @@ export function BookletScrapStudio({ assets, settings, customs = [], fonts, glyp
     })();
   }, [st.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ---------- bộ mẫu cho số trang đang chọn ----------
-  const sets = useMemo(() => bookletCatalogSets(pages, settings, customs, assets, frames), [pages, settings, customs, assets, frames]);
-  const samples = useMemo(() => samplePhotos(), []);
-  const thumbPhotos = useMemo(() => Array.from({ length: 48 }, (_, i) => photos[i]?.img ?? samples[i % samples.length]), [photos, samples]);
+  // ---------- cấu trúc trang trống khi chưa có thiết kế ----------
+  useEffect(() => {
+    if (!st.ready || doc || params.get("design")) return;
+    st.D.setDoc(blankBooklet(pages)); st.D.reset(); st.D.setEdited(false); st.setActive(0);
+  }, [st.ready, doc]); // eslint-disable-line react-hooks/exhaustive-deps
   const tText = st.text; // tiêu đề bìa = 1 lớp chữ bình thường của mẫu (bấm để sửa, chọn rồi xoá nếu không muốn)
   const ro = useMemo(() => ({ ...st.renderOpts, text: tText }), [st.renderOpts, tText]);
-  const pKey = photos.map((p) => p.id).join(",");
-  const groups: GalleryGroup[] = useMemo(() => [{
-    id: String(pages), title: `Booklet ${pages} trang`, chip: `${pages} trang`, match: false,
-    items: sets.map((s) => ({
-      id: s.id, label: s.name ?? STYLES.find((x) => x.id === s.style)?.name ?? s.style, sub: `Cần ${s.photoCount} ảnh`, key: `${s.id}|${pKey}|${tText.main}|${Object.keys(st.assetImgs).length}|${Object.keys(st.frameImgs).length}`,
-      make: () => {
-        const c = document.createElement("canvas"); c.width = 360; c.height = 120;
-        const x = c.getContext("2d")!; x.fillStyle = "#f4f4f5"; x.fillRect(0, 0, 360, 120);
-        const o = { photos: thumbPhotos, text: tText, assets: st.renderOpts.assets, frames: st.frameImgs };
-        x.drawImage(renderSurface({ template: s.surfaces[0], ...o, size: 116 }).canvas, 0, 2);
-        if (s.surfaces[1]) x.drawImage(renderSurface({ template: s.surfaces[1], ...o, size: 236 }).canvas, 122, 2);
-        return c.toDataURL("image/jpeg", 0.85);
-      },
-    })),
-  }], [pages, sets, pKey, tText, thumbPhotos, st.assetImgs, st.frameImgs, st.renderOpts.assets]);
-  const dirty = () => !!doc && (st.D.edited || st.D.canUndo || doc.some((t) => t.layers.some((l) => l.user)));
-  const confirmChange = () => (dirty() ? confirmDialog({ title: "Đổi sang mẫu khác?", message: "Toàn bộ sticker, chữ và chỉnh sửa trên các trang sẽ bị xoá và thay bằng mẫu mới. Ảnh bạn đã tải vẫn được giữ.", confirmText: "Đổi mẫu", cancelText: "Huỷ" }) : Promise.resolve(true));
-  const apply = useCallback(async (s: BookletSet, list: Photo[], ask = true) => {
-    if (ask && !(await confirmChange())) return;
-    // đổi mẫu = thay mới hoàn toàn: bỏ mọi sticker, chữ, lời chúc, khung, ô ảnh, chỉnh sửa trên các trang; chỉ giữ danh sách ảnh + "Sticker của bạn"
-    const next = s.surfaces.map((t) => customizeText(withPhotos(t, list), st.text));
+  const cur = st.cur;
+  const singles = useMemo(() => library.templates.filter((t) => t.kind === "booklet_single"), [library.templates]);
+  const spreads = useMemo(() => library.templates.filter((t) => t.kind === "booklet_spread"), [library.templates]);
+  const bundles = useMemo(() => library.bundles.filter((b) => b.page_count === pages), [library.bundles, pages]);
+  const tplById = useMemo(() => new Map(library.templates.map((t) => [t.id, t])), [library.templates]);
+  const unused = () => photos.filter((p) => !st.used.has(p.id)).map((p) => p.id);
+  const dirty = () => !!doc && (st.D.edited || st.D.canUndo || doc.some((t) => t.layers.length > 0));
+
+  /** chọn 1 mẫu trang → THAY toàn bộ trang / cặp trang đang chọn, điền ảnh chưa dùng vào ô */
+  const applyPage = useCallback(async (d: DesignTpl) => {
+    const i = st.active, t0 = doc?.[i];
+    if (!t0) return;
+    if (t0.layers.length && !(await confirmDialog({ title: "Thay trang này bằng mẫu?", message: "Mọi thứ đã thêm trên trang này (ảnh, sticker, chữ) sẽ bị xoá và thay bằng mẫu. Ảnh của trang quay về danh sách Ảnh.", confirmText: "Thay trang", cancelText: "Huỷ" }))) return;
+    const freed = new Set(t0.layers.flatMap((l) => (l.k === "photo" && l.photo ? [l.photo] : [])));
+    const avail = photos.filter((p) => !st.used.has(p.id) || freed.has(p.id)).map((p) => p.id);
+    const next = customizeText(fillSlots(libTemplate(d, t0.surface === "page" ? t0.gutter : undefined), avail).t, st.text);
     st.setEditText(null); st.setSel(null); st.setEditLayer(null);
-    st.D.setDoc(next); st.D.setEdited(false); st.D.reset(); // làm mới lịch sử Hoàn tác
-    st.setApplied(s.id); st.setActive(0);
-  }, [st]);
-  // lần đầu tải ảnh: tự áp bộ mẫu cần số ảnh gần nhất
-  useEffect(() => {
-    if (!st.ready || doc || !photos.length || params.get("design")) return;
-    const best = [...sets].sort((a, b) => Math.abs(a.photoCount - photos.length) - Math.abs(b.photoCount - photos.length))[0];
-    if (best) apply(best, photos, false);
-  }, [st.ready, doc, photos, sets, apply, params]);
+    st.D.begin(); st.D.patchSurface(i, () => next); st.D.setEdited(true);
+  }, [st, doc, photos]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** dựng cả cuốn từ 1 bộ mẫu (ô thiếu mẫu → trang trống), điền ảnh theo thứ tự qua các trang */
+  const fromBundle = (b: Bundle) => bundleSlots(b.page_count).map((sl, k) => { const d = tplById.get(b.template_ids[k]); return d ? libTemplate(d, sl.gutter) : blankBooklet(b.page_count)[k]; });
+  const applyBundle = useCallback(async (b: Bundle) => {
+    if (dirty() && !(await confirmDialog({ title: "Đổi sang bộ mẫu này?", message: "Toàn bộ trang, sticker, chữ và chỉnh sửa sẽ bị thay bằng bộ mẫu. Ảnh bạn đã tải vẫn được giữ và tự điền vào các ô.", confirmText: "Đổi mẫu", cancelText: "Huỷ" }))) return;
+    const next = fillDoc(fromBundle(b), photos.map((p) => p.id)).map((t) => customizeText(t, st.text));
+    st.setEditText(null); st.setSel(null); st.setEditLayer(null);
+    st.D.setDoc(next); st.D.setEdited(false); st.D.reset();
+    st.setApplied(b.id); st.setActive(0); setPeek(null);
+  }, [st, photos, tplById]); // eslint-disable-line react-hooks/exhaustive-deps
   async function changePages(n: number) {
     if (n === pages) return;
-    if (!(await confirmChange())) return;
+    if (!(await confirmDialog({ title: `Đổi sang booklet ${n} trang?`, message: "Cấu trúc trang sẽ được dựng lại (các trang trống). Ảnh bạn đã tải vẫn được giữ trong danh sách Ảnh.", confirmText: "Đổi số trang", cancelText: "Huỷ" }))) return;
     setPages(n);
-    if (doc) {
-      const style = sets.find((s) => s.id === st.applied)?.style ?? "polaroid";
-      const list = bookletCatalogSets(n, settings, customs, assets, frames), s = list.find((x) => x.style === style) ?? list[0];
-      if (s) apply(s, photos, false);
-    }
+    st.setEditText(null); st.setSel(null); st.setEditLayer(null);
+    st.D.setDoc(blankBooklet(n)); st.D.setEdited(false); st.D.reset(); st.setApplied(null); st.setActive(0);
   }
-  const cur = st.cur;
-  /** đổi bố cục riêng cặp trang đang xem (giữ ảnh của cặp, ảnh dư quay về danh sách) */
-  function relayout() {
-    if (!cur || cur.surface !== "spread") return;
-    const style = cur.style, k = SPREAD_KINDS.findIndex((x) => x.id === cur.kind), kind = SPREAD_KINDS[(k + 1) % SPREAD_KINDS.length].id;
-    const seed = Math.floor(Math.random() * 1e6);
-    let t = spreadTemplate(kind, style, seed, assets, spreadSettings);
-    t = autoDecorate({ ...t, layers: applyFrames(resolveFrameSets(t.layers, frames, seed), frames, seed, style) }, seed, assets);
-    const ids = cur.layers.flatMap((l) => (l.k === "photo" && l.photo ? [l.photo] : []));
-    const mine = cur.layers.filter((l) => l.user && l.k !== "photo");
-    const next = withPhotos(t, ids.map((id) => ({ id })));
-    st.D.begin(); st.D.patchSurface(st.active, () => ({ ...next, layers: [...next.layers, ...mine] })); st.D.setEdited(true); st.setSel(null);
-    toast(`Đã đổi sang kiểu “${SPREAD_KINDS.find((x) => x.id === kind)?.name}”`);
-  }
-  function shuffle() { if (!cur) return; st.D.begin(); st.D.patchSurface(st.active, (t) => autoDecorate(t, Math.floor(Math.random() * 1e6), assets)); st.setSel(null); }
   async function restore() {
-    const s = sets.find((x) => x.id === st.applied);
-    if (!s || !(await confirmDialog({ title: "Khôi phục bộ mẫu gốc?", message: "Các chỉnh sửa, sticker và chữ bạn đã thêm sẽ bị bỏ. Ảnh bạn đã tải vẫn được giữ.", confirmText: "Khôi phục", danger: true }))) return;
-    st.D.begin(); st.D.setDoc(s.surfaces.map((t) => customizeText(withPhotos(t, photos), st.text))); st.D.setEdited(false); st.setSel(null);
+    const b = library.bundles.find((x) => x.id === st.applied);
+    if (!b || !(await confirmDialog({ title: "Khôi phục bộ mẫu gốc?", message: "Các chỉnh sửa, sticker và chữ bạn đã thêm sẽ bị bỏ. Ảnh bạn đã tải vẫn được giữ.", confirmText: "Khôi phục", danger: true }))) return;
+    st.D.begin(); st.D.setDoc(fillDoc(fromBundle(b), photos.map((p) => p.id)).map((t) => customizeText(t, st.text))); st.D.setEdited(false); st.setSel(null);
+  }
+  /** tải ảnh → tự điền vào các ô trống theo thứ tự trang */
+  async function addPhotos(f: File[]) {
+    const out = await st.addFiles(f);
+    if (out.length) st.D.setDoc((d) => d && fillDoc(d, out.map((p) => p.id)));
   }
 
   const count = doc?.length ?? 0;
@@ -209,6 +188,10 @@ export function BookletScrapStudio({ assets, settings, customs = [], fonts, glyp
   const dlPages = () => run(async () => { const cs = await pageCanvases(cmToPx(12)); const files = []; for (const [i, c] of cs.entries()) files.push({ name: `${pad(i + 1)}.jpg`, blob: await toBlob(c) }); await saveZip(files, "Booklet-Template-cac-trang.zip"); toast("Đã tải xuống"); });
   const dlImposed = () => run(async () => {
     const cs = await pageCanvases(cmToPx(12)), px = cmToPx(12), files = [];
+    if (pages === 2) { // 2 trang = 1 tờ 12 × 12 cm in 2 mặt
+      for (const [i, c] of cs.entries()) files.push({ name: `${pad(i + 1)}_MatTruoc-Sau_trang-${pad(i + 1)}.jpg`.replace("MatTruoc-Sau", i ? "MatSau" : "MatTruoc"), blob: await toBlob(c) });
+      await saveZip(files, impositionZipName(pages)); toast("Đã tải xuống"); return;
+    }
     for (const s of impose(pages)) {
       const c = document.createElement("canvas"); c.width = px * 2; c.height = px;
       const x = c.getContext("2d")!; x.drawImage(cs[s.left - 1], 0, 0); x.drawImage(cs[s.right - 1], px, 0);
@@ -243,36 +226,77 @@ export function BookletScrapStudio({ assets, settings, customs = [], fonts, glyp
   });
 
   const nos = pagesOf(st.active, pages, count);
+  const isSpread = cur?.surface === "spread";
+  const bundleThumbs = (b: Bundle) => b.template_ids.map((id) => tplById.get(id)?.thumbnail_url ?? null);
+  const templateTab = bundleMode ? (
+    <section className="space-y-3">
+      <button type="button" onClick={() => setBundleMode(false)} className="inline-flex items-center gap-1 text-[13px] font-medium text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={14} /> Mẫu theo trang</button>
+      <p className="text-[12px] text-[#71717a]">Bộ mẫu booklet {pages} trang — chọn 1 bộ để thay cả cuốn, ảnh tự điền qua các trang.</p>
+      {bundles.length ? groupByCategory(bundles, library.categories.filter((c) => c.scope === "booklet_bundle")).map((g) => (
+        <div key={g.cat?.id ?? "o"}>
+          <p className="mb-2 text-[13px] font-semibold">{g.cat?.name ?? "Khác"}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {g.items.map((b) => (
+              <div key={b.id} className={cx("rounded-[10px] border bg-white p-1", st.applied === b.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7]")}>
+                <button type="button" onClick={() => applyBundle(b)} className="block w-full text-left">
+                  <span className="grid aspect-square place-items-center overflow-hidden rounded-[6px] bg-[#f4f4f5]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {b.thumbnail_url || bundleThumbs(b)[0] ? <img src={b.thumbnail_url ?? bundleThumbs(b)[0]!} alt="" className="h-full w-full object-contain" loading="lazy" /> : <span className="text-[10px] text-[#a1a1aa]">{b.name}</span>}
+                  </span>
+                  <span className="mt-1 block truncate px-0.5 text-[11px] font-medium">{b.name}</span>
+                </button>
+                <button type="button" onClick={() => setPeek(peek?.id === b.id ? null : b)} className="mt-0.5 inline-flex items-center gap-1 px-0.5 text-[11px] text-[#ff5fa2]"><Eye size={11} /> Xem các trang</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )) : <p className="rounded-[10px] bg-[#fafafa] p-3 text-[13px] text-[#71717a]">Chưa có bộ mẫu {pages} trang.</p>}
+      {peek && (
+        <div className="rounded-[10px] border border-[#e5e5e7] p-2">
+          <p className="mb-1.5 text-[12px] font-semibold">{peek.name}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {bundleSlots(peek.page_count).map((sl, k) => (
+              <figure key={k} className="text-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {bundleThumbs(peek)[k] ? <img src={bundleThumbs(peek)[k]!} alt="" className={cx("h-12 rounded-[3px] border border-[#e5e5e7] object-contain", sl.kind === "booklet_spread" ? "w-24" : "w-12")} /> : <span className={cx("block h-12 rounded-[3px] bg-[#f4f4f5]", sl.kind === "booklet_spread" ? "w-24" : "w-12")} />}
+                <figcaption className="text-[10px] text-[#71717a]">{sl.label}</figcaption>
+              </figure>
+            ))}
+          </div>
+          <Button size="sm" className="mt-2 w-full" onClick={() => applyBundle(peek)}>Dùng bộ mẫu này</Button>
+        </div>
+      )}
+    </section>
+  ) : (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[13px] font-semibold">{isSpread ? `Mẫu trang đôi · trang ${nos.join("–")}` : `Mẫu trang đơn · trang ${nos[0] ?? 1}`}</p>
+        <button type="button" onClick={() => setBundleMode(true)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><LayoutTemplate size={13} /> Đổi mẫu</button>
+      </div>
+      {!st.applied && bundles.length > 0 && !doc?.some((t) => t.layers.length) && (
+        <button type="button" onClick={() => setBundleMode(true)} className="block w-full rounded-[10px] border border-dashed border-[#ff5fa2] bg-[#fff0f6] p-3 text-left text-[12px] text-[#db2777]">Có {bundles.length} bộ mẫu {pages} trang làm sẵn — bấm để chọn nhanh cả cuốn.</button>
+      )}
+      <p className="text-[12px] text-[#71717a]">Chọn mẫu để thay toàn bộ {isSpread ? "cặp trang" : "trang"} đang xem — ảnh chưa dùng tự điền vào các ô.</p>
+      <LibraryGrid items={isSpread ? spreads : singles} cats={library.categories.filter((c) => c.scope === (isSpread ? "booklet_spread" : "booklet_single"))} cols={isSpread ? 2 : 3} onPick={applyPage} />
+    </section>
+  );
   return (
     <>
       <ScrapbookEditor mode="customer" st={st} assets={assets} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
         render={ro} guides={guides} setGuides={setGuides} onRestore={restore} canRestore={!!st.applied && !!doc}
-        toolbar={cur?.surface === "spread" ? <button type="button" onClick={relayout} className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e5e5e7] bg-white px-2.5 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><LayoutTemplate size={12} /> Đổi bố cục trang này</button> : null}
-        empty={<div className="grid aspect-[2/1] w-full max-w-[520px] place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]"><span><ImageIcon size={24} className="mx-auto mb-2" />Tải ảnh lên để web tự dàn booklet scrapbook</span></div>}
         pageLabel={(i, n) => { const no = pagesOf(i, pages, n); return `${no.length === 1 ? `Trang ${no[0]}${i === 0 ? " (bìa)" : ""}` : `Trang ${no[0]}–${no[1]}`} / ${pages}`; }}
+        templateTab={templateTab}
         onBackgroundDbl={(at) => setZoomPage(nos[cur?.surface === "spread" && at.x >= 120 ? 1 : 0])}
         photoTab={(
-          <>
-            <PhotoPanel photos={photos} used={st.used} max={MAX} hint="JPG, PNG, HEIC · mỗi trang 1–2 ảnh · ảnh chỉ xử lý trên máy bạn"
-              onAdd={(f) => { st.addFiles(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} />
-            <section>
-              <p className="mb-2 text-[14px] font-semibold">Số trang</p>
-              <div className="flex gap-1.5">
-                {BOOKLET_PAGES.map((n) => <button key={n} type="button" onClick={() => changePages(n)} className={cx("h-8 min-w-[56px] rounded-full border px-3 text-[13px] font-medium", pages === n ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b]")}>{n} trang</button>)}
-              </div>
-            </section>
-            <section>
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-[14px] font-semibold">Chọn bộ mẫu</p>
-                {doc && <button type="button" onClick={shuffle} title="Rải lại sticker trang đang xem" className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /> Xáo trộn</button>}
-              </div>
-              <TemplateGallery groups={groups} current={st.applied} aspect="3 / 1" cols="grid-cols-2" onPick={(id) => { const s = sets.find((x) => x.id === id); if (s) apply(s, photos); }} />
-            </section>
-          </>
+          <PhotoPanel photos={photos} used={st.used} max={MAX} hint="JPG, PNG, HEIC · ảnh chỉ xử lý trên máy bạn · tự điền vào ô trống của các trang"
+            onAdd={(f) => { addPhotos(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} />
         )}
         bottom={(
           <div className="flex h-14 shrink-0 items-center gap-2 border-t border-[#efeff1] bg-[#f7f7f8] px-3">
-            <div className="min-w-0 flex-1"><BgPicker value={bg} onChange={setBg} shop={backgrounds} /></div>
+            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
+              <span className="shrink-0 text-[13px] font-medium text-[#3f3f46]">Số trang:</span>
+              {BUNDLE_PAGES.map((n) => <button key={n} type="button" onClick={() => changePages(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", pages === n ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
+            </div>
             {user && <Button variant="secondary" size="sm" icon={<Save size={16} />} onClick={saveAccount} loading={busy} disabled={!doc}>Lưu</Button>}
             <DownloadMenu busy={busy} up items={[
               { label: "Các trang (.zip)", icon: <FileStack size={16} />, onClick: dlPages },
