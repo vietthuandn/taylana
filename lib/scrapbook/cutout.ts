@@ -74,12 +74,12 @@ export function charsNeeded(text: string) {
 }
 
 export type Piece = { img: Img | null; ch: string; cx: number; cy: number; w: number; h: number; rot: number };
-export type CutoutOpts = { size: number; curve: number; chaos: number; spacing: number; seed: number };
+export type CutoutOpts = { size: number; curve: number; chaos: number; spacing: number; seed: number; occ?: Map<string, number> }; // occ: đếm lần xuất hiện dùng chung cho nhiều dòng (mảnh không đổi khi xuống dòng)
 const hash = (s: string) => { let h = 2166136261; for (const c of s) { h ^= c.codePointAt(0)!; h = Math.imul(h, 16777619); } return h >>> 0; };
 
 /** Xếp chữ cut-out → các mảnh (mm, gốc toạ độ = tâm dòng chữ). Ngẫu nhiên theo seed + (ký tự, lần xuất hiện) → sửa 1 chữ không làm đổi các chữ khác. */
 export function layoutCutout(text: string, font: LoadedFont | null, o: CutoutOpts) {
-  const H = o.size, occ = new Map<string, number>();
+  const H = o.size, occ = o.occ ?? new Map<string, number>();
   const pick = (ch: string, r: () => number): Img | null => {
     const v = font?.variants.get(ch);
     return v?.length ? v[Math.floor(r() * v.length) % v.length] : null;

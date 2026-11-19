@@ -31,7 +31,8 @@ import { autoDecorate } from "@/lib/scrapbook/generate";
 import { samplePhotos } from "@/lib/scrapbook/samples";
 import { setStickerConfig, type StickerCfg } from "@/lib/scrapbook/decor";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
-import { MAX_PHOTOS, MIN_PHOTOS, PRINT_PX, STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting } from "@/lib/scrapbook/types";
+import { MAX_PHOTOS, MIN_PHOTOS, PRINT_PX, STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting, type Wish, type WishTopic } from "@/lib/scrapbook/types";
+import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
 import { BgPicker } from "@/components/mockup-viewer/BgPicker";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
 import { useFitBox } from "@/components/mockup-viewer/useFitBox";
@@ -43,7 +44,7 @@ import { SurfaceView } from "./SurfaceView";
 import { TemplateGallery, type GalleryGroup } from "./TemplateGallery";
 import { AddSlotModal, FramePicker, PhotoPanel, PickPhotoModal, type Photo } from "./parts";
 import { UserStickerModal } from "./UserStickerModal";
-import { useScrapStudio } from "./useScrapStudio";
+import { customizeText, useScrapStudio } from "./useScrapStudio";
 import { clone } from "./useScrapDoc";
 
 const toBlob = (c: HTMLCanvasElement, type: string, q?: number) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Không xuất được ảnh"))), type, q));
@@ -51,9 +52,11 @@ const NO_EXTRA = {};
 /** chép mẫu thành thiết kế của khách: ô ảnh thứ i ← ảnh thứ i của khách (thiếu thì ô trống "+") */
 export const fromTemplate = (t: Template, photos: { id: string }[]): Template => ({ ...clone(t), layers: clone(t.layers).map((l) => (l.k === "photo" ? { ...l, photo: photos[l.slot]?.id ?? "" } : l)) });
 
-export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frameSets, stickerCfg, backgrounds, boxPackageId }: {
-  assets: ScrapAsset[]; settings: TemplateSetting[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; stickerCfg: StickerCfg; backgrounds: MockupBackground[]; boxPackageId: string | null;
+export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frameSets, stickerCfg, topics, wishes, backgrounds, boxPackageId }: {
+  assets: ScrapAsset[]; settings: TemplateSetting[]; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[]; stickerCfg: StickerCfg;
+  topics: WishTopic[]; wishes: Wish[]; backgrounds: MockupBackground[]; boxPackageId: string | null;
 }) {
+  const T = topics.length ? topics : DEFAULT_TOPICS, W = wishes.length ? wishes : DEFAULT_WISHES;
   setStickerConfig(stickerCfg); // cài đặt sticker tự rải của admin (trước khi sinh mẫu)
   const router = useRouter();
   const [tab, setTab] = useState<"anh" | "sticker" | "chu">("anh");
@@ -67,6 +70,9 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
     onLoad: (meta, list) => (meta.work ? [fromTemplate(meta.work, list)] : undefined),
   });
   const { doc, photos } = st;
+
+  // chọn 1 lớp chữ trên trang → mở tab Chữ (hiện Cài đặt chữ)
+  useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel])) setTab("chu"); }, [st.sel]); // eslint-disable-line react-hooks/exhaustive-deps
   const { area, width } = useFitBox(1);
 
   // ---------- mẫu: tất cả mẫu 5–10 ảnh ----------
@@ -87,7 +93,7 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
     if (!t) return;
     if (ask && st.D.edited && !window.confirm("Áp mẫu mới sẽ thay bố cục hiện tại (giữ sticker và chữ bạn tự thêm). Tiếp tục?")) return;
     const mine = st.doc?.[0]?.layers.filter((l) => l.user && l.k !== "photo") ?? [];
-    const d = fromTemplate(t, list);
+    const d = customizeText(fromTemplate(t, list), st.text); // chữ của mẫu → lớp chữ thường (bấm để sửa)
     st.D.begin(); st.D.setDoc([{ ...d, layers: [...d.layers, ...mine] }]); st.D.setEdited(false); st.setApplied(id); st.setSel(null); st.setEditLayer(null);
   }, [all, st]);
   // lần đầu tải ảnh (chưa áp mẫu nào): tự áp mẫu đầu tiên của nhóm khớp số ảnh
@@ -103,7 +109,7 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
     if (!window.confirm("Khôi phục bố cục gốc của mẫu? Các chỉnh sửa, sticker và chữ đã thêm sẽ bị bỏ (ảnh đã tải vẫn giữ).")) return;
     const t = all.find((x) => x.id === st.applied);
     if (!t) return;
-    st.D.begin(); st.D.setDoc([fromTemplate(t, photos)]); st.D.setEdited(false); st.setSel(null);
+    st.D.begin(); st.D.setDoc([customizeText(fromTemplate(t, photos), st.text)]); st.D.setEdited(false); st.setSel(null);
   }
 
   // ---------- xem trong hộp: "Một món" = đĩa to ở giữa trên nền đang chọn, có bóng ----------
@@ -149,7 +155,7 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
   }
 
   const tabBtn = (id: typeof tab, label: string) => (
-    <button key={id} type="button" onClick={() => setTab(id)} className={cx("flex-1 rounded-[8px] px-3 py-1.5 text-[13px] font-medium", tab === id ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{label}</button>
+    <button key={id} type="button" onClick={() => { setTab(id); if (id !== "chu" && st.sel !== null && st.isTextLayer(st.L[st.sel])) { st.setEditText(null); st.setSel(null); } }} className={cx("flex-1 rounded-[8px] px-3 py-1.5 text-[13px] font-medium", tab === id ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{label}</button>
   );
   const t0 = doc?.[0];
   return (
@@ -177,8 +183,9 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
             onUpload={(f) => st.setStickerFiles(f)} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
         )}
         {tab === "chu" && (
-          <TextTab layers={st.L} sel={st.sel} text={st.text} fonts={fonts} previews={st.fontPreviews} onSelect={st.setSel} onAdd={st.addText} onRemove={st.removeLayer}
-            onPatch={(i, v) => st.patchLayer(i, v)} onBegin={st.D.begin} onText={(role, v) => st.setText((t) => ({ ...t, [role]: v }))} />
+          <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={fonts} previews={st.fontPreviews} onAdd={() => st.addText()}
+            onPatch={(v) => { if (st.sel !== null) st.patchLayer(st.sel, v); }} onBegin={st.D.begin} onDuplicate={() => { if (st.sel !== null) st.duplicate(st.sel); }} onRemove={() => { if (st.sel !== null) st.removeLayer(st.sel); }}
+            topics={T} wishes={W} onWish={st.addWish} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
         )}
       </aside>
 
@@ -204,7 +211,7 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
             <SurfaceView t={t0} width={width || 400} render={st.renderOpts} guides={guides} sel={st.sel} onSel={st.setSel} editLayer={st.editLayer} onEditLayer={st.setEditLayer}
               begin={st.D.begin} setLayers={st.setLayers} adjustOf={(id) => st.adjust[id]} setAdjust={(id, a) => st.setAdjust((c) => ({ ...c, [id]: a }))}
               onDropAsset={(id, at) => { if (id.startsWith("u:")) st.addAsset(id, at); else { const a = assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
-              onDropPhoto={(pid, i) => st.assignPhoto(0, i, pid)} onEmptySlot={(i) => st.setPickFor(i)} onTextEdit={(i) => { setTab("chu"); st.setSel(i); }} tools={st.tools} />
+              onDropPhoto={(pid, i) => st.assignPhoto(0, i, pid)} onEmptySlot={(i) => st.setPickFor(i)} editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue} tools={st.tools} />
           )}
         </div>
         <div className="flex h-16 shrink-0 items-center gap-3 border-t border-[#efeff1] bg-[#f7f7f8] px-4 md:absolute md:inset-x-0 md:bottom-0 md:border-0">

@@ -49,7 +49,7 @@ import { SurfaceView } from "./SurfaceView";
 import { TemplateGallery, type GalleryGroup } from "./TemplateGallery";
 import { AddSlotModal, FramePicker, PhotoPanel, PickPhotoModal, RightsModal, readPhoto, type Photo } from "./parts";
 import { UserStickerModal } from "./UserStickerModal";
-import { useScrapStudio, type UserSticker } from "./useScrapStudio";
+import { customizeText, useScrapStudio, type UserSticker } from "./useScrapStudio";
 import { clone } from "./useScrapDoc";
 
 const MAX = 40;
@@ -68,7 +68,6 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   const params = useSearchParams();
   const [tab, setTab] = useState<"anh" | "sticker" | "chu">("anh");
   const [pages, setPages] = useState<number>(8);
-  const [showTitle, setShowTitle] = useState(true);
   const [rightsOk, setRightsOk] = useState(false);
   const [rightsOpen, setRightsOpen] = useState(false);
   const [guides, setGuides] = useState(true);
@@ -78,12 +77,15 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   const [user, setUser] = useState(false);
   const [designId, setDesignId] = useState<string | null>(params.get("design"));
   const paths = useRef<Record<string, string>>({});
-  const extra = useMemo(() => ({ pages, showTitle, rightsOk }), [pages, showTitle, rightsOk]);
+  const extra = useMemo(() => ({ pages, rightsOk }), [pages, rightsOk]);
   const st = useScrapStudio({
     prefix: "bscrap", max: MAX, assets, frames, fonts, glyphs, defaultText: { main: "Our Memories", sub: "" }, extra, wantAllFonts: tab === "chu",
-    onLoad: (m) => { if (m.pages && (BOOKLET_PAGES as readonly number[]).includes(m.pages)) setPages(m.pages); setShowTitle(m.showTitle !== false); setRightsOk(!!m.rightsOk); },
+    onLoad: (m) => { if (m.pages && (BOOKLET_PAGES as readonly number[]).includes(m.pages)) setPages(m.pages); setRightsOk(!!m.rightsOk); },
   });
   const { doc, photos } = st;
+
+  // chọn 1 lớp chữ trên trang → mở tab Chữ (hiện Cài đặt chữ)
+  useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel])) setTab("chu"); }, [st.sel]); // eslint-disable-line react-hooks/exhaustive-deps
   const spreadSettings = useMemo(() => settings.filter((s) => s.surface_type === "spread"), [settings]);
   const T = topics.length ? topics : DEFAULT_TOPICS, W = wishes.length ? wishes : DEFAULT_WISHES;
 
@@ -102,7 +104,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
       for (const pid of r.data.photoIds) { const b = r.blobs[pid]; if (b) { try { ph.push(await readPhoto(b, "anh.jpg", pid)); } catch { /* bỏ */ } } }
       for (const sid of r.data.stickerIds) { const b = r.blobs[sid]; if (b) { try { const p = await readPhoto(b, "sticker.png", sid); us.push({ id: sid, blob: b, url: p.url, img: p.img }); } catch { /* bỏ */ } } }
       paths.current = r.data.paths ?? {};
-      setPages(r.data.pages); setShowTitle(r.data.showTitle); setRightsOk(r.data.rightsOk);
+      setPages(r.data.pages); setRightsOk(r.data.rightsOk);
       st.hydrate({ photos: ph, stickers: us, text: r.data.text, adjust: r.data.adjust, doc: r.data.doc, applied: r.data.applied });
     })();
   }, [st.ready]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -111,7 +113,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   const sets = useMemo(() => bookletSets(pages, assets, frames, spreadSettings), [pages, assets, frames, spreadSettings]);
   const samples = useMemo(() => samplePhotos(), []);
   const thumbPhotos = useMemo(() => Array.from({ length: 48 }, (_, i) => photos[i]?.img ?? samples[i % samples.length]), [photos, samples]);
-  const tText = useMemo(() => (showTitle ? st.text : { ...st.text, main: "" }), [showTitle, st.text]);
+  const tText = st.text; // tiêu đề bìa = 1 lớp chữ bình thường của mẫu (bấm để sửa, chọn rồi xoá nếu không muốn)
   const ro = useMemo(() => ({ ...st.renderOpts, text: tText }), [st.renderOpts, tText]);
   const pKey = photos.map((p) => p.id).join(",");
   const groups: GalleryGroup[] = useMemo(() => [{
@@ -131,7 +133,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   const apply = useCallback((s: BookletSet, list: Photo[], ask = true) => {
     if (ask && st.D.edited && !window.confirm("Áp bộ mẫu mới sẽ thay bố cục hiện tại (giữ sticker và chữ bạn tự thêm). Tiếp tục?")) return;
     const next = s.surfaces.map((t, i) => {
-      const d = withPhotos(t, list), mine = st.doc?.[i]?.layers.filter((l) => l.user && l.k !== "photo") ?? [];
+      const d = customizeText(withPhotos(t, list), st.text), mine = st.doc?.[i]?.layers.filter((l) => l.user && l.k !== "photo") ?? [];
       return { ...d, layers: [...d.layers, ...mine] };
     });
     st.D.begin(); st.D.setDoc(next); st.D.setEdited(false); st.setApplied(s.id); st.setSel(null); st.setEditLayer(null);
@@ -171,7 +173,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   function restore() {
     const s = sets.find((x) => x.id === st.applied);
     if (!s || !window.confirm("Khôi phục bố cục gốc của bộ mẫu? Các chỉnh sửa, sticker và chữ đã thêm sẽ bị bỏ (ảnh đã tải vẫn giữ).")) return;
-    st.D.begin(); st.D.setDoc(s.surfaces.map((t) => withPhotos(t, photos))); st.D.setEdited(false); st.setSel(null);
+    st.D.begin(); st.D.setDoc(s.surfaces.map((t) => customizeText(withPhotos(t, photos), st.text))); st.D.setEdited(false); st.setSel(null);
   }
 
   // ---------- khung xem: cuốn sách to nhất có thể ----------
@@ -251,14 +253,14 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
     if (!doc) throw new Error("Tải ảnh và chọn mẫu trước");
     const thumb = renderSurface({ template: doc[0], ...ro, size: 360 }).canvas.toDataURL("image/jpeg", 0.8);
     const files = [...photos.map((p) => ({ id: p.id, blob: p.blob })), ...st.ustickers.map((s) => ({ id: s.id, blob: s.blob }))];
-    const r = await saveScrapToAccount({ v: 1, kind: "booklet-scrapbook", pages, showTitle, rightsOk, text: st.text, adjust: st.adjust, doc, applied: st.applied, photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((s) => s.id), paths: paths.current },
+    const r = await saveScrapToAccount({ v: 1, kind: "booklet-scrapbook", pages, showTitle: true, rightsOk, text: st.text, adjust: st.adjust, doc, applied: st.applied, photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((s) => s.id), paths: paths.current },
       files, { id: designId, name: st.text.main || "Booklet Scrapbook", thumbnail: thumb });
     paths.current = r.paths; setDesignId(r.id);
     toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
   });
 
   const tabBtn = (id: typeof tab, label: string) => (
-    <button key={id} type="button" onClick={() => setTab(id)} className={cx("flex-1 rounded-[8px] px-3 py-1.5 text-[13px] font-medium", tab === id ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{label}</button>
+    <button key={id} type="button" onClick={() => { setTab(id); if (id !== "chu" && st.sel !== null && st.isTextLayer(st.L[st.sel])) { st.setEditText(null); st.setSel(null); } }} className={cx("flex-1 rounded-[8px] px-3 py-1.5 text-[13px] font-medium", tab === id ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{label}</button>
   );
   const nos = pagesOf(st.active, pages, count);
   const label = nos.length === 1 ? `Trang ${nos[0]}${st.active === 0 ? " (bìa)" : ""}` : `Trang ${nos[0]}–${nos[1]}`;
@@ -292,15 +294,9 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
             onUpload={(f) => st.setStickerFiles(f)} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
         )}
         {tab === "chu" && (
-          <TextTab layers={st.L} sel={st.sel} text={st.text} fonts={fonts} previews={st.fontPreviews} onSelect={st.setSel} onAdd={st.addText} onRemove={st.removeLayer}
-            onPatch={(i, v) => st.patchLayer(i, v)} onBegin={st.D.begin} onText={(role, v) => st.setText((t) => ({ ...t, [role]: v }))}
-            topics={T} wishes={W} onWish={st.addWish}
-            extra={(
-              <div className="space-y-2 rounded-[10px] border border-[#e5e5e7] p-3">
-                <Toggle checked={showTitle} onChange={setShowTitle} label="Hiện tiêu đề trên bìa" />
-                {showTitle && <input value={st.text.main} onChange={(e) => st.setText((t) => ({ ...t, main: e.target.value }))} placeholder="Tiêu đề bìa" maxLength={60} className="h-9 w-full rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[#ff5fa2]" />}
-              </div>
-            )} />
+          <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={fonts} previews={st.fontPreviews} onAdd={() => st.addText()}
+            onPatch={(v) => { if (st.sel !== null) st.patchLayer(st.sel, v); }} onBegin={st.D.begin} onDuplicate={() => { if (st.sel !== null) st.duplicate(st.sel); }} onRemove={() => { if (st.sel !== null) st.removeLayer(st.sel); }}
+            topics={T} wishes={W} onWish={st.addWish} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
         )}
       </aside>
 
@@ -322,7 +318,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
             <SurfaceView key={st.active} t={cur} width={cur.surface === "spread" ? pagePx * 2 : pagePx} render={ro} guides={guides} sel={st.sel} onSel={st.setSel} editLayer={st.editLayer} onEditLayer={st.setEditLayer}
               begin={st.D.begin} setLayers={st.setLayers} adjustOf={(id) => st.adjust[id]} setAdjust={(id, a) => st.setAdjust((c) => ({ ...c, [id]: a }))}
               onDropAsset={(id, at) => { if (id.startsWith("u:")) st.addAsset(id, at); else { const a = assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
-              onDropPhoto={(pid, i) => st.assignPhoto(st.active, i, pid)} onEmptySlot={(i) => st.setPickFor(i)} onTextEdit={(i) => { setTab("chu"); st.setSel(i); }}
+              onDropPhoto={(pid, i) => st.assignPhoto(st.active, i, pid)} onEmptySlot={(i) => st.setPickFor(i)} editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
               onBackgroundDbl={(at) => setZoomPage(nos[cur.surface === "spread" && at.x >= 120 ? 1 : 0])} tools={st.tools} />
           )}
         </div>

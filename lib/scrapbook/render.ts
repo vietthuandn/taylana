@@ -16,18 +16,19 @@ export type PhotoSrc = Img | null;
 export type Hit = { slot: number; layer: number; x: number; y: number; w: number; h: number; rot: number; shape: string };
 /** khung ảnh đã tải: ảnh khung + mặt nạ vùng ảnh (canvas alpha) nếu có */
 export type LoadedFrame = { img: Img; mask: Img | null; frame: Frame };
-export type TextHit = { role: "main" | "sub" | "custom"; layer: number; x: number; y: number; w: number; h: number; rot: number };
+export type TextHit = { role: "main" | "sub" | "custom"; layer: number; x: number; y: number; w: number; h: number; rot: number; size?: number; lh?: number };
 export type RenderOpts = {
   template: Template; photos?: PhotoSrc[]; adjust?: Record<number, Adjust | undefined>; text: DiscText;
   photoMap?: Record<string, PhotoSrc | undefined>; adjustMap?: Record<string, Adjust | undefined>; // ảnh khách theo id (lớp ảnh có trường photo)
   frames?: Record<string, LoadedFrame | undefined>;
   editLayer?: number | null; // ô ảnh đang chỉnh (chỉ số lớp)
+  hideLayer?: number | null; // lớp chữ đang sửa trực tiếp (ô nhập đè lên) — tạm ẩn khi vẽ
   assets?: Record<string, { img: Img; asset: ScrapAsset } | undefined>;
   size: number; mode?: "preview" | "print"; guides?: boolean; editSlot?: number | null; hoverSlot?: number | null;
   cutoutFonts?: Record<string, LoadedFont | undefined>; // font cut-out đã tải ảnh
 };
 
-export const FONTS = { hand: '"Dancing Script", cursive', marker: '"Patrick Hand", "Itim", cursive', label: '"Pangolin", "Itim", sans-serif' } as const;
+export const FONTS: Record<"hand" | "marker" | "label", string> = { hand: '"Dancing Script", cursive', marker: '"Patrick Hand", "Itim", cursive', label: '"Pangolin", "Itim", sans-serif' } as const;
 /** Đợi font chữ viết tay tải xong (canvas không tự chờ font) */
 export async function loadFonts() {
   if (typeof document === "undefined" || !document.fonts) return;
@@ -210,20 +211,32 @@ function drawText(x: X, l: Extract<Layer, { k: "text" }>, value: string, idx: nu
   const v = value.replace(/\s+$/, "");
   if (!v.trim()) return null;
   x.textAlign = "center"; x.textBaseline = "middle";
-  // chữ cắt dán: mỗi ký tự 1 mảnh giấy (bóng đổ nhẹ), thẳng hàng hoặc cong theo cung
-  if (l.cutout) {
-    const lines = v.split("\n");
-    const lh = l.size * 1.25;
+  const align = l.align ?? "center", lhK = l.lh ?? 1.25;
+  // chữ cắt dán: mỗi ký tự 1 mảnh giấy (bóng đổ nhẹ); xuống dòng theo độ rộng khung, mỗi dòng thẳng hoặc cong theo cung
+  if (l.cutout && !l.arc) {
+    const f = fonts?.[l.cutout.font] ?? null, cu = l.cutout;
+    // đếm lần xuất hiện dùng chung → mảnh của từng ký tự không đổi khi đổi chỗ xuống dòng
+    const lay = (t: string, occ?: Map<string, number>) => layoutCutout(t, f, { size: l.size, curve: cu.curve, chaos: cu.chaos, spacing: cu.spacing, seed: cu.seed, occ });
+    const wrapped: string[] = [];
+    for (const para of v.split("\n")) {
+      let line = "";
+      for (const wd of para.split(/\s+/).filter(Boolean)) {
+        const t = line ? `${line} ${wd}` : wd, b = lay(t).bounds;
+        if (!l.w || b.x1 - b.x0 <= l.w || !line) line = t; else { wrapped.push(line); line = wd; }
+      }
+      wrapped.push(line);
+    }
+    const occ = new Map<string, number>(), lh = l.size * lhK * (1 + Math.abs(cu.curve) * 0.5);
+    const laid = wrapped.map((t) => lay(t, occ));
+    const H = (laid.length - 1) * lh + l.size * 1.3;
+    const W = l.w || Math.max(...laid.map((L) => L.bounds.x1 - L.bounds.x0));
     x.save(); x.translate(l.x, l.y); x.rotate(rad(l.rot));
-    let X0 = Infinity, X1 = -Infinity, Y0 = Infinity, Y1 = -Infinity;
-    lines.forEach((ln, i) => {
-      const { pieces, bounds } = layoutCutout(ln, fonts?.[l.cutout!.font] ?? null, { size: l.size, curve: l.cutout!.curve, chaos: l.cutout!.chaos, spacing: l.cutout!.spacing, seed: l.cutout!.seed + i * 7919 });
-      const oy = (i - (lines.length - 1) / 2) * lh;
-      x.save(); x.translate(0, oy); drawCutout(x, pieces, px); x.restore();
-      X0 = Math.min(X0, bounds.x0); X1 = Math.max(X1, bounds.x1); Y0 = Math.min(Y0, bounds.y0 + oy); Y1 = Math.max(Y1, bounds.y1 + oy);
+    laid.forEach((L, i) => {
+      const dx = align === "left" ? -W / 2 - L.bounds.x0 : align === "right" ? W / 2 - L.bounds.x1 : 0;
+      x.save(); x.translate(dx, (i - (laid.length - 1) / 2) * lh); drawCutout(x, L.pieces, px); x.restore();
     });
     x.restore();
-    return { role: l.role, layer: idx, x: l.x + ((X0 + X1) / 2) * Math.cos(rad(l.rot)) - ((Y0 + Y1) / 2) * Math.sin(rad(l.rot)), y: l.y + ((X0 + X1) / 2) * Math.sin(rad(l.rot)) + ((Y0 + Y1) / 2) * Math.cos(rad(l.rot)), w: X1 - X0, h: Y1 - Y0, rot: l.rot };
+    return { role: l.role, layer: idx, x: l.x, y: l.y, w: W, h: H, rot: l.rot, size: l.size, lh: lhK };
   }
   if (l.arc) {
     // chạy cong theo vòng tròn: phía trên đọc trái → phải theo chiều kim đồng hồ, phía dưới ngược lại (chữ luôn đứng)
@@ -246,29 +259,33 @@ function drawText(x: X, l: Extract<Layer, { k: "text" }>, value: string, idx: nu
     const mx = C + Math.cos(rad(l.arc.mid)) * l.arc.r, my = C + Math.sin(rad(l.arc.mid)) * l.arc.r;
     return { role: l.role, layer: idx, x: mx, y: my, w: Math.min(total, 90), h: size * 1.6, rot: 0 };
   }
-  // chữ thường (nhiều dòng): tự co cho vừa bề ngang khung
-  const lines = v.split("\n");
-  let size = l.size;
+  // chữ thường: tự xuống dòng theo từ trong độ rộng khung (cỡ chữ không đổi), khoảng cách dòng / chữ, căn lề
+  const size = l.size;
   x.font = fontOf(l, size);
-  const widest = Math.max(...lines.map((ln) => x.measureText(ln).width));
-  if (l.w > 0 && widest > l.w) { size *= l.w / widest; x.font = fontOf(l, size); }
-  const w = Math.max(...lines.map((ln) => x.measureText(ln).width)), lh = size * 1.25;
+  const ls = l.ls ?? 0;
+  const ctxLS = x as X & { letterSpacing?: string };
+  if ("letterSpacing" in x) ctxLS.letterSpacing = `${ls}px`;
+  const lines = l.w > 0 ? wrapWords(x, v, l.w) : v.split("\n");
+  const widest = Math.max(...lines.map((ln) => x.measureText(ln).width)), lh = size * lhK;
+  const W = l.w > 0 ? l.w : widest, H = size * 1.3 + lh * (lines.length - 1);
   x.save(); x.translate(l.x, l.y); x.rotate(rad(l.rot));
   if (l.font === "label" && !l.family) {
     // nhãn dán: nền trắng bo tròn, viền màu
-    const pw = w + size * 1.1, ph = size * 1.5 + lh * (lines.length - 1);
+    const pw = widest + size * 1.1, ph = size * 1.5 + lh * (lines.length - 1);
     shadow(x, 0.9, 0.35, 0.2);
     x.beginPath(); x.roundRect(-pw / 2, -ph / 2, pw, ph, Math.min(ph / 2, size)); x.fillStyle = "#ffffff"; x.fill();
     noShadow(x); x.lineWidth = 0.5; x.strokeStyle = l.color; x.stroke();
   }
-  x.fillStyle = l.color;
+  x.fillStyle = l.color; x.textAlign = align;
+  const ax = align === "left" ? -W / 2 : align === "right" ? W / 2 : 0;
   lines.forEach((ln, i) => {
     const y = (i - (lines.length - 1) / 2) * lh + (l.font === "label" && !l.family ? size * 0.04 : 0);
-    if (l.stroke) { x.lineWidth = size * 0.22; x.strokeStyle = "#ffffff"; x.lineJoin = "round"; x.strokeText(ln, 0, y); }
-    x.fillText(ln, 0, y);
+    if (l.stroke) { x.lineWidth = size * 0.22; x.strokeStyle = "#ffffff"; x.lineJoin = "round"; x.strokeText(ln, ax, y); }
+    x.fillText(ln, ax, y);
   });
   x.restore();
-  return { role: l.role, layer: idx, x: l.x, y: l.y, w: w + size, h: size * 1.6 + lh * (lines.length - 1), rot: l.rot };
+  if ("letterSpacing" in x) ctxLS.letterSpacing = "0px";
+  return { role: l.role, layer: idx, x: l.x, y: l.y, w: W, h: H, rot: l.rot, size, lh: lhK };
 }
 
 // ---------- khung lời chúc ----------
@@ -381,6 +398,7 @@ export function renderSurface(o: RenderOpts) {
   for (const li of order) {
     const l = o.template.layers[li];
     x.save();
+    if (o.hideLayer === li) x.globalAlpha = 0;
     if (l.k === "text") { const h = drawText(x, l, textOf(l, o.text), li, o.cutoutFonts); if (h) texts.push(h); x.restore(); continue; }
     x.translate(l.x, l.y); x.rotate(rad(l.rot));
     if (l.k === "wish") drawWish(x, l, o.cutoutFonts);

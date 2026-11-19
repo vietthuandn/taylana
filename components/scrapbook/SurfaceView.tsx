@@ -3,11 +3,14 @@
 /* Khung xem + sửa 1 bề mặt scrapbook (đĩa / trang / cặp trang): bấm chọn lớp, kéo di chuyển, kéo góc phóng / thu, núm xoay,
    bấm đúp ô ảnh để chỉnh ảnh trong khung (kéo dịch, cuộn / nút ± để phóng), bấm ô ảnh trống để chọn ảnh,
    thả sticker / ảnh từ danh sách lên bề mặt, menu chuột phải. Guideline vẽ ở lớp phủ riêng trên cùng (mảnh, mờ,
-   pointer-events: none) — không che hay chặn thao tác. */
-import { useCallback, useEffect, useRef, useState } from "react";
+   pointer-events: none) — không che hay chặn thao tác.
+   Chữ: bấm 1 lần chọn, bấm thêm lần nữa (hoặc bấm đúp) để sửa trực tiếp — ô nhập đè đúng lên lớp chữ (vị trí, góc xoay,
+   độ rộng, font, cỡ, màu, căn lề, khoảng cách dòng); Esc / Ctrl+Enter / bấm ra ngoài để thoát. Kéo 2 nút cạnh trái / phải
+   để đổi độ rộng khung (chữ tự xuống dòng, cỡ giữ nguyên); 4 góc phóng / thu cả khối chữ. */
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
-import { renderSurface, type RenderOpts, type TextHit } from "@/lib/scrapbook/render";
-import { applyBox, boxOf, inside, snap, type Box as LBox } from "@/lib/scrapbook/edit";
+import { FONTS, WISH_FONT, renderSurface, type RenderOpts, type TextHit } from "@/lib/scrapbook/render";
+import { applyBox, applyWidth, boxOf, inside, snap, type Box as LBox } from "@/lib/scrapbook/edit";
 import { surfaceOf } from "@/lib/scrapbook/surface";
 import { C, R_HUB, R_OUT, R_SAFE, type Adjust, type Layer, type Template } from "@/lib/scrapbook/types";
 import { cx } from "@/components/ui/styles";
@@ -25,6 +28,9 @@ export type SurfaceViewProps = {
   onDropPhoto?: (photoId: string, layer: number) => void;
   onEmptySlot?: (layer: number) => void;
   onTextEdit?: (layer: number) => void;
+  // sửa chữ trực tiếp trên trang
+  editText?: number | null; onEditText?: (layer: number | null) => void; selectAllText?: boolean;
+  textValue?: (layer: number) => string; onTextValue?: (layer: number, v: string) => void;
   onBackgroundDbl?: (at: { x: number; y: number }) => void;
   tools?: React.ReactNode;
 };
@@ -34,7 +40,8 @@ export function SurfaceView(p: SurfaceViewProps) {
   const S = surfaceOf(t), k = width / S.w, height = S.h * k;
   const view = useRef<HTMLCanvasElement>(null);
   const textBoxes = useRef<Record<number, LBox>>({});
-  const drag = useRef<{ mode: "move" | "scale" | "rotate" | "pan"; i: number; b0: LBox; sx: number; sy: number; adj0?: Adjust; layer0?: Layer; pid?: string; moved?: boolean } | null>(null);
+  const drag = useRef<{ mode: "move" | "scale" | "rotate" | "pan" | "width"; i: number; b0: LBox; sx: number; sy: number; adj0?: Adjust; layer0?: Layer; pid?: string; moved?: boolean; wasSel?: boolean; side?: -1 | 1 } | null>(null);
+  const editing = p.editText ?? null;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [guide, setGuide] = useState<{ center?: boolean; ring?: number } | null>(null);
   const [, setTick] = useState(0);
@@ -44,11 +51,11 @@ export function SurfaceView(p: SurfaceViewProps) {
   useEffect(() => {
     const v = view.current;
     if (!v || width <= 0) return;
-    const r = renderSurface({ template: t, ...p.render, size: Math.min(3200, Math.round(width * dpr)), editLayer: p.editLayer });
+    const r = renderSurface({ template: t, ...p.render, size: Math.min(3200, Math.round(width * dpr)), editLayer: p.editLayer, hideLayer: editing });
     textBoxes.current = Object.fromEntries(r.texts.map((h: TextHit) => [h.layer, { x: h.x, y: h.y, w: h.w, h: h.h, rot: h.rot }]));
     v.width = r.canvas.width; v.height = r.canvas.height; v.getContext("2d")!.drawImage(r.canvas, 0, 0);
     setTick((x) => x + 1);
-  }, [t, p.render, width, dpr, p.editLayer]);
+  }, [t, p.render, width, dpr, p.editLayer, editing]);
 
   const layerBox = (i: number) => { const l = L[i]; return l ? boxOf(l, l.k === "text" ? textBoxes.current[i] : undefined) : null; };
   const toMM = (e: { clientX: number; clientY: number }) => { const r = view.current!.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * S.w, y: ((e.clientY - r.top) / r.height) * S.h }; };
@@ -62,6 +69,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     setMenu(null);
     if (e.button === 2) return;
     const pt = toMM(e);
+    if (editing !== null) p.onEditText?.(null); // bấm ra ngoài ô đang sửa → thoát chế độ sửa
     if (p.editLayer !== null) {
       const l = L[p.editLayer], b = layerBox(p.editLayer);
       if (l?.k === "photo" && l.photo && b && inside(pt.x, pt.y, b)) {
@@ -73,12 +81,23 @@ export function SurfaceView(p: SurfaceViewProps) {
     }
     const i = layerAt(pt.x, pt.y);
     if (i < 0) { p.onSel(null); return; }
+    const wasSel = p.sel === i && editing === null;
     p.onSel(i);
     const b = layerBox(i);
     if (!b) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     p.begin();
-    drag.current = { mode: "move", i, b0: b, sx: pt.x, sy: pt.y, layer0: L[i] };
+    drag.current = { mode: "move", i, b0: b, sx: pt.x, sy: pt.y, layer0: L[i], wasSel };
+  }
+  function startWidth(e: React.PointerEvent, side: -1 | 1) {
+    if (p.sel === null) return;
+    e.stopPropagation();
+    const b = layerBox(p.sel);
+    if (!b) return;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    p.begin();
+    const pt = toMM(e);
+    drag.current = { mode: "width", i: p.sel, b0: { ...b, x: L[p.sel].x, y: L[p.sel].y }, sx: pt.x, sy: pt.y, layer0: L[p.sel], side };
   }
   function startHandle(e: React.PointerEvent, mode: "scale" | "rotate") {
     if (p.sel === null) return;
@@ -99,6 +118,7 @@ export function SurfaceView(p: SurfaceViewProps) {
       p.setAdjust(d.pid!, { ...d.adj0!, dx: d.adj0!.dx + dx * Math.cos(a) - dy * Math.sin(a), dy: d.adj0!.dy + dx * Math.sin(a) + dy * Math.cos(a) });
       return;
     }
+    if (d.mode === "width") { const l0 = d.layer0!; p.setLayers((ls) => ls.map((l, j) => (j === d.i ? applyWidth(l0, b0, d.side!, pt.x, pt.y) : l)), l0); return; }
     let b: LBox = b0;
     if (d.mode === "move") {
       if (Math.hypot(pt.x - d.sx, pt.y - d.sy) > 0.6) d.moved = true;
@@ -124,13 +144,17 @@ export function SurfaceView(p: SurfaceViewProps) {
     const d = drag.current;
     drag.current = null; setGuide(null);
     // bấm (không kéo) vào ô ảnh trống → chọn ảnh
-    if (d?.mode === "move" && !d.moved) { const l = L[d.i]; if (l?.k === "photo" && l.photo === "") p.onEmptySlot?.(d.i); }
+    if (d?.mode === "move" && !d.moved) {
+      const l = L[d.i];
+      if (l?.k === "photo" && l.photo === "") p.onEmptySlot?.(d.i);
+      else if (d.wasSel && (l?.k === "text" || l?.k === "wish")) p.onEditText?.(d.i); // bấm lần 2 vào lớp chữ đang chọn → sửa
+    }
   };
   function onDbl(e: React.MouseEvent<HTMLCanvasElement>) {
     const pt = toMM(e), i = layerAt(pt.x, pt.y), l = L[i];
     if (!l) { p.onBackgroundDbl?.(pt); return; }
     if (l.k === "photo") { if (l.photo === "") p.onEmptySlot?.(i); else { p.onEditLayer(i); p.onSel(null); } }
-    if (l.k === "text" || l.k === "wish") p.onTextEdit?.(i);
+    if (l.k === "text" || l.k === "wish") { if (p.onEditText) p.onEditText(i); else p.onTextEdit?.(i); }
   }
   function onContext(e: React.MouseEvent<HTMLCanvasElement>) {
     e.preventDefault();
@@ -164,7 +188,9 @@ export function SurfaceView(p: SurfaceViewProps) {
   }, [p.editLayer, zoom]);
   useEffect(() => { if (p.sel === null) setMenu(null); }, [p.sel]);
 
-  const SB = p.sel !== null && p.editLayer === null ? layerBox(p.sel) : null;
+  const SB = p.sel !== null && p.editLayer === null && editing === null ? layerBox(p.sel) : null;
+  const selL = p.sel !== null ? L[p.sel] : null;
+  const sideHandles = selL?.k === "text" && !selL.arc;
   return (
     <div className="relative" style={{ width, height }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
       onDragOver={(e) => { if (e.dataTransfer.types.includes(ASSET_DRAG) || e.dataTransfer.types.includes(PHOTO_DRAG)) e.preventDefault(); }} onDrop={onDrop}>
@@ -202,7 +228,15 @@ export function SurfaceView(p: SurfaceViewProps) {
             <span key={i} onPointerDown={(e) => startHandle(e, "scale")} className="pointer-events-auto absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize rounded-[2px] border-2 border-[#2563eb] bg-white" style={{ left: `${cx0 * 100}%`, top: `${cy0 * 100}%` }} />
           ))}
           <span onPointerDown={(e) => startHandle(e, "rotate")} title="Kéo để xoay" className="pointer-events-auto absolute left-1/2 top-[-22px] h-3.5 w-3.5 -translate-x-1/2 cursor-grab rounded-full border-2 border-[#2563eb] bg-white" />
+          {sideHandles && ([-1, 1] as const).map((side) => (
+            <span key={side} onPointerDown={(e) => startWidth(e, side)} title="Kéo để đổi độ rộng (chữ tự xuống dòng)"
+              className="pointer-events-auto absolute top-1/2 h-5 w-2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-full border-2 border-[#2563eb] bg-white" style={{ left: side < 0 ? "0%" : "100%" }} />
+          ))}
         </div>
+      )}
+      {editing !== null && (L[editing]?.k === "text" || L[editing]?.k === "wish") && p.textValue && p.onTextValue && (
+        <InlineText key={editing} l={L[editing] as Extract<Layer, { k: "text" | "wish" }>} hit={textBoxes.current[editing]} k={k} value={p.textValue(editing)} selectAll={!!p.selectAllText}
+          onChange={(v) => p.onTextValue!(editing, v)} onExit={() => p.onEditText?.(null)} />
       )}
       {SB && p.tools && !menu && (
         <div className="absolute z-10 flex max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-full flex-wrap justify-center gap-0.5 rounded-[8px] border border-[#e5e5e7] bg-white p-0.5 shadow"
@@ -223,3 +257,41 @@ export function SurfaceView(p: SurfaceViewProps) {
   );
 }
 const top = (l: Layer) => l.k === "sticker" && !!l.user;
+
+/** ô nhập nhiều dòng đè đúng lên lớp chữ đang sửa (khớp vị trí, góc xoay, độ rộng, font, cỡ, màu, căn lề, khoảng cách dòng) */
+function InlineText({ l, hit, k, value, selectAll, onChange, onExit }: {
+  l: Extract<Layer, { k: "text" | "wish" }>; hit?: LBox; k: number; value: string; selectAll: boolean; onChange: (v: string) => void; onExit: () => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const [h, setH] = useState(0);
+  const fit = () => { const el = ref.current; if (!el) return; el.style.height = "0px"; const sh = el.scrollHeight; el.style.height = `${sh}px`; setH(sh); };
+  useLayoutEffect(fit, [value, k]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    if (selectAll) el.select(); else el.setSelectionRange(el.value.length, el.value.length);
+    // điện thoại: đợi bàn phím bật lên rồi cuộn để ô đang sửa không bị che
+    const t = setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 350);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const isText = l.k === "text", cut = isText ? !!l.cutout : !!l.cutout;
+  const arc = isText && !!l.arc;
+  const W = isText ? (arc ? Math.max(40, hit?.w ?? 60) : (hit?.w ?? l.w)) : l.w * 0.84;
+  const cx0 = arc ? hit?.x ?? l.x : l.x, cy0 = arc ? hit?.y ?? l.y : l.y, rot = arc ? 0 : l.rot;
+  const size = isText ? l.size : Math.min(6, l.h / 4);
+  const family = cut ? '"Be Vietnam Pro", sans-serif' : isText ? (l.family ? `"${l.family}", "Be Vietnam Pro", sans-serif` : FONTS[l.font]) : `"${l.family ?? WISH_FONT}", "Itim", sans-serif`;
+  const style: React.CSSProperties = {
+    position: "absolute", left: (cx0 - W / 2) * k, top: cy0 * k - h / 2, width: W * k, transform: `rotate(${rot}deg)`, transformOrigin: "50% 50%",
+    fontFamily: family, fontSize: size * k, lineHeight: isText ? l.lh ?? 1.25 : 1.3, letterSpacing: isText && !cut ? `${(l.ls ?? 0) * k}px` : undefined,
+    fontWeight: cut ? 600 : isText && (l.bold || (!l.family && l.font === "hand")) ? 700 : 400, fontStyle: isText && l.italic ? "italic" : "normal",
+    textAlign: isText ? l.align ?? "center" : "center", color: cut ? "#3f3f46" : isText ? l.color : l.ink,
+    background: cut || !isText ? "rgba(255,255,255,0.78)" : "transparent", padding: 0, margin: 0, border: 0, resize: "none", overflow: "hidden",
+    outline: "1.5px dashed #2563eb", outlineOffset: 2, whiteSpace: "pre-wrap", overflowWrap: "break-word", caretColor: "#2563eb", zIndex: 30,
+  };
+  return (
+    <textarea ref={ref} value={value} rows={1} spellCheck={false} aria-label="Sửa chữ" style={style}
+      onChange={(e) => onChange(e.target.value)} onBlur={onExit} onPointerDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Escape" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) { e.preventDefault(); onExit(); } }} />
+  );
+}

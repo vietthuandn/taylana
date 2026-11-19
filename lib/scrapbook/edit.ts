@@ -31,3 +31,13 @@ export function snap(x: number, y: number, tol = 1.6): { x: number; y: number; g
   for (const R of RINGS) if (Math.abs(r - R) < tol) return { x: C + (dx / r) * R, y: C + (dy / r) * R, guide: { ring: R } };
   return { x, y, guide: {} };
 }
+
+/** kéo cạnh trái / phải của khung chữ: đổi ĐỘ RỘNG (chữ tự xuống dòng, cỡ chữ giữ nguyên), cạnh đối diện đứng yên. side = −1 trái · 1 phải */
+export function applyWidth(l: Layer, b0: Box, side: -1 | 1, px: number, py: number, min = 8): Layer {
+  const a = (b0.rot * Math.PI) / 180, ux = Math.cos(a), uy = Math.sin(a);
+  const lx = (px - b0.x) * ux + (py - b0.y) * uy; // toạ độ con trỏ theo trục ngang của khung
+  const fixed = (-side * b0.w) / 2;
+  const w = Math.max(min, side * (lx - fixed));
+  const c = fixed + (side * w) / 2; // tâm mới (theo trục ngang)
+  return { ...l, w, x: b0.x + c * ux, y: b0.y + c * uy } as Layer;
+}

@@ -9,7 +9,7 @@ import { loadImg } from "@/lib/mockup/images";
 import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { loadFrameImages } from "@/lib/scrapbook/frames";
 import { loadDraft, saveDraft, type DraftMeta } from "@/lib/scrapbook/draft";
-import { loadFonts, type LoadedFrame, type RenderOpts } from "@/lib/scrapbook/render";
+import { loadFonts, textOf, type LoadedFrame, type RenderOpts } from "@/lib/scrapbook/render";
 import { largestEmpty } from "@/lib/scrapbook/place";
 import { addPoint, surfaceOf } from "@/lib/scrapbook/surface";
 import { drawCutout, layoutCutout, loadCutoutFont, type CutoutFont, type Glyph, type LoadedFont } from "@/lib/scrapbook/cutout";
@@ -18,6 +18,10 @@ import { toast } from "@/components/ui/kit";
 import { readPhoto, uid, type NewSlot, type Photo } from "./parts";
 import { clone, useScrapDoc } from "./useScrapDoc";
 
+/** chữ của mẫu (dòng chính / phụ) → lớp chữ bình thường mang nội dung riêng (khách bấm để sửa, chọn rồi xoá nếu không muốn) */
+export function customizeText(t: Template, text: DiscText): Template {
+  return { ...t, layers: t.layers.flatMap((l) => (l.k === "text" && l.role !== "custom" ? ((l.role === "main" ? text.main : text.sub).trim() ? [{ ...l, role: "custom" as const, value: l.role === "main" ? text.main : text.sub }] : []) : [l])) };
+}
 export type UserSticker = { id: string; blob: Blob; url: string; img: HTMLCanvasElement };
 const btn = "inline-flex h-7 items-center gap-1 rounded-[6px] px-2 text-[12px] hover:bg-[#f4f4f5]";
 
@@ -33,6 +37,9 @@ export function useScrapStudio(o: {
   const [ustickers, setUstickers] = useState<UserSticker[]>([]);
   const [active, setActive] = useState(0);
   const [sel, setSel] = useState<number | null>(null);
+  const [editText, setEditTextS] = useState<number | null>(null); // lớp chữ đang sửa trực tiếp trên trang
+  const [selectAll, setSelectAll] = useState(false);
+  const [wishOpen, setWishOpenS] = useState(false); // khối "Lời chúc có sẵn" (mỗi lúc chỉ làm 1 việc)
   const [editLayer, setEditLayer] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
   const [assetImgs, setAssetImgs] = useState<Awaited<ReturnType<typeof loadAssetImages>>>({});
@@ -163,7 +170,7 @@ export function useScrapStudio(o: {
   }
   function removeLayer(i: number) {
     const l = L[i]; if (!l) return;
-    D.begin(); setLayers((ls) => ls.filter((_, j) => j !== i), l.k === "photo" ? undefined : l); setSel(null); setEditLayer(null);
+    D.begin(); setLayers((ls) => ls.filter((_, j) => j !== i), l.k === "photo" ? undefined : l); setSel(null); setEditLayer(null); setEditTextS(null);
   }
   function reorder(i: number, d: number) {
     const j = i + d; if (j < 0 || j >= L.length) return;
@@ -184,18 +191,55 @@ export function useScrapStudio(o: {
     }
     D.begin(); setLayers((ls) => [...ls, l], l); setSel(L.length);
   }
+  // ---------- chữ: sửa trực tiếp trên trang ----------
+  const isTextLayer = (l?: Layer | null) => l?.k === "text" || l?.k === "wish";
+  const textValue = (i: number) => { const l = L[i]; return l?.k === "text" ? textOf(l, text) : l?.k === "wish" ? l.value : ""; };
+  function setTextValue(i: number, v: string) {
+    const l = L[i];
+    if (l?.k === "text" && l.role !== "custom") setText((t) => ({ ...t, [l.role]: v }));
+    else if (l?.k === "text" || l?.k === "wish") setLayers((ls) => ls.map((x, j) => (j === i ? ({ ...x, value: v } as Layer) : x)), l);
+  }
+  /** vào / thoát chế độ sửa chữ. Thoát mà chữ trống → xoá luôn lớp đó */
+  function setEditText(i: number | null, all = false, noBegin = false) {
+    if (i === null) {
+      const cur0 = editText;
+      setEditTextS(null); setSelectAll(false);
+      if (cur0 !== null && isTextLayer(L[cur0]) && !textValue(cur0).trim()) { setLayers((ls) => ls.filter((_, j) => j !== cur0), L[cur0]); setSel(null); }
+      return;
+    }
+    if (!noBegin) D.begin();
+    setSel(i); setEditTextS(i); setSelectAll(all); setWishOpenS(false);
+  }
+  function setWishOpen(v: boolean) {
+    setWishOpenS(v);
+    if (v) { if (editText !== null) setEditText(null); setSel(null); }
+  }
+  useEffect(() => { setEditTextS(null); }, [active]);
+  // chọn 1 lớp chữ trên trang → đóng khối Lời chúc (hiện Cài đặt chữ)
+  useEffect(() => { if (sel !== null && isTextLayer(L[sel])) setWishOpenS(false); }, [sel]); // eslint-disable-line react-hooks/exhaustive-deps
+  const newTextAt = (value: string, size: number): Layer | null => {
+    if (!cur) return null;
+    const S = surfaceOf(cur), e = largestEmpty(S, L), w = S.w * 0.6;
+    return { k: "text", role: "custom", value, x: Math.min(S.w - w / 2, Math.max(w / 2, e.x)), y: e.y, w, size, rot: 0, font: "hand", color: "#3f3f46", family: "Dancing Script", align: "center", lh: 1.25, user: true };
+  };
+  /** "+ Thêm chữ": chữ mẫu ở vùng trống lớn nhất, chọn luôn + vào chế độ sửa (bôi đen toàn bộ) */
   function addText() {
     if (!cur) { toast("Tải ảnh và chọn mẫu trước khi thêm chữ.", "err"); return; }
-    const S = surfaceOf(cur);
-    const l: Layer = { k: "text", role: "custom", value: "Chữ của bạn", x: S.round ? 60 : S.w / 2, y: S.round ? 40 : S.h * 0.25, w: 80, size: 7, rot: 0, font: "hand", color: "#3f3f46", family: "Dancing Script", user: true };
-    D.begin(); setLayers((ls) => [...ls, l], l); setSel(L.length);
+    const l = newTextAt("Nhập chữ của bạn", surfaceOf(cur).round ? 6 : 7)!;
+    D.begin(); setLayers((ls) => [...ls, l], l);
+    setEditText(L.length, true, true);
   }
+  /** lời chúc có sẵn → lớp mới ở vùng trống lớn nhất (trang booklet: khung lời chúc · đĩa: chữ thường), đóng khối Lời chúc, chọn lớp mới */
   function addWish(content: string) {
     if (!cur) { toast("Chọn mẫu trước khi thêm lời chúc.", "err"); return; }
-    if (sel !== null && L[sel]?.k === "wish") { D.begin(); patchLayer(sel, { value: content }); return; }
-    const S = surfaceOf(cur), e = largestEmpty(S, L), w = Math.max(36, Math.min(78, e.r * 2 * 0.9)), h = Math.max(22, Math.min(60, w * 0.55));
-    const l: Layer = { k: "wish", x: e.x, y: e.y, w, h, rot: 0, card: "note", color: "#fff3a8", ink: "#3f3f46", value: content, seed: Math.floor(Math.random() * 1e6), user: true };
-    D.begin(); setLayers((ls) => [...ls, l], l); setSel(L.length);
+    const S = surfaceOf(cur);
+    let l: Layer;
+    if (S.round) l = { ...newTextAt(content, 4.5)!, family: "Patrick Hand" } as Layer;
+    else {
+      const e = largestEmpty(S, L), w = Math.max(36, Math.min(78, e.r * 2 * 0.9)), h = Math.max(22, Math.min(60, w * 0.55));
+      l = { k: "wish", x: e.x, y: e.y, w, h, rot: 0, card: "note", color: "#fff3a8", ink: "#3f3f46", value: content, seed: Math.floor(Math.random() * 1e6), user: true };
+    }
+    D.begin(); setLayers((ls) => [...ls, l], l); setWishOpenS(false); setSel(L.length);
   }
   function addSlot(v: NewSlot) {
     if (!cur) return;
@@ -218,7 +262,7 @@ export function useScrapStudio(o: {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey ? D.redo() : D.undo()) setSel(null); return; }
       if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); if (D.redo()) setSel(null); return; }
-      if (e.key === "Escape") { setSel(null); setEditLayer(null); }
+      if (e.key === "Escape") { setSel(null); setEditLayer(null); if (editText !== null) setEditText(null); }
       if (sel === null) return;
       if (mod && e.key.toLowerCase() === "d") { e.preventDefault(); duplicate(sel); return; }
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeLayer(sel); return; }
@@ -249,6 +293,7 @@ export function useScrapStudio(o: {
     setPhotos(v.photos); setUstickers(v.stickers); setText(v.text); setAdjust(v.adjust); D.setDoc(v.doc); D.setEdited(true); setApplied(v.applied); D.reset(); setActive(0); setSel(null);
   }
   return {
+    editText, setEditText, selectAll, textValue, setTextValue, wishOpen, setWishOpen, isTextLayer,
     hydrate, D, doc, cur, L, ready, photos, setPhotos, used, addFiles, replacePhoto, removePhoto, reorderPhotos, assignPhoto,
     text, setText, adjust, setAdjust, applied, setApplied, ustickers, addUserSticker, removeUserSticker, stickerFiles, setStickerFiles,
     assetImgs, frameImgs, cutFonts, fontPreviews, renderOpts, active, setActive, sel, setSel, editLayer, setEditLayer,
