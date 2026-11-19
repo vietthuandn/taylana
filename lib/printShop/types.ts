@@ -5,6 +5,7 @@ export type Batch = { id: string; name: string; status: "doing" | "done"; create
 export type Progress = { run?: { orderIds: string[]; mode: "group" | "order"; merge: boolean; at: string }; done?: Record<string, boolean>; flipped?: Record<string, boolean> };
 export type Order = {
   id: string; batch_id: string; seq: number; order_code: string; username: string; product: string; variation: string; qty: number;
+  lines: { product: string; variation: string; qty: number }[]; // các dòng sản phẩm của đơn (gộp theo mã đơn)
   package_id: string | null; addons: string[]; music: boolean; unresolved: boolean; status: "new" | "printed"; created_at?: string;
 };
 export type Item = { id: string; order_id: string; slot: string; file_name: string; w: number; h: number; rot: number };
