@@ -34,6 +34,16 @@ export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, on
     return groups.filter((g) => n.get(g.id)).map((g) => ({ ...g, count: n.get(g.id)! })).sort((a, b) => a.sort_order - b.sort_order || b.count - a.count);
   }, [lib, groups]);
   const tagList = useMemo(() => tagCounts(lib).slice(0, 24), [lib]);
+  const tagBox = useRef<HTMLDivElement>(null);
+  const [tagMore, setTagMore] = useState(false);
+  useEffect(() => {
+    const el = tagBox.current;
+    if (!el) return;
+    const check = () => setTagMore(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check); ro.observe(el);
+    return () => ro.disconnect();
+  }, [tagList, tagsOpen]);
   const list = useMemo(() => lib.filter((a) => (grp === "all" || a.group_id === grp) && (!tag || (a.tags ?? []).includes(tag)) && (tone === "all" || a.tone === tone)), [lib, grp, tag, tone]);
   useEffect(() => { setLimit(24); }, [grp, tag, tone]);
   // tải dần khi cuộn tới cuối lưới
@@ -44,7 +54,7 @@ export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, on
     io.observe(el);
     return () => io.disconnect();
   }, [list.length]);
-  const chip = (on: boolean) => cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
+  const chip = (on: boolean) => cx("h-7 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
   return (
     <div className="space-y-3">
       {onUpload && (
@@ -70,24 +80,25 @@ export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, on
         </section>
       )}
       {chips.length > 0 && (
-        <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+        <div className="flex flex-wrap gap-1.5">
           <button type="button" onClick={() => setGrp("all")} className={chip(grp === "all")}>Tất cả</button>
           {chips.map((g) => <button key={g.id} type="button" onClick={() => setGrp(g.id)} className={chip(grp === g.id)}>{g.name}</button>)}
         </div>
       )}
       {tagList.length > 0 && (
-        <div className="flex items-start gap-1.5">
-          <div className={cx("flex flex-1 gap-1.5", tagsOpen ? "flex-wrap" : "no-scrollbar overflow-x-auto")}>
+        <div>
+          {/* tag: tự xuống dòng, quá 2 dòng thì thu gọn + "Xem thêm" */}
+          <div ref={tagBox} className={cx("flex flex-wrap gap-1.5 overflow-hidden", !tagsOpen && "max-h-[54px]")}>
             {tagList.map((t) => <button key={t.tag} type="button" onClick={() => setTag(tag === t.tag ? "" : t.tag)} className={cx(chip(tag === t.tag), "h-6 px-2 text-[11px]")}>#{t.tag}</button>)}
           </div>
-          <button type="button" onClick={() => setTagsOpen((v) => !v)} className="h-6 shrink-0 text-[11px] font-medium text-[#71717a] hover:text-[#ff5fa2]" aria-expanded={tagsOpen}>{tagsOpen ? "Thu gọn" : "Thêm"}</button>
+          {(tagMore || tagsOpen) && <button type="button" onClick={() => setTagsOpen((v) => !v)} className="mt-1 text-[12px] font-medium text-[#71717a] hover:text-[#ff5fa2]" aria-expanded={tagsOpen}>{tagsOpen ? "Thu gọn" : "Xem thêm"}</button>}
         </div>
       )}
-      <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
+      <div className="flex flex-wrap gap-1.5">
         <button type="button" onClick={() => setTone("all")} className={chip(tone === "all")}>Mọi màu</button>
         {TONES.filter((t) => t.id !== "any").map((t) => (
           <button key={t.id} type="button" onClick={() => setTone(t.id)} title={t.name} aria-label={t.name}
-            className={cx("h-7 w-7 shrink-0 rounded-full border-2", tone === t.id ? "border-[#ff5fa2]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: t.hex }} />
+            className={cx("h-7 w-7 rounded-full border-2", tone === t.id ? "border-[#ff5fa2]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: t.hex }} />
         ))}
       </div>
       {list.length ? (

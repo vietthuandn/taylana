@@ -54,17 +54,17 @@ export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove
       <input ref={fileIn} type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => { if (e.target.files) onAdd([...e.target.files]); e.target.value = ""; }} />
       <input ref={replaceIn} type="file" accept={ACCEPT} className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f && replaceId.current) onReplace(replaceId.current, f); }} />
       {photos.length > 0 && (
-        <div className="mt-3 grid grid-cols-5 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           {photos.map((p, i) => (
             <div key={p.id} draggable onDragStart={(e) => { setDragIdx(i); e.dataTransfer.setData(PHOTO_DRAG, p.id); e.dataTransfer.effectAllowed = "copyMove"; }} onDragEnd={() => setDragIdx(null)} onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); if (dragIdx !== null && dragIdx !== i) onReorder(dragIdx, i); setDragIdx(null); }}
               title={p.name} className={cx("group relative aspect-square cursor-grab overflow-hidden rounded-[8px] border bg-[#f4f4f5]", used.has(p.id) ? "border-[#e5e5e7]" : "border-dashed border-[#f59e0b]", dragIdx === i && "opacity-40")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt="" className={cx("h-full w-full object-cover", !used.has(p.id) && "opacity-70")} draggable={false} />
-              <span className={cx("pointer-events-none absolute left-1 top-1 rounded-[4px] px-1 text-[9px] font-medium leading-[14px] text-white", used.has(p.id) ? "bg-[#16a34a]" : "bg-[#f59e0b]")}>{used.has(p.id) ? "Đang dùng" : "Chưa dùng"}</span>
-              <div className="absolute bottom-1 right-1 flex gap-1 md:inset-0 md:items-center md:justify-center md:bg-black/40 md:opacity-0 md:group-hover:opacity-100">
-                <button type="button" title="Thay ảnh" aria-label="Thay ảnh" onClick={() => { replaceId.current = p.id; replaceIn.current?.click(); }} className="grid h-6 w-6 place-items-center rounded-full bg-white text-[#18181b] shadow"><RefreshCw size={12} /></button>
-                <button type="button" title="Xoá" aria-label="Xoá" onClick={() => onRemove(p.id)} className="grid h-6 w-6 place-items-center rounded-full bg-white text-[#dc2626] shadow"><Trash2 size={12} /></button>
+              <span className={cx("pointer-events-none absolute left-1.5 top-1.5 rounded-[4px] px-1.5 text-[10px] font-medium leading-[16px] text-white", used.has(p.id) ? "bg-[#16a34a]" : "bg-[#f59e0b]")}>{used.has(p.id) ? "Đang dùng" : "Chưa dùng"}</span>
+              <div className="absolute bottom-1.5 right-1.5 flex gap-1.5 md:inset-0 md:items-center md:justify-center md:bg-black/40 md:opacity-0 md:group-hover:opacity-100">
+                <button type="button" title="Thay ảnh" aria-label="Thay ảnh" onClick={() => { replaceId.current = p.id; replaceIn.current?.click(); }} className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#18181b] shadow"><RefreshCw size={14} /></button>
+                <button type="button" title="Xoá" aria-label="Xoá" onClick={() => onRemove(p.id)} className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#dc2626] shadow"><Trash2 size={14} /></button>
               </div>
             </div>
           ))}
