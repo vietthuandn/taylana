@@ -4,6 +4,7 @@
    Mỗi khung: ảnh PNG (upload hoặc link), vùng ảnh nằm dưới khung (tự dò vùng trong suốt bên trong / kéo 4 góc /
    ảnh mặt nạ đen trắng cho vùng tròn, tim, hình bất kỳ), tỉ lệ (cao / rộng), bật/tắt. Upload nhiều khung cùng lúc:
    mỗi khung tự dò vùng ảnh, admin duyệt lại. Xem trước bằng ảnh thử. */
+import { promptDialog } from "@/components/ui/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Crop, Plus, Trash2, Upload, Wand2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -160,7 +161,7 @@ export function FrameAdmin() {
                 </button>
                 {!s.is_active && <Badge>Đang tắt</Badge>}
                 <Toggle checked={s.is_active} onChange={(v) => patchSet(s.id, { is_active: v }, v ? "Đã bật bộ khung." : "Đã tắt bộ khung.")} label="" />
-                <button type="button" onClick={async () => { const n = window.prompt("Tên bộ khung", s.name); if (n?.trim()) await patchSet(s.id, { name: n.trim() }); }} className="text-[12px] text-[#52525b] hover:text-[#ff5fa2]">Đổi tên</button>
+                <button type="button" onClick={async () => { const n = await promptDialog({ title: "Đổi tên bộ khung", label: "Tên bộ khung", defaultValue: s.name, confirmText: "Đổi tên" }); if (n?.trim()) await patchSet(s.id, { name: n.trim() }); }} className="text-[12px] text-[#52525b] hover:text-[#ff5fa2]">Đổi tên</button>
                 <SortButtons onUp={() => moveSet(i, -1)} onDown={() => moveSet(i, 1)} first={i === 0} last={i === sets.length - 1} />
                 <button type="button" onClick={() => removeSet(s)} aria-label="Xoá bộ" className="text-[#a1a1aa] hover:text-[#dc2626]"><Trash2 size={15} /></button>
               </li>

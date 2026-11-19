@@ -1,5 +1,6 @@
 "use client";
 
+import { promptDialog } from "@/components/ui/dialog";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
@@ -66,7 +67,7 @@ export function MyDesigns() {
                 <div className="flex gap-1.5">
                   <Button href={openHref(r)} size="sm" className="flex-1">Mở</Button>
                   <button className={btnClass("secondary", "sm")} onClick={async () => {
-                    const name = prompt("Tên mới cho thiết kế:", r.name);
+                    const name = await promptDialog({ title: "Đổi tên thiết kế", label: "Tên mới", defaultValue: r.name, confirmText: "Đổi tên" });
                     if (name === null) return;
                     try { await renameDesign(r.id, name); await load(); } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
                   }}>Đổi tên</button>

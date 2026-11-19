@@ -3,6 +3,7 @@
 /* Admin → Chất liệu Scrapbook → tab "Lời chúc": chủ đề (thêm, đổi tên, bật/tắt, thứ tự, xoá) và lời chúc theo chủ đề
    (nội dung, ngôn ngữ, bật/tắt, thứ tự). Khách thấy ở Booklet Scrapbook → tab Chữ → "Lời chúc có sẵn".
    "Nạp dữ liệu mẫu": thêm 7 chủ đề × 10 lời chúc mẫu (bỏ qua chủ đề đã có). */
+import { promptDialog } from "@/components/ui/dialog";
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -109,7 +110,7 @@ export function WishAdmin() {
         <Card title={`Lời chúc · ${topic.name}`} actions={
           <div className="flex items-center gap-2">
             <Toggle checked={topic.is_active} onChange={(v) => patch("wish_topics", topic.id, { is_active: v }, v ? "Đã bật chủ đề." : "Đã tắt chủ đề.")} label="Hiện với khách" />
-            <Button size="sm" variant="secondary" onClick={async () => { const n = window.prompt("Tên chủ đề", topic.name); if (n?.trim()) await patch("wish_topics", topic.id, { name: n.trim() }); }}>Đổi tên</Button>
+            <Button size="sm" variant="secondary" onClick={async () => { const n = await promptDialog({ title: "Đổi tên chủ đề", label: "Tên chủ đề", defaultValue: topic.name, confirmText: "Đổi tên" }); if (n?.trim()) await patch("wish_topics", topic.id, { name: n.trim() }); }}>Đổi tên</Button>
             <Button size="sm" variant="secondary" className="!text-[#dc2626]" icon={<Trash2 size={14} />} onClick={() => remove("wish_topics", topic.id, `Xoá chủ đề "${topic.name}" và toàn bộ lời chúc trong đó?`)}>Xoá</Button>
           </div>}>
           <div className="mb-4 grid gap-2 sm:grid-cols-[1fr_120px_auto] sm:items-end">

@@ -215,8 +215,10 @@ export function TemplateEditor() {
       setTpl({ ...tpl, layers: [...tpl.layers, l] }); setSel(tpl.layers.length); setDirty(true); return;
     }
     const slot = Math.max(-1, ...tpl.layers.flatMap((l) => (l.k === "photo" ? [l.slot] : []))) + 1;
-    const w = Math.max(16, Math.min(S.round ? 30 : 48, (e.r * 2 * 0.95) / Math.hypot(1, ratio)));
-    const l = apply({ k: "photo", slot, x: r1(e.x), y: r1(e.y), w: r1(w), h: r1(w * ratio), rot: 0, shape: "rect", seed: Date.now() % 1e6 });
+    // ô mới TO: ~45% bề rộng 1 trang / đường kính đĩa; hết chỗ trống thì đặt giữa trang, xoay nhẹ
+    let w = 54; if (w * ratio > S.h * 0.8) w = (S.h * 0.8) / ratio;
+    const fits = e.r * 2 >= Math.hypot(w, w * ratio) * 0.75, cx0 = S.kind === "spread" ? (e.x < 120 ? 60 : 180) : S.w / 2;
+    const l = apply({ k: "photo", slot, x: r1(fits ? e.x : cx0), y: r1(fits ? e.y : S.h / 2), w: r1(w), h: r1(w * ratio), rot: fits ? 0 : Math.round((Math.random() * 2 - 1) * 8), shape: "rect", seed: Date.now() % 1e6 });
     setTpl({ ...tpl, layers: [...tpl.layers, l] }); setSel(tpl.layers.length); setDirty(true);
   }
   // tên lớp dễ đọc: "Ô ảnh 3 · Polaroid trắng", "Sticker · Mèo đen", "Băng dính · Washi hồng"…

@@ -3,6 +3,7 @@
 /* Admin → Chất liệu Scrapbook → tab "Font cut-out": bộ font chữ cắt dán (mỗi ký tự nhiều biến thể).
    Tải tờ chữ → tách từng mảnh (lib/stickerSlicer, giữ nền giấy của mảnh) → gán ký tự bằng nhận diện (lib/cutoutOcr:
    tiền xử lý + Tesseract + font mẫu + dữ liệu học, chạy trong Web Worker) hoặc "Theo thứ tự" (chuỗi ký tự đọc trái → phải, trên → dưới) → duyệt / sửa → lưu vào cutout_glyphs. */
+import { promptDialog } from "@/components/ui/dialog";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Combine, Link2, Plus, Square, Trash2, Upload, Wand2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -92,7 +93,7 @@ export function CutoutAdmin() {
     await after("Đã đổi thứ tự.");
   }
   async function editGlyph(g: Glyph) {
-    const v = window.prompt(`Ký tự của mảnh này (hiện tại: ${charLabel(g.ch)})`, g.ch);
+    const v = await promptDialog({ title: "Sửa ký tự của mảnh", message: `Hiện tại: ${charLabel(g.ch)}`, label: "Ký tự mới", defaultValue: g.ch, confirmText: "Lưu ký tự" });
     if (v === null) return;
     const ch = keyToChar([...v.trim()].pop() ?? "");
     if (!ch || ch === g.ch) return;

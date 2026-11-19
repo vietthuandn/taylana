@@ -1,10 +1,10 @@
 "use client";
 
 /* Scrapbook → tab "Sticker": "Sticker của bạn" (khách tự tải, xoá nền + viền trắng) ở đầu, rồi thư viện:
-   tìm kiếm + lọc theo nhóm / tông màu, lưới 4 cột trên nền caro, tải dần khi cuộn.
+   lọc theo nhóm / tông màu, lưới 4 cột trên nền caro, tải dần khi cuộn.
    Bấm để thêm (nửa dưới bề mặt, lớp trên cùng), hoặc kéo thả thẳng lên bề mặt. Chỉ lấy chất liệu đang bật trong admin. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, Trash2, Upload } from "lucide-react";
+import { Trash2, Upload } from "lucide-react";
 import { ASSET_DRAG } from "./SurfaceView";
 import { TONES, type ScrapAsset } from "@/lib/scrapbook/types";
 import { cx } from "@/components/ui/styles";
@@ -14,21 +14,18 @@ const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[len
 export { ASSET_DRAG };
 export type UserStickerItem = { id: string; url: string };
 
-export function StickerTab({ assets, onAdd, mine = [], onUpload, onAddMine, onRemoveMine, decor = [], onAddDecor }: {
+export function StickerTab({ assets, onAdd, mine = [], onUpload, onAddMine, onRemoveMine }: {
   assets: ScrapAsset[]; onAdd: (a: ScrapAsset) => void;
-  decor?: { id: string; url: string; name: string }[]; onAddDecor?: (id: string) => void; // khung trang trí (khung PNG không chứa ảnh)
   mine?: UserStickerItem[]; onUpload?: (files: File[]) => void; onAddMine?: (id: string) => void; onRemoveMine?: (id: string) => void;
 }) {
   const upIn = useRef<HTMLInputElement>(null);
-  const [q, setQ] = useState("");
   const [grp, setGrp] = useState("all");
   const [tone, setTone] = useState("all");
   const [limit, setLimit] = useState(24);
   const more = useRef<HTMLDivElement>(null);
   const list = useMemo(() => assets.filter((a) => a.is_active && a.grp !== "texture"
-    && (grp === "all" || a.grp === grp) && (tone === "all" || a.tone === tone)
-    && (!q.trim() || a.name.toLowerCase().includes(q.trim().toLowerCase()))), [assets, grp, tone, q]);
-  useEffect(() => { setLimit(24); }, [grp, tone, q]);
+    && (grp === "all" || a.grp === grp) && (tone === "all" || a.tone === tone)), [assets, grp, tone]);
+  useEffect(() => { setLimit(24); }, [grp, tone]);
   // tải dần khi cuộn tới cuối lưới
   useEffect(() => {
     const el = more.current;
@@ -62,25 +59,6 @@ export function StickerTab({ assets, onAdd, mine = [], onUpload, onAddMine, onRe
           ) : <p className="text-[12px] text-[#a1a1aa]">PNG nền trong suốt dùng luôn · ảnh chụp sẽ được xoá nền, thêm viền trắng tuỳ chọn.</p>}
         </section>
       )}
-      {decor.length > 0 && onAddDecor && (
-        <details className="rounded-[10px] border border-[#e5e5e7]">
-          <summary className="cursor-pointer select-none px-3 py-2 text-[13px] font-semibold">Khung trang trí <span className="font-normal text-[#a1a1aa]">({decor.length})</span></summary>
-          <div className="grid grid-cols-4 gap-2 border-t border-[#efeff1] p-3">
-            {decor.map((f) => (
-              <button key={f.id} type="button" title={f.name} onClick={() => onAddDecor(f.id)} draggable
-                onDragStart={(e) => { e.dataTransfer.setData(ASSET_DRAG, `f:${f.id}`); e.dataTransfer.effectAllowed = "copy"; }}
-                className={cx("grid aspect-square place-items-center overflow-hidden rounded-[8px] border border-[#e5e5e7] p-1.5 hover:border-[#ff5fa2]", checker)}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={f.url} alt={f.name} className="max-h-full max-w-full object-contain" loading="lazy" draggable={false} />
-              </button>
-            ))}
-          </div>
-        </details>
-      )}
-      <label className="relative block">
-        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#a1a1aa]" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm sticker..." className="h-10 w-full rounded-[8px] border border-[#e5e5e7] pl-9 pr-3 text-[14px] outline-none focus:border-[#ff5fa2]" />
-      </label>
       <div className="no-scrollbar flex gap-1.5 overflow-x-auto">{GROUPS.filter(([k]) => k === "all" || assets.some((a) => a.grp === k)).map(([k, t]) => <button key={k} type="button" onClick={() => setGrp(k)} className={chip(grp === k)}>{t}</button>)}</div>
       <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
         <button type="button" onClick={() => setTone("all")} className={chip(tone === "all")}>Mọi màu</button>

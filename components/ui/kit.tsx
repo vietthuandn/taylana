@@ -2,6 +2,7 @@
 
 /* Bộ component dùng chung cho trang Admin (kiểu dashboard SaaS tối giản).
    Màu nhấn duy nhất: hồng #ff5fa2. Lỗi: đỏ #dc2626. Icon: lucide-react 16px. */
+import { DialogHost, confirmDialog as dlgConfirm } from "./dialog";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowDown, ArrowUp, CheckCircle2, ImagePlus, Loader2, X } from "lucide-react";
@@ -281,23 +282,16 @@ export function Message({ msg }: { msg: { type: "ok" | "err"; text: string } | n
   return null;
 }
 
-type Ask = { text: string; title: string; ok: string; danger: boolean; resolve: (v: boolean) => void };
-let ask: Ask | null = null;
-const askSubs = new Set<() => void>();
+/** (tên cũ) hỏi xác nhận — dùng bộ hộp thoại chung components/ui/dialog */
 export function confirmDialog(text: string, opts: { title?: string; ok?: string; danger?: boolean } = {}) {
-  return new Promise<boolean>((resolve) => {
-    ask = { text, title: opts.title ?? "Xác nhận", ok: opts.ok ?? "Xoá", danger: opts.danger ?? true, resolve };
-    askSubs.forEach((f) => f());
-  });
+  return dlgConfirm({ title: opts.title ?? "Xác nhận", message: text, confirmText: opts.ok ?? "Xoá", danger: opts.danger ?? true });
 }
 
 const sub = (set: Set<() => void>) => (f: () => void) => { set.add(f); return () => { set.delete(f); }; };
-const subToasts = sub(toastSubs), subAsk = sub(askSubs);
+const subToasts = sub(toastSubs);
 
 export function AdminOverlays() {
   const list = useSyncExternalStore(subToasts, () => toasts, () => toasts);
-  const a = useSyncExternalStore(subAsk, () => ask, () => null);
-  const close = (v: boolean) => { a?.resolve(v); ask = null; askSubs.forEach((f) => f()); };
   return (
     <>
       <div className="pointer-events-none fixed bottom-4 right-4 z-[90] flex w-[min(360px,calc(100vw-32px))] flex-col gap-2">
@@ -312,18 +306,7 @@ export function AdminOverlays() {
           </div>
         ))}
       </div>
-      {a && (
-        <div className="fixed inset-0 z-[95] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={() => close(false)}>
-          <div className="w-full max-w-[400px] rounded-[12px] border border-[#e5e5e7] bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <p className="text-[15px] font-semibold text-[#18181b]">{a.title}</p>
-            <p className="mt-1.5 whitespace-pre-line text-[14px] text-[#71717a]">{a.text}</p>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => close(false)}>Huỷ</Button>
-              <Button variant={a.danger ? "primary" : "primary"} className={a.danger ? "!bg-[#dc2626] hover:!bg-[#b91c1c]" : ""} onClick={() => close(true)}>{a.ok}</Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DialogHost />
     </>
   );
 }

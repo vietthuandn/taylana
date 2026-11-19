@@ -2,6 +2,7 @@
 
 /* Dàn trang booklet (đóng gáy giữa) — xử lý 100% trên trình duyệt, không upload, không lưu gì.
    1 chọn số trang → 2 tải ảnh (đọc số trang từ tên file) → 3 sắp xếp → 4 xem trước tờ in → 5 tải về (.zip JPG 300 DPI). */
+import { confirmDialog } from "@/components/ui/dialog";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Download, ImagePlus, RefreshCw, RotateCcw, Upload, X } from "lucide-react";
 import { BOOKLET_PAGE_CM, BOOKLET_SHEET, cmToPx } from "@/lib/printSpecs";
@@ -44,8 +45,8 @@ export function BookletImposer() {
   const filled = pages.filter(Boolean).length;
 
   function start(count: number) { setN(count); setPages(Array(count).fill(null)); setModal(true); }
-  function reset() {
-    if (pages.some(Boolean) && !window.confirm("Xoá hết ảnh và làm lại?")) return;
+  async function reset() {
+    if (pages.some(Boolean) && !(await confirmDialog({ title: "Làm lại từ đầu?", message: "Tất cả ảnh đã thêm sẽ bị xoá khỏi bảng dàn trang.", confirmText: "Xoá hết ảnh", danger: true }))) return;
     all.current.forEach((x) => URL.revokeObjectURL(x.url)); all.current = [];
     setN(null); setPages([]); setFit("cover");
   }

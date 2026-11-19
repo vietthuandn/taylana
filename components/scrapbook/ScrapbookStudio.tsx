@@ -4,6 +4,7 @@
    Trái 36%: 3 tab Ảnh (ảnh của bạn — đang dùng / chưa dùng, thêm ô ảnh, tất cả mẫu 5–10 ảnh chia nhóm) · Sticker (thư viện +
    sticker của bạn) · Chữ (font thường / chữ cắt dán). Bấm 1 mẫu = chép toàn bộ lớp của mẫu thành thiết kế của khách (độc lập với mẫu);
    thêm / xoá ảnh không tự đổi mẫu. Phải: mặt đĩa — sửa tự do (lib/scrapbook + SurfaceView). Ảnh khách chỉ xử lý trên trình duyệt. */
+import { confirmDialog } from "@/components/ui/dialog";
 import "@fontsource/dancing-script/400.css";
 import "@fontsource/dancing-script/700.css";
 import "@fontsource/patrick-hand/400.css";
@@ -43,7 +44,7 @@ import { TextTab } from "./TextTab";
 import { SurfaceView } from "./SurfaceView";
 import { TemplateGallery, type GalleryGroup } from "./TemplateGallery";
 import { PhotoPanel, PickPhotoModal, type Photo } from "./parts";
-import { FramePicker } from "./FramePicker";
+import { AddFrameFlow, FramePicker } from "./FramePicker";
 import { setFrameLibrary } from "@/lib/scrapbook/decor";
 import { UserStickerModal } from "./UserStickerModal";
 import { customizeText, useScrapStudio } from "./useScrapStudio";
@@ -91,10 +92,10 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
       make: () => renderSurface({ template: t, photos: thumbPhotos, text: st.text, assets: st.renderOpts.assets, frames: st.frameImgs, size: 200 }).canvas.toDataURL("image/jpeg", 0.85),
     })),
   })), [all, fit, photos.length, pKey, thumbPhotos, st.text, st.assetImgs, st.frameImgs, st.renderOpts.assets]);
-  const apply = useCallback((id: string, list: Photo[], ask = true) => {
+  const apply = useCallback(async (id: string, list: Photo[], ask = true) => {
     const t = all.find((x) => x.id === id);
     if (!t) return;
-    if (ask && st.D.edited && !window.confirm("Áp mẫu mới sẽ thay bố cục hiện tại (giữ sticker và chữ bạn tự thêm). Tiếp tục?")) return;
+    if (ask && st.D.edited && !(await confirmDialog({ title: "Đổi sang mẫu này?", message: "Bố cục hiện tại sẽ được thay bằng mẫu mới. Sticker và chữ bạn tự thêm vẫn được giữ.", confirmText: "Đổi mẫu" }))) return;
     const mine = st.doc?.[0]?.layers.filter((l) => l.user && l.k !== "photo") ?? [];
     const d = customizeText(fromTemplate(t, list), st.text); // chữ của mẫu → lớp chữ thường (bấm để sửa)
     st.D.begin(); st.D.setDoc([{ ...d, layers: [...d.layers, ...mine] }]); st.D.setEdited(false); st.setApplied(id); st.setSel(null); st.setEditLayer(null);
@@ -107,9 +108,9 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
     if (!doc) return;
     st.D.begin(); st.D.patchSurface(0, (t) => autoDecorate(t, Math.floor(Math.random() * 1e6), assets)); st.setSel(null);
   }
-  function restore() {
+  async function restore() {
     if (!st.applied) return;
-    if (!window.confirm("Khôi phục bố cục gốc của mẫu? Các chỉnh sửa, sticker và chữ đã thêm sẽ bị bỏ (ảnh đã tải vẫn giữ).")) return;
+    if (!(await confirmDialog({ title: "Khôi phục mẫu gốc?", message: "Các chỉnh sửa, sticker và chữ bạn đã thêm sẽ bị bỏ. Ảnh bạn đã tải vẫn được giữ.", confirmText: "Khôi phục", danger: true }))) return;
     const t = all.find((x) => x.id === st.applied);
     if (!t) return;
     st.D.begin(); st.D.setDoc([customizeText(fromTemplate(t, photos), st.text)]); st.D.setEdited(false); st.setSel(null);
@@ -170,8 +171,10 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
 
         {tab === "anh" && (
           <>
+            <button type="button" onClick={() => (doc ? st.setAddSlotOpen(true) : toast("Tải ảnh và chọn mẫu trước khi thêm khung ảnh.", "err"))}
+              className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#ff5fa2] text-[14px] font-semibold text-white hover:bg-[#f0468f]">+ Thêm khung ảnh</button>
             <PhotoPanel photos={photos} used={st.used} max={MAX_PHOTOS} hint={`JPG, PNG, HEIC · ${MIN_PHOTOS} đến ${MAX_PHOTOS} ảnh · ảnh chỉ xử lý trên máy bạn`}
-              onAdd={(f) => { st.addFiles(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} onAddSlot={doc ? () => st.setAddSlotOpen(true) : undefined} />
+              onAdd={(f) => { st.addFiles(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} />
             <section>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-[14px] font-semibold text-[#18181b]">Chọn mẫu</p>
@@ -182,11 +185,12 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
           </>
         )}
         {tab === "sticker" && (
-          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} decor={frames.filter((f) => st.frameImgs[f.id]).map((f) => ({ id: f.id, url: f.url, name: f.name }))} onAddDecor={(id) => st.addAsset(`f:${id}`)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
+          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
             onUpload={(f) => st.setStickerFiles(f)} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
         )}
         {tab === "chu" && (
-          <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={fonts} previews={st.fontPreviews} onAdd={() => st.addText()}
+          <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={fonts} previews={st.fontPreviews} colors={st.colors} onCustomColor={st.addColor}
+            onPaper={() => { if (st.sel !== null) st.wishToText(st.sel); }} onAdd={() => st.addText()}
             onPatch={(v) => { if (st.sel !== null) st.patchLayer(st.sel, v); }} onBegin={st.D.begin} onDuplicate={() => { if (st.sel !== null) st.duplicate(st.sel); }} onRemove={() => { if (st.sel !== null) st.removeLayer(st.sel); }}
             topics={T} wishes={W} onWish={st.addWish} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
         )}
@@ -235,7 +239,10 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
       {st.frameFor !== null && st.L[st.frameFor]?.k === "photo" && (
         <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Đổi khung" current={(st.L[st.frameFor] as { frame?: string }).frame ?? null} onPick={(c) => st.setFrame(st.frameFor!, c)} onClose={() => st.setFrameFor(null)} />
       )}
-      {st.addSlotOpen && <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Thêm ô ảnh" allowNone={false} onPick={st.addSlot} onClose={() => st.setAddSlotOpen(false)} />}
+      {st.addSlotOpen && (
+        <AddFrameFlow frames={frames} sets={frameSets} loaded={st.frameImgs} photos={photos} used={st.used} onClose={() => st.setAddSlotOpen(false)}
+          onDone={(c, pid) => st.addSlot(c, pid)} onUpload={async (f) => { const [p] = await st.addFiles([f]); return p?.id ?? null; }} />
+      )}
       {st.stickerFiles && <UserStickerModal files={st.stickerFiles} onAdd={(b) => st.addUserSticker(b)} onClose={() => st.setStickerFiles(null)} />}
     </div>
   );

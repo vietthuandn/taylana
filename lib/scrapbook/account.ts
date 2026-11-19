@@ -6,7 +6,7 @@ import type { Adjust, DiscText, Template } from "./types";
 
 export type ScrapDesign = {
   v: 1; kind: "booklet-scrapbook"; pages: number; showTitle: boolean; rightsOk: boolean; text: DiscText; adjust: Record<string, Adjust>;
-  doc: Template[]; applied: string | null; photoIds: string[]; stickerIds: string[]; paths?: Record<string, string>;
+  doc: Template[]; applied: string | null; photoIds: string[]; stickerIds: string[]; paths?: Record<string, string>; colors?: string[];
 };
 export async function saveScrapToAccount(data: ScrapDesign, files: { id: string; blob: Blob }[], opts: { id: string | null; name: string; thumbnail: string | null }) {
   const sb = createClient();

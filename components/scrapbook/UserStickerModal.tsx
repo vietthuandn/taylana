@@ -7,7 +7,7 @@
    Bố cục: 2 khung cùng cao 320px (ảnh co vừa, căn giữa, không tràn), điều khiển nằm dưới khung, thanh nút dính đáy. */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eraser, Loader2, Paintbrush, X } from "lucide-react";
-import { prepareBg, removeBackground, type LoadProgress } from "@/lib/bgRemoval";
+import { clearBgCache, removeBackground, type BgStep } from "@/lib/bgRemoval";
 import { composeSticker, keptView, refineAlpha } from "@/lib/bgRemoval/post";
 import { flatAlpha, hasAlpha, readImageData, withBorder } from "@/lib/scrapbook/userSticker";
 import { Button } from "@/components/ui/kit";
@@ -26,7 +26,9 @@ export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onA
   const [alphaImg, setAlphaImg] = useState(false);
   const [method, setMethod] = useState<Method>("auto");
   const [raw, setRaw] = useState<Raw | null>(null);
-  const [status, setStatus] = useState<{ k: "idle" | "load" | "run"; prog?: LoadProgress }>({ k: "idle" });
+  const [status, setStatus] = useState<BgStep | { k: "idle" }>({ k: "idle" });
+  const [aiFail, setAiFail] = useState("");
+  const [attempt, setAttempt] = useState(0);
   const [err, setErr] = useState("");
   const [tol, setTol] = useState(28);
   const [hard, setHard] = useState(0.5);
@@ -62,22 +64,20 @@ export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onA
           if (!r.found) setErr("Không tách được nền — thử đổi độ nhạy hoặc dùng AI.");
           setRaw({ alpha: r.alpha, color: r.color, ai: false });
         } else {
-          setStatus({ k: "load" });
-          await prepareBg(method, (p) => { if (!off) setStatus({ k: "load", prog: p }); });
-          if (off) return;
-          setStatus({ k: "run" });
-          const r = await removeBackground(img, method);
+          setAiFail("");
+          // tải (MB) → khởi động → tách nền; mỗi bước có thời hạn (lib/bgRemoval)
+          const r = await removeBackground(img, method, (st) => { if (!off) setStatus(st); });
           if (off) return;
           setRaw({ alpha: r.alpha, used: r.used, ai: true });
         }
       } catch (e) {
         if (off) return;
-        setErr(`Không chạy được bộ tách nền AI (${e instanceof Error ? e.message : "lỗi"}) — đã chuyển sang “Nền trơn”.`);
-        setMethod("flat");
+        if (method === "flat") setErr("Xoá nền thất bại.");
+        else setAiFail(e instanceof Error ? e.message : "Lỗi");
       } finally { if (!off) setStatus({ k: "idle" }); }
     }, method === "flat" ? 250 : 0);
     return () => { off = true; clearTimeout(t); };
-  }, [img, alphaImg, method, tol, keepMany]);
+  }, [img, alphaImg, method, tol, keepMany, attempt]);
 
   // mặt nạ cuối (AI: độ cứng mép + làm mềm + giữ vùng lớn nhất / nhiều vật)
   const alpha = useMemo(() => (!raw || !img ? null : raw.ai ? refineAlpha(raw.alpha, img.w, img.h, { hardness: hard, feather, keepMany }) : raw.alpha), [raw, img, hard, feather, keepMany]);
@@ -117,9 +117,8 @@ export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onA
   }
   const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
   const busy = status.k !== "idle";
-  const busyText = status.k === "load" && status.prog && !status.prog.cached && status.prog.total > 0
-    ? `Đang tải bộ tách nền (lần đầu) ${MB(status.prog.loaded)} / ${MB(status.prog.total)}MB...`
-    : status.k === "load" ? "Đang chuẩn bị bộ tách nền..." : "Đang tách nền...";
+  const busyText = status.k === "load" ? (status.cached ? "Đang tải bộ tách nền..." : `Đang tải (${MB(status.loaded)} / ${MB(status.total)}MB)`)
+    : status.k === "init" ? "Đang khởi động" : "Đang tách nền";
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={onClose}>
       <div className="flex max-h-[90vh] w-full max-w-[900px] flex-col overflow-hidden rounded-[14px] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -173,6 +172,17 @@ export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onA
                 {border !== "none" && <Range label="Độ dày viền" value={Math.round(t)} min={2} max={Math.max(10, Math.round(longSide * 0.1))} step={1} unit="px" onChange={setThick} />}
               </div>
               {err && <p className="mt-3 text-[12px] text-[#dc2626]">{err}</p>}
+              {aiFail && method !== "flat" && !alphaImg && (
+                <div className="mt-3 rounded-[10px] border border-[#fecaca] bg-[#fef2f2] p-3">
+                  <p className="text-[13px] font-medium text-[#b91c1c]">Không tách nền được trên thiết bị này.</p>
+                  <p className="mt-0.5 text-[11px] text-[#71717a]">{aiFail}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <Button size="sm" variant="secondary" onClick={() => setAttempt((a) => a + 1)}>Thử lại</Button>
+                    <Button size="sm" variant="secondary" onClick={async () => { await clearBgCache(); setAttempt((a) => a + 1); }}>Xoá bộ nhớ đệm và thử lại</Button>
+                    <Button size="sm" onClick={() => { setAiFail(""); setMethod("flat"); }}>Dùng cách Nền trơn</Button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 /* Web Worker tách nền (module worker dựng từ mã nguồn của hàm này — mọi hàm phụ nằm BÊN TRONG, không import ngoài).
    - "init": nạp onnxruntime-web (dynamic import từ CDN, ghim phiên bản), WebGPU nếu có, không thì WASM.
-   - "load": tải mô hình (Cache Storage trước, không có thì tải mạng + báo tiến độ) → tạo phiên chạy.
+   - "fetch": tải mô hình (Cache Storage trước — kiểm tra dung lượng, hỏng thì xoá; không có thì tải mạng + báo tiến độ).
+   - "create": khởi tạo phiên chạy (WebGPU có hạn, lỗi thì WASM); thành công mới ghi mô hình vào Cache Storage.
    - "run": ảnh gốc RGBA → thu về cạnh dài ~1024 (MODNet, bội số 32) / 320 × 320 (U²-Netp) → mặt nạ alpha
      → phóng lại đúng kích thước gốc bằng lọc có hướng (guided filter theo ảnh gốc) để mép sắc. "auto": MODNet trước,
      nếu không giống người (ngưỡng từ chính mặt nạ MODNet) thì chạy U²-Netp. */
@@ -12,19 +13,29 @@ export function bgWorkerMain() {
   const sessions: Record<string, any> = {};
   const post = (m: any, tr?: Transferable[]) => S.postMessage(m, tr ?? []);
 
+  const bufs: Record<string, { buf: ArrayBuffer; cached: boolean }> = {};
+  const withTimeout = <T,>(p: Promise<T>, ms: number, what: string) => new Promise<T>((res, rej) => { const t = setTimeout(() => rej(new Error(`Quá thời gian (${what})`)), ms); p.then((v) => { clearTimeout(t); res(v); }, (e) => { clearTimeout(t); rej(e); }); });
   async function init(ortUrl: string, wasmBase: string) {
     if (ort) return;
     // import() qua Function: bundler không đụng tới (thư viện tải từ CDN, ghim phiên bản)
     const dyn = new Function("u", "return import(u)") as (u: string) => Promise<any>;
-    ort = await dyn(ortUrl);
-    ort = ort.default ?? ort;
-    ort.env.wasm.wasmPaths = wasmBase;
-    ort.env.wasm.numThreads = (S.crossOriginIsolated ? Math.min(4, S.navigator?.hardwareConcurrency || 2) : 1);
+    const mod = await dyn(ortUrl);
+    ort = mod.default ?? mod;
+    ort.env.wasm.wasmPaths = wasmBase; // file .wasm / .mjs lấy từ CDN cùng phiên bản
+    ort.env.wasm.numThreads = S.crossOriginIsolated ? Math.min(4, S.navigator?.hardwareConcurrency || 2) : 1; // đa luồng cần crossOriginIsolated
+    ort.env.wasm.proxy = false;
   }
+  /** tải mô hình: Cache Storage (kiểm tra dung lượng khớp, hỏng thì xoá) → không có thì tải mạng + báo tiến độ. CHƯA ghi cache ở bước này. */
   async function fetchModel(key: string, url: string, cacheName: string, guess: number) {
-    let cache: Cache | null = null;
-    try { cache = await caches.open(cacheName); const hit = await cache.match(url); if (hit) { const b = await hit.arrayBuffer(); post({ t: "progress", key, loaded: b.byteLength, total: b.byteLength, cached: true }); return b; } } catch { cache = null; }
-    const r = await fetch(url);
+    try {
+      const cache = await caches.open(cacheName), hit = await cache.match(url);
+      if (hit) {
+        const want = Number(hit.headers.get("x-size")) || 0, b = await hit.arrayBuffer();
+        if (want > 0 && b.byteLength === want) { bufs[key] = { buf: b, cached: true }; post({ t: "progress", key, loaded: b.byteLength, total: b.byteLength, cached: true }); return b.byteLength; }
+        await cache.delete(url); // cache hỏng → xoá, tải lại
+      }
+    } catch { /* không dùng được Cache Storage → tải mạng */ }
+    const r = await fetch(url, { cache: "no-store" });
     if (!r.ok || !r.body) throw new Error(`Không tải được mô hình (${r.status})`);
     const total = Number(r.headers.get("content-length")) || guess;
     const reader = r.body.getReader(), chunks: Uint8Array[] = [];
@@ -35,19 +46,39 @@ export function bgWorkerMain() {
       chunks.push(value); loaded += value.byteLength;
       if (loaded - last > 256 * 1024) { last = loaded; post({ t: "progress", key, loaded, total }); }
     }
-    post({ t: "progress", key, loaded, total: Math.max(total, loaded) });
+    const cl = Number(r.headers.get("content-length")) || 0;
+    if (cl && loaded !== cl) throw new Error("Tải mô hình không đủ dung lượng");
+    post({ t: "progress", key, loaded, total: loaded });
     const buf = new Uint8Array(loaded);
     let o = 0; for (const c of chunks) { buf.set(c, o); o += c.byteLength; }
-    try { await cache?.put(url, new Response(buf.slice().buffer, { headers: { "content-type": "application/octet-stream" } })); } catch { /* bỏ qua: hết chỗ / chế độ riêng tư */ }
-    return buf.buffer;
+    bufs[key] = { buf: buf.buffer, cached: false };
+    return loaded;
   }
-  async function load(key: string, url: string, cacheName: string, guess: number) {
+  /** khởi tạo phiên chạy: WebGPU (có hạn 15 giây) → lỗi / quá hạn thì WASM. Thành công mới ghi mô hình vào Cache Storage. */
+  async function create(key: string, url: string, cacheName: string) {
     if (sessions[key]) return;
-    const buf = await fetchModel(key, url, cacheName, guess);
-    const gpu = !!S.navigator?.gpu;
-    try { sessions[key] = await ort.InferenceSession.create(buf, { executionProviders: gpu ? ["webgpu", "wasm"] : ["wasm"] }); ep = gpu ? "webgpu" : "wasm"; }
-    catch { sessions[key] = await ort.InferenceSession.create(buf, { executionProviders: ["wasm"] }); ep = "wasm"; }
+    const b = bufs[key];
+    if (!b) throw new Error("Chưa tải mô hình");
+    const bytes = new Uint8Array(b.buf);
+    try {
+      if (S.navigator?.gpu) {
+        try { sessions[key] = await withTimeout(ort.InferenceSession.create(bytes.slice(), { executionProviders: ["webgpu"] }), 12000, "WebGPU"); ep = "webgpu"; }
+        catch { sessions[key] = null; }
+      }
+      if (!sessions[key]) { sessions[key] = await ort.InferenceSession.create(bytes.slice(), { executionProviders: ["wasm"] }); ep = "wasm"; }
+    } catch (e) {
+      if (b.cached) { try { await (await caches.open(cacheName)).delete(url); } catch { /* bỏ */ } }
+      delete bufs[key];
+      throw e;
+    }
+    if (!b.cached) {
+      try { await (await caches.open(cacheName)).put(url, new Response(b.buf, { headers: { "content-type": "application/octet-stream", "x-size": String(b.buf.byteLength) } })); } catch { /* hết chỗ / chế độ riêng tư */ }
+    }
+    delete bufs[key];
   }
+  // lỗi xảy ra ngoài các lệnh await (vd. trong thư viện) → báo về trang chính, không để treo
+  S.addEventListener("unhandledrejection", (e: any) => post({ t: "fatal", error: String(e?.reason?.message ?? e?.reason ?? "Lỗi bộ tách nền") }));
+  S.addEventListener("error", (e: any) => post({ t: "fatal", error: String(e?.message ?? "Lỗi bộ tách nền") }));
 
   // ---------- ảnh ----------
   function resize(data: Uint8ClampedArray, w: number, h: number, W: number, H: number) {
@@ -137,7 +168,8 @@ export function bgWorkerMain() {
     const m = e.data;
     try {
       if (m.t === "init") { await init(m.ortUrl, m.wasmBase); post({ t: "ok", id: m.id, ep }); return; }
-      if (m.t === "load") { await load(m.key, m.url, m.cacheName, m.guess); post({ t: "ok", id: m.id, ep }); return; }
+      if (m.t === "fetch") { const bytes = sessions[m.key] ? 0 : await fetchModel(m.key, m.url, m.cacheName, m.guess); post({ t: "ok", id: m.id, bytes }); return; }
+      if (m.t === "create") { await create(m.key, m.url, m.cacheName); post({ t: "ok", id: m.id, ep }); return; }
       if (m.t === "run") {
         const { data, w, h } = m as { data: Uint8ClampedArray; w: number; h: number };
         let used: "portrait" | "object" = m.mode === "object" ? "object" : "portrait";

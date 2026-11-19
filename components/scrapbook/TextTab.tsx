@@ -1,12 +1,13 @@
 "use client";
 
 /* Scrapbook → tab "Chữ" (mỗi lúc chỉ làm 1 việc), từ trên xuống:
-   1. "+ Thêm chữ" (nút chính): chữ mẫu ở vùng trống lớn nhất, chọn luôn + sửa trực tiếp trên trang.
-   2. "Cài đặt chữ": CHỈ hiện khi đang chọn 1 lớp chữ / khung lời chúc — font (thường / cắt dán), cỡ, màu, đậm / nghiêng,
-      căn lề, khoảng cách dòng, khoảng cách chữ; cut-out thêm kiểu xếp, độ cong, độ lộn xộn, "Đổi mảnh". Cuối: Nhân bản · Xoá.
-   3. "Lời chúc có sẵn": khối thu gọn, mặc định đóng. Mở khối → bỏ chọn lớp chữ (ẩn Cài đặt chữ). */
-import { AlignCenter, AlignLeft, AlignRight, ChevronDown, Copy, Dices, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+   1. "+ Thêm chữ" (nút chính).
+   2. "Cài đặt chữ" (chỉ khi đang chọn 1 lớp chữ / khung lời chúc) — các dòng nhãn trái (88px) + nội dung phải:
+      Font (dropdown tự làm: "Chữ cắt dán" trên cùng có ảnh xem trước "Taylana", rồi "Font thường" hiện bằng chính font đó),
+      Loại giấy (khi có khung giấy), Màu chữ, Màu khung (pastel), Đã dùng (màu riêng đã chọn), cỡ chữ, căn lề, khoảng cách…
+   3. "Lời chúc có sẵn": khối thu gọn, mặc định đóng. */
+import { AlignCenter, AlignLeft, AlignRight, Check, ChevronDown, Copy, Dices, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import type { CutoutFont } from "@/lib/scrapbook/cutout";
 import type { Layer, Wish, WishCard, WishTopic } from "@/lib/scrapbook/types";
 import { WISH_FONT } from "@/lib/scrapbook/render";
@@ -14,65 +15,151 @@ import { cx } from "@/components/ui/styles";
 
 type T = Extract<Layer, { k: "text" }>;
 type WL = Extract<Layer, { k: "wish" }>;
-const CARDS: [WishCard, string, string][] = [["card", "Thiệp nhỏ", "#ffffff"], ["note", "Giấy note", "#fff3a8"], ["lined", "Giấy kẻ dòng", "#fffdf6"], ["label", "Nhãn", "#ffffff"]];
+const CARDS: [WishCard, string, string][] = [["card", "Thiệp", "#ffffff"], ["note", "Note", "#fff3a8"], ["lined", "Kẻ dòng", "#fffdf6"], ["label", "Nhãn", "#ffffff"]];
 export const FAMILIES = ["Dancing Script", "Patrick Hand", "Pangolin", "Itim", "Be Vietnam Pro", "Oswald"];
-const COLORS = ["#18181b", "#3f3f46", "#ffffff", "#ff5fa2", "#e63946", "#f4a261", "#2a9d8f", "#1d3557", "#7b2cbf"];
+const INKS = ["#18181b", "#3f3f46", "#ffffff", "#ff5fa2", "#e63946", "#f4a261", "#2a9d8f", "#1d3557", "#7b2cbf"];
+const PASTELS = ["#fbcfe8", "#fdf6e3", "#c7f0db", "#cfe8fb", "#ddd6fe", "#fef3a8", "#fed7c3", "#e4e4e7"]; // hồng phấn, kem, bạc hà, trời nhạt, lavender, vàng bơ, cam đào, xám nhạt
+const MORE = ["#000000", "#52525b", "#a1a1aa", "#ffffff", "#7f1d1d", "#dc2626", "#fb7185", "#f9a8d4", "#9a3412", "#f97316", "#fbbf24", "#fde68a",
+  "#14532d", "#16a34a", "#86efac", "#0f766e", "#1e3a8a", "#2563eb", "#93c5fd", "#4c1d95", "#8b5cf6", "#c4b5fd", "#78350f", "#d6b88c"];
 
-export function TextTab({ layer, fonts, previews, onAdd, onPatch, onBegin, onDuplicate, onRemove, topics, wishes, onWish, wishOpen, onWishOpen }: {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div className="grid grid-cols-[88px_1fr] items-center gap-2"><span className="text-[12px] text-[#52525b]">{label}</span><div className="min-w-0">{children}</div></div>;
+}
+function useOutside(open: boolean, close: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: PointerEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) close(); };
+    document.addEventListener("pointerdown", h);
+    return () => document.removeEventListener("pointerdown", h);
+  }, [open, close]);
+  return ref;
+}
+/** dropdown font tự làm: "Chữ cắt dán" (ảnh xem trước) ở trên, "Font thường" (tên hiện bằng chính font) ở dưới */
+function FontSelect({ value, fonts, previews, families, onPick }: { value: string; fonts: CutoutFont[]; previews: Record<string, string>; families: string[]; onPick: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useOutside(open, () => setOpen(false));
+  const show = (v: string) => {
+    if (v.startsWith("cut:")) { const id = v.slice(4), f = fonts.find((x) => x.id === id); return previews[id] ? <img src={previews[id]} alt={f?.name} className="max-h-7 max-w-full" /> : <span className="text-[13px]">{f?.name ?? "Chữ cắt dán"}</span>; } // eslint-disable-line @next/next/no-img-element
+    return <span className="truncate text-[15px]" style={{ fontFamily: v ? `"${v}"` : undefined }}>{v || "Theo mẫu"}</span>;
+  };
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)} className="flex h-10 w-full items-center gap-2 rounded-[8px] border border-[#e5e5e7] bg-white px-2.5 text-left hover:border-[#a1a1aa]">
+        <span className="flex min-w-0 flex-1 items-center">{show(value)}</span><ChevronDown size={15} className="shrink-0 text-[#71717a]" />
+      </button>
+      {open && (
+        <div className="absolute inset-x-0 top-full z-30 mt-1 max-h-[300px] overflow-y-auto rounded-[10px] border border-[#e5e5e7] bg-white p-1 shadow-lg">
+          {fonts.length > 0 && <p className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#a1a1aa]">Chữ cắt dán</p>}
+          {fonts.map((f) => (
+            <button key={f.id} type="button" onClick={() => { onPick(`cut:${f.id}`); setOpen(false); }} title={f.name}
+              className={cx("flex h-11 w-full items-center gap-2 rounded-[6px] px-2 hover:bg-[#fff5f9]", value === `cut:${f.id}` && "bg-[#fff0f6]")}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {previews[f.id] ? <img src={previews[f.id]} alt={f.name} className="max-h-8 max-w-[80%]" /> : <span className="text-[13px]">{f.name}</span>}
+              {value === `cut:${f.id}` && <Check size={14} className="ml-auto text-[#ff5fa2]" />}
+            </button>
+          ))}
+          <p className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[#a1a1aa]">Font thường</p>
+          {families.map((f) => (
+            <button key={f || "tpl"} type="button" onClick={() => { onPick(f); setOpen(false); }}
+              className={cx("flex h-9 w-full items-center rounded-[6px] px-2 text-left text-[15px] hover:bg-[#fff5f9]", value === f && "bg-[#fff0f6]")} style={{ fontFamily: f ? `"${f}"` : undefined }}>
+              {f || "Theo mẫu"}{value === f && <Check size={14} className="ml-auto text-[#ff5fa2]" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+/** hàng ô màu tròn 22px + ô "+" mở bảng chọn màu riêng (có ô nhập HEX) */
+function Swatches({ colors, value, onPick, onCustom }: { colors: string[]; value: string; onPick: (c: string) => void; onCustom: (c: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [hex, setHex] = useState(value);
+  const ref = useOutside(open, () => setOpen(false));
+  useEffect(() => { if (open) setHex(value); }, [open, value]);
+  const valid = /^#[0-9a-f]{6}$/i.test(hex);
+  return (
+    <div ref={ref} className="relative flex flex-wrap items-center gap-1.5">
+      {colors.map((c) => <button key={c} type="button" onClick={() => onPick(c)} aria-label={c} className={cx("h-[22px] w-[22px] rounded-full border-2", value.toLowerCase() === c.toLowerCase() ? "border-[#ff5fa2]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-label="Chọn màu riêng" className="grid h-[22px] w-[22px] place-items-center rounded-full border border-dashed border-[#a1a1aa] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Plus size={12} /></button>
+      {open && (
+        <div className="absolute left-0 top-full z-30 mt-1 w-[232px] rounded-[10px] border border-[#e5e5e7] bg-white p-2.5 shadow-lg">
+          <div className="grid grid-cols-8 gap-1.5">
+            {MORE.map((c) => <button key={c} type="button" onClick={() => { onCustom(c); setOpen(false); }} aria-label={c} className="h-[22px] w-[22px] rounded-full ring-1 ring-[#e5e5e7]" style={{ background: c }} />)}
+          </div>
+          <div className="mt-2.5 flex items-center gap-1.5">
+            <span className="h-7 w-7 shrink-0 rounded-[6px] ring-1 ring-[#e5e5e7]" style={{ background: valid ? hex : "#fff" }} />
+            <input value={hex} onChange={(e) => setHex(e.target.value.startsWith("#") ? e.target.value : `#${e.target.value}`)} maxLength={7} aria-label="Mã HEX"
+              onKeyDown={(e) => { if (e.key === "Enter" && valid) { onCustom(hex); setOpen(false); } }}
+              className="h-7 min-w-0 flex-1 rounded-[6px] border border-[#e5e5e7] px-2 font-mono text-[12px] uppercase outline-none focus:border-[#ff5fa2]" />
+            <button type="button" disabled={!valid} onClick={() => { onCustom(hex); setOpen(false); }} className="h-7 rounded-[6px] bg-[#ff5fa2] px-2.5 text-[12px] font-medium text-white disabled:opacity-40">Dùng</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper, onAdd, onPatch, onBegin, onDuplicate, onRemove, topics, wishes, onWish, wishOpen, onWishOpen }: {
   layer: Layer | null; fonts: CutoutFont[]; previews: Record<string, string>;
+  colors: string[]; onCustomColor: (c: string) => void; onPaper: (v: "none") => void; // màu riêng đã dùng · "Không giấy" (khung lời chúc → chữ thường)
   onAdd: () => void; onPatch: (v: Partial<T> | Partial<WL>) => void; onBegin: () => void; // onBegin: lưu mốc hoàn tác trước khi kéo thanh trượt
   onDuplicate: () => void; onRemove: () => void;
   topics?: WishTopic[]; wishes?: Wish[]; onWish?: (content: string) => void; wishOpen: boolean; onWishOpen: (v: boolean) => void;
 }) {
   const [topic, setTopic] = useState<string | null>(null);
-  const cur = layer?.k === "text" ? layer : null, wl = layer?.k === "wish" ? layer : null;
+  const [target, setTarget] = useState<"ink" | "paper">("ink");
+  const cur = layer?.k === "text" ? layer : null, wl = layer?.k === "wish" ? layer : null, L = cur ?? wl;
   const curTopic = topic ?? topics?.[0]?.id ?? null;
   const toggle = (on: boolean) => cx("grid h-8 min-w-[34px] place-items-center rounded-[6px] border px-2 text-[13px]", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b]");
-  const cutOpts = (seed?: number) => ({ font: "", curve: 0, chaos: 0.35, spacing: 0, seed: seed ?? Math.floor(Math.random() * 1e6) });
-  const showSettings = !wishOpen && (cur || wl);
+  const chip = (on: boolean) => cx("h-7 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
+  const ink = cur ? cur.color : wl?.ink ?? "#3f3f46";
+  const setInk = (c: string) => { onBegin(); onPatch(cur ? { color: c } : { ink: c }); };
+  const setPaperColor = (c: string) => { onBegin(); onPatch({ color: c }); };
+  const fontValue = L?.cutout ? `cut:${L.cutout.font}` : L?.family ?? (wl ? WISH_FONT : "");
+  const families = wl ? [WISH_FONT, ...FAMILIES.filter((f) => f !== WISH_FONT)] : cur && !cur.family ? ["", ...FAMILIES] : FAMILIES;
   return (
     <div className="space-y-4">
       <button type="button" onClick={onAdd} className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#ff5fa2] text-[14px] font-semibold text-white hover:bg-[#f0468f]"><Plus size={17} /> Thêm chữ</button>
 
-      {showSettings && (
+      {!wishOpen && L && (
         <section className="space-y-3 rounded-[10px] border border-[#e5e5e7] p-3">
           <p className="text-[13px] font-semibold">Cài đặt chữ</p>
-          {/* font */}
-          <label className="block text-[12px] text-[#52525b]">Font
-            <select value={(cur ?? wl)!.cutout ? `cut:${(cur ?? wl)!.cutout!.font}` : (cur ?? wl)!.family ?? (wl ? WISH_FONT : "")} onChange={(e) => {
+          <Row label="Font">
+            <FontSelect value={fontValue} fonts={fonts} previews={previews} families={families} onPick={(v) => {
               onBegin();
-              const v = e.target.value, c = (cur ?? wl)!.cutout;
-              if (v.startsWith("cut:")) onPatch({ cutout: { ...cutOpts(c?.seed), ...(c ?? {}), font: v.slice(4) } });
+              const c = L.cutout;
+              if (v.startsWith("cut:")) onPatch({ cutout: { curve: 0, chaos: 0.35, spacing: 0, seed: Math.floor(Math.random() * 1e6), ...(c ?? {}), font: v.slice(4) } });
               else onPatch({ cutout: undefined, family: v || undefined });
-            }} className="mt-1 h-9 w-full rounded-[8px] border border-[#e5e5e7] px-2 text-[14px]">
-              <optgroup label="Font thường">
-                {cur && !cur.family && <option value="">Theo mẫu</option>}
-                {(wl ? [WISH_FONT, ...FAMILIES.filter((f) => f !== WISH_FONT)] : FAMILIES).map((f) => <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>)}
-              </optgroup>
-              {fonts.length > 0 && <optgroup label="Chữ cắt dán">{fonts.map((f) => <option key={f.id} value={`cut:${f.id}`}>{f.name}</option>)}</optgroup>}
-            </select>
-          </label>
-          {fonts.length > 0 && (
-            <div className="grid grid-cols-3 gap-1.5">
-              {fonts.map((f) => (
-                <button key={f.id} type="button" title={f.name} onClick={() => { onBegin(); const c = (cur ?? wl)!.cutout; onPatch({ cutout: { ...cutOpts(c?.seed), ...(c ?? {}), font: f.id } }); }}
-                  className={cx("grid h-10 place-items-center overflow-hidden rounded-[8px] border bg-[#fafafa] px-1", (cur ?? wl)!.cutout?.font === f.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7]")}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {previews[f.id] ? <img src={previews[f.id]} alt={f.name} className="max-h-8 max-w-full" /> : <span className="truncate text-[11px]">{f.name}</span>}
-                </button>
-              ))}
-            </div>
+            }} />
+          </Row>
+          {wl && (
+            <Row label="Loại giấy">
+              <div className="flex flex-wrap gap-1.5">
+                {CARDS.map(([k, name, bg]) => <button key={k} type="button" onClick={() => { onBegin(); onPatch({ card: k, color: k === wl.card ? wl.color : bg }); }} className={chip(wl.card === k)}>{name}</button>)}
+                <button type="button" onClick={() => onPaper("none")} className={chip(false)}>Không giấy</button>
+              </div>
+            </Row>
+          )}
+          {!(cur?.cutout) && <Row label="Màu chữ"><Swatches colors={INKS} value={ink} onPick={setInk} onCustom={(c) => { onCustomColor(c); setInk(c); }} /></Row>}
+          {wl && <Row label="Màu khung"><Swatches colors={PASTELS} value={wl.color} onPick={setPaperColor} onCustom={(c) => { onCustomColor(c); setPaperColor(c); }} /></Row>}
+          {colors.length > 0 && (
+            <Row label="Đã dùng">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {wl && (
+                  <span className="mr-1 inline-flex rounded-full border border-[#e5e5e7] p-0.5 text-[11px]">
+                    <button type="button" onClick={() => setTarget("ink")} className={cx("rounded-full px-1.5", target === "ink" && "bg-[#fff0f6] text-[#ff5fa2]")}>Chữ</button>
+                    <button type="button" onClick={() => setTarget("paper")} className={cx("rounded-full px-1.5", target === "paper" && "bg-[#fff0f6] text-[#ff5fa2]")}>Khung</button>
+                  </span>
+                )}
+                {colors.map((c) => <button key={c} type="button" title={c} onClick={() => (wl && target === "paper" ? setPaperColor(c) : setInk(c))} className="h-[22px] w-[22px] rounded-full ring-1 ring-[#e5e5e7]" style={{ background: c }} />)}
+              </div>
+            </Row>
           )}
 
           {cur && (
             <>
               <Range label={cur.cutout ? "Cỡ chữ (chiều cao mảnh)" : "Cỡ chữ"} value={cur.size} min={2} max={24} step={0.2} unit="mm" onBegin={onBegin} onChange={(v) => onPatch({ size: v })} />
-              {!cur.cutout && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {COLORS.map((c) => <button key={c} type="button" onClick={() => { onBegin(); onPatch({ color: c }); }} aria-label={c} className={cx("h-7 w-7 rounded-full border-2", cur.color === c ? "border-[#ff5fa2]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
-                  <input type="color" value={cur.color} onChange={(e) => onPatch({ color: e.target.value })} aria-label="Màu tuỳ chọn" className="h-7 w-9" />
-                </div>
-              )}
               <div className="flex flex-wrap gap-1.5">
                 {!cur.cutout && (
                   <>
@@ -100,20 +187,6 @@ export function TextTab({ layer, fonts, previews, onAdd, onPatch, onBegin, onDup
                     className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /> Đổi mảnh</button>
                 </>
               ) : <Range label="Khoảng cách chữ" value={cur.ls ?? 0} min={-0.5} max={3} step={0.1} unit="mm" onBegin={onBegin} onChange={(v) => onPatch({ ls: v })} />}
-            </>
-          )}
-
-          {wl && (
-            <>
-              <div className="flex flex-wrap gap-1.5">
-                {CARDS.map(([k, name, bg]) => <button key={k} type="button" onClick={() => { onBegin(); onPatch({ card: k, color: k === wl.card ? wl.color : bg }); }} className={cx("h-8 rounded-full border px-3 text-[12px]", wl.card === k ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b]")}>{name}</button>)}
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[12px] text-[#52525b]">Màu chữ</span>
-                {COLORS.map((c) => <button key={c} type="button" onClick={() => { onBegin(); onPatch({ ink: c }); }} aria-label={c} className={cx("h-6 w-6 rounded-full border-2", wl.ink === c ? "border-[#ff5fa2]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
-                <span className="ml-2 text-[12px] text-[#52525b]">Màu khung</span>
-                <input type="color" value={wl.color} onChange={(e) => onPatch({ color: e.target.value })} aria-label="Màu khung" className="h-6 w-8" />
-              </div>
             </>
           )}
           <div className="flex gap-2 border-t border-[#efeff1] pt-3">

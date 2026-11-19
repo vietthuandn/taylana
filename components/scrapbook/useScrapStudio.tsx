@@ -23,6 +23,8 @@ import { clone, useScrapDoc } from "./useScrapDoc";
 export function customizeText(t: Template, text: DiscText): Template {
   return { ...t, layers: t.layers.flatMap((l) => (l.k === "text" && l.role !== "custom" ? ((l.role === "main" ? text.main : text.sub).trim() ? [{ ...l, role: "custom" as const, value: l.role === "main" ? text.main : text.sub }] : []) : [l])) };
 }
+/** cỡ mặc định của ô ảnh mới thêm: ~45% bề rộng 1 trang (12 cm) / đường kính đĩa */
+export const SLOT_W = 54;
 export type UserSticker = { id: string; blob: Blob; url: string; img: HTMLCanvasElement };
 const btn = "inline-flex h-7 items-center gap-1 rounded-[6px] px-2 text-[12px] hover:bg-[#f4f4f5]";
 
@@ -40,7 +42,9 @@ export function useScrapStudio(o: {
   const [sel, setSel] = useState<number | null>(null);
   const [editText, setEditTextS] = useState<number | null>(null); // lớp chữ đang sửa trực tiếp trên trang
   const [selectAll, setSelectAll] = useState(false);
-  const [wishOpen, setWishOpenS] = useState(false); // khối "Lời chúc có sẵn" (mỗi lúc chỉ làm 1 việc)
+  const [wishOpen, setWishOpenS] = useState(false);
+  const [colors, setColors] = useState<string[]>([]); // màu riêng đã dùng trong thiết kế (tối đa 8, mới nhất ở đầu)
+  const addColor = (c: string) => setColors((cur) => [c.toLowerCase(), ...cur.filter((x) => x !== c.toLowerCase())].slice(0, 8)); // khối "Lời chúc có sẵn" (mỗi lúc chỉ làm 1 việc)
   const [editLayer, setEditLayer] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
   const [assetImgs, setAssetImgs] = useState<Awaited<ReturnType<typeof loadAssetImages>>>({});
@@ -68,7 +72,7 @@ export function useScrapStudio(o: {
         const us: UserSticker[] = [];
         for (const s of draft.stickers) { try { const p = await readPhoto(s.blob, "sticker.png", s.id); us.push({ id: s.id, blob: s.blob, url: p.url, img: p.img }); } catch { /* bỏ */ } }
         if (off) return;
-        setPhotos(list); setUstickers(us); setText(draft.meta.text ?? o.defaultText); setAdjust(draft.meta.adjust ?? {});
+        setPhotos(list); setUstickers(us); setColors(draft.meta.colors ?? []); setText(draft.meta.text ?? o.defaultText); setAdjust(draft.meta.adjust ?? {});
         const legacy = o.onLoad(draft.meta, list);
         if (draft.meta.doc?.length) { D.setDoc(draft.meta.doc); D.setEdited(!!draft.meta.edited); setApplied(draft.meta.applied ?? null); }
         else if (legacy?.length) { D.setDoc(legacy); D.setEdited(!!draft.meta.edited); }
@@ -80,10 +84,10 @@ export function useScrapStudio(o: {
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => {
-      saveDraft(o.prefix, photos.map((p) => ({ id: p.id, name: p.name, blob: p.blob })), { ...o.extra, text, adjust, doc: D.doc, edited: D.edited, applied }, ustickers.map((s) => ({ id: s.id, blob: s.blob }))).catch(() => {});
+      saveDraft(o.prefix, photos.map((p) => ({ id: p.id, name: p.name, blob: p.blob })), { ...o.extra, text, adjust, doc: D.doc, edited: D.edited, applied, colors }, ustickers.map((s) => ({ id: s.id, blob: s.blob }))).catch(() => {});
     }, 700);
     return () => clearTimeout(t);
-  }, [ready, photos, text, adjust, D.doc, D.edited, applied, ustickers, o.extra, o.prefix]);
+  }, [ready, photos, text, adjust, D.doc, D.edited, applied, ustickers, o.extra, o.prefix, colors]);
 
   const doc = D.doc;
   const cur = doc?.[active] ?? null;
@@ -225,6 +229,12 @@ export function useScrapStudio(o: {
     const S = surfaceOf(cur), e = largestEmpty(S, L), w = S.w * 0.6;
     return { k: "text", role: "custom", value, x: Math.min(S.w - w / 2, Math.max(w / 2, e.x)), y: e.y, w, size, rot: 0, font: "hand", color: "#3f3f46", family: "Dancing Script", align: "center", lh: 1.25, user: true };
   };
+  /** "Không giấy": khung lời chúc → lớp chữ thường (giữ nội dung, font, màu chữ) */
+  function wishToText(i: number) {
+    const l = L[i]; if (l?.k !== "wish") return;
+    const t: Layer = { k: "text", role: "custom", value: l.value, x: l.x, y: l.y, w: l.w, size: Math.max(3, Math.min(7, l.h / 5)), rot: l.rot, font: "hand", color: l.ink, family: l.cutout ? undefined : l.family ?? "Dancing Script", cutout: l.cutout, align: "center", lh: 1.25, user: l.user };
+    D.begin(); setLayers((ls) => ls.map((x, j) => (j === i ? t : x)), l);
+  }
   /** "+ Thêm chữ": chữ mẫu ở vùng trống lớn nhất, chọn luôn + vào chế độ sửa (bôi đen toàn bộ) */
   function addText() {
     if (!cur) { toast("Tải ảnh và chọn mẫu trước khi thêm chữ.", "err"); return; }
@@ -237,10 +247,10 @@ export function useScrapStudio(o: {
     if (!cur) { toast("Chọn mẫu trước khi thêm lời chúc.", "err"); return; }
     const S = surfaceOf(cur);
     let l: Layer;
-    if (S.round) l = { ...newTextAt(content, 4.5)!, family: "Patrick Hand" } as Layer;
+    if (S.round) l = { ...newTextAt(content, 4.5)!, family: "Dancing Script" } as Layer;
     else {
       const e = largestEmpty(S, L), w = Math.max(36, Math.min(78, e.r * 2 * 0.9)), h = Math.max(22, Math.min(60, w * 0.55));
-      l = { k: "wish", x: e.x, y: e.y, w, h, rot: 0, card: "note", color: "#fff3a8", ink: "#3f3f46", value: content, seed: Math.floor(Math.random() * 1e6), user: true };
+      l = { k: "wish", x: e.x, y: e.y, w, h, rot: 0, card: "note", color: "#fff3a8", ink: "#3f3f46", value: content, family: "Dancing Script", seed: Math.floor(Math.random() * 1e6), user: true };
     }
     D.begin(); setLayers((ls) => [...ls, l], l); setWishOpenS(false); setSel(L.length);
   }
@@ -249,16 +259,22 @@ export function useScrapStudio(o: {
     c.kind === "frame" ? { ...x, frame: c.frame.id, frameSets: undefined, shape: "rect", h: x.w * (c.frame.ratio || 1), border: undefined }
       : c.kind === "shape" ? { ...x, frame: undefined, frameSets: undefined, asset: undefined, shape: c.shape, h: x.w * c.ratio, border: c.shape === "circle" || c.shape === "heart" ? "#ffffff" : undefined }
         : { ...x, frame: undefined, frameSets: undefined, asset: undefined, shape: x.shape === "frame" ? "rect" : x.shape });
-  /** "+ Thêm ô ảnh": ô mới (khung / hình dạng đã chọn) ở vùng trống lớn nhất của bề mặt đang xem */
-  function addSlot(c: FrameChoice) {
+  /** "+ Thêm khung ảnh": ô mới TO (rộng ~45% 1 trang / đường kính đĩa, giữ tỉ lệ khung) ở vùng trống lớn nhất của bề mặt đang xem,
+      nằm trên các lớp khác; hết chỗ thì đặt giữa trang, xoay nhẹ. Tự chọn ô vừa thêm; có ảnh thì gán luôn. */
+  function addSlot(c: FrameChoice, photoId: string | null = null) {
     if (!cur) return;
-    const S = surfaceOf(cur), e = largestEmpty(S, L), def = S.round ? 30 : 48;
+    const S = surfaceOf(cur), e = largestEmpty(S, L);
     const ratio = c.kind === "frame" ? c.frame.ratio || 1 : c.kind === "shape" ? c.ratio : 0.78;
-    const w = Math.max(14, Math.min(def, (e.r * 2 * 0.95) / Math.hypot(1, ratio)));
-    const base: Extract<Layer, { k: "photo" }> = { k: "photo", slot: 999, x: e.x, y: e.y, w, h: w * ratio, rot: 0, shape: "rect", seed: Math.floor(Math.random() * 1e6), photo: "" };
+    let w = SLOT_W, h = w * ratio;
+    if (h > S.h * 0.8) { h = S.h * 0.8; w = h / ratio; }
+    const fits = e.r * 2 >= Math.hypot(w, h) * 0.75;
+    const cx0 = S.kind === "spread" ? (e.x < 120 ? 60 : 180) : S.w / 2;
+    const pos = fits ? { x: e.x, y: e.y, rot: 0 } : { x: cx0, y: S.h / 2, rot: (Math.random() * 2 - 1) * 8 };
+    const base: Extract<Layer, { k: "photo" }> = { k: "photo", slot: 999, x: pos.x, y: pos.y, w, h, rot: pos.rot, shape: "rect", seed: Math.floor(Math.random() * 1e6), photo: photoId ?? "" };
     const l = withChoice(base, c);
-    D.begin(); setLayers((ls) => [...ls, l]); setSel(L.length); setAddSlotOpen(false);
-    setPickFor(L.length);
+    D.begin();
+    setLayers((ls) => [...ls.map((x) => (photoId && x.k === "photo" && x.photo === photoId ? { ...x, photo: "" } : x)), l]);
+    setSel(L.length); setAddSlotOpen(false);
   }
   function setFrame(i: number, c: FrameChoice) {
     const l = L[i]; if (l?.k !== "photo") return;
@@ -300,11 +316,11 @@ export function useScrapStudio(o: {
   ) : null;
 
   /** nạp thiết kế đã lưu trên tài khoản (thay bản nháp) */
-  function hydrate(v: { photos: Photo[]; stickers: UserSticker[]; text: DiscText; adjust: Record<string, Adjust>; doc: Template[]; applied: string | null }) {
-    setPhotos(v.photos); setUstickers(v.stickers); setText(v.text); setAdjust(v.adjust); D.setDoc(v.doc); D.setEdited(true); setApplied(v.applied); D.reset(); setActive(0); setSel(null);
+  function hydrate(v: { photos: Photo[]; stickers: UserSticker[]; text: DiscText; adjust: Record<string, Adjust>; doc: Template[]; applied: string | null; colors?: string[] }) {
+    setColors(v.colors ?? []); setPhotos(v.photos); setUstickers(v.stickers); setText(v.text); setAdjust(v.adjust); D.setDoc(v.doc); D.setEdited(true); setApplied(v.applied); D.reset(); setActive(0); setSel(null);
   }
   return {
-    editText, setEditText, selectAll, textValue, setTextValue, wishOpen, setWishOpen, isTextLayer,
+    colors, addColor, wishToText, editText, setEditText, selectAll, textValue, setTextValue, wishOpen, setWishOpen, isTextLayer,
     hydrate, D, doc, cur, L, ready, photos, setPhotos, used, addFiles, replacePhoto, removePhoto, reorderPhotos, assignPhoto,
     text, setText, adjust, setAdjust, applied, setApplied, ustickers, addUserSticker, removeUserSticker, stickerFiles, setStickerFiles,
     assetImgs, frameImgs, cutFonts, fontPreviews, renderOpts, active, setActive, sel, setSel, editLayer, setEditLayer,

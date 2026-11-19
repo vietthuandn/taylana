@@ -71,7 +71,6 @@ export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove
         </div>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {onAddSlot && <button type="button" onClick={onAddSlot} className="inline-flex h-8 items-center gap-1 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]">+ Thêm ô ảnh</button>}
         {photos.length > 0 && <p className="text-[12px] text-[#a1a1aa]">Kéo ảnh thả lên 1 ô để gán ảnh vào ô đó.</p>}
       </div>
     </section>

@@ -5,7 +5,7 @@
    đang bật; thumbnail trên nền caro kèm ảnh thử bên trong để thấy vùng ảnh) · tìm theo tên · chip lọc theo bộ · "Không khung".
    mode "decor": chỉ khung PNG (khung trang trí, không chứa ảnh). */
 import { useEffect, useMemo, useState } from "react";
-import { Circle, Heart, RectangleHorizontal, Search, Square, X } from "lucide-react";
+import { Circle, Heart, Plus, RectangleHorizontal, Search, Square, X } from "lucide-react";
 import { framePreview } from "@/lib/scrapbook/frames";
 import type { LoadedFrame } from "@/lib/scrapbook/render";
 import { samplePhotos } from "@/lib/scrapbook/samples";
@@ -97,6 +97,49 @@ export function FramePicker({ frames, sets, loaded, current, mode = "photo", all
               {!list.length && <p className="text-[13px] text-[#71717a]">Không có khung phù hợp.</p>}
             </section>
           ) : <p className="rounded-[10px] bg-[#fafafa] p-3 text-[13px] text-[#71717a]">Thư viện chưa có khung nào đang bật.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** "+ Thêm khung ảnh": bước 1 chọn khung (FramePicker) → bước 2 chọn ảnh (ảnh chưa dùng trước, "Tải ảnh mới", "Bỏ qua" = khung trống) */
+export function AddFrameFlow({ frames, sets, loaded, photos, used, onDone, onUpload, onClose }: {
+  frames: Frame[]; sets: FrameSet[]; loaded: Record<string, LoadedFrame | undefined>;
+  photos: { id: string; url: string }[]; used: Set<string>;
+  onDone: (c: FrameChoice, photoId: string | null) => void; onUpload: (f: File) => Promise<string | null>; onClose: () => void;
+}) {
+  const [choice, setChoice] = useState<FrameChoice | null>(null);
+  const [busy, setBusy] = useState(false);
+  const fileIn = useMemo(() => ({ current: null as HTMLInputElement | null }), []);
+  if (!choice) return <FramePicker frames={frames} sets={sets} loaded={loaded} title="Thêm khung ảnh · chọn khung" allowNone={false} onPick={setChoice} onClose={onClose} />;
+  const list = [...photos].sort((a, b) => Number(used.has(a.id)) - Number(used.has(b.id)));
+  return (
+    <div className="fixed inset-0 z-[95] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={onClose}>
+      <div className="flex max-h-[88vh] w-full max-w-[680px] flex-col overflow-hidden rounded-[14px] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between border-b border-[#efeff1] px-5 py-3">
+          <p className="text-[16px] font-semibold">Thêm khung ảnh · chọn ảnh</p>
+          <button type="button" onClick={onClose} aria-label="Đóng" className="text-[#71717a] hover:text-[#18181b]"><X size={18} /></button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+            <button type="button" disabled={busy} onClick={() => fileIn.current?.click()} className="grid aspect-square place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] text-center text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2] disabled:opacity-50">
+              <span><Plus size={16} className="mx-auto mb-1" />{busy ? "Đang tải..." : "Tải ảnh mới"}</span>
+            </button>
+            {list.map((p) => (
+              <button key={p.id} type="button" onClick={() => onDone(choice, p.id)} className="relative aspect-square overflow-hidden rounded-[8px] border border-[#e5e5e7] hover:ring-2 hover:ring-[#ff5fa2]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt="" className="h-full w-full object-cover" />
+                {used.has(p.id) && <span className="absolute left-1 top-1 rounded-[4px] bg-black/60 px-1 text-[9px] leading-[14px] text-white">Đang dùng</span>}
+              </button>
+            ))}
+          </div>
+          <input ref={(el) => { fileIn.current = el; }} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only"
+            onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setBusy(true); const id = await onUpload(f); setBusy(false); if (id) onDone(choice, id); }} />
+        </div>
+        <div className="flex shrink-0 justify-between gap-2 border-t border-[#efeff1] px-5 py-3">
+          <button type="button" onClick={() => setChoice(null)} className="h-9 rounded-[8px] border border-[#e5e5e7] px-4 text-[13px] font-medium hover:bg-[#f4f4f5]">Đổi khung</button>
+          <button type="button" onClick={() => onDone(choice, null)} className="h-9 rounded-[8px] border border-[#e5e5e7] px-4 text-[13px] font-medium hover:bg-[#f4f4f5]">Bỏ qua (khung trống)</button>
         </div>
       </div>
     </div>

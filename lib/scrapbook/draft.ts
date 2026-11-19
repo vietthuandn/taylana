@@ -10,6 +10,7 @@ export type DraftMeta = {
   doc?: Template[] | null; edited?: boolean; applied?: string | null; // thiết kế của khách (bản chép từ mẫu, độc lập với mẫu)
   stickers?: string[]; // sticker khách tự tải (id)
   pages?: number; showTitle?: boolean; rightsOk?: boolean; // Booklet Scrapbook
+  colors?: string[]; // màu riêng khách đã chọn (dòng "Đã dùng" trong Cài đặt chữ), mới nhất ở đầu
   style?: Style | null; seeds?: Partial<Record<Style, number>>; work?: Template | null; // (bản nháp cũ của CD Scrapbook)
 };
 export type DraftSticker = { id: string; blob: Blob };

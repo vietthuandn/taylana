@@ -5,6 +5,7 @@
    sticker, băng dính vắt qua gáy. Trái: tab Ảnh (ảnh, số trang, bộ mẫu) · Sticker · Chữ (lời chúc có sẵn). Phải: cuốn sách to nhất
    có thể (1 trang = min(cao × 0.85, rộng × 0.92 / 2)), thumbnail các trang 48px, bấm đúp 1 trang để xem riêng (Esc thoát).
    Thanh dưới: Nền · Tải về (các trang .zip, dàn trang in .zip, ảnh mockup) · Đặt in. Ảnh khách chỉ xử lý trên trình duyệt. */
+import { confirmDialog } from "@/components/ui/dialog";
 import "@fontsource/dancing-script/400.css";
 import "@fontsource/dancing-script/700.css";
 import "@fontsource/patrick-hand/400.css";
@@ -48,7 +49,7 @@ import { TextTab } from "./TextTab";
 import { SurfaceView } from "./SurfaceView";
 import { TemplateGallery, type GalleryGroup } from "./TemplateGallery";
 import { PhotoPanel, PickPhotoModal, RightsModal, readPhoto, type Photo } from "./parts";
-import { FramePicker } from "./FramePicker";
+import { AddFrameFlow, FramePicker } from "./FramePicker";
 import { setFrameLibrary } from "@/lib/scrapbook/decor";
 import { UserStickerModal } from "./UserStickerModal";
 import { customizeText, useScrapStudio, type UserSticker } from "./useScrapStudio";
@@ -108,7 +109,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
       for (const sid of r.data.stickerIds) { const b = r.blobs[sid]; if (b) { try { const p = await readPhoto(b, "sticker.png", sid); us.push({ id: sid, blob: b, url: p.url, img: p.img }); } catch { /* bỏ */ } } }
       paths.current = r.data.paths ?? {};
       setPages(r.data.pages); setRightsOk(r.data.rightsOk);
-      st.hydrate({ photos: ph, stickers: us, text: r.data.text, adjust: r.data.adjust, doc: r.data.doc, applied: r.data.applied });
+      st.hydrate({ photos: ph, stickers: us, text: r.data.text, adjust: r.data.adjust, doc: r.data.doc, applied: r.data.applied, colors: r.data.colors });
     })();
   }, [st.ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -133,8 +134,8 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
       },
     })),
   }], [pages, sets, pKey, tText, thumbPhotos, st.assetImgs, st.frameImgs, st.renderOpts.assets]);
-  const apply = useCallback((s: BookletSet, list: Photo[], ask = true) => {
-    if (ask && st.D.edited && !window.confirm("Áp bộ mẫu mới sẽ thay bố cục hiện tại (giữ sticker và chữ bạn tự thêm). Tiếp tục?")) return;
+  const apply = useCallback(async (s: BookletSet, list: Photo[], ask = true) => {
+    if (ask && st.D.edited && !(await confirmDialog({ title: "Đổi sang bộ mẫu này?", message: "Bố cục các trang sẽ được thay bằng bộ mẫu mới. Sticker và chữ bạn tự thêm vẫn được giữ.", confirmText: "Đổi bộ mẫu" }))) return;
     const next = s.surfaces.map((t, i) => {
       const d = customizeText(withPhotos(t, list), st.text), mine = st.doc?.[i]?.layers.filter((l) => l.user && l.k !== "photo") ?? [];
       return { ...d, layers: [...d.layers, ...mine] };
@@ -148,9 +149,9 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
     const best = [...sets].sort((a, b) => Math.abs(a.photoCount - photos.length) - Math.abs(b.photoCount - photos.length))[0];
     if (best) apply(best, photos, false);
   }, [st.ready, doc, photos, sets, apply, params]);
-  function changePages(n: number) {
+  async function changePages(n: number) {
     if (n === pages) return;
-    if (doc && st.D.edited && !window.confirm(`Đổi sang ${n} trang sẽ dựng lại bố cục (giữ ảnh đã tải). Tiếp tục?`)) return;
+    if (doc && st.D.edited && !(await confirmDialog({ title: `Đổi sang ${n} trang?`, message: "Bố cục sẽ được dựng lại, ảnh bạn đã tải vẫn được giữ.", confirmText: "Đổi số trang" }))) return;
     setPages(n);
     if (doc) {
       const style = sets.find((s) => s.id === st.applied)?.style ?? "polaroid";
@@ -173,9 +174,9 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
     toast(`Đã đổi sang kiểu “${SPREAD_KINDS.find((x) => x.id === kind)?.name}”`);
   }
   function shuffle() { if (!cur) return; st.D.begin(); st.D.patchSurface(st.active, (t) => autoDecorate(t, Math.floor(Math.random() * 1e6), assets)); st.setSel(null); }
-  function restore() {
+  async function restore() {
     const s = sets.find((x) => x.id === st.applied);
-    if (!s || !window.confirm("Khôi phục bố cục gốc của bộ mẫu? Các chỉnh sửa, sticker và chữ đã thêm sẽ bị bỏ (ảnh đã tải vẫn giữ).")) return;
+    if (!s || !(await confirmDialog({ title: "Khôi phục bộ mẫu gốc?", message: "Các chỉnh sửa, sticker và chữ bạn đã thêm sẽ bị bỏ. Ảnh bạn đã tải vẫn được giữ.", confirmText: "Khôi phục", danger: true }))) return;
     st.D.begin(); st.D.setDoc(s.surfaces.map((t) => customizeText(withPhotos(t, photos), st.text))); st.D.setEdited(false); st.setSel(null);
   }
 
@@ -256,7 +257,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
     if (!doc) throw new Error("Tải ảnh và chọn mẫu trước");
     const thumb = renderSurface({ template: doc[0], ...ro, size: 360 }).canvas.toDataURL("image/jpeg", 0.8);
     const files = [...photos.map((p) => ({ id: p.id, blob: p.blob })), ...st.ustickers.map((s) => ({ id: s.id, blob: s.blob }))];
-    const r = await saveScrapToAccount({ v: 1, kind: "booklet-scrapbook", pages, showTitle: true, rightsOk, text: st.text, adjust: st.adjust, doc, applied: st.applied, photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((s) => s.id), paths: paths.current },
+    const r = await saveScrapToAccount({ v: 1, kind: "booklet-scrapbook", pages, showTitle: true, rightsOk, text: st.text, adjust: st.adjust, doc, applied: st.applied, photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((s) => s.id), paths: paths.current, colors: st.colors },
       files, { id: designId, name: st.text.main || "Booklet Scrapbook", thumbnail: thumb });
     paths.current = r.paths; setDesignId(r.id);
     toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
@@ -275,8 +276,10 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
         <div className="flex rounded-[10px] border border-[#e5e5e7] p-1">{tabBtn("anh", "Ảnh")}{tabBtn("sticker", "Sticker")}{tabBtn("chu", "Chữ")}</div>
         {tab === "anh" && (
           <>
+            <button type="button" onClick={() => (doc ? st.setAddSlotOpen(true) : toast("Tải ảnh và chọn mẫu trước khi thêm khung ảnh.", "err"))}
+              className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#ff5fa2] text-[14px] font-semibold text-white hover:bg-[#f0468f]">+ Thêm khung ảnh</button>
             <PhotoPanel photos={photos} used={st.used} max={MAX} hint="JPG, PNG, HEIC · mỗi trang 1–2 ảnh · ảnh chỉ xử lý trên máy bạn"
-              onAdd={(f) => { st.addFiles(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} onAddSlot={doc ? () => st.setAddSlotOpen(true) : undefined} />
+              onAdd={(f) => { st.addFiles(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} />
             <section>
               <p className="mb-2 text-[14px] font-semibold">Số trang</p>
               <div className="flex gap-1.5">
@@ -293,11 +296,12 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
           </>
         )}
         {tab === "sticker" && (
-          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} decor={frames.filter((f) => st.frameImgs[f.id]).map((f) => ({ id: f.id, url: f.url, name: f.name }))} onAddDecor={(id) => st.addAsset(`f:${id}`)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
+          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
             onUpload={(f) => st.setStickerFiles(f)} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
         )}
         {tab === "chu" && (
-          <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={fonts} previews={st.fontPreviews} onAdd={() => st.addText()}
+          <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={fonts} previews={st.fontPreviews} colors={st.colors} onCustomColor={st.addColor}
+            onPaper={() => { if (st.sel !== null) st.wishToText(st.sel); }} onAdd={() => st.addText()}
             onPatch={(v) => { if (st.sel !== null) st.patchLayer(st.sel, v); }} onBegin={st.D.begin} onDuplicate={() => { if (st.sel !== null) st.duplicate(st.sel); }} onRemove={() => { if (st.sel !== null) st.removeLayer(st.sel); }}
             topics={T} wishes={W} onWish={st.addWish} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
         )}
@@ -370,7 +374,10 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
       {st.frameFor !== null && st.L[st.frameFor]?.k === "photo" && (
         <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Đổi khung" current={(st.L[st.frameFor] as { frame?: string }).frame ?? null} onPick={(c) => st.setFrame(st.frameFor!, c)} onClose={() => st.setFrameFor(null)} />
       )}
-      {st.addSlotOpen && <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Thêm ô ảnh" allowNone={false} onPick={st.addSlot} onClose={() => st.setAddSlotOpen(false)} />}
+      {st.addSlotOpen && (
+        <AddFrameFlow frames={frames} sets={frameSets} loaded={st.frameImgs} photos={photos} used={st.used} onClose={() => st.setAddSlotOpen(false)}
+          onDone={(c, pid) => st.addSlot(c, pid)} onUpload={async (f) => { const [p] = await st.addFiles([f]); return p?.id ?? null; }} />
+      )}
       {st.stickerFiles && <UserStickerModal files={st.stickerFiles} onAdd={(b) => st.addUserSticker(b)} onClose={() => st.setStickerFiles(null)} />}
     </div>
   );
