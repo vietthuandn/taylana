@@ -2,6 +2,7 @@
 /* Tìm lời gợi ý qua API công khai LRCLIB — gọi THẲNG từ trình duyệt (không qua server của tiệm, không lưu kết quả).
    Giới hạn 1 lần gọi mỗi 2 giây (xếp hàng khi tìm nhiều bài). */
 import { cleanLyrics, stripTimestamps } from "./clean";
+import { SITE_URL } from "@/lib/site";
 
 export type LrcResult = { id: number; trackName: string; artistName: string; albumName: string; duration: number; plainLyrics: string | null; syncedLyrics: string | null; instrumental?: boolean };
 const API = "https://lrclib.net/api/search";
@@ -18,7 +19,7 @@ export function searchLyrics(track: string, artist: string): Promise<LrcResult[]
     const q = new URLSearchParams({ track_name: track.trim() });
     if (artist.trim()) q.set("artist_name", artist.trim());
     let res: Response;
-    try { res = await fetch(`${API}?${q}`, { headers: { "Lrclib-Client": "Taylana (https://taylana-printing.vercel.app)" } }); }
+    try { res = await fetch(`${API}?${q}`, { headers: { "Lrclib-Client": `Taylana (${SITE_URL})` } }); }
     catch { throw new Error("Lỗi mạng: không kết nối được LRCLIB. Bạn kiểm tra mạng rồi thử lại nhé."); }
     if (!res.ok) throw new Error(`LRCLIB đang bận (mã ${res.status}). Bạn thử lại sau ít phút nhé.`);
     const list = (await res.json()) as LrcResult[];
