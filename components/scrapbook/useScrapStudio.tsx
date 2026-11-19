@@ -31,7 +31,12 @@ const btn = "inline-flex h-7 items-center gap-1 rounded-[6px] px-2 text-[12px] h
 export function useScrapStudio(o: {
   prefix: string; max: number; assets: ScrapAsset[]; frames: Frame[]; fonts: CutoutFont[]; glyphs: Glyph[]; defaultText: DiscText;
   extra: Partial<DraftMeta>; onLoad: (meta: DraftMeta, photos: Photo[]) => Template[] | void; wantAllFonts: boolean;
+  persist?: boolean; // lưu nháp IndexedDB (mode khách) — trình sửa mẫu của admin: false
+  template?: boolean; // mode "template" (admin): ô ảnh theo số thứ tự (slot), không gán ảnh khách
+  slotPhotos?: (CanvasImageSource & { width: number; height: number })[]; // ảnh thử theo slot (mode template / ảnh mẫu)
+  uploadBg?: (f: File) => Promise<string>; // tải ảnh nền: admin → link ảnh trên bucket; không có → giữ trên máy (khách)
 }) {
+  const persist = o.persist !== false;
   const D = useScrapDoc();
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [text, setText] = useState<DiscText>(o.defaultText);
@@ -57,13 +62,15 @@ export function useScrapStudio(o: {
   const [frameFor, setFrameFor] = useState<number | null>(null);
   const [addSlotOpen, setAddSlotOpen] = useState(false);
   const [stickerFiles, setStickerFiles] = useState<File[] | null>(null);
+  const [bgLocal, setBgLocal] = useState<UserSticker[]>([]); // ảnh nền khách tải (giữ trên máy, lưu nháp cùng sticker — id "bg_…")
+  const [bgUrlImgs, setBgUrlImgs] = useState<Record<string, HTMLImageElement>>({});
 
   // ---------- khởi động: font, chất liệu, khung, bản nháp ----------
   useEffect(() => {
     let off = false;
     (async () => {
       await loadFonts();
-      const [imgs, fr, draft] = await Promise.all([loadAssetImages(o.assets), loadFrameImages(o.frames), loadDraft(o.prefix)]);
+      const [imgs, fr, draft] = await Promise.all([loadAssetImages(o.assets), loadFrameImages(o.frames), persist ? loadDraft(o.prefix) : Promise.resolve(null)]);
       if (off) return;
       setAssetImgs(imgs); setFrameImgs(fr);
       if (draft) {
@@ -72,7 +79,7 @@ export function useScrapStudio(o: {
         const us: UserSticker[] = [];
         for (const s of draft.stickers) { try { const p = await readPhoto(s.blob, "sticker.png", s.id); us.push({ id: s.id, blob: s.blob, url: p.url, img: p.img }); } catch { /* bỏ */ } }
         if (off) return;
-        setPhotos(list); setUstickers(us); setColors(draft.meta.colors ?? []); setText(draft.meta.text ?? o.defaultText); setAdjust(draft.meta.adjust ?? {});
+        setPhotos(list); setUstickers(us.filter((x) => !x.id.startsWith("bg_"))); setBgLocal(us.filter((x) => x.id.startsWith("bg_"))); setColors(draft.meta.colors ?? []); setText(draft.meta.text ?? o.defaultText); setAdjust(draft.meta.adjust ?? {});
         const legacy = o.onLoad(draft.meta, list);
         if (draft.meta.doc?.length) { D.setDoc(draft.meta.doc); D.setEdited(!!draft.meta.edited); setApplied(draft.meta.applied ?? null); }
         else if (legacy?.length) { D.setDoc(legacy); D.setEdited(!!draft.meta.edited); }
@@ -82,12 +89,12 @@ export function useScrapStudio(o: {
     return () => { off = true; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || !persist) return;
     const t = setTimeout(() => {
-      saveDraft(o.prefix, photos.map((p) => ({ id: p.id, name: p.name, blob: p.blob })), { ...o.extra, text, adjust, doc: D.doc, edited: D.edited, applied, colors }, ustickers.map((s) => ({ id: s.id, blob: s.blob }))).catch(() => {});
+      saveDraft(o.prefix, photos.map((p) => ({ id: p.id, name: p.name, blob: p.blob })), { ...o.extra, text, adjust, doc: D.doc, edited: D.edited, applied, colors }, [...ustickers, ...bgLocal].map((s) => ({ id: s.id, blob: s.blob }))).catch(() => {});
     }, 700);
     return () => clearTimeout(t);
-  }, [ready, photos, text, adjust, D.doc, D.edited, applied, ustickers, o.extra, o.prefix, colors]);
+  }, [ready, photos, text, adjust, D.doc, D.edited, applied, ustickers, bgLocal, o.extra, o.prefix, colors, persist]);
 
   const doc = D.doc;
   const cur = doc?.[active] ?? null;
@@ -163,7 +170,31 @@ export function useScrapStudio(o: {
   }, [o.fonts, cutFonts, fontPreviews]);
 
   const photoMap = useMemo(() => Object.fromEntries(photos.map((p) => [p.id, p.img])), [photos]);
-  const renderOpts = useMemo<Omit<RenderOpts, "template" | "size">>(() => ({ photoMap, adjustMap: adjust, text, assets: assetsMap, frames: frameImgs, cutoutFonts: cutFonts }), [photoMap, adjust, text, assetsMap, frameImgs, cutFonts, fontTick]); // eslint-disable-line react-hooks/exhaustive-deps
+  // ảnh nền: link ảnh (mẫu admin) tải khi cần · ảnh khách giữ trên máy ("u:<id>")
+  const bgKeys = useMemo(() => [...new Set((doc ?? []).flatMap((t) => [t.bg.image, t.bg2?.image]).filter((k): k is string => !!k))], [doc]);
+  useEffect(() => {
+    for (const k of bgKeys) if (/^https?:/.test(k) && !bgUrlImgs[k]) loadImg(k).then((im) => setBgUrlImgs((c) => ({ ...c, [k]: im }))).catch(() => null);
+  }, [bgKeys, bgUrlImgs]);
+  const bgImages = useMemo(() => ({ ...bgUrlImgs, ...Object.fromEntries(bgLocal.map((b) => [`u:${b.id}`, b.img])) }), [bgUrlImgs, bgLocal]);
+  const renderOpts = useMemo<Omit<RenderOpts, "template" | "size">>(() => ({ photoMap, adjustMap: adjust, text, assets: assetsMap, frames: frameImgs, cutoutFonts: cutFonts, bgImages, photos: o.slotPhotos }), [photoMap, adjust, text, assetsMap, frameImgs, cutFonts, fontTick, bgImages, o.slotPhotos]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** đổi nền bề mặt đang xem. scope (cặp trang): "all" cả cặp · "left" trang trái · "right" trang phải */
+  function setBg(scope: "all" | "left" | "right", v: Partial<Template["bg"]>) {
+    if (!cur) return;
+    D.begin();
+    D.patchSurface(active, (t) => {
+      if (scope === "all") return { ...t, bg: { ...t.bg, ...v }, bg2: undefined };
+      const both = { bg: t.bg, bg2: t.bg2 ?? { ...t.bg } };
+      return scope === "left" ? { ...t, ...both, bg: { ...both.bg, ...v } } : { ...t, ...both, bg2: { ...both.bg2, ...v } };
+    });
+    D.setEdited(true);
+  }
+  /** tải ảnh nền: admin → link trên bucket · khách → giữ trên máy */
+  async function uploadBg(f: File) {
+    if (o.uploadBg) return o.uploadBg(f);
+    const id = `bg_${uid()}`, p = await readPhoto(f, f.name, id);
+    setBgLocal((c) => [...c, { id, blob: f, url: p.url, img: p.img }]);
+    return `u:${id}`;
+  }
 
   // ---------- thao tác trên lớp của bề mặt đang xem ----------
   const setLayers = useCallback((fn: (L: Layer[]) => Layer[], touched?: Layer) => D.setLayers(active, fn, touched), [D, active]);
@@ -171,8 +202,8 @@ export function useScrapStudio(o: {
   function duplicate(i: number) {
     const l = L[i]; if (!l) return;
     D.begin();
-    const c = { ...clone(l), x: l.x + 4, y: l.y + 4, user: true, auto: undefined } as Layer;
-    if (c.k === "photo") c.photo = "";
+    const c = { ...clone(l), x: l.x + 4, y: l.y + 4, user: o.template ? undefined : true, auto: undefined } as Layer;
+    if (c.k === "photo" && !o.template) c.photo = "";
     setLayers((ls) => [...ls, c], c.k === "photo" ? undefined : c); setSel(L.length);
   }
   function removeLayer(i: number) {
@@ -270,10 +301,14 @@ export function useScrapStudio(o: {
     const fits = e.r * 2 >= Math.hypot(w, h) * 0.75;
     const cx0 = S.kind === "spread" ? (e.x < 120 ? 60 : 180) : S.w / 2;
     const pos = fits ? { x: e.x, y: e.y, rot: 0 } : { x: cx0, y: S.h / 2, rot: (Math.random() * 2 - 1) * 8 };
-    const base: Extract<Layer, { k: "photo" }> = { k: "photo", slot: 999, x: pos.x, y: pos.y, w, h, rot: pos.rot, shape: "rect", seed: Math.floor(Math.random() * 1e6), photo: photoId ?? "" };
+    // mode template: ô ảnh theo số thứ tự (ảnh thử "s<k>" → slot k, bỏ qua → số tiếp theo), không gán ảnh khách
+    const nextSlot = Math.max(-1, ...(doc ?? []).flatMap((t) => t.layers.flatMap((x) => (x.k === "photo" ? [x.slot] : [])))) + 1;
+    const base: Extract<Layer, { k: "photo" }> = o.template
+      ? { k: "photo", slot: photoId?.startsWith("s") ? Number(photoId.slice(1)) : nextSlot, x: pos.x, y: pos.y, w, h, rot: pos.rot, shape: "rect", seed: Math.floor(Math.random() * 1e6) }
+      : { k: "photo", slot: 999, x: pos.x, y: pos.y, w, h, rot: pos.rot, shape: "rect", seed: Math.floor(Math.random() * 1e6), photo: photoId ?? "" };
     const l = withChoice(base, c);
     D.begin();
-    setLayers((ls) => [...ls.map((x) => (photoId && x.k === "photo" && x.photo === photoId ? { ...x, photo: "" } : x)), l]);
+    setLayers((ls) => [...ls.map((x) => (!o.template && photoId && x.k === "photo" && x.photo === photoId ? { ...x, photo: "" } : x)), l]);
     setSel(L.length); setAddSlotOpen(false);
   }
   function setFrame(i: number, c: FrameChoice) {
@@ -305,7 +340,7 @@ export function useScrapStudio(o: {
     <>
       {selL.k === "photo" ? (
         <>
-          <button type="button" onClick={() => setPickFor(sel)} className={btn}><ImagePlus size={13} /> {selL.photo ? "Đổi ảnh" : "Chọn ảnh"}</button>
+          {!o.template && <button type="button" onClick={() => setPickFor(sel)} className={btn}><ImagePlus size={13} /> {selL.photo ? "Đổi ảnh" : "Chọn ảnh"}</button>}
           <button type="button" onClick={() => setFrameFor(sel)} className={btn}><FrameIcon size={13} /> Đổi khung</button>
         </>
       ) : <button type="button" onClick={() => duplicate(sel!)} title="Nhân bản (Ctrl+D)" className={btn}><Copy size={13} /> Nhân bản</button>}
@@ -320,7 +355,7 @@ export function useScrapStudio(o: {
     setColors(v.colors ?? []); setPhotos(v.photos); setUstickers(v.stickers); setText(v.text); setAdjust(v.adjust); D.setDoc(v.doc); D.setEdited(true); setApplied(v.applied); D.reset(); setActive(0); setSel(null);
   }
   return {
-    colors, addColor, wishToText, editText, setEditText, selectAll, textValue, setTextValue, wishOpen, setWishOpen, isTextLayer,
+    setBg, uploadBg, bgLocal, colors, addColor, wishToText, editText, setEditText, selectAll, textValue, setTextValue, wishOpen, setWishOpen, isTextLayer,
     hydrate, D, doc, cur, L, ready, photos, setPhotos, used, addFiles, replacePhoto, removePhoto, reorderPhotos, assignPhoto,
     text, setText, adjust, setAdjust, applied, setApplied, ustickers, addUserSticker, removeUserSticker, stickerFiles, setStickerFiles,
     assetImgs, frameImgs, cutFonts, fontPreviews, renderOpts, active, setActive, sel, setSel, editLayer, setEditLayer,

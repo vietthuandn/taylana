@@ -19,7 +19,7 @@ import "@fontsource/be-vietnam-pro/400-italic.css";
 import "@fontsource/be-vietnam-pro/700-italic.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Box, ChevronLeft, ChevronRight, Dices, Download, FileStack, Image as ImageIcon, LayoutTemplate, Redo2, RotateCcw, Save, ShoppingBag, Undo2 } from "lucide-react";
+import { Box, Dices, Download, FileStack, Image as ImageIcon, LayoutTemplate, Save, ShoppingBag } from "lucide-react";
 import { GRADIENTS, paintBackground, type BgChoice } from "@/lib/mockup/backgrounds";
 import type { MockupBackground } from "@/lib/mockup/types";
 import { defaultGlass } from "@/lib/mockup/types";
@@ -42,16 +42,12 @@ import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
 import { STYLES, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting, type Wish, type WishTopic } from "@/lib/scrapbook/types";
 import { BgPicker } from "@/components/mockup-viewer/BgPicker";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
-import { Button, Toggle, toast } from "@/components/ui/kit";
+import { Button, toast } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
-import { StickerTab } from "./StickerTab";
-import { TextTab } from "./TextTab";
-import { SurfaceView } from "./SurfaceView";
+import { ScrapbookEditor, type EditorTab } from "./ScrapbookEditor";
 import { TemplateGallery, type GalleryGroup } from "./TemplateGallery";
-import { PhotoPanel, PickPhotoModal, RightsModal, readPhoto, type Photo } from "./parts";
-import { AddFrameFlow, FramePicker } from "./FramePicker";
+import { PhotoPanel, RightsModal, readPhoto, type Photo } from "./parts";
 import { setFrameLibrary } from "@/lib/scrapbook/decor";
-import { UserStickerModal } from "./UserStickerModal";
 import { customizeText, useScrapStudio, type UserSticker } from "./useScrapStudio";
 import { clone } from "./useScrapDoc";
 
@@ -70,7 +66,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   setFrameLibrary(frameSets); // tên bộ khung → ưu tiên khung hợp phong cách
   const router = useRouter();
   const params = useSearchParams();
-  const [tab, setTab] = useState<"anh" | "sticker" | "chu">("anh");
+  const [tab, setTab] = useState<EditorTab>("anh");
   const [pages, setPages] = useState<number>(8);
   const [rightsOk, setRightsOk] = useState(false);
   const [rightsOpen, setRightsOpen] = useState(false);
@@ -88,8 +84,6 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
   });
   const { doc, photos } = st;
 
-  // chọn 1 lớp chữ trên trang → mở tab Chữ (hiện Cài đặt chữ)
-  useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel])) setTab("chu"); }, [st.sel]); // eslint-disable-line react-hooks/exhaustive-deps
   const spreadSettings = useMemo(() => settings.filter((s) => s.surface_type === "spread"), [settings]);
   const T = topics.length ? topics : DEFAULT_TOPICS, W = wishes.length ? wishes : DEFAULT_WISHES;
 
@@ -181,24 +175,7 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
     st.D.begin(); st.D.setDoc(s.surfaces.map((t) => customizeText(withPhotos(t, photos), st.text))); st.D.setEdited(false); st.setSel(null);
   }
 
-  // ---------- khung xem: cuốn sách to nhất có thể ----------
-  const area = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState({ w: 800, h: 500 });
-  useEffect(() => {
-    const el = area.current;
-    if (!el) return;
-    const r = new ResizeObserver(() => setBox({ w: el.clientWidth, h: el.clientHeight }));
-    r.observe(el);
-    return () => r.disconnect();
-  }, []);
-  const pagePx = Math.max(120, Math.floor(Math.min(box.h * 0.85, (box.w * 0.92) / 2)));
   const count = doc?.length ?? 0;
-  const [thumbs, setThumbs] = useState<string[]>([]);
-  useEffect(() => {
-    if (!doc) return;
-    const t = setTimeout(() => setThumbs(doc.map((s) => renderSurface({ template: s, ...ro, size: s.surface === "spread" ? 96 : 48 }).canvas.toDataURL("image/jpeg", 0.8))), 400);
-    return () => clearTimeout(t);
-  }, [doc, ro]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") setZoomPage(null); };
     window.addEventListener("keydown", h);
@@ -264,21 +241,17 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
     toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
   });
 
-  const tabBtn = (id: typeof tab, label: string) => (
-    <button key={id} type="button" onClick={() => { setTab(id); if (id !== "chu" && st.sel !== null && st.isTextLayer(st.L[st.sel])) { st.setEditText(null); st.setSel(null); } }} className={cx("flex-1 rounded-[8px] px-3 py-1.5 text-[13px] font-medium", tab === id ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{label}</button>
-  );
   const nos = pagesOf(st.active, pages, count);
-  const label = nos.length === 1 ? `Trang ${nos[0]}${st.active === 0 ? " (bìa)" : ""}` : `Trang ${nos[0]}–${nos[1]}`;
-  const go = (i: number) => { st.setActive(Math.max(0, Math.min(count - 1, i))); st.setSel(null); st.setEditLayer(null); };
   return (
-    <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
-     <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col md:min-h-0 md:flex-row md:border-x md:border-[#e5e5e7]">
-      <aside className="order-2 space-y-5 border-[#e5e5e7] bg-white p-6 md:order-1 md:w-[34%] md:min-w-[340px] md:shrink-0 md:overflow-y-auto md:border-r">
-        <div className="flex rounded-[10px] border border-[#e5e5e7] p-1">{tabBtn("anh", "Ảnh")}{tabBtn("sticker", "Sticker")}{tabBtn("chu", "Chữ")}</div>
-        {tab === "anh" && (
+    <>
+      <ScrapbookEditor mode="customer" st={st} assets={assets} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
+        render={ro} guides={guides} setGuides={setGuides} onRestore={restore} canRestore={!!st.applied && !!doc}
+        toolbar={cur?.surface === "spread" ? <button type="button" onClick={relayout} className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e5e5e7] bg-white px-2.5 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><LayoutTemplate size={12} /> Đổi bố cục trang này</button> : null}
+        empty={<div className="grid aspect-[2/1] w-full max-w-[520px] place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]"><span><ImageIcon size={24} className="mx-auto mb-2" />Tải ảnh lên để web tự dàn booklet scrapbook</span></div>}
+        pageLabel={(i, n) => { const no = pagesOf(i, pages, n); return `${no.length === 1 ? `Trang ${no[0]}${i === 0 ? " (bìa)" : ""}` : `Trang ${no[0]}–${no[1]}`} / ${pages}`; }}
+        onBackgroundDbl={(at) => setZoomPage(nos[cur?.surface === "spread" && at.x >= 120 ? 1 : 0])}
+        photoTab={(
           <>
-            <button type="button" onClick={() => (doc ? st.setAddSlotOpen(true) : toast("Tải ảnh và chọn mẫu trước khi thêm khung ảnh.", "err"))}
-              className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#ff5fa2] text-[14px] font-semibold text-white hover:bg-[#f0468f]">+ Thêm khung ảnh</button>
             <PhotoPanel photos={photos} used={st.used} max={MAX} hint="JPG, PNG, HEIC · mỗi trang 1–2 ảnh · ảnh chỉ xử lý trên máy bạn"
               onAdd={(f) => { st.addFiles(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} />
             <section>
@@ -296,69 +269,18 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
             </section>
           </>
         )}
-        {tab === "sticker" && (
-          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
-            onUpload={(f) => st.setStickerFiles(f)} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
-        )}
-        {tab === "chu" && (
-          <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={fonts} previews={st.fontPreviews} colors={st.colors} onCustomColor={st.addColor}
-            onPaper={() => { if (st.sel !== null) st.wishToText(st.sel); }} onAdd={() => st.addText()}
-            onPatch={(v) => { if (st.sel !== null) st.patchLayer(st.sel, v); }} onBegin={st.D.begin} onDuplicate={() => { if (st.sel !== null) st.duplicate(st.sel); }} onRemove={() => { if (st.sel !== null) st.removeLayer(st.sel); }}
-            topics={T} wishes={W} onWish={st.addWish} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
-        )}
-      </aside>
-
-      <section className="relative order-1 flex min-h-[460px] min-w-0 flex-1 flex-col md:order-2 md:min-h-0">
-        <div className="flex flex-wrap items-center gap-2 px-3 pt-2">
-          <button type="button" onClick={() => { if (st.D.undo()) st.setSel(null); }} title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canUndo}><Undo2 size={13} /></button>
-          <button type="button" onClick={() => { if (st.D.redo()) st.setSel(null); }} title="Làm lại" aria-label="Làm lại" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canRedo}><Redo2 size={13} /></button>
-          <button type="button" onClick={restore} disabled={!st.applied || !doc} className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e5e5e7] bg-white px-2.5 text-[12px] font-medium disabled:opacity-40"><RotateCcw size={12} /> Khôi phục mẫu</button>
-          {cur?.surface === "spread" && <button type="button" onClick={relayout} className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e5e5e7] bg-white px-2.5 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><LayoutTemplate size={12} /> Đổi bố cục trang này</button>}
-          <span className="flex-1" />
-          <Toggle checked={guides} onChange={setGuides} label="Guideline" />
-        </div>
-        <div ref={area} className="relative flex min-h-[300px] flex-1 items-center justify-center overflow-hidden px-2 py-1">
-          {!cur ? (
-            <div className="grid aspect-[2/1] w-full max-w-[520px] place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]">
-              <span><ImageIcon size={24} className="mx-auto mb-2" />Tải ảnh lên để web tự dàn booklet scrapbook</span>
-            </div>
-          ) : st.ready && (
-            <SurfaceView key={st.active} t={cur} width={cur.surface === "spread" ? pagePx * 2 : pagePx} render={ro} guides={guides} sel={st.sel} onSel={st.setSel} editLayer={st.editLayer} onEditLayer={st.setEditLayer}
-              begin={st.D.begin} setLayers={st.setLayers} adjustOf={(id) => st.adjust[id]} setAdjust={(id, a) => st.setAdjust((c) => ({ ...c, [id]: a }))}
-              onDropAsset={(id, at) => { if (id.startsWith("u:") || id.startsWith("f:")) st.addAsset(id, at); else { const a = assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
-              onDropPhoto={(pid, i) => st.assignPhoto(st.active, i, pid)} onEmptySlot={(i) => st.setPickFor(i)} editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
-              onBackgroundDbl={(at) => setZoomPage(nos[cur.surface === "spread" && at.x >= 120 ? 1 : 0])} tools={st.tools} />
-          )}
-        </div>
-        {doc && (
-          <div className="px-3">
-            <div className="flex items-center justify-center gap-1.5">
-              <button type="button" onClick={() => go(st.active - 1)} disabled={st.active === 0} aria-label="Trang trước" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40"><ChevronLeft size={14} /></button>
-              <span className="min-w-[96px] text-center text-[12px] tabular-nums text-[#3f3f46]">{label} / {pages}</span>
-              <button type="button" onClick={() => go(st.active + 1)} disabled={st.active >= count - 1} aria-label="Trang sau" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40"><ChevronRight size={14} /></button>
-            </div>
-            <div className="no-scrollbar mt-1 flex justify-center gap-1.5 overflow-x-auto pb-1">
-              {doc.map((s, i) => (
-                <button key={i} type="button" onClick={() => go(i)} className={cx("shrink-0 rounded-[4px] border p-px", i === st.active ? "border-[#ff5fa2]" : "border-[#e5e5e7]")}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {thumbs[i] ? <img src={thumbs[i]} alt="" className="h-12" style={{ width: s.surface === "spread" ? 96 : 48 }} /> : <span className="block h-12 bg-[#ececef]" style={{ width: s.surface === "spread" ? 96 : 48 }} />}
-                </button>
-              ))}
-            </div>
+        bottom={(
+          <div className="flex h-14 shrink-0 items-center gap-2 border-t border-[#efeff1] bg-[#f7f7f8] px-3">
+            <div className="min-w-0 flex-1"><BgPicker value={bg} onChange={setBg} shop={backgrounds} /></div>
+            {user && <Button variant="secondary" size="sm" icon={<Save size={16} />} onClick={saveAccount} loading={busy} disabled={!doc}>Lưu</Button>}
+            <DownloadMenu busy={busy} up items={[
+              { label: "Các trang (.zip)", icon: <FileStack size={16} />, onClick: dlPages },
+              { label: "Dàn trang in (.zip)", icon: <Download size={16} />, onClick: dlImposed },
+              { label: "Ảnh mockup (JPG)", icon: <Box size={16} />, onClick: dlMockup },
+            ]} />
+            <Button size="sm" icon={<ShoppingBag size={16} />} disabled={!doc || busy} onClick={() => { if (rightsOk) order(); else setRightsOpen(true); }}>Đặt in booklet này</Button>
           </div>
-        )}
-        <div className="flex h-14 shrink-0 items-center gap-2 border-t border-[#efeff1] bg-[#f7f7f8] px-3">
-          <div className="min-w-0 flex-1"><BgPicker value={bg} onChange={setBg} shop={backgrounds} /></div>
-          {user && <Button variant="secondary" size="sm" icon={<Save size={16} />} onClick={saveAccount} loading={busy} disabled={!doc}>Lưu</Button>}
-          <DownloadMenu busy={busy} up items={[
-            { label: "Các trang (.zip)", icon: <FileStack size={16} />, onClick: dlPages },
-            { label: "Dàn trang in (.zip)", icon: <Download size={16} />, onClick: dlImposed },
-            { label: "Ảnh mockup (JPG)", icon: <Box size={16} />, onClick: dlMockup },
-          ]} />
-          <Button size="sm" icon={<ShoppingBag size={16} />} disabled={!doc || busy} onClick={() => { if (rightsOk) order(); else setRightsOpen(true); }}>Đặt in booklet này</Button>
-        </div>
-      </section>
-     </div>
+        )} />
       {zoomPage !== null && zoomUrl && (
         <div className="fixed inset-0 z-[90] grid place-items-center bg-black/80 p-4" onClick={() => setZoomPage(null)} role="dialog" aria-modal>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -367,19 +289,6 @@ export function BookletScrapStudio({ assets, settings, fonts, glyphs, frames, fr
         </div>
       )}
       {rightsOpen && <RightsModal onClose={() => setRightsOpen(false)} onOk={() => { setRightsOk(true); setRightsOpen(false); order(); }} />}
-      {st.pickFor !== null && (
-        <PickPhotoModal photos={photos} used={st.used} onClose={() => st.setPickFor(null)}
-          onPick={(pid) => { st.assignPhoto(st.active, st.pickFor!, pid); st.setPickFor(null); }}
-          onUpload={async (f) => { const i = st.pickFor!; const [p] = await st.addFiles([f]); if (p) st.assignPhoto(st.active, i, p.id); st.setPickFor(null); }} />
-      )}
-      {st.frameFor !== null && st.L[st.frameFor]?.k === "photo" && (
-        <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Đổi khung" current={(st.L[st.frameFor] as { frame?: string }).frame ?? null} onPick={(c) => st.setFrame(st.frameFor!, c)} onClose={() => st.setFrameFor(null)} />
-      )}
-      {st.addSlotOpen && (
-        <AddFrameFlow frames={frames} sets={frameSets} loaded={st.frameImgs} photos={photos} used={st.used} onClose={() => st.setAddSlotOpen(false)}
-          onDone={(c, pid) => st.addSlot(c, pid)} onUpload={async (f) => { const [p] = await st.addFiles([f]); return p?.id ?? null; }} />
-      )}
-      {st.stickerFiles && <UserStickerModal files={st.stickerFiles} onAdd={(b) => st.addUserSticker(b)} onClose={() => st.setStickerFiles(null)} />}
-    </div>
+    </>
   );
 }

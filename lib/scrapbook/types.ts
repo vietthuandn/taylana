@@ -80,7 +80,9 @@ export type LayerBase =
   | { k: "wish"; x: number; y: number; w: number; h: number; rot: number; card: WishCard; color: string; ink: string; value: string; seed: number;
       family?: string; cutout?: { font: string; curve: number; chaos: number; spacing: number; seed: number } }; // khung lời chúc: chữ tự xuống dòng + tự co
 /** cờ chung của mọi lớp: user = khách tự thêm (giữ lại khi đổi mẫu) · locked = admin khoá (khách không chọn được) */
-export type LayerFlags = { user?: boolean; locked?: boolean; auto?: boolean }; // auto = sticker / băng dính tự rải (nút "Xáo trộn" rải lại)
+export type LayerFlags = { user?: boolean; locked?: boolean; auto?: boolean; hidden?: boolean }; // hidden = admin ẩn lớp (không vẽ)
+/** nền bề mặt: màu + hoạ tiết + texture giấy (chất liệu) + ảnh nền (phủ kín, có độ mờ) */
+export type Bg = { color: string; pattern: "dots" | "grid" | "plain" | "lines"; ink: string; asset?: string; image?: string; imageOpacity?: number }; // auto = sticker / băng dính tự rải (nút "Xáo trộn" rải lại)
 export type Template = {
   id: string; n: number; style: Style; seed: number;
   surface?: SurfaceKind; // mặc định "disc"
@@ -88,7 +90,8 @@ export type Template = {
   kind?: number; // cặp trang booklet: kiểu dàn trang (SPREAD_KINDS)
   accents?: string[]; tone?: string; // bảng màu của mẫu (rải lại sticker)
   fixed?: boolean; // mẫu admin sửa tay: giữ nguyên sticker của mẫu, chỉ bổ sung khi thiếu
-  bg: { color: string; pattern: "dots" | "grid" | "plain" | "lines"; ink: string; asset?: string };
+  bg: Bg;
+  bg2?: Bg; // cặp trang: nền riêng của trang phải (không có = cả cặp dùng chung bg)
   layers: Layer[];
 };
 

@@ -62,7 +62,7 @@ export function SurfaceView(p: SurfaceViewProps) {
   const layerAt = (x: number, y: number) => {
     // sticker khách thêm vẽ trên cùng → được ưu tiên bấm trúng
     const idx = L.map((_, i) => i).sort((a, b) => Number(top(L[a])) - Number(top(L[b])) || a - b);
-    for (let j = idx.length - 1; j >= 0; j--) { const i = idx[j]; if (L[i].locked) continue; const b = layerBox(i); if (b && inside(x, y, b)) return i; }
+    for (let j = idx.length - 1; j >= 0; j--) { const i = idx[j]; if (L[i].locked || L[i].hidden) continue; const b = layerBox(i); if (b && inside(x, y, b)) return i; }
     return -1;
   };
   function onDown(e: React.PointerEvent<HTMLCanvasElement>) {

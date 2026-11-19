@@ -23,6 +23,7 @@ export type RenderOpts = {
   frames?: Record<string, LoadedFrame | undefined>;
   editLayer?: number | null; // ô ảnh đang chỉnh (chỉ số lớp)
   hideLayer?: number | null; // lớp chữ đang sửa trực tiếp (ô nhập đè lên) — tạm ẩn khi vẽ
+  bgImages?: Record<string, Img | undefined>; // ảnh nền theo khoá bg.image (link ảnh admin / "u:<id>" ảnh khách)
   assets?: Record<string, { img: Img; asset: ScrapAsset } | undefined>;
   size: number; mode?: "preview" | "print"; guides?: boolean; editSlot?: number | null; hoverSlot?: number | null;
   cutoutFonts?: Record<string, LoadedFont | undefined>; // font cut-out đã tải ảnh
@@ -104,22 +105,41 @@ function grainTile() {
   g.putImageData(d, 0, 0);
   return grain;
 }
-function background(x: X, t: Template, assets: RenderOpts["assets"], W: number, H: number) {
-  x.fillStyle = t.bg.color; x.fillRect(0, 0, W, H);
-  const tex = t.bg.asset ? assets?.[t.bg.asset] : undefined;
+function background(x: X, t: Template, o: RenderOpts, W: number, H: number) {
+  // cặp trang có nền riêng trang phải → vẽ 2 nửa
+  if (t.bg2 && W > 200) {
+    x.save(); x.beginPath(); x.rect(0, 0, W / 2, H); x.clip(); paintBg(x, t.bg, t.seed, o, W / 2, H, 0); x.restore();
+    x.save(); x.beginPath(); x.rect(W / 2, 0, W / 2, H); x.clip(); x.translate(W / 2, 0); paintBg(x, t.bg2, t.seed + 7, o, W / 2, H, 0); x.restore();
+    return;
+  }
+  paintBg(x, t.bg, t.seed, o, W, H, 0);
+}
+function paintBg(x: X, bg: Template["bg"], seed: number, o: RenderOpts, W: number, H: number, _o: number) {
+  void _o;
+  const assets = o.assets;
+  x.fillStyle = bg.color; x.fillRect(0, 0, W, H);
+  const tex = bg.asset ? assets?.[bg.asset] : undefined;
   if (tex) {
     const s = Math.max(W / tex.img.width, H / tex.img.height);
     x.save(); x.globalAlpha = 0.55; x.globalCompositeOperation = "multiply";
     x.drawImage(tex.img, W / 2 - (tex.img.width * s) / 2, H / 2 - (tex.img.height * s) / 2, tex.img.width * s, tex.img.height * s);
     x.restore();
   }
-  x.save(); x.strokeStyle = t.bg.ink; x.fillStyle = t.bg.ink; x.lineWidth = 0.25;
-  if (t.bg.pattern === "dots") for (let i = 3; i < W; i += 5) for (let j = 3; j < H; j += 5) { x.beginPath(); x.arc(i, j, 0.35, 0, Math.PI * 2); x.fill(); }
-  if (t.bg.pattern === "grid") { for (let i = 0; i <= W; i += 5) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } for (let i = 0; i <= H; i += 5) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); } }
-  if (t.bg.pattern === "lines") for (let i = 2; i <= H; i += 6) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); }
+  // ảnh nền (khách / admin tải lên): phủ kín bề mặt, có độ mờ (đĩa: tự cắt theo hình tròn)
+  const img = bg.image ? o.bgImages?.[bg.image] : undefined;
+  if (img) {
+    const s = Math.max(W / img.width, H / img.height);
+    x.save(); x.globalAlpha = bg.imageOpacity ?? 1;
+    x.drawImage(img, W / 2 - (img.width * s) / 2, H / 2 - (img.height * s) / 2, img.width * s, img.height * s);
+    x.restore();
+  }
+  x.save(); x.strokeStyle = bg.ink; x.fillStyle = bg.ink; x.lineWidth = 0.25;
+  if (bg.pattern === "dots") for (let i = 3; i < W; i += 5) for (let j = 3; j < H; j += 5) { x.beginPath(); x.arc(i, j, 0.35, 0, Math.PI * 2); x.fill(); }
+  if (bg.pattern === "grid") { for (let i = 0; i <= W; i += 5) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } for (let i = 0; i <= H; i += 5) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); } }
+  if (bg.pattern === "lines") for (let i = 2; i <= H; i += 6) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); }
   x.restore();
   // vân giấy: sợi mảnh ngẫu nhiên (cố định theo seed)
-  const r = rng(t.seed + 99);
+  const r = rng(seed + 99);
   x.save(); x.lineWidth = 0.12;
   for (let i = 0; i < Math.round((160 * W * H) / 14400); i++) {
     const X0 = r() * W, Y0 = r() * H, a = r() * Math.PI * 2, l = 1 + r() * 3;
@@ -389,7 +409,7 @@ export function renderSurface(o: RenderOpts) {
   x.scale(k, k);
   x.save();
   x.beginPath(); if (S.round) x.arc(C, C, R_OUT, 0, Math.PI * 2); else x.rect(0, 0, S.w, S.h); x.clip(); // trang trí được tràn ra mép, cắt theo bề mặt
-  background(x, o.template, o.assets, S.w, S.h);
+  background(x, o.template, o, S.w, S.h);
   const hits: Hit[] = [], texts: TextHit[] = [];
   // sticker khách thêm luôn nằm trên cùng
   const order = o.template.layers.map((l, i) => i);
@@ -397,6 +417,7 @@ export function renderSurface(o: RenderOpts) {
 
   for (const li of order) {
     const l = o.template.layers[li];
+    if (l.hidden) continue;
     x.save();
     if (o.hideLayer === li) x.globalAlpha = 0;
     if (l.k === "text") { const h = drawText(x, l, textOf(l, o.text), li, o.cutoutFonts); if (h) texts.push(h); x.restore(); continue; }

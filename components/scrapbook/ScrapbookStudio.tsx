@@ -18,7 +18,7 @@ import "@fontsource/be-vietnam-pro/400-italic.css";
 import "@fontsource/be-vietnam-pro/700-italic.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Box, Dices, Download, Image as ImageIcon, Redo2, RotateCcw, ShoppingBag, Undo2 } from "lucide-react";
+import { Box, Dices, Download, Image as ImageIcon, ShoppingBag } from "lucide-react";
 import { GRADIENTS, paintBackground, type BgChoice } from "@/lib/mockup/backgrounds";
 import type { MockupBackground } from "@/lib/mockup/types";
 import { defaultGlass } from "@/lib/mockup/types";
@@ -36,17 +36,11 @@ import { MAX_PHOTOS, MIN_PHOTOS, PRINT_PX, STYLES, type Frame, type FrameSet, ty
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
 import { BgPicker } from "@/components/mockup-viewer/BgPicker";
 import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
-import { useFitBox } from "@/components/mockup-viewer/useFitBox";
 import { Button, Toggle, toast } from "@/components/ui/kit";
-import { cx } from "@/components/ui/styles";
-import { StickerTab } from "./StickerTab";
-import { TextTab } from "./TextTab";
-import { SurfaceView } from "./SurfaceView";
+import { ScrapbookEditor, type EditorTab } from "./ScrapbookEditor";
 import { TemplateGallery, type GalleryGroup } from "./TemplateGallery";
-import { PhotoPanel, PickPhotoModal, type Photo } from "./parts";
-import { AddFrameFlow, FramePicker } from "./FramePicker";
+import { PhotoPanel, type Photo } from "./parts";
 import { setFrameLibrary } from "@/lib/scrapbook/decor";
-import { UserStickerModal } from "./UserStickerModal";
 import { customizeText, useScrapStudio } from "./useScrapStudio";
 import { clone } from "./useScrapDoc";
 
@@ -63,7 +57,7 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
   setStickerConfig(stickerCfg); // cài đặt sticker tự rải của admin (trước khi sinh mẫu)
   setFrameLibrary(frameSets); // tên bộ khung → ưu tiên khung hợp phong cách
   const router = useRouter();
-  const [tab, setTab] = useState<"anh" | "sticker" | "chu">("anh");
+  const [tab, setTab] = useState<EditorTab>("anh");
   const [guides, setGuides] = useState(true);
   const [boxView, setBoxView] = useState(false);
   const [bg, setBg] = useState<BgChoice>({ kind: "gradient", g: GRADIENTS[0] });
@@ -75,9 +69,6 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
   });
   const { doc, photos } = st;
 
-  // chọn 1 lớp chữ trên trang → mở tab Chữ (hiện Cài đặt chữ)
-  useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel])) setTab("chu"); }, [st.sel]); // eslint-disable-line react-hooks/exhaustive-deps
-  const { area, width } = useFitBox(1);
 
   // ---------- mẫu: tất cả mẫu 5–10 ảnh ----------
   const all = useMemo(() => Array.from({ length: MAX_PHOTOS - MIN_PHOTOS + 1 }, (_, i) => templatesFor(MIN_PHOTOS + i, settings, assets, {}, false, frames)).flat(), [settings, assets, frames]);
@@ -158,70 +149,30 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
     } catch (e) { toast(e instanceof Error ? e.message : "Không tạo được file in", "err"); setBusy(false); }
   }
 
-  const tabBtn = (id: typeof tab, label: string) => (
-    <button key={id} type="button" onClick={() => { setTab(id); if (id !== "chu" && st.sel !== null && st.isTextLayer(st.L[st.sel])) { st.setEditText(null); st.setSel(null); } }} className={cx("flex-1 rounded-[8px] px-3 py-1.5 text-[13px] font-medium", tab === id ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{label}</button>
-  );
-  const t0 = doc?.[0];
   return (
-    <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
-     <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col md:min-h-0 md:flex-row md:border-x md:border-[#e5e5e7]">
-      {/* ---------- Trái 36%: 3 tab ---------- */}
-      <aside className="order-2 space-y-5 border-[#e5e5e7] bg-white p-6 md:order-1 md:w-[36%] md:min-w-[360px] md:shrink-0 md:overflow-y-auto md:border-r">
-        <div className="flex rounded-[10px] border border-[#e5e5e7] p-1">{tabBtn("anh", "Ảnh")}{tabBtn("sticker", "Sticker")}{tabBtn("chu", "Chữ")}</div>
-
-        {tab === "anh" && (
-          <>
-            <button type="button" onClick={() => (doc ? st.setAddSlotOpen(true) : toast("Tải ảnh và chọn mẫu trước khi thêm khung ảnh.", "err"))}
-              className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#ff5fa2] text-[14px] font-semibold text-white hover:bg-[#f0468f]">+ Thêm khung ảnh</button>
-            <PhotoPanel photos={photos} used={st.used} max={MAX_PHOTOS} hint={`JPG, PNG, HEIC · ${MIN_PHOTOS} đến ${MAX_PHOTOS} ảnh · ảnh chỉ xử lý trên máy bạn`}
-              onAdd={(f) => { st.addFiles(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} />
-            <section>
-              <div className="mb-2 flex items-center justify-between">
-                <p className="text-[14px] font-semibold text-[#18181b]">Chọn mẫu</p>
-                {doc && <button type="button" onClick={shuffle} title="Rải lại sticker" className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /> Xáo trộn</button>}
-              </div>
-              <TemplateGallery groups={groups} current={st.applied} onPick={(id) => apply(id, photos)} round />
-            </section>
-          </>
-        )}
-        {tab === "sticker" && (
-          <StickerTab assets={assets} onAdd={(a) => st.addAsset(a)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
-            onUpload={(f) => st.setStickerFiles(f)} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
-        )}
-        {tab === "chu" && (
-          <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={fonts} previews={st.fontPreviews} colors={st.colors} onCustomColor={st.addColor}
-            onPaper={() => { if (st.sel !== null) st.wishToText(st.sel); }} onAdd={() => st.addText()}
-            onPatch={(v) => { if (st.sel !== null) st.patchLayer(st.sel, v); }} onBegin={st.D.begin} onDuplicate={() => { if (st.sel !== null) st.duplicate(st.sel); }} onRemove={() => { if (st.sel !== null) st.removeLayer(st.sel); }}
-            topics={T} wishes={W} onWish={st.addWish} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
-        )}
-      </aside>
-
-      {/* ---------- Phải: mặt đĩa ---------- */}
-      <section className="relative order-1 flex min-h-[420px] min-w-0 flex-1 flex-col md:order-2 md:min-h-0 md:overflow-hidden">
-        <div className="flex flex-wrap items-center justify-end gap-3 px-4 pt-3 md:absolute md:inset-x-0 md:top-0 md:z-10">
-          <button type="button" onClick={() => { if (st.D.undo()) st.setSel(null); }} title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác" className="grid h-8 w-8 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canUndo}><Undo2 size={14} /></button>
-          <button type="button" onClick={() => { if (st.D.redo()) st.setSel(null); }} title="Làm lại (Ctrl+Shift+Z)" aria-label="Làm lại" className="grid h-8 w-8 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canRedo}><Redo2 size={14} /></button>
-          <button type="button" onClick={restore} disabled={!st.applied || !doc} className="inline-flex h-8 items-center gap-1 rounded-full border border-[#e5e5e7] bg-white px-3 text-[12px] font-medium disabled:opacity-40"><RotateCcw size={13} /> Khôi phục mẫu</button>
-          <span className="flex-1" />
-          <Toggle checked={guides} onChange={setGuides} label="Hiển thị guideline" />
-          <Toggle checked={boxView} onChange={(v) => { setBoxView(v); st.setEditLayer(null); st.setSel(null); }} label="Xem trong hộp" />
-        </div>
-        <div ref={area} className="relative flex min-h-[300px] flex-1 items-center justify-center p-4 md:absolute md:inset-x-6 md:bottom-[72px] md:top-14 md:p-0">
-          {!t0 ? (
-            <div className="grid aspect-square w-full max-w-[420px] place-items-center rounded-full border-[1.5px] border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]">
-              <span><ImageIcon size={24} className="mx-auto mb-2" />Tải lên {MIN_PHOTOS}–{MAX_PHOTOS} ảnh<br />để web tự làm mặt đĩa scrapbook</span>
+    <ScrapbookEditor mode="customer" st={st} assets={assets} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
+      guides={guides} setGuides={setGuides} onRestore={restore} canRestore={!!st.applied && !!doc} maxW="max-w-[1200px]"
+      toolbar={<Toggle checked={boxView} onChange={(v) => { setBoxView(v); st.setEditLayer(null); st.setSel(null); }} label="Xem trong hộp" />}
+      empty={<div className="grid aspect-square w-full max-w-[420px] place-items-center rounded-full border-[1.5px] border-dashed border-[#d4d4d8] bg-white text-center text-[14px] text-[#71717a]"><span><ImageIcon size={24} className="mx-auto mb-2" />Tải lên {MIN_PHOTOS}–{MAX_PHOTOS} ảnh<br />để web tự làm mặt đĩa scrapbook</span></div>}
+      overlay={boxView && doc ? (boxUrl
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={boxUrl} alt="Mặt đĩa trên nền" className="max-h-full max-w-full rounded-[12px] border border-[#e5e5e7]" />
+        : <p className="text-[13px] text-[#71717a]">Đang dựng...</p>) : undefined}
+      photoTab={(
+        <>
+          <PhotoPanel photos={photos} used={st.used} max={MAX_PHOTOS} hint={`JPG, PNG, HEIC · ${MIN_PHOTOS} đến ${MAX_PHOTOS} ảnh · ảnh chỉ xử lý trên máy bạn`}
+            onAdd={(f) => { st.addFiles(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} />
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[14px] font-semibold text-[#18181b]">Chọn mẫu</p>
+              {doc && <button type="button" onClick={shuffle} title="Rải lại sticker" className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /> Xáo trộn</button>}
             </div>
-          ) : boxView ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            boxUrl ? <img src={boxUrl} alt="Mặt đĩa trên nền" className="max-h-full max-w-full rounded-[12px] border border-[#e5e5e7]" style={{ width: width || undefined }} /> : <p className="text-[13px] text-[#71717a]">Đang dựng...</p>
-          ) : st.ready && (
-            <SurfaceView t={t0} width={width || 400} render={st.renderOpts} guides={guides} sel={st.sel} onSel={st.setSel} editLayer={st.editLayer} onEditLayer={st.setEditLayer}
-              begin={st.D.begin} setLayers={st.setLayers} adjustOf={(id) => st.adjust[id]} setAdjust={(id, a) => st.setAdjust((c) => ({ ...c, [id]: a }))}
-              onDropAsset={(id, at) => { if (id.startsWith("u:") || id.startsWith("f:")) st.addAsset(id, at); else { const a = assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
-              onDropPhoto={(pid, i) => st.assignPhoto(0, i, pid)} onEmptySlot={(i) => st.setPickFor(i)} editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue} tools={st.tools} />
-          )}
-        </div>
-        <div className="flex h-16 shrink-0 items-center gap-3 border-t border-[#efeff1] bg-[#f7f7f8] px-4 md:absolute md:inset-x-0 md:bottom-0 md:border-0">
+            <TemplateGallery groups={groups} current={st.applied} onPick={(id) => apply(id, photos)} round />
+          </section>
+        </>
+      )}
+      bottom={(
+        <div className="flex h-14 shrink-0 items-center gap-3 border-t border-[#efeff1] bg-[#f7f7f8] px-4">
           <div className="min-w-0 flex-1"><BgPicker value={bg} onChange={setBg} shop={backgrounds} /></div>
           <DownloadMenu busy={busy} up items={[
             { label: "File in mặt đĩa (PNG 300 DPI)", icon: <Download size={16} />, onClick: downloadPrint },
@@ -229,21 +180,6 @@ export function ScrapbookStudio({ assets, settings, fonts, glyphs, frames, frame
           ]} />
           <Button size="sm" icon={<ShoppingBag size={16} />} onClick={order} disabled={!doc || busy}>Đặt in CD này</Button>
         </div>
-      </section>
-     </div>
-      {st.pickFor !== null && (
-        <PickPhotoModal photos={photos} used={st.used} onClose={() => st.setPickFor(null)}
-          onPick={(pid) => { st.assignPhoto(st.active, st.pickFor!, pid); st.setPickFor(null); }}
-          onUpload={async (f) => { const i = st.pickFor!; const [p] = await st.addFiles([f]); if (p) st.assignPhoto(st.active, i, p.id); st.setPickFor(null); }} />
-      )}
-      {st.frameFor !== null && st.L[st.frameFor]?.k === "photo" && (
-        <FramePicker frames={frames} sets={frameSets} loaded={st.frameImgs} title="Đổi khung" current={(st.L[st.frameFor] as { frame?: string }).frame ?? null} onPick={(c) => st.setFrame(st.frameFor!, c)} onClose={() => st.setFrameFor(null)} />
-      )}
-      {st.addSlotOpen && (
-        <AddFrameFlow frames={frames} sets={frameSets} loaded={st.frameImgs} photos={photos} used={st.used} onClose={() => st.setAddSlotOpen(false)}
-          onDone={(c, pid) => st.addSlot(c, pid)} onUpload={async (f) => { const [p] = await st.addFiles([f]); return p?.id ?? null; }} />
-      )}
-      {st.stickerFiles && <UserStickerModal files={st.stickerFiles} onAdd={(b) => st.addUserSticker(b)} onClose={() => st.setStickerFiles(null)} />}
-    </div>
+      )} />
   );
 }
