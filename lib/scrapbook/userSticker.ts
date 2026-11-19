@@ -2,8 +2,9 @@
 /* Sticker khách tự tải (chạy trên trình duyệt): PNG trong suốt → cắt sát khung bao; ảnh không trong suốt → xoá nền
    (lib/stickerSlicer, giữ vùng lớn nhất) · thêm viền trắng kiểu sticker bế (có bóng nhẹ). */
 import { itemCanvas, itemsFromSheet, runSlice, type Item, type Sheet } from "@/lib/stickerSlicer";
+import { BG_CONFIG } from "@/lib/bgRemoval/config";
 
-const MAX = 1200;
+const MAX = BG_CONFIG.maxSide; // ảnh gốc giữ tối đa cạnh dài 2048px (mặt nạ áp lên ảnh gốc này)
 export async function readImageData(blob: Blob) {
   const bmp = await createImageBitmap(blob);
   const k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
@@ -39,6 +40,21 @@ export async function removeBg(img: { w: number; h: number; data: Uint8ClampedAr
   return { sheet, item: items.reduce((a, b) => (area(b) > area(a) ? b : a)) };
 }
 export const cutCanvas = (sheet: Sheet, item: Item) => itemCanvas(sheet, item);
+/** "Nền trơn" (dò màu nền cũ) → mặt nạ alpha + nguồn màu, đúng kích thước ảnh gốc (vùng lớn nhất; keepMany = giữ mọi vùng) */
+export async function flatAlpha(img: { w: number; h: number; data: Uint8ClampedArray }, tolerance: number, keepMany: boolean) {
+  const res = await runSlice(img.data, img.w, img.h, { tolerance, minAreaPct: 0.3, close: 2 });
+  const sheet: Sheet = { w: img.w, h: img.h, orig: img.data, res };
+  const items = itemsFromSheet(sheet, "sticker");
+  const area = (it: Item) => it.mask.reduce((a, v) => a + (v ? 1 : 0), 0);
+  const big = items.length ? Math.max(...items.map(area)) : 0;
+  const alpha = new Uint8Array(img.w * img.h);
+  for (const it of items) {
+    if (keepMany ? area(it) < big * 0.01 : area(it) !== big) continue;
+    const bw = it.x1 - it.x0 + 1;
+    for (let y = it.y0; y <= it.y1; y++) for (let x = it.x0; x <= it.x1; x++) { const v = it.mask[(y - it.y0) * bw + (x - it.x0)]; if (v) alpha[y * img.w + x] = res.rgba[(y * img.w + x) * 4 + 3]; }
+  }
+  return { alpha, color: res.rgba, found: items.length > 0 };
+}
 /** viền trắng kiểu sticker bế + bóng nhẹ; t = độ dày (px) */
 export function withBorder(src: HTMLCanvasElement, t: number) {
   if (t <= 0) return src;

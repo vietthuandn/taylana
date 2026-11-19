@@ -134,3 +134,7 @@ export function itemCanvas(sheet: Sheet, it: Item) {
   x.putImageData(img, 0, 0);
   return cv;
 }
+
+// tách nền AI (MODNet / U²-Netp, chạy trên trình duyệt) — dùng chung với modal "Tải sticker của bạn"
+export { removeBackground, prepareBg, type BgMode } from "@/lib/bgRemoval";
+export { refineAlpha, composeSticker } from "@/lib/bgRemoval/post";

@@ -1,129 +1,211 @@
 "use client";
 
-/* Tải sticker của bạn: PNG trong suốt dùng luôn (cắt sát); ảnh chụp / JPG → xoá nền (giữ vùng lớn nhất) với thanh "Độ nhạy nền",
-   cọ xoá / cọ khôi phục; chọn viền trắng (Không / Mảnh / Dày, chỉnh độ dày). Nhiều ảnh → duyệt lần lượt. Chạy hoàn toàn trên máy khách. */
-import { useEffect, useRef, useState } from "react";
-import { Eraser, Paintbrush, X } from "lucide-react";
-import { brush, type Item, type Sheet } from "@/lib/stickerSlicer";
-import { cropAlpha, cutCanvas, hasAlpha, readImageData, removeBg, withBorder } from "@/lib/scrapbook/userSticker";
+/* Tải sticker của bạn: PNG có vùng trong suốt → dùng luôn alpha (bỏ qua mô hình). Ảnh chụp / JPG → tách nền:
+   "Tự động (AI)" (MODNet nếu có người, không thì U²-Netp) · "Chân dung" · "Đồ vật" · "Nền trơn" (dò màu nền cũ, cho tờ sticker / nền trắng).
+   Mô hình chạy trên trình duyệt (lib/bgRemoval, Web Worker), chỉ tải lần đầu. Chỉnh: độ cứng mép + làm mềm mép (AI) / độ nhạy nền
+   (Nền trơn), giữ nhiều vật, cọ xoá / cọ khôi phục (lấy lại pixel gốc) có chỉnh cỡ cọ, viền trắng kiểu sticker bế.
+   Bố cục: 2 khung cùng cao 320px (ảnh co vừa, căn giữa, không tràn), điều khiển nằm dưới khung, thanh nút dính đáy. */
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Eraser, Loader2, Paintbrush, X } from "lucide-react";
+import { prepareBg, removeBackground, type LoadProgress } from "@/lib/bgRemoval";
+import { composeSticker, keptView, refineAlpha } from "@/lib/bgRemoval/post";
+import { flatAlpha, hasAlpha, readImageData, withBorder } from "@/lib/scrapbook/userSticker";
 import { Button } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
 type Img = { w: number; h: number; data: Uint8ClampedArray };
+type Method = "auto" | "portrait" | "object" | "flat";
+type Raw = { alpha: Uint8Array; color?: Uint8ClampedArray; used?: string; ai: boolean };
+const METHODS: [Method, string][] = [["auto", "Tự động (AI)"], ["portrait", "Chân dung"], ["object", "Đồ vật"], ["flat", "Nền trơn"]];
+const MB = (b: number) => Math.max(0, Math.round(b / 1024 / 1024));
 
 export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onAdd: (png: Blob) => void; onClose: () => void }) {
   const [i, setI] = useState(0);
   const [img, setImg] = useState<Img | null>(null);
-  const [alpha, setAlpha] = useState(false);
+  const [alphaImg, setAlphaImg] = useState(false);
+  const [method, setMethod] = useState<Method>("auto");
+  const [raw, setRaw] = useState<Raw | null>(null);
+  const [status, setStatus] = useState<{ k: "idle" | "load" | "run"; prog?: LoadProgress }>({ k: "idle" });
+  const [err, setErr] = useState("");
   const [tol, setTol] = useState(28);
-  const [cut, setCut] = useState<{ sheet: Sheet; item: Item } | null>(null);
+  const [hard, setHard] = useState(0.5);
+  const [feather, setFeather] = useState(1);
+  const [keepMany, setKeepMany] = useState(false);
   const [tool, setTool] = useState<"erase" | "restore" | null>(null);
+  const [brushPct, setBrushPct] = useState(3);
   const [border, setBorder] = useState<"none" | "thin" | "thick">("thin");
   const [thick, setThick] = useState(0);
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
   const [ver, setVer] = useState(0);
-  const prev = useRef<HTMLCanvasElement>(null), edit = useRef<HTMLCanvasElement>(null), painting = useRef(false);
+  const edits = useRef<Uint8Array | null>(null);
+  const editCv = useRef<HTMLCanvasElement>(null), prevCv = useRef<HTMLCanvasElement>(null), painting = useRef(false), raf = useRef(0);
 
+  // đọc ảnh (giữ tối đa cạnh dài 2048px — mặt nạ áp lên ảnh gốc này)
   useEffect(() => {
     let off = false;
-    setImg(null); setCut(null); setErr(""); setTool(null);
-    readImageData(files[i]).then((d) => { if (off) return; setImg(d); setAlpha(hasAlpha(d.data)); }).catch(() => setErr("Không đọc được ảnh này."));
+    setImg(null); setRaw(null); setErr(""); setTool(null);
+    readImageData(files[i]).then((d) => { if (off) return; edits.current = new Uint8Array(d.w * d.h); setImg(d); setAlphaImg(hasAlpha(d.data)); }).catch(() => setErr("Không đọc được ảnh này."));
     return () => { off = true; };
   }, [files, i]);
-  // xoá nền (ảnh không trong suốt) — chạy lại khi đổi độ nhạy
+  // tách nền theo cách đã chọn
   useEffect(() => {
-    if (!img || alpha) return;
+    if (!img) return;
     let off = false;
-    setBusy(true);
-    const t = setTimeout(() => removeBg(img, tol).then((r) => { if (!off) { setCut(r); setVer((v) => v + 1); if (!r) setErr("Không tách được nền — thử đổi độ nhạy."); else setErr(""); } }).catch(() => setErr("Xoá nền thất bại.")).finally(() => !off && setBusy(false)), 250);
+    if (alphaImg) { const a = new Uint8Array(img.w * img.h); for (let k = 0; k < a.length; k++) a[k] = img.data[k * 4 + 3]; setRaw({ alpha: a, ai: false }); return; }
+    setErr("");
+    const t = setTimeout(async () => {
+      try {
+        if (method === "flat") {
+          setStatus({ k: "run" });
+          const r = await flatAlpha(img, tol, keepMany);
+          if (off) return;
+          if (!r.found) setErr("Không tách được nền — thử đổi độ nhạy hoặc dùng AI.");
+          setRaw({ alpha: r.alpha, color: r.color, ai: false });
+        } else {
+          setStatus({ k: "load" });
+          await prepareBg(method, (p) => { if (!off) setStatus({ k: "load", prog: p }); });
+          if (off) return;
+          setStatus({ k: "run" });
+          const r = await removeBackground(img, method);
+          if (off) return;
+          setRaw({ alpha: r.alpha, used: r.used, ai: true });
+        }
+      } catch (e) {
+        if (off) return;
+        setErr(`Không chạy được bộ tách nền AI (${e instanceof Error ? e.message : "lỗi"}) — đã chuyển sang “Nền trơn”.`);
+        setMethod("flat");
+      } finally { if (!off) setStatus({ k: "idle" }); }
+    }, method === "flat" ? 250 : 0);
     return () => { off = true; clearTimeout(t); };
-  }, [img, alpha, tol]);
-  const base = (): HTMLCanvasElement | null => (alpha ? (img ? cropAlpha(img) : null) : cut ? cutCanvas(cut.sheet, cut.item) : null);
-  const size = () => { const b = base(); return b ? Math.max(b.width, b.height) : 400; };
-  const t = border === "none" ? 0 : (thick || (border === "thin" ? 0.02 : 0.05) * size());
-  // xem trước (có viền) + khung sửa (toàn khung bao của vùng, để cọ)
+  }, [img, alphaImg, method, tol, keepMany]);
+
+  // mặt nạ cuối (AI: độ cứng mép + làm mềm + giữ vùng lớn nhất / nhiều vật)
+  const alpha = useMemo(() => (!raw || !img ? null : raw.ai ? refineAlpha(raw.alpha, img.w, img.h, { hardness: hard, feather, keepMany }) : raw.alpha), [raw, img, hard, feather, keepMany]);
+  const result = useMemo(() => (img && alpha ? composeSticker(img, alpha, edits.current, { defringe: !!raw?.ai, color: raw?.color }) : null), [img, alpha, raw, ver]); // eslint-disable-line react-hooks/exhaustive-deps
+  const longSide = result ? Math.max(result.width, result.height) : 400;
+  const t = border === "none" ? 0 : thick || (border === "thin" ? 0.02 : 0.05) * longSide;
+  const preview = useMemo(() => (result ? withBorder(result, t) : null), [result, t]);
   useEffect(() => {
-    const b = base(), c = prev.current;
-    if (c) { const out = b ? withBorder(b, t) : null; c.width = out?.width ?? 1; c.height = out?.height ?? 1; const x = c.getContext("2d")!; x.clearRect(0, 0, c.width, c.height); if (out) x.drawImage(out, 0, 0); }
-    const e = edit.current;
-    if (e && cut && !alpha) {
-      const it = cut.item, bw = it.x1 - it.x0 + 1, bh = it.y1 - it.y0 + 1;
-      e.width = bw; e.height = bh;
-      const x = e.getContext("2d")!, d = x.createImageData(bw, bh);
-      for (let y = 0; y < bh; y++) for (let xx = 0; xx < bw; xx++) {
-        const s = ((it.y0 + y) * cut.sheet.w + it.x0 + xx) * 4, o = (y * bw + xx) * 4, v = it.mask[y * bw + xx];
-        const src = v === 2 ? cut.sheet.orig : cut.sheet.res.rgba;
-        d.data[o] = cut.sheet.orig[s]; d.data[o + 1] = cut.sheet.orig[s + 1]; d.data[o + 2] = cut.sheet.orig[s + 2];
-        d.data[o + 3] = v ? (v === 2 ? 255 : src[s + 3]) : 40; // phần bị xoá: hiện mờ để cọ khôi phục
-      }
-      x.putImageData(d, 0, 0);
-    }
-  }, [cut, ver, alpha, img, border, thick]); // eslint-disable-line react-hooks/exhaustive-deps
+    const c = prevCv.current;
+    if (!c) return;
+    c.width = preview?.width ?? 1; c.height = preview?.height ?? 1;
+    const x = c.getContext("2d")!; x.clearRect(0, 0, c.width, c.height); if (preview) x.drawImage(preview, 0, 0);
+  }, [preview]);
+  const drawKept = () => {
+    const c = editCv.current;
+    if (!c || !img || !alpha) return;
+    if (c.width !== img.w || c.height !== img.h) { c.width = img.w; c.height = img.h; }
+    c.getContext("2d")!.putImageData(keptView(img, alpha, edits.current), 0, 0);
+  };
+  useEffect(drawKept, [img, alpha, ver]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function paint(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (!painting.current || !tool || !cut) return;
-    const r = e.currentTarget.getBoundingClientRect(), it = cut.item, bw = it.x1 - it.x0 + 1;
-    const px = it.x0 + ((e.clientX - r.left) / r.width) * bw, py = it.y0 + ((e.clientY - r.top) / r.height) * (it.y1 - it.y0 + 1);
-    brush(it, px, py, Math.max(4, bw / 30), tool === "erase" ? 0 : 2);
-    setVer((v) => v + 1);
+    if (!painting.current || !tool || !img || !edits.current) return;
+    const r = e.currentTarget.getBoundingClientRect(), cx0 = ((e.clientX - r.left) / r.width) * img.w, cy0 = ((e.clientY - r.top) / r.height) * img.h;
+    const R = Math.max(2, (brushPct / 100) * Math.max(img.w, img.h)), v = tool === "erase" ? 1 : 2, E = edits.current;
+    for (let y = Math.max(0, Math.floor(cy0 - R)); y <= Math.min(img.h - 1, Math.ceil(cy0 + R)); y++)
+      for (let x = Math.max(0, Math.floor(cx0 - R)); x <= Math.min(img.w - 1, Math.ceil(cx0 + R)); x++)
+        if ((x - cx0) ** 2 + (y - cy0) ** 2 <= R * R) E[y * img.w + x] = v;
+    cancelAnimationFrame(raf.current);
+    raf.current = requestAnimationFrame(drawKept);
   }
   async function add() {
-    const b = base();
-    if (!b) return;
-    const out = withBorder(b, t);
-    const blob = await new Promise<Blob | null>((res) => out.toBlob(res, "image/png"));
+    if (!preview) return;
+    const blob = await new Promise<Blob | null>((res) => preview.toBlob(res, "image/png"));
     if (blob) onAdd(blob);
     if (i + 1 < files.length) setI(i + 1); else onClose();
   }
-  const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b]");
+  const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
+  const busy = status.k !== "idle";
+  const busyText = status.k === "load" && status.prog && !status.prog.cached && status.prog.total > 0
+    ? `Đang tải bộ tách nền (lần đầu) ${MB(status.prog.loaded)} / ${MB(status.prog.total)}MB...`
+    : status.k === "load" ? "Đang chuẩn bị bộ tách nền..." : "Đang tách nền...";
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={onClose}>
-      <div className="flex max-h-[92dvh] w-full max-w-[720px] flex-col overflow-hidden rounded-[14px] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between border-b border-[#efeff1] px-5 py-3">
+      <div className="flex max-h-[90vh] w-full max-w-[900px] flex-col overflow-hidden rounded-[14px] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex shrink-0 items-center justify-between border-b border-[#efeff1] px-5 py-3">
           <p className="text-[16px] font-semibold">Tải sticker của bạn {files.length > 1 ? `(${i + 1}/${files.length})` : ""}</p>
           <button type="button" onClick={onClose} aria-label="Đóng"><X size={18} /></button>
         </div>
-        <div className="grid flex-1 gap-4 overflow-y-auto p-5 md:grid-cols-2">
-          <div>
-            {!alpha && cut && (
-              <>
-                <p className="mb-1 text-[12px] text-[#71717a]">Vùng giữ lại (bôi cọ để sửa)</p>
-                <canvas ref={edit} className={cx("block max-h-[300px] w-full touch-none object-contain", checker, tool ? "cursor-crosshair" : "")}
-                  onPointerDown={(e) => { if (!tool) return; e.currentTarget.setPointerCapture(e.pointerId); painting.current = true; paint(e); }} onPointerMove={paint} onPointerUp={() => { painting.current = false; }} />
-                <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          {alphaImg ? <p className="mb-3 rounded-[10px] bg-[#f0fdf4] p-3 text-[13px] text-[#15803d]">Ảnh PNG đã có nền trong suốt — dùng luôn, chỉ cắt sát theo khung bao.</p> : (
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[13px] font-medium">Cách tách nền</span>
+              {METHODS.map(([k, l]) => <button key={k} type="button" disabled={busy} onClick={() => setMethod(k)} className={chip(method === k)}>{l}</button>)}
+              {raw?.used && method === "auto" && <span className="text-[12px] text-[#71717a]">· đã dùng {raw.used === "portrait" ? "Chân dung" : "Đồ vật"}</span>}
+            </div>
+          )}
+          <div className="grid gap-4 md:grid-cols-2">
+            {/* trái: vùng giữ lại + sửa tay */}
+            <div className="min-w-0">
+              <Box busy={busy} text={busyText} label="Vùng giữ lại (phần mờ là phần bị bỏ — bôi cọ để sửa)">
+                <canvas ref={editCv} className={cx("block h-auto max-h-full w-auto max-w-full touch-none", tool ? "cursor-crosshair" : "")}
+                  onPointerDown={(e) => { if (!tool) return; e.currentTarget.setPointerCapture(e.pointerId); painting.current = true; paint(e); }}
+                  onPointerMove={paint} onPointerUp={() => { if (painting.current) { painting.current = false; setVer((v) => v + 1); } }} />
+              </Box>
+              <div className="mt-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <button type="button" onClick={() => setTool(tool === "erase" ? null : "erase")} className={chip(tool === "erase")}><Eraser size={13} className="mr-1 inline" />Cọ xoá</button>
                   <button type="button" onClick={() => setTool(tool === "restore" ? null : "restore")} className={chip(tool === "restore")}><Paintbrush size={13} className="mr-1 inline" />Cọ khôi phục</button>
+                  <button type="button" onClick={() => { if (img) { edits.current = new Uint8Array(img.w * img.h); setVer((v) => v + 1); } }} className="text-[12px] text-[#71717a] hover:text-[#18181b]">Bỏ sửa tay</button>
                 </div>
-                <label className="mt-3 block text-[12px] text-[#52525b]">Độ nhạy nền ({tol})
-                  <input type="range" min={6} max={80} value={tol} onChange={(e) => setTol(Number(e.target.value))} className="w-full accent-[#ff5fa2]" />
-                </label>
-              </>
-            )}
-            {alpha && <p className="rounded-[10px] bg-[#f0fdf4] p-3 text-[13px] text-[#15803d]">Ảnh PNG đã có nền trong suốt — dùng luôn, chỉ cắt sát theo khung bao.</p>}
-            {busy && <p className="mt-2 text-[12px] text-[#71717a]">Đang xoá nền...</p>}
-            {err && <p className="mt-2 text-[12px] text-[#dc2626]">{err}</p>}
-          </div>
-          <div>
-            <p className="mb-1 text-[12px] text-[#71717a]">Xem trước</p>
-            <div className={cx("grid h-[260px] place-items-center rounded-[10px] p-3", checker)}><canvas ref={prev} className="max-h-full max-w-full" /></div>
-            <p className="mb-1 mt-3 text-[13px] font-medium">Thêm viền trắng?</p>
-            <div className="flex flex-wrap gap-1.5">
-              {([["none", "Không viền"], ["thin", "Viền mảnh"], ["thick", "Viền dày"]] as const).map(([k, l]) => <button key={k} type="button" onClick={() => { setBorder(k); setThick(0); }} className={chip(border === k)}>{l}</button>)}
+                <Range label="Cỡ cọ" value={brushPct} min={0.5} max={10} step={0.5} unit="%" onChange={setBrushPct} />
+                {!alphaImg && method === "flat" && <Range label="Độ nhạy nền" value={tol} min={6} max={80} step={1} unit="" onChange={setTol} />}
+                {!alphaImg && method !== "flat" && (
+                  <>
+                    <Range label="Độ cứng mép" value={Math.round(hard * 100)} min={0} max={100} step={5} unit="%" onChange={(v) => setHard(v / 100)} />
+                    <Range label="Làm mềm mép" value={feather} min={0} max={4} step={1} unit="px" onChange={setFeather} />
+                  </>
+                )}
+                {!alphaImg && <label className="flex items-center gap-2 text-[13px] text-[#3f3f46]"><input type="checkbox" checked={keepMany} onChange={(e) => setKeepMany(e.target.checked)} className="h-4 w-4 accent-[#ff5fa2]" /> Giữ nhiều vật</label>}
+              </div>
             </div>
-            {border !== "none" && (
-              <label className="mt-2 block text-[12px] text-[#52525b]">Độ dày viền
-                <input type="range" min={2} max={Math.max(10, Math.round(size() * 0.1))} value={Math.round(t)} onChange={(e) => setThick(Number(e.target.value))} className="w-full accent-[#ff5fa2]" />
-              </label>
-            )}
+            {/* phải: xem trước (đã tính viền trắng khi co cho vừa khung) */}
+            <div className="min-w-0">
+              <Box busy={busy} text={busyText} label="Xem trước">
+                <canvas ref={prevCv} className="block h-auto max-h-full w-auto max-w-full" />
+              </Box>
+              <div className="mt-3 space-y-2">
+                <p className="text-[13px] font-medium">Thêm viền trắng?</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {([["none", "Không viền"], ["thin", "Viền mảnh"], ["thick", "Viền dày"]] as const).map(([k, l]) => <button key={k} type="button" onClick={() => { setBorder(k); setThick(0); }} className={chip(border === k)}>{l}</button>)}
+                </div>
+                {border !== "none" && <Range label="Độ dày viền" value={Math.round(t)} min={2} max={Math.max(10, Math.round(longSide * 0.1))} step={1} unit="px" onChange={setThick} />}
+              </div>
+              {err && <p className="mt-3 text-[12px] text-[#dc2626]">{err}</p>}
+            </div>
           </div>
         </div>
-        <div className="flex justify-end gap-2 border-t border-[#efeff1] px-5 py-3">
+        <div className="flex shrink-0 justify-end gap-2 border-t border-[#efeff1] bg-white px-5 py-3">
           {files.length > 1 && i + 1 < files.length && <Button variant="secondary" onClick={() => setI(i + 1)}>Bỏ qua ảnh này</Button>}
           <Button variant="secondary" onClick={onClose}>Huỷ</Button>
-          <Button onClick={add} disabled={busy || !(alpha ? img : cut)}>Thêm vào thiết kế</Button>
+          <Button onClick={add} disabled={busy || !preview}>Thêm vào thiết kế</Button>
         </div>
       </div>
     </div>
+  );
+}
+
+function Box({ children, label, busy, text }: { children: React.ReactNode; label: string; busy: boolean; text: string }) {
+  return (
+    <div>
+      <p className="mb-1 truncate text-[12px] text-[#71717a]">{label}</p>
+      <div className={cx("relative flex h-[320px] items-center justify-center overflow-hidden rounded-[10px] border border-[#e5e5e7] p-2", checker)}>
+        {children}
+        {busy && (
+          <div className="absolute inset-0 grid place-items-center bg-white/75 text-center text-[13px] font-medium text-[#3f3f46]">
+            <span className="px-4"><Loader2 size={22} className="mx-auto mb-2 animate-spin text-[#ff5fa2]" />{text}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+function Range({ label, value, min, max, step, unit, onChange }: { label: string; value: number; min: number; max: number; step: number; unit: string; onChange: (v: number) => void }) {
+  return (
+    <label className="block text-[12px] text-[#52525b]">
+      <span className="flex justify-between">{label}<span className="tabular-nums">{value}{unit}</span></span>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-[#ff5fa2]" />
+    </label>
   );
 }
