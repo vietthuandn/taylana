@@ -29,6 +29,7 @@ import { boxOf } from "@/lib/scrapbook/edit";
 import { DEFAULT_TOPICS, DEFAULT_WISHES } from "@/lib/scrapbook/wishes";
 import { KIND_INFO, TPL_COLS, slotCount, type DesignTpl } from "@/lib/scrapbook/library";
 import { uploadThumb } from "@/lib/scrapbook/libraryClient";
+import { buildCdDoc } from "@/lib/scrapbook/toCdDoc";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
 import type { Frame, FrameSet, Layer, ScrapAsset, Template, Wish, WishTopic } from "@/lib/scrapbook/types";
 import { ScrapbookEditor, type EditorTab } from "@/components/scrapbook/ScrapbookEditor";
@@ -118,7 +119,9 @@ function Workbench({ row: row0, lib: lib0 }: { row: DesignTpl; lib: Lib }) {
     try {
       const template = clean(t);
       const thumb = await uploadThumb([template], { ...st.renderOpts, photos: samples }).catch(() => null);
-      const v = { name: name.trim() || "Mẫu mới", config: { ...row.config, template }, photo_count: slotCount(template), thumbnail_url: thumb ?? row.thumbnail_url, updated_at: new Date().toISOString() };
+      // mặt đĩa / trang đơn: kèm bản cho trình "Thiết kế CD" (bìa trước, trang booklet, mặt đĩa)
+      const cdDoc = row.kind === "booklet_spread" ? undefined : await buildCdDoc(template, st.renderOpts).catch(() => row.config.cdDoc);
+      const v = { name: name.trim() || "Mẫu mới", config: { ...row.config, template, ...(cdDoc ? { cdDoc } : {}) }, photo_count: slotCount(template), thumbnail_url: thumb ?? row.thumbnail_url, updated_at: new Date().toISOString() };
       const { error } = await createClient().from("design_templates").update(v).eq("id", row.id);
       if (error) throw new Error(error.message);
       if (thumb && row.thumbnail_url && row.thumbnail_url !== thumb) deleteFiles({ urls: [row.thumbnail_url] }).catch(() => 0);

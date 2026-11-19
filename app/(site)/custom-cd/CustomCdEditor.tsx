@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Konva from "konva";
 import { BACK_SPINE_MM, SPECS, mmToPx, sizeText, type PrintSpec } from "@/lib/print";
@@ -98,7 +98,7 @@ function measureText(e: El) {
   return r;
 }
 
-export function CustomCdEditor({ templates, packages }: { templates: (DesignTemplate & { doc?: TemplateDoc | null })[]; packages: Package[] }) {
+export function CustomCdEditor({ templates, packages }: { templates: (DesignTemplate & { doc?: TemplateDoc | null; category?: string })[]; packages: Package[] }) {
   const params = useSearchParams();
   const [frontN, setFrontN] = useState(1);
   const [backN, setBackN] = useState(1);
@@ -642,10 +642,13 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                 <div className={`mb-1 grid aspect-square place-items-center bg-[#f4f4f5] text-base ${tplPageId === "D" ? "rounded-full" : "rounded-[4px]"}`}>✎</div>
                 Tự do
               </button>
-              {tplList.map((t) => {
+              {tplList.map((t, ti) => {
                 const sp = specOf(tplPageId);
+                const head = t.category && t.category !== tplList[ti - 1]?.category; // mẫu nhóm theo danh mục
                 return (
-                  <button key={t.id} onClick={() => setTpl(t.id)} title={t.name}
+                  <Fragment key={t.id}>
+                  {head && <span className="flex w-5 shrink-0 items-center justify-center text-[10px] font-semibold uppercase tracking-wide text-[#a1a1aa] [writing-mode:vertical-rl] rotate-180" title={t.category}>{t.category}</span>}
+                  <button onClick={() => setTpl(t.id)} title={t.name}
                     className={`w-16 shrink-0 rounded-[8px] border p-1 text-center text-[11px] ${curTpl === t.id ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e5e5e7]"}`}>
                     <div className="mb-1">
                       {t.thumbnail_url
@@ -655,6 +658,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                     </div>
                     <span className="line-clamp-1">{t.name}</span>
                   </button>
+                  </Fragment>
                 );
               })}
             </div>

@@ -17,6 +17,7 @@ import { samplePhotos } from "@/lib/scrapbook/samples";
 import { slotCount, type TplKind } from "@/lib/scrapbook/library";
 import { basicCategory, isMissing, MIGRATE_MSG, uploadThumb } from "@/lib/scrapbook/libraryClient";
 import { customizeText } from "@/components/scrapbook/useScrapStudio";
+import { buildCdDoc } from "@/lib/scrapbook/toCdDoc";
 import { MAX_PHOTOS, MIN_PHOTOS, STYLES, type CustomTemplate, type Frame, type FrameSet, type ScrapAsset, type Template, type TemplateSetting } from "@/lib/scrapbook/types";
 
 const TEXT0 = { main: "Happy Birthday", sub: "" };
@@ -57,7 +58,8 @@ async function save(items: Item[], ro: Parameters<typeof uploadThumb>[1], onProg
   for (const it of todo) {
     const cat = (cats[it.kind] ??= await basicCategory(it.kind));
     const thumb = await uploadThumb([it.template], ro).catch(() => null);
-    const r = await sb.from("design_templates").insert({ kind: it.kind, name: it.name, category_id: cat, config: { template: it.template, legacy: it.legacy }, photo_count: slotCount(it.template), thumbnail_url: thumb, is_active: true, sort_order: ++n });
+    const cdDoc = it.kind === "booklet_spread" ? undefined : await buildCdDoc(it.template, ro).catch(() => undefined);
+    const r = await sb.from("design_templates").insert({ kind: it.kind, name: it.name, category_id: cat, config: { template: it.template, legacy: it.legacy, ...(cdDoc ? { cdDoc } : {}) }, photo_count: slotCount(it.template), thumbnail_url: thumb, is_active: true, sort_order: ++n });
     if (r.error) throw new Error(isMissing(r.error.message) ? MIGRATE_MSG : r.error.message);
     added++; onProgress(n, todo.length);
   }

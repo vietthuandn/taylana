@@ -4,12 +4,13 @@
    Không sinh mẫu / rải sticker tự động phía khách nữa. Dùng chung trang khách + admin. */
 import { clone } from "@/components/scrapbook/useScrapDoc";
 import type { Template } from "./types";
+import type { TemplateDoc } from "@/lib/cdDoc";
 
 export type TplKind = "cd" | "booklet_single" | "booklet_spread";
 export type CategoryScope = TplKind | "booklet_bundle";
 export type Category = { id: string; scope: CategoryScope; name: string; sort_order: number; is_active: boolean };
 export type DesignTpl = {
-  id: string; kind: TplKind; name: string; category_id: string | null; config: { template: Template; legacy?: string };
+  id: string; kind: TplKind; name: string; category_id: string | null; config: { template: Template; legacy?: string; cdDoc?: TemplateDoc }; // cdDoc: bản cho trình "Thiết kế CD" (mặt đĩa / trang đơn)
   photo_count: number; thumbnail_url: string | null; is_active: boolean; sort_order: number; updated_at?: string;
 };
 export type Bundle = { id: string; name: string; category_id: string | null; page_count: number; template_ids: string[]; thumbnail_url: string | null; is_active: boolean; sort_order: number };

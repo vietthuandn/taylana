@@ -27,7 +27,8 @@ const nextConfig: NextConfig = {
       { source: "/admin/scrapbook/mau/sua", destination: "/admin/thiet-ke/template/sua", permanent: false },
       { source: "/admin/thiet-ke/template/cd-scrapbook", destination: "/admin/thiet-ke/template/cd-template", permanent: false },
       { source: "/admin/thiet-ke/template/booklet-scrapbook", destination: "/admin/thiet-ke/template/booklet-template", permanent: false },
-      { source: "/admin/mau-cd", destination: "/admin/thiet-ke/template/cd-nang-cao", permanent: false },
+      { source: "/admin/mau-cd", destination: "/admin/thiet-ke/template/cd-template", permanent: false },
+      { source: "/admin/thiet-ke/template/cd-nang-cao", destination: "/admin/thiet-ke/template/cd-template", permanent: false }, // "CD nâng cao" đã bỏ (dữ liệu cũ giữ nguyên)
       { source: "/admin/photostrip", destination: "/admin/thiet-ke/template/photostrip", permanent: false },
       { source: "/admin/booklet-lyrics", destination: "/admin/thiet-ke/template/booklet-lyrics", permanent: false },
       { source: "/admin/template-canva", destination: "/admin/thiet-ke/template/canva", permanent: false },
