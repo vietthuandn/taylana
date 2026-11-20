@@ -41,7 +41,7 @@ export function PrintBar({ batch, orders, selected, packs, addons, items, stat, 
   const seg = (on: boolean) => cx("rounded-[6px] px-2.5 py-1 text-[12px] font-medium", on ? "bg-white text-[#18181b] shadow-sm" : "text-[#52525b]");
   return (
     <>
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#e5e5e7] bg-white/95 backdrop-blur md:left-[240px]">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#e5e5e7] bg-white/95 backdrop-blur md:left-[var(--admin-sb,240px)]">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center gap-3 px-4 py-2.5 md:px-6">
           <p className="text-[13px]"><b>Đã chọn {selected.length} đơn</b> · <span className="text-[#15803d]">{full.length} đủ ảnh</span> · <span className={miss.length ? "text-[#c2410c]" : "text-[#a1a1aa]"}>{miss.length} thiếu{partial.length ? ` (${partial.length} in được phần đã có)` : ""}</span></p>
           <span className="flex-1" />

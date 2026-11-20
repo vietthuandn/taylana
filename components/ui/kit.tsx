@@ -317,7 +317,7 @@ export function SaveBar({ show, saving, onSave, onReset, label = "Bạn có thay
 }) {
   if (!show) return null;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e7] bg-white/95 backdrop-blur md:left-[240px]">
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e7] bg-white/95 backdrop-blur md:left-[var(--admin-sb,240px)]">
       <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-3 px-4 md:px-8">
         <p className="text-[13px] text-[#71717a]">{label}</p>
         <div className="flex gap-2">

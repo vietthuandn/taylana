@@ -512,3 +512,6 @@
   .ui-clean h2 { font-size: 18px; }
   .ui-clean h3 { font-size: 16px; }
 }
+
+/* iPhone / iPad: không cho kéo quá đầu / cuối trang (lòi ra khoảng trống trên / dưới khi vuốt) */
+html, body { overscroll-behavior: none; }
