@@ -39,6 +39,7 @@ export function SurfaceView(p: SurfaceViewProps) {
   const { t, width } = p;
   const S = surfaceOf(t), k = width / S.w, height = S.h * k;
   const view = useRef<HTMLCanvasElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const textBoxes = useRef<Record<number, LBox>>({});
   const drag = useRef<{ mode: "move" | "scale" | "rotate" | "pan" | "width"; i: number; b0: LBox; sx: number; sy: number; adj0?: Adjust; layer0?: Layer; pid?: string; moved?: boolean; wasSel?: boolean; side?: -1 | 1; hx?: -1 | 0 | 1; hy?: -1 | 0 | 1 } | null>(null);
   const editing = p.editText ?? null;
@@ -186,6 +187,15 @@ export function SurfaceView(p: SurfaceViewProps) {
     return () => v.removeEventListener("wheel", h);
   }, [p.editLayer, zoom]);
   useEffect(() => { if (p.sel === null) setMenu(null); }, [p.sel]);
+  // iPad / iPhone: đang kéo / phóng / xoay lớp thì chặn cuộn trang (Safari có lúc vẫn cuộn giữa chừng → thao tác bị ngắt)
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const stop = (e: TouchEvent) => { if (drag.current) e.preventDefault(); };
+    el.addEventListener("touchmove", stop, { passive: false });
+    document.addEventListener("touchmove", stop, { passive: false });
+    return () => { el.removeEventListener("touchmove", stop); document.removeEventListener("touchmove", stop); };
+  }, []);
 
   const SB = p.sel !== null && p.editLayer === null && editing === null ? layerBox(p.sel) : null;
   const selL = p.sel !== null ? L[p.sel] : null;
@@ -199,7 +209,7 @@ export function SurfaceView(p: SurfaceViewProps) {
   }
   const edgeHandles = !!selL && !sideHandles && stretchable(selL);
   return (
-    <div className="relative" style={{ width, height }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+    <div ref={root} className="relative touch-none" style={{ width, height }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
       onDragOver={(e) => { if (e.dataTransfer.types.includes(ASSET_DRAG) || e.dataTransfer.types.includes(PHOTO_DRAG)) e.preventDefault(); }} onDrop={onDrop}>
       <canvas ref={view} className={cx("block h-full w-full touch-none", p.editLayer !== null ? "cursor-move" : "cursor-pointer", !S.round && "shadow-[0_10px_30px_rgba(0,0,0,0.12)]")}
         onPointerDown={onDown} onDoubleClick={onDbl} onContextMenu={onContext} />
@@ -232,16 +242,16 @@ export function SurfaceView(p: SurfaceViewProps) {
         <div className="pointer-events-none absolute border-2 border-[#2563eb]"
           style={{ left: (SB.x - SB.w / 2) * k, top: (SB.y - SB.h / 2) * k, width: SB.w * k, height: SB.h * k, transform: `rotate(${SB.rot}deg)` }}>
           {([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([hx, hy], i) => (
-            <span key={i} onPointerDown={(e) => startHandle(e, "scale", hx, hy)} className={cx("pointer-events-auto absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-[2px] border-2 border-[#2563eb] bg-white", hx === hy ? "cursor-nwse-resize" : "cursor-nesw-resize")} style={{ left: `${(hx + 1) * 50}%`, top: `${(hy + 1) * 50}%` }} />
+            <span key={i} onPointerDown={(e) => startHandle(e, "scale", hx, hy)} className={cx("pointer-events-auto absolute touch-none before:absolute before:-inset-3 before:content-[''] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-[2px] border-2 border-[#2563eb] bg-white", hx === hy ? "cursor-nwse-resize" : "cursor-nesw-resize")} style={{ left: `${(hx + 1) * 50}%`, top: `${(hy + 1) * 50}%` }} />
           ))}
           {edgeHandles && ([[0, -1], [1, 0], [0, 1], [-1, 0]] as const).map(([hx, hy], i) => (
             <span key={`e${i}`} onPointerDown={(e) => startHandle(e, "scale", hx, hy)} title="Kéo để kéo giãn (Shift: giữ tỉ lệ · Alt: từ tâm)"
-              className={cx("pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#2563eb] bg-white", hx ? "h-5 w-2 cursor-ew-resize" : "h-2 w-5 cursor-ns-resize")} style={{ left: `${(hx + 1) * 50}%`, top: `${(hy + 1) * 50}%` }} />
+              className={cx("pointer-events-auto absolute touch-none before:absolute before:-inset-3 before:content-[''] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#2563eb] bg-white", hx ? "h-5 w-2 cursor-ew-resize" : "h-2 w-5 cursor-ns-resize")} style={{ left: `${(hx + 1) * 50}%`, top: `${(hy + 1) * 50}%` }} />
           ))}
-          <span onPointerDown={(e) => startHandle(e, "rotate")} title="Kéo để xoay" className="pointer-events-auto absolute left-1/2 top-[-22px] h-3.5 w-3.5 -translate-x-1/2 cursor-grab rounded-full border-2 border-[#2563eb] bg-white" />
+          <span onPointerDown={(e) => startHandle(e, "rotate")} title="Kéo để xoay" className="pointer-events-auto absolute touch-none before:absolute before:-inset-3 before:content-[''] left-1/2 top-[-22px] h-3.5 w-3.5 -translate-x-1/2 cursor-grab rounded-full border-2 border-[#2563eb] bg-white" />
           {sideHandles && ([-1, 1] as const).map((side) => (
             <span key={side} onPointerDown={(e) => startWidth(e, side)} title="Kéo để đổi độ rộng (chữ tự xuống dòng)"
-              className="pointer-events-auto absolute top-1/2 h-5 w-2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-full border-2 border-[#2563eb] bg-white" style={{ left: side < 0 ? "0%" : "100%" }} />
+              className="pointer-events-auto absolute touch-none before:absolute before:-inset-3 before:content-[''] top-1/2 h-5 w-2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-full border-2 border-[#2563eb] bg-white" style={{ left: side < 0 ? "0%" : "100%" }} />
           ))}
         </div>
       )}
