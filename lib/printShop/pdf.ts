@@ -84,7 +84,9 @@ export async function buildPdf(sheets: Sheet[], pr: Profile, src: ImgSrc, o: { a
         if (pl.piece.group === "back" && Math.abs(w - 150) < 0.5) for (const fx of [x + BACK_SPINE_MM, x + w - BACK_SPINE_MM]) { line(fx, y - g, fx, y - g - L); line(fx, y + h + g, fx, y + h + g + L); }
       }
       // chữ ghi chú 5pt: dưới khung (hết chỗ thì phía trên), ngoài vùng cắt
-      const t = labelCanvas(`#${pl.piece.order.seq} ${pl.piece.order.username || pl.piece.order.order_code} · ${pl.piece.label}${pl.side ? " · mặt sau" : ""}`);
+      // kèm khổ cắt để đo kiểm tra: in đúng 100% thì khoảng giữa các vạch cắt = đúng số này
+      const cm = (v: number) => String(+(v / 10).toFixed(2)).replace(".", ",");
+      const t = labelCanvas(`#${pl.piece.order.seq} ${pl.piece.order.username || pl.piece.order.order_code} · ${pl.piece.label}${pl.side ? " · mặt sau" : ""} · ${cm(w)} × ${cm(h)} cm`);
       const th = 2.2, tw = (t.width / t.height) * th;
       let ly = y + h + b + 7; // dưới vạch cắt
       if (ly + th > s.ph - 1) ly = Math.max(0.5, y - b - 7 - th);

@@ -106,7 +106,8 @@ export function Queue({ batch, orders, packs, addons, items, slotsFor, onBatch, 
                         </>
                       ) : (
                         <>
-                          <p className="text-[12px] text-[#71717a]">{st.sheets.length} tờ · {st.sheets[0]?.paper}{st.note ? ` · ${st.note}` : ""}</p>
+                          <p className="text-[12px] text-[#71717a]">{st.sheets.length} tờ · giấy <b className="text-[#18181b]">{st.sheets[0]?.paper}</b>{st.note ? ` · ${st.note}` : ""}</p>
+                          <p className="mt-0.5 text-[11px] font-medium text-[#b45309]">Hộp thoại in: Khổ giấy = {st.sheets[0]?.paper.split(" ")[0]} · Tỉ lệ = Kích thước thực (100%)</p>
                           <div className="my-2 flex h-[160px] items-center justify-center overflow-hidden rounded-[8px] bg-[#f4f4f5] p-2">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             {thumbs[st.key] ? <img src={thumbs[st.key]} alt="" className="h-full w-full object-contain drop-shadow" /> : <span className="text-[12px] text-[#a1a1aa]">Đang dựng…</span>}
