@@ -88,21 +88,25 @@ export function CartView({ products, discounts, shipping, payment }: { products:
                 {rows.map(({ c, line, note, product, variation, href }) => {
                   const img = line && product ? thumb(product, line.sels) : null;
                   return (
-                    <li key={c.id} className="flex h-24 items-center gap-3 px-4">
+                    <li key={c.id} className="flex items-center gap-3 px-4 py-3 sm:h-24 sm:py-0">
                       <input type="checkbox" className="h-4 w-4 shrink-0 accent-[#ff5fa2]" disabled={!line} checked={!!line && !off.has(c.id)}
                         aria-label="Chọn dòng này" onChange={() => toggle(c.id)} />
                       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[8px] border border-[#e5e5e7] bg-[#f4f4f5]">
                         {img ? <Image src={img} alt="" width={64} height={64} className="h-16 w-16 object-cover" /> : <Disc3 size={24} strokeWidth={1.2} className="absolute inset-0 m-auto text-[#d4d4d8]" />}
                       </div>
+                      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                       <div className="min-w-0 flex-1">
-                        <Link href={href} className={cx("block truncate text-[14px] font-semibold hover:text-[#ff5fa2]", line ? "text-[#18181b]" : "text-[#a1a1aa] line-through")}>{product?.name ?? "Sản phẩm đã ngừng bán"}</Link>
-                        {variation && <p className="truncate text-[13px] text-[#71717a]" title={variation}>{variation}</p>}
-                        {note && <p className="truncate text-[12px] text-[#b45309]" title={note}>{note}</p>}
+                        <Link href={href} className={cx("block line-clamp-2 text-[14px] sm:line-clamp-1 font-semibold hover:text-[#ff5fa2]", line ? "text-[#18181b]" : "text-[#a1a1aa] line-through")}>{product?.name ?? "Sản phẩm đã ngừng bán"}</Link>
+                        {variation && <p className="text-[13px] text-[#71717a] sm:truncate" title={variation}>{variation}</p>}
+                        {note && <p className="text-[12px] text-[#b45309] sm:truncate" title={note}>{note}</p>}
                       </div>
-                      {line ? <Qty value={c.quantity} min={1} onChange={(v) => cart.update(c.id, { quantity: v })} /> : <span className="w-[120px] shrink-0" />}
+                      <div className="flex items-center gap-3">
+                      {line ? <Qty value={c.quantity} min={1} onChange={(v) => cart.update(c.id, { quantity: v })} /> : <span className="hidden w-[120px] shrink-0 sm:block" />}
                       <span className="hidden w-24 shrink-0 text-right text-[14px] font-semibold tabular-nums text-[#18181b] sm:block">{line ? formatVND(lineTotal(line)) : "—"}</span>
                       <button type="button" aria-label="Xoá" onClick={() => cart.remove([c.id])}
                         className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] text-[#71717a] hover:bg-[#fef2f2] hover:text-[#dc2626]"><Trash2 size={16} /></button>
+                      </div>
+                      </div>
                     </li>
                   );
                 })}
