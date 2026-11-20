@@ -191,15 +191,17 @@ export function ScrapbookEditor(p: {
               <span className="min-w-[96px] text-center text-[12px] tabular-nums text-[#3f3f46]">{p.pageLabel?.(st.active, count) ?? `${st.active + 1} / ${count}`}</span>
               <button type="button" onClick={() => go(st.active + 1)} disabled={st.active >= count - 1} aria-label="Trang sau" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40"><ChevronRight size={14} /></button>
             </div>
-            {/* các trang: lưới 2 cột (mỗi ô = 1 trang đơn hoặc 1 cặp trang), cuộn dọc khi nhiều */}
-            <div className="mx-auto mt-1 grid max-h-[176px] max-w-[560px] grid-cols-2 gap-2 overflow-y-auto pb-1">
+            {/* các trang: 1 hàng ngang (cuộn ngang khi nhiều), mỗi ô = 1 trang đơn hoặc 1 cặp trang, ảnh nằm gọn trong ô */}
+            <div className="no-scrollbar mt-1 flex justify-center gap-1.5 overflow-x-auto pb-1">
               {doc.map((s, i) => (
-                <button key={i} type="button" onClick={() => go(i)} title={p.pageLabel?.(i, count)} className={cx("grid h-20 place-items-center rounded-[6px] border bg-white p-1", i === st.active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+                <button key={i} type="button" onClick={() => go(i)} title={p.pageLabel?.(i, count)}
+                  className={cx("h-16 shrink-0 overflow-hidden rounded-[4px] border bg-white p-px", s.surface === "spread" ? "w-32" : "w-16", i === st.active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  {thumbs[i] ? <img src={thumbs[i]} alt="" className="max-h-full max-w-full object-contain" /> : <span className={cx("block h-full bg-[#ececef]", s.surface === "spread" ? "aspect-[2/1]" : "aspect-square")} />}
+                  {thumbs[i] ? <img src={thumbs[i]} alt="" className="block h-full w-full object-contain" /> : <span className="block h-full w-full bg-[#ececef]" />}
                 </button>
               ))}
             </div>
+          </div>
           </div>
         )}
         {p.bottom}
