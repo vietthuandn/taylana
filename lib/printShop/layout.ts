@@ -84,14 +84,21 @@ function stepsFor(key: string, g: GroupKey, pieces: Piece[], merge: boolean, pr:
   const name = GROUPS.find((x) => x.key === g)!.name, out: { title: string; steps: Step[] }[] = [];
   const bySize = new Map<string, Piece[]>();
   for (const p of pieces) bySize.set(`${p.w}x${p.h}`, [...(bySize.get(`${p.w}x${p.h}`) ?? []), p]);
-  const main: Piece[] = [], odd: Piece[] = [];
+  const main: Piece[] = [], odd: Piece[] = [], cA5: Piece[] = [], cA6: Piece[] = [];
   for (const list of bySize.values()) {
+    if (g === "card" && merge) {
+      // card: đủ 8 → A4 ngang · phần dư 5–8 vẫn A4 · 3–4 → A5 dọc (4 card) · 1–2 → A6 ngang (2 card)
+      const rem = list.length % 8, full = list.length - rem;
+      main.push(...list.slice(0, full));
+      if (rem > 4) main.push(...list.slice(full)); else if (rem > 2) cA5.push(...list.slice(full)); else cA6.push(...list.slice(full));
+      continue;
+    }
     const cap = slotsOn(paperOf(g, merge), list[0].w, list[0].h, pr.bleed).length;
     if (merge && cap === 2 && list.length % 2 === 1) { main.push(...list.slice(0, -1)); odd.push(list[list.length - 1]); } else main.push(...list);
   }
-  const make = (k: string, title: string, ps: Piece[], m: boolean) => {
+  const make = (k: string, title: string, ps: Piece[], m: boolean | Paper) => {
     if (!ps.length) return;
-    const paper = paperOf(g, m), fronts: Sheet[] = [], sizes = new Map<string, Piece[]>();
+    const paper = typeof m === "object" ? m : paperOf(g, m), fronts: Sheet[] = [], sizes = new Map<string, Piece[]>();
     for (const p of ps) sizes.set(`${p.w}x${p.h}`, [...(sizes.get(`${p.w}x${p.h}`) ?? []), p]);
     for (const list of sizes.values()) {
       const pos = slotsOn(paper, list[0].w, list[0].h, g === "disc" ? 0 : pr.bleed), cap = Math.max(1, pos.length);
@@ -109,6 +116,8 @@ function stepsFor(key: string, g: GroupKey, pieces: Piece[], merge: boolean, pr:
   };
   make(key, name, main, merge);
   make(`${key}|a5`, `${name} · lẻ (A5)`, odd, false);
+  make(`${key}|ca5`, `${name} · A5`, cA5, { name: "A5 dọc", pw: 148, ph: 210, cols: 2, rows: 2 });
+  make(`${key}|ca6`, `${name} · A6`, cA6, paperOf("card", false));
   return out;
 }
 /** các nhóm + bước in. mode "group": theo nhóm (đỡ thay giấy nhất) · "order": in xong trọn 1 đơn rồi sang đơn kế */
