@@ -99,6 +99,8 @@ export function AdminShell({ email, role = "admin", children }: { email: string;
   const crumbs = [active?.group, active && active.label !== active.group ? active.label : null,
     path.startsWith("/admin/don-hang/") ? "Chi tiết đơn" : path === "/admin/giam-gia/moi" ? "Tạo mới" : /^\/admin\/goi-san-pham\/.+/.test(path) || /^\/admin\/mockup\/.+/.test(path) ? "Chi tiết" : path.startsWith("/admin/giam-gia/") ? "Chi tiết" : null].filter(Boolean) as string[];
   const workspace = isWorkspacePath(path);
+  // trình sửa từng mẫu: chỉ hiện vùng làm việc (không thanh trên, không menu trái) — rộng hết màn hình
+  if (path.startsWith("/admin/thiet-ke/template/sua")) return <div className="admin-ui flex h-dvh flex-col overflow-hidden">{children}<AdminOverlays /></div>;
 
   return (
     <div className={cx("admin-ui", workspace ? "h-dvh overflow-hidden" : "min-h-dvh")}>
