@@ -40,7 +40,9 @@ export function Queue({ batch, orders, packs, addons, items, slotsFor, onBatch, 
     onBatch({ ...batch, progress });
     await saveProgress(batch.id, progress).catch((e) => toast(e instanceof Error ? e.message : "Lỗi lưu tiến độ", "err"));
     // xong mọi bước có đơn đó → "Đã in"
-    const fin = list.filter((o) => steps.filter((s) => s.orderIds.includes(o.id)).every((s) => progress.done[s.key]));
+    // đơn chỉ in một phần (thiếu ảnh) thì chưa chuyển "Đã in" — in nốt phần còn lại sau
+    const full = (o: Order) => slotsFor(o).every((sl) => sl.optional || items.some((i) => i.order_id === o.id && i.slot === sl.key));
+    const fin = list.filter((o) => full(o) && steps.filter((s) => s.orderIds.includes(o.id)).every((s) => progress.done[s.key]));
     const ids = fin.filter((o) => o.status !== "printed").map((o) => o.id);
     if (ids.length) { onOrders(ids, { status: "printed" }); await patchOrders(ids, { status: "printed" }).catch(() => undefined); toast(`${ids.length} đơn đã in xong`); }
   }

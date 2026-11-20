@@ -30,7 +30,11 @@ export type Step = { key: string; group: GroupKey; kind: "front" | "flip" | "bac
 export function piecesOf(o: Order, slots: Slot[], has: (slot: string) => boolean = () => true): Piece[] {
   const out: Piece[] = [], by = new Map<string, Slot[]>();
   for (const s of slots) { if (s.optional && !has(s.key)) continue; by.set(s.piece, [...(by.get(s.piece) ?? []), s]); }
-  for (const [piece, ss] of by) {
+  for (const [piece, all] of by) {
+    // chỉ in phần đã có ảnh: món lẻ thiếu 1 mặt → in mặt đã có (thành 1 mặt), chưa có mặt nào → bỏ;
+    // vật in của gói (booklet, bìa) phải đủ mọi mặt / trang mới in
+    const isAddon = piece.startsWith("a:"), ss = isAddon ? all.filter((x) => has(x.key)).map((x, i) => ({ ...x, side: i })) : all;
+    if (!ss.length || (!isAddon && ss.some((x) => !has(x.key)))) continue;
     const inst = ss[0].instLabel ?? "";
     if (piece.endsWith("booklet")) {
       const n = ss.length, pre = piece.slice(0, -"booklet".length); // "" hoặc "p2:"
