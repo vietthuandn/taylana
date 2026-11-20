@@ -202,7 +202,6 @@ export function ScrapbookEditor(p: {
               ))}
             </div>
           </div>
-          </div>
         )}
         {p.bottom}
       </section>
