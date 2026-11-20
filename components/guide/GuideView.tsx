@@ -35,6 +35,7 @@ export function GuideView({ sections, guide, zalo, packs, canvaIcon }: { section
     <div className="pb-28">
       <h1 className="mx-auto max-w-4xl px-4 pb-6 pt-8 text-center text-[26px] font-bold uppercase tracking-[0.02em] text-[#18181b] sm:text-[30px]">Hướng dẫn làm file</h1>
       <div className="mx-auto w-full max-w-4xl space-y-4 px-4">
+        {packs.length > 0 && <PackChecklist packs={packs} />}
         {sections.map((s, i) => {
           // ảnh ↔ nút: ảnh có link riêng, hoặc số link = số ảnh thì ghép theo thứ tự
           const paired = s.images.length > 0 && !s.images.some((x) => x.link) && s.links.length === s.images.length;
@@ -82,7 +83,6 @@ export function GuideView({ sections, guide, zalo, packs, canvaIcon }: { section
           );
         })}
         {!sections.length && <p className="py-12 text-center text-[#71717a]">Tiệm đang soạn hướng dẫn, bạn quay lại sau nhé!</p>}
-        {packs.length > 0 && <PackChecklist packs={packs} />}
       </div>
       {/* thanh cố định cuối trang */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5e5e7] bg-white/95 backdrop-blur">

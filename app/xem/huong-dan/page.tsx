@@ -6,5 +6,5 @@ export const metadata = { title: "Hướng dẫn làm file" };
 export const revalidate = 60;
 
 export default async function SharedGuidePage() {
-  return <main className="min-h-dvh bg-[#f7f7f8] font-sans text-[#18181b]"><GuideView {...await getGuidePage()} /></main>;
+  return <main className="ui-clean min-h-dvh bg-[#f7f7f8] font-sans text-[#18181b]"><GuideView {...await getGuidePage()} /></main>;
 }
