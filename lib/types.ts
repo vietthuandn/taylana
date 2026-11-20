@@ -112,8 +112,9 @@ export type Review = {
   created_at: string;
 };
 
-export type GuideImage = { url: string; caption: string };
-export type GuideLink = { label: string; url: string };
+// ảnh của mục hướng dẫn: hiện thành thẻ (ảnh · tiêu đề · dòng phụ · nút) — link / label không bắt buộc
+export type GuideImage = { url: string; caption: string; sub?: string; link?: string; link_label?: string };
+export type GuideLink = { label: string; url: string; icon?: string }; // icon: ảnh nhỏ trước chữ trên nút
 export type GuideSection = {
   id: string;
   title: string;

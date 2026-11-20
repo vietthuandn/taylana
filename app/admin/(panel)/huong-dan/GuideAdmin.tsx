@@ -5,7 +5,59 @@ import { createClient } from "@/lib/supabase/client";
 import { removePublicImage } from "@/lib/upload";
 import type { GuideSection } from "@/lib/types";
 import { revalidatePublic } from "@/app/admin/actions";
-import { Badge, Field, ImageInput, Message, SortButtons, Toggle, confirmDialog } from "@/components/admin/ui";
+import { Badge, Button, Field, ImageInput, Message, SortButtons, Toggle, confirmDialog, toast } from "@/components/admin/ui";
+import { Copy, ExternalLink, Share2 } from "lucide-react";
+
+type GuideSettings = { show_tools: boolean; tools_title: string; tools: { label: string; href: string }[]; order_enabled: boolean; order_href: string };
+const DEF: GuideSettings = {
+  show_tools: false, tools_title: "App cũng có xây dựng nhiều tiện ích thiết kế cho CD, khám phá ngay nhé:",
+  tools: [{ label: "Thiết kế CD và Booklet", href: "/thiet-ke" }, { label: "Booklet Lyrics", href: "/thiet-ke/booklet-lyrics" }, { label: "Xem Mockup", href: "/thiet-ke/mockup" }],
+  order_enabled: false, order_href: "/dat-don",
+};
+
+/** cài đặt trang (site_settings "guide"): khối tiện ích thiết kế, nút Đặt đơn · nút Chia sẻ (link /xem/huong-dan — không có thanh điều hướng) */
+function PageSettings() {
+  const [v, setV] = useState<GuideSettings>(DEF);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { createClient().from("site_settings").select("value").eq("key", "guide").maybeSingle().then(({ data }) => { if (data?.value) setV({ ...DEF, ...(data.value as Partial<GuideSettings>) }); }); }, []);
+  async function save(n: GuideSettings) {
+    setV(n); setSaving(true);
+    const { error } = await createClient().from("site_settings").upsert({ key: "guide", value: n, updated_at: new Date().toISOString() });
+    setSaving(false);
+    if (error) return toast(error.message, "err");
+    await revalidatePublic(["/huong-dan", "/xem/huong-dan"]);
+    toast("Đã lưu cài đặt trang");
+  }
+  const share = () => `${location.origin}/xem/huong-dan`;
+  return (
+    <div className="mb-5 space-y-3 rounded-[12px] border border-[#e5e5e7] bg-white p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="flex-1 text-[15px] font-semibold">Cài đặt trang</p>
+        <Button size="sm" variant="secondary" icon={<Copy size={14} />} onClick={async () => { try { await navigator.clipboard.writeText(share()); toast("Đã sao chép link chia sẻ"); } catch { toast(share()); } }}>Sao chép link chia sẻ</Button>
+        <Button size="sm" icon={<Share2 size={14} />} onClick={() => window.open(share(), "_blank")}>Chia sẻ</Button>
+      </div>
+      <p className="text-[12px] text-[#71717a]">Link chia sẻ <b>/xem/huong-dan</b> chỉ có 1 trang hướng dẫn, không có thanh điều hướng của web. Link <b>/huong-dan</b> hiện như bình thường.</p>
+      <Toggle checked={v.show_tools} onChange={(x) => save({ ...v, show_tools: x })} label="Hiện khối “tiện ích thiết kế” (dưới mục có ảnh)" />
+      {v.show_tools && (
+        <div className="space-y-2 rounded-[10px] bg-[#fafafa] p-3">
+          <input className="field" value={v.tools_title} onChange={(e) => setV({ ...v, tools_title: e.target.value })} onBlur={() => save(v)} />
+          {v.tools.map((t, i) => (
+            <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <input className="field" value={t.label} placeholder="Chữ trên nút" onChange={(e) => setV({ ...v, tools: v.tools.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} onBlur={() => save(v)} />
+              <input className="field" value={t.href} placeholder="/thiet-ke" onChange={(e) => setV({ ...v, tools: v.tools.map((x, j) => (j === i ? { ...x, href: e.target.value } : x)) })} onBlur={() => save(v)} />
+              <button type="button" className="text-[13px] text-[#dc2626]" onClick={() => save({ ...v, tools: v.tools.filter((_, j) => j !== i) })}>Bỏ</button>
+            </div>
+          ))}
+          <button type="button" className="text-sm hover:text-[#ff5fa2]" onClick={() => setV({ ...v, tools: [...v.tools, { label: "", href: "/" }] })}>+ Thêm nút</button>
+        </div>
+      )}
+      <Toggle checked={v.order_enabled} onChange={(x) => save({ ...v, order_enabled: x })} label="Bật nút “Đặt đơn” ở cuối trang (tắt = nút mờ, chưa bấm được)" />
+      {v.order_enabled && <input className="field" value={v.order_href} onChange={(e) => setV({ ...v, order_href: e.target.value })} onBlur={() => save(v)} placeholder="/dat-don" />}
+      {saving && <p className="text-[12px] text-[#a1a1aa]">Đang lưu…</p>}
+      <a href="/huong-dan" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] text-[#ff5fa2]">Xem trang /huong-dan <ExternalLink size={12} /></a>
+    </div>
+  );
+}
 
 type Draft = Omit<GuideSection, "id"> & { id?: string };
 const empty: Draft = { title: "", body: "", images: [], links: [], is_active: true, sort_order: 0 };
@@ -41,7 +93,7 @@ export function GuideAdmin() {
       title: d.title.trim(),
       body: d.body,
       images: d.images.filter((i) => i.url || i.caption),
-      links: d.links.filter((l) => l.url.trim()).map((l) => ({ label: l.label.trim(), url: l.url.trim() })),
+      links: d.links.filter((l) => l.url.trim()).map((l) => ({ label: l.label.trim(), url: l.url.trim(), ...(l.icon ? { icon: l.icon } : {}) })),
       is_active: d.is_active,
     };
     const sb = createClient();
@@ -77,6 +129,7 @@ export function GuideAdmin() {
 
   return (
     <>
+      <PageSettings />
       <div className="mb-3 flex justify-end">
         <button className="btn btn-sm" onClick={() => setEditing({ ...empty })}>+ Thêm mục</button>
       </div>
@@ -127,9 +180,12 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
           {d.images.map((img, i) => (
             <div key={i} className="flex flex-wrap items-end gap-3 rounded-2xl bg-cream-50 p-3">
               <ImageInput value={img.url || null} onChange={(u) => setImg(i, { url: u ?? "" })} folder="guide" label={`Ảnh ${i + 1}`} />
-              <Field label="Chú thích" className="min-w-40 flex-1">
-                <input className="field" placeholder="Ví dụ: Bìa trước 12x12cm" value={img.caption} onChange={(e) => setImg(i, { caption: e.target.value })} />
-              </Field>
+              <div className="grid min-w-60 flex-1 gap-2 sm:grid-cols-2">
+                <Field label="Tiêu đề thẻ"><input className="field" placeholder="Ví dụ: Bìa trước / Booklet" value={img.caption} onChange={(e) => setImg(i, { caption: e.target.value })} /></Field>
+                <Field label="Dòng phụ"><input className="field" placeholder="Ví dụ: 12 × 12 cm" value={img.sub ?? ""} onChange={(e) => setImg(i, { sub: e.target.value })} /></Field>
+                <Field label="Link nút (không bắt buộc)"><input className="field" placeholder="https://www.canva.com/..." value={img.link ?? ""} onChange={(e) => setImg(i, { link: e.target.value })} /></Field>
+                <Field label="Chữ trên nút"><input className="field" placeholder="Dùng template" value={img.link_label ?? ""} onChange={(e) => setImg(i, { link_label: e.target.value })} /></Field>
+              </div>
               <SortButtons first={i === 0} last={i === d.images.length - 1}
                 onUp={() => setD({ ...d, images: moveItem(d.images, i, -1) })} onDown={() => setD({ ...d, images: moveItem(d.images, i, 1) })} />
               <button type="button" className="rounded-[6px] border border-[#e5e5e7] bg-white px-2.5 py-1 text-[13px] font-medium text-[#dc2626] hover:bg-[#fef2f2]"
@@ -144,7 +200,8 @@ function Editor({ draft, onCancel, onSave }: { draft: Draft; onCancel: () => voi
         <p className="mb-2 text-sm font-medium">Link (nút bấm)</p>
         <div className="space-y-2">
           {d.links.map((l, i) => (
-            <div key={i} className="grid gap-2 rounded-2xl bg-cream-50 p-3 sm:grid-cols-[1fr_2fr_auto]">
+            <div key={i} className="grid items-center gap-2 rounded-2xl bg-cream-50 p-3 sm:grid-cols-[auto_1fr_2fr_auto]">
+              <ImageInput value={l.icon || null} onChange={(u) => setLink(i, { icon: u ?? undefined })} folder="guide" label="Icon" allowSvg />
               <input className="field" placeholder="Chữ trên nút, vd: Template Canva" value={l.label} onChange={(e) => setLink(i, { label: e.target.value })} />
               <input className="field" placeholder="https://www.canva.com/..." value={l.url} onChange={(e) => setLink(i, { url: e.target.value })} />
               <button type="button" className="rounded-[6px] border border-[#e5e5e7] bg-white px-2.5 py-1 text-[13px] font-medium text-[#dc2626] hover:bg-[#fef2f2]"
