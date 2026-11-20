@@ -37,7 +37,7 @@ export function SettingsModal({ packs, rules, addons, onRules, onAddons, onClose
               <table className="w-full text-[13px]">
                 <thead><tr className="text-left text-[12px] text-[#71717a]"><th className="p-1.5">Cụm chữ cần khớp</th><th className="p-1.5">Kết quả</th><th className="p-1.5">Cụ thể</th><th className="w-8" /></tr></thead>
                 <tbody>
-                  {rules.map((r) => {
+                  {rules.filter((r) => r.result !== "music" && !/^ghi nh/i.test(r.pattern)).map((r) => {
                     const p = r.result === "package" ? packOfRule(r, packs) : null, a = r.result === "addon" ? addonOfRule(r, addons) : null;
                     return (
                       <tr key={r.id} className="border-t border-[#efeff1]">

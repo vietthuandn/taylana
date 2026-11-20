@@ -13,7 +13,7 @@ import { IMG_RE, dims, foldersFromDrop, similar, thumbUrl, type Folder } from "@
 import { MockupModal } from "./MockupModal";
 import { assign } from "@/lib/printShop/match";
 import { resolve } from "@/lib/printShop/rules";
-import { slotsOf, type Addon, type Batch, type Item, type Order, type Pack, type Rule, type Slot } from "@/lib/printShop/types";
+import { noMusic, packsOf, slotsOf, type Addon, type Batch, type Item, type Order, type Pack, type Rule, type Slot } from "@/lib/printShop/types";
 import { confirmDialog } from "@/components/ui/dialog";
 import { Badge, Button, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
@@ -72,8 +72,8 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
     return () => { stop = true; };
   }, [items, batchId]);
 
-  const packOf = useCallback((o: Order) => packs.find((p) => p.id === o.package_id) ?? null, [packs]);
-  const slotsFor = useCallback((o: Order) => slotsOf(o, packOf(o), addons), [packOf, addons]);
+  const packOf = useCallback((o: Order) => packs.find((p) => p.id === packsOf(o)[0]?.id) ?? null, [packs]);
+  const slotsFor = useCallback((o: Order) => slotsOf(o, packs, addons), [packs, addons]);
   const itemOf = (o: Order, s: string) => items.find((i) => i.order_id === o.id && i.slot === s);
   /** ô có ảnh thật sự trên máy này (dữ liệu có nhưng IndexedDB bị xoá → coi như thiếu) */
   const has = (o: Order, s: string) => !!itemOf(o, s) && thumbs[fileKey(batchId, o.id, s)] !== "";
@@ -89,11 +89,11 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
   async function addOrders(list: NewOrder[]) {
     let seq = Math.max(0, ...orders.map((o) => o.seq));
     const rows = list.map(({ row, manual }) => {
-      const r = manual ? { ...manual, unresolved: !manual.package_id && !manual.addons.length } : resolve(row.lines, rules, packs, addons);
+      const r = manual ? { ...manual, packs: manual.package_id ? [{ id: manual.package_id, qty: manual.qty }] : [], qty: 1, unresolved: !manual.package_id && !manual.addons.length } : resolve(row.lines, rules, packs, addons);
       return {
         batch_id: batchId, seq: ++seq, order_code: row.order_code, username: row.username, lines: row.lines,
-        product: row.lines.map((l) => l.product).filter(Boolean).join(" | "), variation: row.lines.map((l) => l.variation).filter(Boolean).join(" | "),
-        qty: r.qty, package_id: r.package_id, addons: r.addons, music: r.music, unresolved: r.unresolved,
+        product: row.lines.map((l) => l.product).filter(Boolean).join(" | "), variation: row.lines.map((l) => noMusic(l.variation)).filter(Boolean).join(" | "),
+        qty: 1, package_id: r.packs[0]?.id ?? null, packs: r.packs, addons: r.addons, music: false, unresolved: r.unresolved,
       };
     });
     try { const ins = await insertOrders(rows); setOrders((c) => [...c, ...ins]); setImporting(false); toast(`Đã thêm ${ins.length} đơn${ins.some((x) => x.unresolved) ? ` · ${ins.filter((x) => x.unresolved).length} chưa xác định` : ""}`); }
@@ -269,6 +269,13 @@ function OrderCard({ o, packs, addons, slots, stat, batchId, thumbs, itemOf, sel
   const [adding, setAdding] = useState(false);
   const bad = o.unresolved || !slots.length;
   const groups = slots.reduce<Record<string, Slot[]>>((m, s) => { (m[s.piece] ??= []).push(s); return m; }, {});
+  // mỗi bản (Combo 1, Combo 2, Card 1…) = 1 hàng ô ảnh riêng
+  const rows = Object.values(groups).reduce<{ label: string; pieces: Slot[][] }[]>((acc, ss) => {
+    const l = ss[0].instLabel ?? "", last = acc[acc.length - 1];
+    if (last && last.label === l) last.pieces.push(ss); else acc.push({ label: l, pieces: [ss] });
+    return acc;
+  }, []);
+  const setPacks = (v: { id: string; qty: number }[], rem?: { result: "package"; id: string }) => { const list = v.filter((x) => x.qty > 0); onPatch({ packs: list, package_id: list[0]?.id ?? null, qty: 1, unresolved: false }, rem); };
   return (
     <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => { if (!e.dataTransfer.files.length) return; e.preventDefault(); e.stopPropagation(); onDropFiles([...e.dataTransfer.files]); }}
       className={cx("rounded-[14px] border-2 bg-white p-3", bad ? "border-[#fca5a5]" : selected ? "border-[#ff5fa2]" : "border-[#e5e5e7]", o.status === "printed" && "opacity-70")}>
@@ -281,28 +288,49 @@ function OrderCard({ o, packs, addons, slots, stat, batchId, thumbs, itemOf, sel
         {o.status === "printed" ? <Badge tone="green">Đã in</Badge> : bad ? <Badge tone="amber">Chưa xác định</Badge> : stat.full ? <span className="rounded-full bg-[#dcfce7] px-2 py-0.5 text-[12px] font-semibold text-[#15803d]">Đủ ảnh {stat.n}/{stat.total}</span> : <span className="rounded-full bg-[#ffedd5] px-2 py-0.5 text-[12px] font-semibold text-[#c2410c]">Thiếu {stat.total - stat.n}</span>}
         <button type="button" onClick={onDelete} className="grid h-7 w-7 place-items-center rounded-[6px] text-[#a1a1aa] hover:bg-[#fef2f2] hover:text-[#dc2626]" aria-label="Xoá đơn"><Trash2 size={14} /></button>
       </div>
-      {(o.product || o.variation) && <p className="mt-1 line-clamp-2 text-[12px] text-[#71717a]" title={`${o.product}\n${o.variation}`}>{o.variation || o.product}</p>}
+      {(o.product || o.variation) && <p className="mt-1 line-clamp-2 text-[12px] text-[#71717a]" title={`${o.product}\n${noMusic(o.variation)}`}>{noMusic(o.variation) || o.product}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
-        <select value={o.package_id ?? ""} onChange={(e) => onPatch({ package_id: e.target.value || null, unresolved: false }, e.target.value ? { result: "package", id: e.target.value } : undefined)} className={cx("h-8 max-w-[220px] rounded-[8px] border px-2 text-[13px]", o.package_id ? "border-[#e5e5e7]" : "border-[#fca5a5] bg-[#fef2f2]")} aria-label="Gói">
-          <option value="">— Gói —</option>
+        {/* nhiều gói / đơn, mỗi gói có số lượng (mỗi bản = 1 hàng ô ảnh riêng) */}
+        {packsOf(o).map((pq) => (
+          <span key={pq.id} className="inline-flex h-7 items-center gap-0.5 rounded-full bg-[#eff6ff] pl-2.5 pr-1 text-[12px] font-medium text-[#1d4ed8]">
+            {packs.find((p) => p.id === pq.id)?.name ?? "?"}
+            <button type="button" onClick={() => setPacks(packsOf(o).map((x) => (x.id === pq.id ? { ...x, qty: x.qty - 1 } : x)))} className="grid h-5 w-5 place-items-center rounded-full hover:bg-[#dbeafe]" aria-label="Bớt 1">−</button>
+            <span className="w-4 text-center tabular-nums">{pq.qty}</span>
+            <button type="button" onClick={() => setPacks(packsOf(o).map((x) => (x.id === pq.id ? { ...x, qty: x.qty + 1 } : x)))} className="grid h-5 w-5 place-items-center rounded-full hover:bg-[#dbeafe]" aria-label="Thêm 1">+</button>
+            <button type="button" onClick={() => setPacks(packsOf(o).filter((x) => x.id !== pq.id))} className="grid h-5 w-5 place-items-center rounded-full hover:bg-[#dbeafe]" aria-label="Bỏ gói"><X size={11} /></button>
+          </span>
+        ))}
+        <select value="" onChange={(e) => { const id = e.target.value; if (!id) return; const cur = packsOf(o); setPacks(cur.some((x) => x.id === id) ? cur.map((x) => (x.id === id ? { ...x, qty: x.qty + 1 } : x)) : [...cur, { id, qty: 1 }], { result: "package", id }); }}
+          className={cx("h-7 rounded-full border px-2 text-[12px]", packsOf(o).length ? "border-dashed border-[#d4d4d8] text-[#52525b]" : "border-[#fca5a5] bg-[#fef2f2]")} aria-label="Thêm gói">
+          <option value="">+ Gói</option>
           {packs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
-        {o.addons.map((id, i) => (
-          <span key={`${id}-${i}`} className="inline-flex h-7 items-center gap-1 rounded-full bg-[#f4f4f5] pl-2.5 pr-1 text-[12px]">{addons.find((a) => a.id === id)?.name ?? "?"}
-            <button type="button" onClick={() => onPatch({ addons: o.addons.filter((_, k) => k !== i) })} className="grid h-5 w-5 place-items-center rounded-full hover:bg-[#e4e4e7]" aria-label="Bỏ món"><X size={11} /></button></span>
-        ))}
+        {[...new Set(o.addons)].map((id) => {
+          const n = o.addons.filter((x) => x === id).length;
+          return (
+            <span key={id} className="inline-flex h-7 items-center gap-0.5 rounded-full bg-[#f4f4f5] pl-2.5 pr-1 text-[12px]">{addons.find((a) => a.id === id)?.name ?? "?"}
+              <button type="button" onClick={() => { const i = o.addons.lastIndexOf(id); onPatch({ addons: o.addons.filter((_, k) => k !== i) }); }} className="grid h-5 w-5 place-items-center rounded-full hover:bg-[#e4e4e7]" aria-label="Bớt 1">−</button>
+              <span className="w-4 text-center tabular-nums">{n}</span>
+              <button type="button" onClick={() => onPatch({ addons: [...o.addons, id] })} className="grid h-5 w-5 place-items-center rounded-full hover:bg-[#e4e4e7]" aria-label="Thêm 1">+</button>
+              <button type="button" onClick={() => onPatch({ addons: o.addons.filter((x) => x !== id) })} className="grid h-5 w-5 place-items-center rounded-full hover:bg-[#e4e4e7]" aria-label="Bỏ món"><X size={11} /></button>
+            </span>
+          );
+        })}
         {adding ? (
           <select autoFocus onBlur={() => setAdding(false)} onChange={(e) => { if (e.target.value) onPatch({ addons: [...o.addons, e.target.value], unresolved: false }, { result: "addon", id: e.target.value }); setAdding(false); }} className="h-7 rounded-[8px] border border-[#e5e5e7] text-[12px]" defaultValue="">
             <option value="">— món —</option>{addons.filter((a) => a.is_active).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
         ) : <button type="button" onClick={() => setAdding(true)} className="h-7 rounded-full border border-dashed border-[#d4d4d8] px-2.5 text-[12px] text-[#52525b] hover:border-[#ff5fa2]">+ Món</button>}
-        {o.package_id && <button type="button" onClick={onMockup} className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e5e5e7] px-2.5 text-[12px] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]" title="Xem mockup hộp CD từ ảnh của đơn"><Box size={12} /> Xem mockup</button>}
-        <label className="ml-auto inline-flex items-center gap-1 text-[12px] text-[#52525b]">SL<input type="number" min={1} value={o.qty} onChange={(e) => onPatch({ qty: Math.max(1, Number(e.target.value) || 1) })} className="h-7 w-12 rounded-[6px] border border-[#e5e5e7] px-1 text-center" /></label>
+        {packsOf(o).length > 0 && <button type="button" onClick={onMockup} className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e5e5e7] px-2.5 text-[12px] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]" title="Xem mockup hộp CD từ ảnh của đơn"><Box size={12} /> Xem mockup</button>}
       </div>
       {slots.length > 0 ? (
-        <div className="mt-3 flex flex-wrap gap-3">
-          {Object.entries(groups).map(([piece, ss]) => (
-            <div key={piece} className="flex flex-wrap gap-1.5">
+        <div className="mt-3 space-y-2.5">
+         {rows.map((row, ri) => (
+          <div key={ri} className={cx(rows.length > 1 && "border-t border-[#f4f4f5] pt-2 first:border-0 first:pt-0")}>
+          {rows.length > 1 && <p className="mb-1 text-[12px] font-semibold text-[#3f3f46]">{row.label}</p>}
+          <div className="flex flex-wrap gap-3">
+          {row.pieces.map((ss) => (
+            <div key={ss[0].piece} className="flex flex-wrap gap-1.5">
               {ss.map((s) => {
                 const k = fileKey(batchId, o.id, s.key), it = itemOf(s.key), url = thumbs[k], w = warn(s, it);
                 return (
@@ -334,6 +362,9 @@ function OrderCard({ o, packs, addons, slots, stat, batchId, thumbs, itemOf, sel
               })}
             </div>
           ))}
+          </div>
+          </div>
+         ))}
         </div>
       ) : <p className="mt-3 rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[12px] text-[#b91c1c]">Chưa xác định cần in gì — chọn Gói hoặc thêm Món lẻ.</p>}
     </div>

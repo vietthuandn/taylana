@@ -74,7 +74,7 @@ export async function buildPdf(sheets: Sheet[], pr: Profile, src: ImgSrc, o: { a
       if (disc) continue;
       const { x, y } = pl, w = pl.piece.w, h = pl.piece.h, b = pr.bleed;
       // vạch cắt — chỉ ở mặt trước của tờ: 8 vạch nằm trên đúng 4 cạnh của hình, kéo ra ngoài hình (cách góc 1 mm, dài 5 mm)
-      if (pr.marks && pl.side === 0) {
+      if (pr.marks && pl.side === 0 && pl.piece.marks !== false) {
         const L = 5, g = 1, line = (x1: number, y1: number, x2: number, y2: number) => page.drawLine({ start: { x: x1 * MM, y: (s.ph - y1) * MM }, end: { x: x2 * MM, y: (s.ph - y2) * MM }, thickness: 0.25, color: rgb(0, 0, 0) });
         for (const [cx, sx] of [[x, -1], [x + w, 1]] as const) for (const [cy, sy] of [[y, -1], [y + h, 1]] as const) {
           line(cx + sx * g, cy, cx + sx * (g + L), cy);

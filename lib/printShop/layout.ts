@@ -21,7 +21,7 @@ export function saveProfile(p: Profile) { try { localStorage.setItem(PKEY, JSON.
 
 /** nội dung 1 mặt: các ảnh (ô) đặt trong khung vật in, x / w theo mm (booklet: 2 trang trái phải) */
 export type Content = { slot: string; x: number; w: number };
-export type Piece = { id: string; order: Order; label: string; group: GroupKey; w: number; h: number; shape: Slot["shape"]; sides: Content[][] };
+export type Piece = { id: string; order: Order; label: string; group: GroupKey; w: number; h: number; shape: Slot["shape"]; sides: Content[][]; marks?: boolean }; // marks: false = không in vạch cắt
 export type Place = { piece: Piece; side: number; x: number; y: number; rot180: boolean };
 export type Sheet = { pw: number; ph: number; paper: string; places: Place[] };
 export type Step = { key: string; group: GroupKey; kind: "front" | "flip" | "back"; title: string; sheets: Sheet[]; orderIds: string[]; note?: string };
@@ -31,24 +31,25 @@ export function piecesOf(o: Order, slots: Slot[], has: (slot: string) => boolean
   const out: Piece[] = [], by = new Map<string, Slot[]>();
   for (const s of slots) { if (s.optional && !has(s.key)) continue; by.set(s.piece, [...(by.get(s.piece) ?? []), s]); }
   for (const [piece, ss] of by) {
-    if (piece === "booklet") {
-      const n = ss.length;
+    const inst = ss[0].instLabel ?? "";
+    if (piece.endsWith("booklet")) {
+      const n = ss.length, pre = piece.slice(0, -"booklet".length); // "" hoặc "p2:"
       if (n >= 4 && n % 4 === 0) {
         const sides = impose(n);
         for (let k = 0; k < sides.length; k += 2) {
           const f = sides[k], b = sides[k + 1];
-          out.push({ id: `${o.id}:bk${f.sheet}`, order: o, label: `Booklet tờ ${f.sheet}/${n / 4}`, group: "booklet", w: 240, h: 120, shape: "rect",
-            sides: [[{ slot: `f${f.left}`, x: 0, w: 120 }, { slot: `f${f.right}`, x: 120, w: 120 }], ...(b ? [[{ slot: `f${b.left}`, x: 0, w: 120 }, { slot: `f${b.right}`, x: 120, w: 120 }]] : [])] });
+          // vạch cắt chỉ ở tờ số 1 của mỗi booklet (trang N–1); các tờ sau không có vạch, vẫn có ghi chú số tờ
+          out.push({ id: `${o.id}:${pre}bk${f.sheet}`, order: o, label: `${inst} · tờ ${f.sheet}/${n / 4}`, group: "booklet", w: 240, h: 120, shape: "rect", marks: f.sheet === 1,
+            sides: [[{ slot: `${pre}f${f.left}`, x: 0, w: 120 }, { slot: `${pre}f${f.right}`, x: 120, w: 120 }], ...(b ? [[{ slot: `${pre}f${b.left}`, x: 0, w: 120 }, { slot: `${pre}f${b.right}`, x: 120, w: 120 }]] : [])] });
         }
       }
       continue;
     }
-    const s0 = ss[0], name = s0.label.split(" · ")[0].replace(" (tuỳ chọn)", "");
+    const s0 = ss[0], part = s0.label.split(" · ").slice(-2, -1)[0] ?? s0.label;
+    const name = s0.key.startsWith("a:") ? (s0.instLabel ?? part) : `${inst} · ${part}`;
     out.push({ id: `${o.id}:${piece}`, order: o, label: name, group: s0.group, w: s0.w, h: s0.h, shape: s0.shape, sides: ss.sort((a, b) => a.side - b.side).map((s) => [{ slot: s.key, x: 0, w: s.w }]) });
   }
-  const copies: Piece[] = [];
-  for (let c = 0; c < Math.max(1, o.qty); c++) for (const p of out) copies.push(c ? { ...p, id: `${p.id}#${c + 1}`, label: `${p.label} (bản ${c + 1})` } : p);
-  return copies;
+  return out; // số lượng đã tách thành từng bản riêng (mỗi bản 1 bộ ô ảnh) ở slotsOf
 }
 
 type Paper = { name: string; pw: number; ph: number; cols: number; rows: number };

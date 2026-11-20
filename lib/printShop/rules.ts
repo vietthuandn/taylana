@@ -1,7 +1,7 @@
 /* Bàn in — quy đổi phân loại thành việc cần in (bảng print_variation_rules): cụm chữ (không phân biệt hoa thường + dấu) khớp
-   trong phân loại (ưu tiên) hoặc tên sản phẩm → 1 gói CD · 1 món in lẻ · "Không cần in" · cờ "Ghi nhạc". Dòng không khớp quy tắc
+   trong phân loại (ưu tiên) hoặc tên sản phẩm → 1 gói CD · 1 món in lẻ · "Không cần in". Dòng không khớp quy tắc
    nào → đơn "Chưa xác định". Số lượng của dòng món lẻ = số lần thêm món; của dòng gói = số bản (qty của đơn). */
-import { fold, type Addon, type Order, type Pack, type Rule } from "./types";
+import { fold, noMusic, type Addon, type Order, type Pack, type PackQty, type Rule } from "./types";
 
 type Line = Order["lines"][number];
 /** gói theo quy tắc: id cụ thể → theo số trang bìa trước / booklet (0 = CD lẻ chỉ mặt đĩa) → theo tên */
@@ -24,19 +24,19 @@ export function rulesFor(l: Line, rules: Rule[]) {
   return v.length ? v : hit(l.product);
 }
 export function resolve(lines: Line[], rules: Rule[], packs: Pack[], addons: Addon[]) {
-  let pack: Pack | null = null, qty = 1, music = false, unresolved = false;
-  const ads: string[] = [];
+  const out: PackQty[] = [], ads: string[] = [];
+  let unresolved = false;
   for (const l of lines) {
     const rs = rulesFor(l, rules);
-    let ok = false;
+    let ok = false, gotPack = false;
     for (const r of rs) {
-      if (r.result === "package") { const p = packOfRule(r, packs); if (p) { if (!pack) { pack = p; qty = Math.max(1, l.qty); } ok = true; } }
+      if (r.result === "package") { if (gotPack) continue; const p = packOfRule(r, packs); if (p) { gotPack = true; const e = out.find((x) => x.id === p.id); if (e) e.qty += Math.max(1, l.qty); else out.push({ id: p.id, qty: Math.max(1, l.qty) }); ok = true; } }
       else if (r.result === "addon") { const a = addonOfRule(r, addons); if (a) { for (let i = 0; i < Math.max(1, l.qty); i++) ads.push(a.id); ok = true; } }
-      else if (r.result === "music") ok = true; // "Ghi nhạc" đã bỏ khỏi web — coi như không cần in
-      else ok = true; // không cần in
+      else ok = true; // không cần in (cả quy tắc "Ghi nhạc" cũ)
     }
-    if (!ok) unresolved = true;
+    if (!ok && noMusic(l.variation || l.product)) unresolved = true;
   }
-  if (!pack && !ads.length && !lines.length) unresolved = true;
-  return { package_id: (pack as Pack | null)?.id ?? null, addons: ads, music, unresolved, qty };
+  if (!out.length && !ads.length && !lines.length) unresolved = true;
+  // 1 đơn có thể nhiều gói, mỗi gói có số lượng riêng
+  return { packs: out, package_id: out[0]?.id ?? null, addons: ads, music: false, unresolved, qty: 1 };
 }

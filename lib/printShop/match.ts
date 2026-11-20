@@ -21,13 +21,15 @@ export function matchSlot(fileName: string, slots: Slot[], pack: Pack | null | u
   }
   return null;
 }
-/** xếp nhiều file: ô đã có ảnh / tên không nhận ra → danh sách để chọn tay */
+/** xếp nhiều file: nhiều bản cùng gói (Combo 1, Combo 2) → file trùng ô thì xếp sang bản kế tiếp; ô đã có ảnh / tên không nhận ra
+   → danh sách để chọn tay */
 export function assign(files: File[], slots: Slot[], pack: Pack | null | undefined, filled: Set<string>) {
   const placed: { file: File; slot: string }[] = [], left: File[] = [], taken = new Set<string>();
   for (const f of [...files].sort((a, b) => a.name.localeCompare(b.name, "vi", { numeric: true }))) {
     const k = matchSlot(f.name, slots, pack);
-    if (k && !taken.has(k)) { placed.push({ file: f, slot: k }); taken.add(k); } else left.push(f);
+    const cands = k ? (k.startsWith("a:") ? [k] : slots.filter((s) => s.key === k || s.key.endsWith(`:${k}`)).map((s) => s.key)) : [];
+    const pick = cands.find((c) => !taken.has(c) && !filled.has(c)) ?? (k && !taken.has(k) && !cands.some((c) => filled.has(c)) ? k : undefined);
+    if (pick) { placed.push({ file: f, slot: pick }); taken.add(pick); } else left.push(f);
   }
-  void filled;
   return { placed, left };
 }

@@ -36,6 +36,7 @@ create table if not exists public.print_orders (
   product     text not null default '',
   variation   text not null default '',
   lines       jsonb not null default '[]'::jsonb,
+  packs       jsonb not null default '[]'::jsonb, -- nhiều gói / đơn: [{id, qty}]
   qty         integer not null default 1 check (qty >= 1),
   package_id  text,                 -- id tuỳ chọn Loại của sản phẩm CD (gói)
   addons      uuid[] not null default '{}', -- món in lẻ (mỗi lần = 1 vật in)
@@ -73,7 +74,8 @@ create table if not exists public.print_variation_rules (
 insert into public.print_addons (code, name, w_cm, h_cm, sides, rounded, group_key, sort_order) values
   ('bia-truoc-2-mat', 'Bìa trước 2 mặt', 12, 12, array['mặt ngoài', 'mặt trong'], false, 'front', 1),
   ('bia-sau', 'Bìa sau', 15, 11.7, array['mặt ngoài', 'mặt trong'], false, 'back', 2),
-  ('card-bo-goc', 'Card bo góc', 5.5, 8.5, array['mặt trước', 'mặt sau'], true, 'card', 3)
+  ('card-bo-goc', 'Card bo góc 2 mặt', 5.5, 8.5, array['mặt trước', 'mặt sau'], true, 'card', 3),
+  ('card-bo-goc-1-mat', 'Card bo góc 1 mặt', 5.5, 8.5, array['mặt trước'], true, 'card', 4)
 on conflict (code) do nothing;
 
 -- quy tắc mẫu
@@ -87,7 +89,7 @@ insert into public.print_variation_rules (pattern, result, package_front, addon_
   ('Bìa sau', 'addon', null, 'bia-sau', 7),
   ('Card bo góc', 'addon', null, 'card-bo-goc', 8),
   ('Giá Đỡ', 'skip', null, null, 9),
-  ('Ghi nhạc', 'skip', null, null, 10) -- web không ghi nhạc: bỏ qua
+  ('Giá đỡ gỗ', 'skip', null, null, 10)
 on conflict (pattern) do nothing;
 update public.print_variation_rules r set addon_id = a.id from public.print_addons a where r.addon_id is null and r.addon_code = a.code;
 

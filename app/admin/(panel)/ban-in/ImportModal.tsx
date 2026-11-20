@@ -5,7 +5,7 @@
 import { useState } from "react";
 import { FileSpreadsheet, ImageIcon, Keyboard, Plus, Trash2, X } from "lucide-react";
 import { COLS, guessCols, ocrImage, readSheet, rowKey, rowsFromOcr, rowsFromSheet, type Col, type ImportRow, type Sheet } from "@/lib/printShop/importers";
-import { fold, type Addon, type Order, type Pack, type Rule } from "@/lib/printShop/types";
+import { fold, noMusic, type Addon, type Order, type Pack, type Rule } from "@/lib/printShop/types";
 import { resolve } from "@/lib/printShop/rules";
 import { confirmDialog } from "@/components/ui/dialog";
 import { Button, toast } from "@/components/admin/ui";
@@ -112,7 +112,7 @@ export function ImportModal({ packs, addons, rules, existing, onAdd, onClose }: 
               <div className="grid grid-cols-[28px_170px_1fr_220px_28px] gap-3 bg-[#fafafa] px-3 py-2 text-[12px] font-medium text-[#71717a]"><span>#</span><span>Người mua · Mã đơn</span><span>Sản phẩm đặt</span><span>Sẽ in</span><span /></div>
               {rows.map((r, i) => {
                 const res = resolve(r.lines, rules, packs, addons);
-                const pack = packs.find((p) => p.id === res.package_id), ad = new Map<string, number>();
+                const ad = new Map<string, number>();
                 for (const id of res.addons) ad.set(id, (ad.get(id) ?? 0) + 1);
                 return (
                   <div key={r.key} className="grid grid-cols-[28px_170px_1fr_220px_28px] items-start gap-3 border-t border-[#efeff1] px-3 py-2.5 text-[13px]">
@@ -131,14 +131,14 @@ export function ImportModal({ packs, addons, rules, existing, onAdd, onClose }: 
                         </li>
                       ) : (
                         <li key={j} className="min-w-0">
-                          <p className="font-medium text-[#18181b]">{l.variation || "(không có phân loại)"} <span className="font-normal text-[#71717a]">× {l.qty}</span></p>
+                          <p className="font-medium text-[#18181b]">{noMusic(l.variation) || "(không có phân loại)"} <span className="font-normal text-[#71717a]">× {l.qty}</span></p>
                           <p className="truncate text-[11px] text-[#a1a1aa]" title={l.product}>{l.product}</p>
                         </li>
                       ))}
                       {tab === "ocr" && <li><button type="button" onClick={() => setRow(r.key, { lines: [...r.lines, { product: "", variation: "", qty: 1 }] })} className="text-[12px] text-[#ff5fa2]">+ dòng sản phẩm</button></li>}
                     </ul>
                     <div className="flex flex-wrap gap-1 pt-0.5">
-                      {pack && <span className="rounded-full bg-[#eff6ff] px-2 py-0.5 text-[12px] font-medium text-[#1d4ed8]">{pack.name}{res.qty > 1 ? ` × ${res.qty}` : ""}</span>}
+                      {res.packs.map((pq) => <span key={pq.id} className="rounded-full bg-[#eff6ff] px-2 py-0.5 text-[12px] font-medium text-[#1d4ed8]">{packs.find((p) => p.id === pq.id)?.name}{pq.qty > 1 ? ` × ${pq.qty}` : ""}</span>)}
                       {[...ad].map(([id, n]) => <span key={id} className="rounded-full bg-[#f4f4f5] px-2 py-0.5 text-[12px]">{addons.find((a) => a.id === id)?.name}{n > 1 ? ` × ${n}` : ""}</span>)}
                       {res.unresolved && <span className="rounded-full bg-[#fef2f2] px-2 py-0.5 text-[12px] font-medium text-[#b91c1c]">Chưa xác định — chọn tay sau</span>}
                     </div>
