@@ -7,6 +7,7 @@ import { useRef, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
 import type { ScrapAsset, Template } from "@/lib/scrapbook/types";
 import { cx } from "@/components/ui/styles";
+import { patternInk } from "@/lib/scrapbook/render";
 
 const COLORS = ["#ffffff", "#fbf3e6", "#fdf6e3", "#fde7ea", "#fbcfe8", "#e9f3ee", "#c7f0db", "#e7f6fb", "#cfe8fb", "#ece7ff", "#ddd6fe", "#fff1e6", "#fef3a8", "#f4f1ea", "#efe3cf", "#e4e4e7", "#3f3f46", "#18181b"];
 const PATTERNS: [Template["bg"]["pattern"], string][] = [["plain", "Trơn"], ["dots", "Chấm"], ["grid", "Ô kẻ"], ["lines", "Dòng kẻ"]];
@@ -37,14 +38,30 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
       <section>
         <p className="mb-2 text-[13px] font-semibold">Màu nền</p>
         <div className="flex flex-wrap items-center gap-1.5">
-          {COLORS.map((c) => <button key={c} type="button" onClick={() => set({ color: c })} aria-label={c} className={cx("h-7 w-7 rounded-full border-2", bg.color.toLowerCase() === c ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
+          {COLORS.map((c) => <button key={c} type="button" onClick={() => set({ color: c, inkL: bg.inkL ?? 0 })} aria-label={c} className={cx("h-7 w-7 rounded-full border-2", bg.color.toLowerCase() === c ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
           <label className="relative grid h-7 w-7 cursor-pointer place-items-center overflow-hidden rounded-full border border-dashed border-[#a1a1aa] text-[14px] text-[#52525b] hover:border-[var(--c-primary)]" title="Chọn màu riêng">
-            +<input type="color" value={bg.color} onChange={(e) => set({ color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Chọn màu riêng" />
+            +<input type="color" value={bg.color} onChange={(e) => set({ color: e.target.value, inkL: bg.inkL ?? 0 })} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Chọn màu riêng" />
           </label>
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {PATTERNS.map(([k, l]) => <button key={k} type="button" onClick={() => set({ pattern: k })} className={chip(bg.pattern === k)}>{l}</button>)}
+          {PATTERNS.map(([k, l]) => <button key={k} type="button" onClick={() => set({ pattern: k, inkL: bg.inkL ?? 0 })} className={chip(bg.pattern === k)}>{l}</button>)}
         </div>
+        {bg.pattern !== "plain" && (
+          // màu hoạ tiết: tự sinh theo màu nền (đậm hơn 1 chút) · chọn màu gốc khác · thanh trượt đậm / nhạt
+          <div className="mt-3 space-y-2 rounded-[10px] border border-[#e5e5e7] p-2.5">
+            <div className="flex items-center gap-2 text-[12px]">
+              <span className="text-[#52525b]">Màu hoạ tiết</span>
+              <label className="relative h-7 w-7 shrink-0 cursor-pointer overflow-hidden rounded-full border border-[#d4d4d8]" style={{ background: patternInk(bg) }} title="Chọn màu hoạ tiết">
+                <input type="color" value={bg.inkC ?? bg.color} onChange={(e) => set({ inkC: e.target.value, inkL: bg.inkL ?? 0 })} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Màu hoạ tiết" />
+              </label>
+              {bg.inkC ? <button type="button" onClick={() => set({ inkC: undefined, inkL: bg.inkL ?? 0 })} className="text-[var(--c-primary)]">Theo màu nền</button> : <span className="text-[#a1a1aa]">Tự động theo màu nền</span>}
+            </div>
+            <label className="block text-[12px] text-[#52525b]">
+              <span className="flex justify-between">Đậm / nhạt<span className="tabular-nums">{(bg.inkL ?? 0) > 0 ? "+" : ""}{bg.inkL ?? 0}</span></span>
+              <input type="range" min={-10} max={10} step={1} value={bg.inkL ?? 0} onChange={(e) => set({ inkL: Number(e.target.value) })} className="w-full accent-[var(--c-primary)]" />
+            </label>
+          </div>
+        )}
       </section>
       <section>
         <p className="mb-2 text-[13px] font-semibold">Texture giấy</p>

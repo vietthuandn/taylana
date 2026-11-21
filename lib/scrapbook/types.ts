@@ -98,6 +98,7 @@ export type LayerBase =
 export type LayerFlags = { user?: boolean; locked?: boolean; auto?: boolean; hidden?: boolean; ulock?: boolean }; // ulock = khách tự khoá (chọn được để mở khoá, không kéo / sửa) // hidden = admin ẩn lớp (không vẽ)
 /** nền bề mặt: màu + hoạ tiết + texture giấy (chất liệu) + ảnh nền (phủ kín, có độ mờ) */
 export type Bg = { color: string; pattern: "dots" | "grid" | "plain" | "lines"; ink: string; asset?: string; image?: string; imageOpacity?: number;
+  inkC?: string; inkL?: number; // màu hoạ tiết TỰ ĐỘNG: theo màu nền (hoặc màu gốc inkC) đậm hơn 1 chút, inkL -10 (đậm) … +10 (nhạt)
   ix?: number; iy?: number; iz?: number; ifx?: boolean; ify?: boolean; iadj?: { b?: number; c?: number; s?: number; t?: number; blur?: number; preset?: string } }; // ảnh nền: dịch (mm) · phóng (≥ 0.5) · lật · chỉnh màu // auto = sticker / băng dính tự rải (nút "Xáo trộn" rải lại)
 export type Template = {
   id: string; n: number; style: Style; seed: number;

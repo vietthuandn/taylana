@@ -118,6 +118,25 @@ function background(x: X, t: Template, o: RenderOpts, W: number, H: number) {
   }
   paintBg(x, t.bg, t.seed, o, W, H, 0);
 }
+/** màu hoạ tiết (chấm / ô kẻ / dòng kẻ): tự sinh từ màu nền — đậm hơn nền 1 chút; thanh trượt -10 (đậm hơn) … +10 (nhạt hơn).
+    Mẫu cũ có màu hoạ tiết riêng (khác màu xám mặc định) và chưa chỉnh → giữ màu cũ. */
+export function patternInk(bg: Template["bg"]) {
+  const legacy = bg.inkC === undefined && bg.inkL === undefined && bg.ink && !["#3f3f46", "#18181b", "#000000"].includes(bg.ink.toLowerCase());
+  if (legacy) return bg.ink;
+  return shade(bg.inkC ?? bg.color, bg.inkL ?? 0);
+}
+function shade(hex: string, l: number) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim()); if (!m) return "#a1a1aa";
+  const n = parseInt(m[1], 16); let r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), L = (mx + mn) / 2, d = mx - mn;
+  let h = 0, s = 0;
+  if (d) { s = d / (1 - Math.abs(2 * L - 1)); h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; if (h < 0) h += 360; }
+  // nền sáng → hoạ tiết tối hơn · nền rất tối → hoạ tiết sáng hơn
+  const L2 = Math.min(0.97, Math.max(0.04, L < 0.22 ? L + 0.14 - l * 0.02 : L - 0.12 + l * 0.022)), s2 = Math.min(1, s * (L > 0.85 ? 1.25 : 1.08) + (s > 0.05 && L > 0.9 ? 0.08 : 0));
+  const c = (1 - Math.abs(2 * L2 - 1)) * s2, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m0 = L2 - c / 2;
+  [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+  return "#" + [r, g, b].map((v) => Math.round((v + m0) * 255).toString(16).padStart(2, "0")).join("");
+}
 function paintBg(x: X, bg: Template["bg"], seed: number, o: RenderOpts, W: number, H: number, _o: number) {
   void _o;
   const assets = o.assets;
@@ -139,7 +158,8 @@ function paintBg(x: X, bg: Template["bg"], seed: number, o: RenderOpts, W: numbe
     x.drawImage(img, -(img.width * s) / 2, -(img.height * s) / 2, img.width * s, img.height * s);
     x.restore();
   }
-  x.save(); x.strokeStyle = bg.ink; x.fillStyle = bg.ink; x.lineWidth = 0.25;
+  const ink = patternInk(bg);
+  x.save(); x.strokeStyle = ink; x.fillStyle = ink; x.lineWidth = 0.25;
   if (bg.pattern === "dots") for (let i = 3; i < W; i += 5) for (let j = 3; j < H; j += 5) { x.beginPath(); x.arc(i, j, 0.35, 0, Math.PI * 2); x.fill(); }
   if (bg.pattern === "grid") { for (let i = 0; i <= W; i += 5) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } for (let i = 0; i <= H; i += 5) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); } }
   if (bg.pattern === "lines") for (let i = 2; i <= H; i += 6) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); }
