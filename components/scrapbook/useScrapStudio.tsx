@@ -135,7 +135,7 @@ export function useScrapStudio(o: {
   /** gán ảnh vào ô (ảnh cũ của ô quay về danh sách; ảnh đang ở ô khác thì chuyển sang ô này) */
   function assignPhoto(si: number, i: number, pid: string) {
     D.begin();
-    D.setDoc((d) => d && d.map((t, s) => ({ ...t, layers: t.layers.map((l, j) => (l.k !== "photo" ? l : s === si && j === i ? { ...l, photo: pid } : l.photo === pid ? { ...l, photo: "" } : l)) })));
+    D.setDoc((d) => d && d.map((t, s) => (s !== si ? t : { ...t, layers: t.layers.map((l, j) => (l.k === "photo" && j === i ? { ...l, photo: pid } : l)) }))); // 1 ảnh dùng được cho nhiều khung (không gỡ khỏi khung cũ)
     D.setEdited(true);
   }
 
