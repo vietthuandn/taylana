@@ -106,30 +106,9 @@ export function HomeForm({ initialHome, initialOptions }: { initialHome: HomeSet
               <Field label="Link"><Input value={o.href} onChange={(e) => setOpt(i, { href: e.target.value })} /></Field>
             </div>
             <ImageInput value={o.image_url} onChange={(u) => setOpt(i, { image_url: u })} folder="icons" allowSvg
-              label="Icon riêng (PNG/SVG, nên nền trong suốt)" removeLabel="Xoá — dùng icon mặc định" />
-            <div className="flex flex-wrap gap-8">
-              <div>
-                <span className="mb-1.5 block text-[13px] font-medium">Màu nền</span>
-                <div className="flex flex-wrap items-center gap-2.5">
-                  {TILE_COLORS.map((c) => <Swatch key={c.value} color={c.value} title={c.label} active={o.bg === c.value} onClick={() => setOpt(i, { bg: c.value })} />)}
-                  <ColorInput value={o.bg} onChange={(v) => setOpt(i, { bg: v })} />
-                </div>
-              </div>
-              <div>
-                <span className="mb-1.5 block text-[13px] font-medium">Màu chữ</span>
-                <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
-                  {(Object.keys(TEXT_COLORS) as TextColor[]).map((k) => (
-                    <button key={k} type="button" onClick={() => setOpt(i, { text_color: k })}
-                      className={`flex items-center gap-1.5 rounded-[6px] px-2.5 py-1 text-[13px] font-medium ${o.text_color === k ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]"}`}>
-                      <span className="h-3 w-3 rounded-full border border-black/10" style={{ background: TEXT_COLORS[k] }} />
-                      {{ ink: "Đen", brown: "Nâu", white: "Trắng", lilac: "Tím" }[k]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <button type="button" className="text-[12px] text-[#71717a] hover:text-[#18181b]" onClick={() => setOpt(i, { ...defaultOptions[i], image_url: o.image_url })}>
-              Đặt lại tên, link, màu mặc định (giữ icon)
+              label="Ảnh (PNG/SVG, nên nền trong suốt)" removeLabel="Xoá ảnh — chỉ hiện chữ" />
+            <button type="button" className="text-[12px] text-[#71717a] hover:text-[#18181b]" onClick={() => setOpt(i, { title: defaultOptions[i].title, href: defaultOptions[i].href })}>
+              Đặt lại tên, link mặc định (giữ ảnh)
             </button>
           </SettingsSection>
         ))}
