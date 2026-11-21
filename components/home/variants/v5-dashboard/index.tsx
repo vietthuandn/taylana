@@ -15,7 +15,7 @@ import { designTools } from "@/lib/designTools";
 import { uploadTools } from "@/lib/uploadTools";
 import { FEATURE_PHOTOSTRIP, FEATURE_UPLOAD_FILES } from "@/lib/features";
 
-const PINK = "#ff5fa2";
+const PINK = "var(--c-primary)";
 type Item = { href: string; title: string; desc: string; icon: React.ReactNode };
 type Group = { id: string; title: string; hint: string; tone: string; items: Item[] };
 const plain = (s: string) => s.replace(/\[|\]/g, "");

@@ -160,7 +160,7 @@ export function PaymentView({ code, settings }: { code: string; settings: Paymen
       </div>
 
       {st === "pending" ? (
-        <div className="mb-5 rounded-[10px] border border-[#ffd1e5] bg-[var(--c-secondary)] px-4 py-3 text-[14px] text-[#18181b]">
+        <div className="mb-5 rounded-[10px] border border-[color-mix(in_oklab,var(--c-primary)_30%,white)] bg-[var(--c-secondary)] px-4 py-3 text-[14px] text-[#18181b]">
           <p className="font-semibold">Tiệm đã ghi nhận bạn đã chuyển khoản — đang chờ xác nhận.</p>
           {settings.note && <p className="mt-0.5 text-[#52525b]">{settings.note}</p>}
           <p className="mt-0.5 text-[12px] text-[#71717a]">Trang này tự cập nhật khi tiệm xác nhận.</p>

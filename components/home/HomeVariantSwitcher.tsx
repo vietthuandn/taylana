@@ -36,7 +36,7 @@ export function HomeVariantSwitcher({ variants, current, active }: { variants: H
   return (
     <>
       {previewing && (
-        <div className="sticky top-[var(--header-h)] z-30 border-b border-[#ffd1e5] bg-[#fff5f9] font-sans">
+        <div className="sticky top-[var(--header-h)] z-30 border-b border-[color-mix(in_oklab,var(--c-primary)_30%,white)] bg-[#fff5f9] font-sans">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-2 text-[13px] text-[#18181b]">
             <span className="min-w-0 flex-1">Đang xem trước <b className="font-semibold">{cur?.name}</b></span>
             <button type="button" disabled={busy} onClick={makeActive} className="h-8 rounded-[8px] bg-[var(--c-primary)] px-3 font-medium text-white hover:bg-[var(--c-primary-hover)] disabled:opacity-50">Đặt làm trang chủ</button>

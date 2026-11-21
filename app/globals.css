@@ -24,10 +24,10 @@
   --color-violet-700: #5a47cf;
 
   /* Hồng đậm */
-  --color-hot-100: #ffe3ef;
-  --color-hot-300: #ff9fc8;
-  --color-hot-500: #ff5fa2;
-  --color-hot-700: #e0337e;
+  --color-hot-100: var(--c-secondary);
+  --color-hot-300: color-mix(in oklab, var(--c-primary) 60%, white);
+  --color-hot-500: var(--c-primary);
+  --color-hot-700: color-mix(in oklab, var(--c-primary), black 15%);
 
   /* Đen / xám cho chữ */
   --color-ink-100: #e8e4de;
@@ -322,8 +322,8 @@
     background: #f4f4f5;
   }
   &[aria-pressed="true"], &.is-active {
-    background: #ff5fa2;
-    border-color: #ff5fa2;
+    background: var(--c-primary);
+    border-color: var(--c-primary);
     color: #fff;
   }
   &:disabled {
@@ -353,8 +353,8 @@
   color: #18181b;
   &:focus {
     outline: none;
-    border-color: #ff5fa2;
-    box-shadow: 0 0 0 3px rgb(255 95 162 / 0.15);
+    border-color: var(--c-primary);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--c-primary) 15%, transparent);
   }
 }
 @utility swatch {
@@ -365,13 +365,13 @@
   border: 1px solid rgba(0, 0, 0, 0.16);
   cursor: pointer;
   &[aria-pressed="true"] {
-    box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px #ff5fa2;
+    box-shadow: 0 0 0 1.5px #fff, 0 0 0 3px var(--c-primary);
   }
 }
 
 /* ============================================================
    ADMIN (.admin-ui) + TRANG KHÁCH trừ Trang chủ/Custom CD (.ui-clean, xem components/site/SiteSkin.tsx) — tối giản kiểu SaaS.
-   Màu nhấn duy nhất: hồng #ff5fa2. Lỗi: đỏ #dc2626.
+   Màu nhấn duy nhất: màu chính của Theme (mặc định hồng var(--c-primary)). Lỗi: đỏ #dc2626.
    Code admin cũ dùng lime/tím/kem → tự đổi sang hồng/xám nhờ đổi biến màu.
    .site-ui bên trong admin = khung xem trước trang khách (giữ màu gốc).
    ============================================================ */
@@ -379,14 +379,14 @@
   --color-cream-50: #fafafa;
   --color-cream-100: #f4f4f5;
   --color-cream-200: #e4e4e7;
-  --color-lime-100: #fff0f6;
-  --color-lime-300: #ffe3ef;
-  --color-lime-500: #ff5fa2;
-  --color-lime-700: #e0337e;
+  --color-lime-100: var(--c-secondary);
+  --color-lime-300: var(--c-secondary);
+  --color-lime-500: var(--c-primary);
+  --color-lime-700: color-mix(in oklab, var(--c-primary), black 15%);
   --color-violet-100: #f4f4f5;
   --color-violet-300: #e4e4e7;
-  --color-violet-500: #ff5fa2;
-  --color-violet-700: #e0337e;
+  --color-violet-500: var(--c-primary);
+  --color-violet-700: color-mix(in oklab, var(--c-primary), black 15%);
   --color-hot-100: #fef2f2;
   --color-hot-300: #fca5a5;
   --color-hot-500: #dc2626;
@@ -417,10 +417,10 @@
   --color-violet-300: #b2a7f6;
   --color-violet-500: #7b68ee;
   --color-violet-700: #5a47cf;
-  --color-hot-100: #ffe3ef;
-  --color-hot-300: #ff9fc8;
-  --color-hot-500: #ff5fa2;
-  --color-hot-700: #e0337e;
+  --color-hot-100: var(--c-secondary);
+  --color-hot-300: color-mix(in oklab, var(--c-primary) 60%, white);
+  --color-hot-500: var(--c-primary);
+  --color-hot-700: color-mix(in oklab, var(--c-primary), black 15%);
   --color-ink-100: #e8e4de;
   --color-ink-300: #b9b4ac;
   --color-ink-500: #77726b;
@@ -470,9 +470,9 @@
   font-weight: 500;
   letter-spacing: normal;
   gap: 6px;
-  background: #ff5fa2;
+  background: var(--c-primary);
   color: #fff;
-  border: 1px solid #ff5fa2;
+  border: 1px solid var(--c-primary);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
 }
 :is(.admin-ui, .ui-clean) .btn:not(.site-ui *):hover { background: #f0468f; border-color: #f0468f; color: #fff; }
@@ -490,7 +490,7 @@
   background: #fff;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-:is(.admin-ui, .ui-clean) .field:not(.site-ui *):focus { outline: none; border-color: #ff5fa2; box-shadow: 0 0 0 3px rgb(255 95 162 / 0.15); }
+:is(.admin-ui, .ui-clean) .field:not(.site-ui *):focus { outline: none; border-color: var(--c-primary); box-shadow: 0 0 0 3px color-mix(in oklab, var(--c-primary) 15%, transparent); }
 :is(.admin-ui, .ui-clean) textarea.field:not(.site-ui *) { border-radius: 8px; }
 :is(.admin-ui, .ui-clean) :is(.panel, .card, .pop, .pop-sm):not(.site-ui *) { border: 1px solid #e5e5e7; }
 :is(.admin-ui, .ui-clean) :is(.panel, .card):not(.site-ui *) { border-radius: 12px; }
@@ -502,10 +502,10 @@
 
 /* Trang khách: hồng vẫn là hồng (admin dùng hot-* cho màu lỗi đỏ) */
 .ui-clean {
-  --color-hot-100: #fff0f6;
-  --color-hot-300: #ff9fc8;
-  --color-hot-500: #ff5fa2;
-  --color-hot-700: #e0337e;
+  --color-hot-100: var(--c-secondary);
+  --color-hot-300: color-mix(in oklab, var(--c-primary) 60%, white);
+  --color-hot-500: var(--c-primary);
+  --color-hot-700: color-mix(in oklab, var(--c-primary), black 15%);
   font-size: 15px;
 }
 @layer base {

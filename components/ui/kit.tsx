@@ -157,7 +157,7 @@ export const EmptyState = ({ children }: { children: React.ReactNode }) => (
 type Tone = "gray" | "pink" | "green" | "amber" | "blue" | "red" | "cream" | "matcha" | "butter";
 const toneClass: Record<Tone, string> = {
   gray: "bg-[#f4f4f5] text-[#52525b]", cream: "bg-[#f4f4f5] text-[#52525b]",
-  pink: "bg-[var(--c-secondary)] text-[#db2777]", green: "bg-[#ecfdf3] text-[#15803d]", matcha: "bg-[#ecfdf3] text-[#15803d]",
+  pink: "bg-[var(--c-secondary)] text-[var(--c-primary-dark)]", green: "bg-[#ecfdf3] text-[#15803d]", matcha: "bg-[#ecfdf3] text-[#15803d]",
   amber: "bg-[#fffbeb] text-[#b45309]", butter: "bg-[#fffbeb] text-[#b45309]",
   blue: "bg-[#eff6ff] text-[#1d4ed8]", red: "bg-[#fef2f2] text-[#dc2626]",
 };

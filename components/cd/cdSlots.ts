@@ -4,7 +4,7 @@ import { checkImage, validateFile, type CheckResult } from "@/lib/imageCheck";
 import type { PackLayout } from "@/lib/matchFileName";
 import type { Package } from "@/lib/types";
 
-export const PINK = "#ff5fa2";
+export const PINK = "var(--c-primary)"; // màu chính của Theme (chỉ dùng trong style CSS)
 export const ACCEPT = "image/jpeg,image/png,application/pdf";
 
 export type SlotDef = { id: string; group: "front" | "back" | "disc"; label: string; full: string; spec: PrintSpec; kind: string; page: number | null };

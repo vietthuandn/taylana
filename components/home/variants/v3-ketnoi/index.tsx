@@ -12,7 +12,7 @@ import type { HomeOption } from "@/lib/settings";
 
 const HAND = { fontFamily: '"Pangolin", "Patrick Hand", "Comic Sans MS", cursive' } as const;
 const INK = "#18181b";
-const PINK = "#ff5fa2";
+const PINK = "var(--c-primary)";
 
 // Thứ tự hành trình + nhận diện ô tương ứng trong Admin theo link
 const JOURNEY: { keys: string[]; href: string; title: string; verb: string; desc: string }[] = [
@@ -100,7 +100,7 @@ export default function HomeV3({ home, options, settings }: HomeVariantProps) {
           {plain(home.banner_title) || "CD của bạn, theo cách của bạn"}
         </h1>
         {/* gạch chân vẽ tay */}
-        <svg viewBox="0 0 300 20" className="mx-auto mt-2 h-4 w-56 sm:w-72" aria-hidden fill="none" stroke={PINK} strokeWidth="5" strokeLinecap="round">
+        <svg viewBox="0 0 300 20" className="mx-auto mt-2 h-4 w-56 sm:w-72" aria-hidden fill="none" style={{ stroke: PINK }} strokeWidth="5" strokeLinecap="round">
           <path d="M4 13 C60 4 120 6 170 9 C210 11 250 8 296 6" />
         </svg>
         {home.banner_subtitle && <p className="mx-auto mt-4 max-w-[560px] text-[16px] leading-relaxed text-[#52525b]">{home.banner_subtitle}</p>}
@@ -124,7 +124,7 @@ export default function HomeV3({ home, options, settings }: HomeVariantProps) {
               <li key={s.n} className="grid grid-cols-[56px_1fr] items-center gap-4 lg:grid-cols-[1fr_56px_1fr] lg:gap-8">
                 <div className={`${right ? "lg:col-start-3" : "lg:col-start-1"} col-start-2 row-start-1`}>
                   <Link href={s.href}
-                    className={`group block rounded-[255px_15px_225px_15px/15px_225px_15px_255px] border-2 border-[#18181b] bg-white p-5 shadow-[4px_5px_0_#18181b] transition-transform duration-200 hover:-translate-y-1 hover:rotate-0 hover:shadow-[6px_8px_0_#ff5fa2] ${right ? "rotate-[0.8deg]" : "-rotate-[0.8deg]"}`}>
+                    className={`group block rounded-[255px_15px_225px_15px/15px_225px_15px_255px] border-2 border-[#18181b] bg-white p-5 shadow-[4px_5px_0_#18181b] transition-transform duration-200 hover:-translate-y-1 hover:rotate-0 hover:shadow-[6px_8px_0_var(--c-primary)] ${right ? "rotate-[0.8deg]" : "-rotate-[0.8deg]"}`}>
                     <p className="text-[16px] text-[var(--c-primary)]" style={HAND}>Bước {s.n} · {s.verb}</p>
                     <h2 className="mt-1 font-sans text-[22px] font-bold normal-case leading-tight tracking-[-0.01em] text-[#18181b]"><Marker text={s.title} /></h2>
                     <p className="mt-1.5 text-[14px] leading-relaxed text-[#71717a]">{s.desc}</p>

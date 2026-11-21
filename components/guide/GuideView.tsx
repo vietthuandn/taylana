@@ -92,7 +92,7 @@ export function GuideView({ sections, guide, zalo, packs, canvaIcon }: { section
             : <span className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[#e4e4e7] text-[15px] font-semibold text-[#a1a1aa]"><MessageCircle size={18} /> Nhắn tin Zalo</span>}
           {guide.order_enabled
             ? <Link href={guide.order_href} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[var(--c-primary)] text-[15px] font-semibold text-white hover:bg-[var(--c-primary-hover)]"><ShoppingBag size={18} /> Đặt đơn</Link>
-            : <button type="button" disabled title="Sắp ra mắt" className="inline-flex h-11 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-[10px] bg-[#fbcfe8] text-[15px] font-semibold text-white"><ShoppingBag size={18} /> Đặt đơn</button>}
+            : <button type="button" disabled title="Sắp ra mắt" className="inline-flex h-11 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-[10px] bg-[color-mix(in_oklab,var(--c-primary)_35%,white)] text-[15px] font-semibold text-white"><ShoppingBag size={18} /> Đặt đơn</button>}
         </div>
       </div>
     </div>

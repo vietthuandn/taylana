@@ -274,7 +274,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
         <button type="button" onClick={() => setBundleMode(true)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><LayoutTemplate size={13} /> Đổi mẫu</button>
       </div>
       {!st.applied && bundles.length > 0 && !doc?.some((t) => t.layers.length) && (
-        <button type="button" onClick={() => setBundleMode(true)} className="block w-full rounded-[10px] border border-dashed border-[var(--c-primary)] bg-[var(--c-secondary)] p-3 text-left text-[12px] text-[#db2777]">Có {bundles.length} bộ mẫu {pages} trang làm sẵn — bấm để chọn nhanh cả cuốn.</button>
+        <button type="button" onClick={() => setBundleMode(true)} className="block w-full rounded-[10px] border border-dashed border-[var(--c-primary)] bg-[var(--c-secondary)] p-3 text-left text-[12px] text-[var(--c-primary-dark)]">Có {bundles.length} bộ mẫu {pages} trang làm sẵn — bấm để chọn nhanh cả cuốn.</button>
       )}
       <p className="text-[12px] text-[#71717a]">Chọn mẫu để thay toàn bộ {isSpread ? "cặp trang" : "trang"} đang xem — ảnh chưa dùng tự điền vào các ô.</p>
       <LibraryGrid items={isSpread ? spreads : singles} cats={library.categories.filter((c) => c.scope === (isSpread ? "booklet_spread" : "booklet_single"))} cols={isSpread ? 2 : 3} onPick={applyPage} />

@@ -11,7 +11,7 @@ export function TileTitle({ text, color }: { text: string; color: string }) {
   const parts = text.split(/(\[[^\]]+\])/g).filter(Boolean);
   return (
     <span style={{ color }}>
-      {parts.map((p, i) => (p.startsWith("[") ? <span key={i} style={{ color: color === TEXT_COLORS.ink ? "#ff5fa2" : color === TEXT_COLORS.lilac ? TEXT_COLORS.brown : TEXT_COLORS.lilac }}>{p}</span> : p))}
+      {parts.map((p, i) => (p.startsWith("[") ? <span key={i} style={{ color: color === TEXT_COLORS.ink ? "var(--c-primary)" : color === TEXT_COLORS.lilac ? TEXT_COLORS.brown : TEXT_COLORS.lilac }}>{p}</span> : p))}
     </span>
   );
 }

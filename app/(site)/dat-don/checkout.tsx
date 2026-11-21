@@ -227,7 +227,7 @@ export function useCheckout({ lines, discounts, shipping, phone, initialCode = "
       {applied.length ? (
         <div className="flex flex-wrap gap-2">
           {applied.map((a) => (
-            <span key={a.target} className="inline-flex h-8 items-center gap-2 rounded-[8px] border border-[#ffd1e5] bg-[#fff5f9] px-3 text-[13px]">
+            <span key={a.target} className="inline-flex h-8 items-center gap-2 rounded-[8px] border border-[color-mix(in_oklab,var(--c-primary)_30%,white)] bg-[#fff5f9] px-3 text-[13px]">
               {a.target === "shipping" ? <Truck size={16} className="text-[var(--c-primary)]" /> : <Tag size={16} className="text-[var(--c-primary)]" />}
               <span className="font-medium text-[#18181b]">{a.code || a.label}</span>
               <span className="tabular-nums text-[var(--c-primary)]">−{formatVND(a.target === "shipping" ? shipAmt : goodsAmt)}</span>
