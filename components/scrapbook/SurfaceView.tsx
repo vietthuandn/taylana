@@ -37,6 +37,7 @@ export type SurfaceViewProps = {
   tools?: React.ReactNode;
   scanning?: number | null; // lớp ảnh đang được "cắt" (xoá nền) — hiện hiệu ứng quét
   cropLayer?: number | null; onCrop?: (i: number | null) => void;
+  onViewZoom?: (f: number) => void; onViewPan?: (dx: number, dy: number) => void; // 2 ngón ở vùng trống: phóng / kéo khu làm việc
   bgEdit?: boolean; onBgEdit?: (on: boolean, right?: boolean) => void; onBgMove?: (dx: number, dy: number, start: boolean) => void; onBgZoom?: (f: number) => void; bgBar?: React.ReactNode; // sửa ảnh nền // chế độ cắt ảnh tự do (bấm đúp / nút Cắt)
 };
 
@@ -47,6 +48,65 @@ export function SurfaceView(p: SurfaceViewProps) {
   const root = useRef<HTMLDivElement>(null);
   const textBoxes = useRef<Record<number, LBox>>({});
   const bgDrag = useRef<{ x: number; y: number } | null>(null);
+  // ---------- chạm (điện thoại / máy tính bảng): 2 ngón · chạm đúp · nhấn giữ 0.5 giây ----------
+  const ptrs = useRef(new Map<number, { x: number; y: number }>());
+  const gesture = useRef<null | { kind: "layer"; i: number; b0: LBox; l0: Layer; d0: number; a0: number } | { kind: "view"; d: number; mx: number; my: number }>(null);
+  const press = useRef<{ t: ReturnType<typeof setTimeout>; x: number; y: number } | null>(null);
+  const lastTap = useRef<{ at: number; x: number; y: number } | null>(null), lastTapDbl = useRef(0);
+  const two = () => { const [a, b] = [...ptrs.current.values()]; return { d: Math.hypot(b.x - a.x, b.y - a.y), a: (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 }; };
+  function tDown(e: React.PointerEvent) {
+    if (e.pointerType !== "touch") return;
+    ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.current.size === 1) {
+      const sx = e.clientX, sy = e.clientY;
+      press.current = { x: sx, y: sy, t: setTimeout(() => { // nhấn giữ → menu như chuột phải
+        press.current = null;
+        if (!view.current || drag.current?.moved) return;
+        const r = view.current.getBoundingClientRect(), pt = { x: ((sx - r.left) / r.width) * S.w, y: ((sy - r.top) / r.height) * S.h }, i = layerAt(pt.x, pt.y);
+        if (i < 0) return;
+        drag.current = null; p.onSel(i); setMenu({ x: sx - r.left, y: sy - r.top });
+      }, 500) };
+    }
+    if (ptrs.current.size === 2) {
+      if (press.current) { clearTimeout(press.current.t); press.current = null; }
+      const g = two(), r = view.current?.getBoundingClientRect();
+      const mid = r ? { x: ((g.mx - r.left) / r.width) * S.w, y: ((g.my - r.top) / r.height) * S.h } : null;
+      const b = p.sel !== null ? layerBox(p.sel) : null, i = p.sel;
+      drag.current = null;
+      if (i !== null && b && mid && !L[i]?.ulock && (inside(mid.x, mid.y, { ...b, w: b.w * 1.4, h: b.h * 1.4 }))) { p.begin(); gesture.current = { kind: "layer", i, b0: b, l0: L[i], d0: g.d, a0: g.a }; }
+      else gesture.current = { kind: "view", d: g.d, mx: g.mx, my: g.my };
+    }
+  }
+  function tMove(e: React.PointerEvent) {
+    if (e.pointerType !== "touch" || !ptrs.current.has(e.pointerId)) return;
+    ptrs.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (press.current && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 8) { clearTimeout(press.current.t); press.current = null; }
+    const G = gesture.current;
+    if (!G || ptrs.current.size < 2) return;
+    const g = two();
+    if (G.kind === "layer") {
+      const sc = g.d / Math.max(1, G.d0), b = { ...G.b0, w: G.b0.w * sc, h: G.b0.h * sc, rot: Math.round(G.b0.rot + g.a - G.a0) };
+      p.setLayers((ls) => ls.map((l, j) => (j === G.i ? applyBox(G.l0, b, G.b0) : l)), G.l0);
+    } else {
+      p.onViewZoom?.(g.d / Math.max(1, G.d)); p.onViewPan?.(g.mx - G.mx, g.my - G.my);
+      gesture.current = { kind: "view", d: g.d, mx: g.mx, my: g.my };
+    }
+  }
+  function tUp(e: React.PointerEvent) {
+    if (e.pointerType !== "touch") return;
+    if (press.current) { clearTimeout(press.current.t); press.current = null; }
+    const was = ptrs.current.get(e.pointerId);
+    ptrs.current.delete(e.pointerId);
+    if (gesture.current) { if (ptrs.current.size === 0) gesture.current = null; return; }
+    // chạm đúp (không kéo) → như bấm đúp (cắt ảnh / sửa chữ / sửa nền)
+    if (was && view.current && !drag.current?.moved) {
+      const now = Date.now(), lt = lastTap.current;
+      if (lt && now - lt.at < 320 && Math.hypot(was.x - lt.x, was.y - lt.y) < 24) {
+        lastTap.current = null; lastTapDbl.current = now;
+        const r = view.current.getBoundingClientRect(); dblAt({ x: ((was.x - r.left) / r.width) * S.w, y: ((was.y - r.top) / r.height) * S.h });
+      } else lastTap.current = { at: now, x: was.x, y: was.y };
+    }
+  }
   const drag = useRef<{ mode: "move" | "scale" | "rotate" | "pan" | "width"; i: number; b0: LBox; sx: number; sy: number; adj0?: Adjust; layer0?: Layer; pid?: string; moved?: boolean; wasSel?: boolean; side?: -1 | 1; hx?: -1 | 0 | 1; hy?: -1 | 0 | 1 } | null>(null);
   const editing = p.editText ?? null;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -76,6 +136,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     return -1;
   };
   function onDown(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (gesture.current) return; // đang thao tác 2 ngón
     setMenu(null);
     if (e.button === 2) return;
     const pt = toMM(e);
@@ -121,6 +182,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     drag.current = { mode, i: p.sel, b0: b, sx: pt.x, sy: pt.y, layer0: L[p.sel], hx, hy };
   }
   function onMove(e: React.PointerEvent) {
+    if (gesture.current) return;
     if (bgDrag.current) { const pt = toMM(e); p.onBgMove?.(pt.x - bgDrag.current.x, pt.y - bgDrag.current.y, false); bgDrag.current = pt; return; }
     const d = drag.current;
     if (!d) return;
@@ -170,7 +232,11 @@ export function SurfaceView(p: SurfaceViewProps) {
     }
   };
   function onDbl(e: React.MouseEvent<HTMLCanvasElement>) {
-    const pt = toMM(e), i = layerAt(pt.x, pt.y), l = L[i];
+    if (Date.now() - lastTapDbl.current < 500) return; // đã xử lý bằng chạm đúp
+    dblAt(toMM(e));
+  }
+  function dblAt(pt: { x: number; y: number }) {
+    const i = layerAt(pt.x, pt.y), l = L[i];
     if (!l) { if (p.onBgEdit && (pt.x >= S.w / 2 && t.bg2 ? t.bg2.image : t.bg.image)) { p.onSel(null); p.onBgEdit(true, pt.x >= S.w / 2 && !!t.bg2); } else p.onBackgroundDbl?.(pt); return; }
     if (l.k === "photo") { if (l.photo === "") p.onEmptySlot?.(i); else { p.onEditLayer(i); p.onSel(null); } }
     if (l.k === "sticker" && l.asset?.startsWith("p:") && !l.ulock) p.onCrop?.(i);
@@ -238,7 +304,8 @@ export function SurfaceView(p: SurfaceViewProps) {
   }
   const edgeHandles = !!selL && !sideHandles && stretchable(selL);
   return (
-    <div ref={root} className="relative touch-none" style={{ width, height }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+    <div ref={root} className="relative touch-none" style={{ width, height }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={(e) => { onUp(); tUp(e); }}
+      onPointerDownCapture={tDown} onPointerMoveCapture={tMove} onPointerUpCapture={tUp}
       onDragOver={(e) => { if (e.dataTransfer.types.includes(ASSET_DRAG) || e.dataTransfer.types.includes(PHOTO_DRAG) || (p.onDropFiles && e.dataTransfer.types.includes("Files"))) e.preventDefault(); }} onDrop={onDrop}>
       <canvas ref={view} className={cx("block h-full w-full touch-none", p.editLayer !== null ? "cursor-move" : "cursor-pointer", !S.round && "shadow-[0_10px_30px_rgba(0,0,0,0.12)]")}
         onPointerDown={onDown} onDoubleClick={onDbl} onContextMenu={onContext} />

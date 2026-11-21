@@ -77,7 +77,7 @@ export function ScrapbookEditor(p: {
   const fitW = Math.max(160, Math.floor(S.round ? Math.min(box.w, box.h) * 0.96 : Math.min(box.w * 0.92, box.h * 0.85 * (S.w / S.h))));
   // zoom khu xem trước: 1 = "Vừa màn hình" (mặc định) · 25%–300% · Ctrl + cuộn chuột
   const [zoom, setZoom] = useState(1);
-  const clampZ = (z: number) => Math.min(3, Math.max(0.25, Math.round(z * 100) / 100));
+  const clampZ = (z: number) => Math.min(4, Math.max(0.25, Math.round(z * 100) / 100));
   const width = Math.round(fitW * zoom);
   useEffect(() => {
     const el = area.current;
@@ -194,7 +194,7 @@ export function ScrapbookEditor(p: {
           <Toggle checked={p.guides} onChange={p.setGuides} label="Guideline" />
         </div>
         <div className="relative flex min-h-[300px] flex-1 flex-col md:min-h-0">
-        <div ref={area} className="flex min-h-0 flex-1 overflow-auto px-2 py-1">
+        <div ref={area} className="flex min-h-0 flex-1 touch-none overflow-auto px-2 py-1">
          <div className="m-auto">
           {p.overlay ?? (!cur ? p.empty : st.ready && (
             <SurfaceView key={st.active} t={cur} width={width} render={ro} guides={p.guides} sel={st.sel} onSel={st.setSel} editLayer={st.editLayer} onEditLayer={st.setEditLayer}
@@ -205,6 +205,7 @@ export function ScrapbookEditor(p: {
               onDropPhoto={mode === "customer" ? (pid, i) => st.assignPhoto(st.active, i, pid) : undefined} onEmptySlot={mode === "customer" ? (i) => st.setPickFor(i) : undefined}
               editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
               onBackgroundDbl={p.onBackgroundDbl} tools={st.tools} scanning={st.cutting} cropLayer={st.cropFor} onCrop={st.setCropFor}
+              onViewZoom={(f) => setZoom((z) => Math.min(4, Math.max(0.25, z * f)))} onViewPan={(dx, dy) => area.current?.scrollBy(-dx, -dy)}
               bgEdit={!!st.bgEdit} onBgEdit={(on, right) => st.setBgEdit(on ? (right ? "bg2" : "bg") : null)}
               onBgMove={(dx, dy, start) => { if (start) { st.D.begin(); return; } st.patchBg({ ix: (st.curBg?.ix ?? 0) + dx, iy: (st.curBg?.iy ?? 0) + dy }); }}
               onBgZoom={(f) => st.patchBg({ iz: Math.min(4, Math.max(0.5, (st.curBg?.iz ?? 1) * f)) })}
@@ -217,7 +218,7 @@ export function ScrapbookEditor(p: {
           <div data-keep-sel className="absolute bottom-2 right-3 z-10 flex items-center gap-0.5 rounded-full border border-[#e5e5e7] bg-white/95 p-0.5 text-[12px] shadow-sm">
             <button type="button" onClick={() => setZoom((z) => clampZ(z - 0.1))} disabled={zoom <= 0.25} title="Thu nhỏ" aria-label="Thu nhỏ" className="grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5] disabled:opacity-40"><Minus size={14} /></button>
             <span className="w-11 text-center tabular-nums text-[#3f3f46]">{Math.round(zoom * 100)}%</span>
-            <button type="button" onClick={() => setZoom((z) => clampZ(z + 0.1))} disabled={zoom >= 3} title="Phóng to" aria-label="Phóng to" className="grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5] disabled:opacity-40"><Plus size={14} /></button>
+            <button type="button" onClick={() => setZoom((z) => clampZ(z + 0.1))} disabled={zoom >= 4} title="Phóng to" aria-label="Phóng to" className="grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5] disabled:opacity-40"><Plus size={14} /></button>
             <button type="button" onClick={() => setZoom(1)} title="Vừa màn hình" aria-label="Vừa màn hình" className={cx("grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5]", zoom === 1 && "text-[var(--c-primary)]")}><Maximize size={13} /></button>
           </div>
         )}
