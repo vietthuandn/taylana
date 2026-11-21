@@ -6,7 +6,8 @@
    nhiều bề mặt (booklet) thì có thanh chuyển trang + thumbnail. Phải (mode template): panel admin truyền vào.
    Mọi logic dùng chung nằm ở useScrapStudio; component này chỉ ghép giao diện. */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Maximize, Minus, Plus, Image as ImageIcon, LayoutTemplate, PaintBucket, Redo2, RotateCcw, Smile, Type, Undo2, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronLeft, ChevronRight, Download, Maximize, Minus, MoreHorizontal, Plus, Image as ImageIcon, LayoutTemplate, PaintBucket, Redo2, RotateCcw, Save, Smile, Type, Undo2, X } from "lucide-react";
+import Link from "next/link";
 import { renderSurface, type RenderOpts } from "@/lib/scrapbook/render";
 import { surfaceOf } from "@/lib/scrapbook/surface";
 import type { CutoutFont } from "@/lib/scrapbook/cutout";
@@ -29,6 +30,10 @@ import { uploadFile } from "@/lib/storage/client";
 import { uploadAssetThumb } from "@/lib/scrapbook/assetGroupsClient";
 
 export type EditorTab = "mau" | "anh" | "sticker" | "chu" | "nen";
+export type EditorHeaderProps = {
+  pages?: { value: number; options: readonly number[]; onChange: (n: number) => void }; // chỉ Booklet
+  onSave: () => void; downloads: { label: string; onClick: () => void }[]; onOrder: () => void; busy?: boolean;
+};
 type Studio = ReturnType<typeof useScrapStudio>;
 
 export function ScrapbookEditor(p: {
@@ -46,6 +51,7 @@ export function ScrapbookEditor(p: {
   onBackgroundDbl?: (at: { x: number; y: number }) => void;
   bottom?: React.ReactNode; right?: React.ReactNode; maxW?: string;
   guides: boolean; setGuides: (v: boolean) => void;
+  header?: EditorHeaderProps; // trình chỉnh phía khách: header riêng (thay header của web)
 }) {
   const { st, mode } = p;
   const ro = p.render ?? st.renderOpts;
@@ -140,23 +146,29 @@ export function ScrapbookEditor(p: {
   ];
   const open = !collapsed;
   const title = RAIL.find((x) => x[0] === p.tab)?.[1];
+  const photoBar = st.photoTools("bar"), photoMobile = st.photoTools("mobile");
   return (
-    <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
+    <div data-fit-screen data-editor={p.header ? "" : undefined} className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
+     {p.header && <EditorHeader h={p.header} st={st} guides={p.guides} setGuides={p.setGuides} />}
      <div className={cx("flex w-full flex-1 flex-col md:min-h-0 md:flex-row", p.maxW)}>
       {/* ---------- trái: cột công cụ dọc (máy tính) / thanh ngang dưới đáy (điện thoại) + panel nội dung ---------- */}
-      <nav aria-label="Công cụ" className="fixed inset-x-0 bottom-0 z-40 flex border-t border-[#e5e5e7] bg-white pb-[env(safe-area-inset-bottom)] md:static md:z-auto md:order-1 md:w-[72px] md:shrink-0 md:flex-col md:gap-1 md:border-r md:border-t-0 md:py-2">
+      {/* điện thoại: khung menu NỔI dưới đáy (bo 20px, cách đáy 12px + safe-area, cách 2 bên 12px) — chọn 1 ảnh thì đổi thành công cụ ảnh */}
+      {photoMobile && (
+        <div data-keep-sel className="no-scrollbar fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-40 flex gap-0.5 overflow-x-auto rounded-[20px] bg-white p-1.5 shadow-[0_8px_28px_rgb(0_0_0/0.16)] md:hidden">{photoMobile}</div>
+      )}
+      <nav aria-label="Công cụ" className={cx("fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-40 flex rounded-[20px] bg-white p-1 shadow-[0_8px_28px_rgb(0_0_0/0.16)] md:static md:z-auto md:order-1 md:flex md:w-[72px] md:shrink-0 md:flex-col md:gap-1 md:rounded-none md:border-r md:border-[#e5e5e7] md:p-0 md:py-2 md:shadow-none", photoMobile && "max-md:hidden")}>
         {RAIL.map(([id, label, icon]) => {
           const on = p.tab === id && open;
           return (
             <button key={id} type="button" onClick={() => switchTab(id)} aria-pressed={on}
-              className={cx("flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium md:mx-1.5 md:flex-none md:rounded-[10px] md:py-2.5", on ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "text-[#52525b] hover:bg-[#f4f4f5]")}>
+              className={cx("flex flex-1 flex-col items-center justify-center gap-0.5 rounded-[14px] py-2 text-[11px] font-medium md:mx-1.5 md:flex-none md:rounded-[10px] md:py-2.5", on ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "text-[#52525b] hover:bg-[#f4f4f5]")}>
               <span className={on ? "text-[var(--c-primary)]" : "text-[#3f3f46]"}>{icon}</span>{label}
             </button>
           );
         })}
       </nav>
       {open && <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setCollapsed(true)} aria-hidden />}
-      <aside className={cx("border-[#e5e5e7] bg-white", open ? "fixed inset-x-0 bottom-[58px] z-40 max-h-[62dvh] overflow-y-auto rounded-t-[16px] p-4 shadow-[0_-8px_24px_rgb(0_0_0/0.12)] md:static md:z-auto md:order-1 md:block md:max-h-none md:w-[380px] md:shrink-0 md:rounded-none md:border-r md:p-4 md:shadow-none" : "hidden")}>
+      <aside className={cx("border-[#e5e5e7] bg-white", open ? "fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-40 max-h-[62dvh] overflow-y-auto rounded-t-[16px] p-4 shadow-[0_-8px_24px_rgb(0_0_0/0.12)] md:static md:z-auto md:order-1 md:block md:max-h-none md:w-[380px] md:shrink-0 md:rounded-none md:border-r md:p-4 md:shadow-none" : "hidden")}>
        <div className="space-y-5">
         <div className="flex items-center justify-between md:hidden"><p className="text-[15px] font-semibold">{title}</p><button type="button" onClick={() => setCollapsed(true)} aria-label="Đóng" className="grid h-8 w-8 place-items-center rounded-full hover:bg-[#f4f4f5]"><X size={16} /></button></div>
         {p.tab === "mau" && p.templateTab}
@@ -184,15 +196,17 @@ export function ScrapbookEditor(p: {
       </aside>
 
       {/* ---------- giữa: bề mặt ---------- */}
-      <section onPointerDown={deselectOutside} className="relative order-1 flex min-h-[460px] min-w-0 flex-1 flex-col pb-[58px] md:order-2 md:min-h-0 md:pb-0">
-        <div className="flex flex-wrap items-center gap-2 px-3 pt-2">
-          <button type="button" onClick={() => { if (st.D.undo()) st.setSel(null); }} title="Hoàn tác (Ctrl+Z)" aria-label="Hoàn tác" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canUndo}><Undo2 size={13} /></button>
-          <button type="button" onClick={() => { if (st.D.redo()) st.setSel(null); }} title="Làm lại (Ctrl+Shift+Z)" aria-label="Làm lại" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40" disabled={!st.D.canRedo}><Redo2 size={13} /></button>
-          {p.onRestore && <button type="button" onClick={p.onRestore} disabled={!p.canRestore} className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e5e5e7] bg-white px-2.5 text-[12px] font-medium disabled:opacity-40"><RotateCcw size={12} /> Khôi phục mẫu</button>}
-          {p.toolbar}
-          <span className="flex-1" />
-          <Toggle checked={p.guides} onChange={p.setGuides} label="Guideline" />
-        </div>
+      <section onPointerDown={deselectOutside} className="relative order-1 flex min-h-[460px] min-w-0 flex-1 flex-col pb-[96px] md:order-2 md:min-h-0 md:pb-0">
+        {/* máy tính: thanh công cụ ẢNH ở đầu khu làm việc (chọn 1 ảnh) — bỏ chọn thì ẩn */}
+        {photoBar && <div className="hidden justify-center px-3 pt-2 md:flex"><div data-keep-sel className="no-scrollbar flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-[var(--c-secondary)] p-1 shadow-sm">{photoBar}</div></div>}
+        {(p.onRestore || p.toolbar || !p.header) && (
+          <div className="flex flex-wrap items-center gap-2 px-3 pt-2">
+            {p.onRestore && <button type="button" onClick={p.onRestore} disabled={!p.canRestore} className="inline-flex h-7 items-center gap-1 rounded-full border border-[#e5e5e7] bg-white px-2.5 text-[12px] font-medium disabled:opacity-40"><RotateCcw size={12} /> Khôi phục mẫu</button>}
+            {p.toolbar}
+            <span className="flex-1" />
+            {!p.header && <Toggle checked={p.guides} onChange={p.setGuides} label="Guideline" />}
+          </div>
+        )}
         <div className="relative flex min-h-[300px] flex-1 flex-col md:min-h-0">
         <div ref={area} className="flex min-h-0 flex-1 touch-none overflow-auto px-2 py-1">
          <div className="m-auto">
@@ -327,5 +341,60 @@ function SaveToLibrary({ sticker, groups, onClose, onSaved }: { sticker: { id: s
         </div>
       </div>
     </div>
+  );
+}
+
+/* ---------- header riêng của trình chỉnh (cao 56px, thay header của web) ----------
+   Điện thoại: trái logo (về /thiet-ke) · Hoàn tác · Làm lại — phải "4 trang ▾" (Booklet) · Lưu · Tải về · ⋯
+   Máy tính: trái ← (về /thiet-ke) · logo — phải "Số trang: 4 ▾" (Booklet) · Lưu · Tải về · ⋯ (Hoàn tác / Làm lại: Ctrl+Z / Ctrl+Shift+Z)
+   ⋯: "Hiển thị guideline" (✓) · "Đặt in" */
+function HeaderMenu({ button, items, align = "right" }: { button: (open: boolean, toggle: () => void) => React.ReactNode; items: React.ReactNode | ((close: () => void) => React.ReactNode); align?: "right" | "left" }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("pointerdown", h); return () => document.removeEventListener("pointerdown", h);
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      {button(open, () => setOpen((o) => !o))}
+      {open && <div className={cx("absolute top-[calc(100%+6px)] z-50 min-w-[190px] rounded-[12px] border border-[#e5e5e7] bg-white p-1 text-[14px] shadow-[0_8px_24px_rgb(0_0_0/0.12)]", align === "right" ? "right-0" : "left-0")} onClick={() => setOpen(false)}>
+        {typeof items === "function" ? items(() => setOpen(false)) : items}
+      </div>}
+    </div>
+  );
+}
+function EditorHeader({ h, st, guides, setGuides }: { h: EditorHeaderProps; st: Studio; guides: boolean; setGuides: (v: boolean) => void }) {
+  const icon = "grid h-10 w-10 place-items-center rounded-[10px] text-[#3f3f46] hover:bg-[#f4f4f5] disabled:opacity-40";
+  const pill = "inline-flex h-9 items-center gap-1.5 rounded-[10px] border border-[#e5e5e7] bg-white px-3 text-[14px] font-medium text-[#18181b] hover:bg-[#f4f4f5] disabled:opacity-50";
+  const item = "flex w-full items-center gap-2 rounded-[8px] px-3 py-2 text-left hover:bg-[#f4f4f5]";
+  const dl = (label: React.ReactNode, cls: string) => h.downloads.length === 1
+    ? <button type="button" onClick={h.downloads[0].onClick} disabled={h.busy} className={cls} title="Tải về" aria-label="Tải về">{label}</button>
+    : <HeaderMenu button={(_o, t) => <button type="button" onClick={t} disabled={h.busy} className={cls} title="Tải về" aria-label="Tải về">{label}</button>}
+        items={h.downloads.map((d) => <button key={d.label} type="button" onClick={d.onClick} className={item}><Download size={15} /> {d.label}</button>)} />;
+  const pagesMenu = (label: React.ReactNode, cls: string) => h.pages && (
+    <HeaderMenu button={(_o, t) => <button type="button" onClick={t} className={cls}>{label} <ChevronDown size={14} /></button>}
+      items={h.pages.options.map((n) => <button key={n} type="button" onClick={() => h.pages!.onChange(n)} className={cx(item, h.pages!.value === n && "font-semibold text-[var(--c-primary)]")}>{n} trang{h.pages!.value === n && <Check size={15} className="ml-auto" />}</button>)} />
+  );
+  return (
+    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center gap-1 border-b border-[#e5e5e7] bg-white px-2 font-sans md:px-3">
+      <Link href="/thiet-ke" aria-label="Quay lại Thiết kế" title="Quay lại" className={cx(icon, "hidden md:grid")}><ArrowLeft size={18} /></Link>
+      <Link href="/thiet-ke" className="px-1.5 font-display text-[22px] leading-none text-[#18181b] md:text-[24px]" aria-label="Taylana — Thiết kế">TAYLANA</Link>
+      <button type="button" onClick={() => { if (st.D.undo()) st.setSel(null); }} disabled={!st.D.canUndo} title="Hoàn tác" aria-label="Hoàn tác" className={cx(icon, "md:hidden")}><Undo2 size={18} /></button>
+      <button type="button" onClick={() => { if (st.D.redo()) st.setSel(null); }} disabled={!st.D.canRedo} title="Làm lại" aria-label="Làm lại" className={cx(icon, "md:hidden")}><Redo2 size={18} /></button>
+      <span className="flex-1" />
+      {h.pages && <span className="md:hidden">{pagesMenu(<>{h.pages.value} trang</>, "inline-flex h-9 items-center gap-1 rounded-[10px] border border-[#e5e5e7] px-2.5 text-[13px] font-medium")}</span>}
+      {h.pages && <span className="hidden md:block">{pagesMenu(<>Số trang: {h.pages.value}</>, pill)}</span>}
+      <button type="button" onClick={h.onSave} disabled={h.busy} title="Lưu" aria-label="Lưu" className={cx(icon, "md:hidden")}><Save size={18} /></button>
+      <button type="button" onClick={h.onSave} disabled={h.busy} className={cx(pill, "hidden md:inline-flex")}><Save size={16} /> Lưu</button>
+      <span className="md:hidden">{dl(<Download size={18} />, icon)}</span>
+      <span className="hidden md:block">{dl(<><Download size={16} /> Tải về</>, pill)}</span>
+      <HeaderMenu button={(_o, t) => <button type="button" onClick={t} title="Thêm" aria-label="Thêm" className={icon}><MoreHorizontal size={18} /></button>}
+        items={<>
+          <button type="button" onClick={() => setGuides(!guides)} className={item}>Hiển thị guideline{guides && <Check size={15} className="ml-auto text-[var(--c-primary)]" />}</button>
+          <button type="button" onClick={h.onOrder} className={item}>Đặt in</button>
+        </>} />
+    </header>
   );
 }

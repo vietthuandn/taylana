@@ -169,6 +169,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
   }
   // ---------- Lưu vào "Thiết kế của tôi" (kèm file in — để Tải / Đặt đơn ở đó) · mở lại bằng ?design=<id> ----------
   const [saveOpen, setSaveOpen] = useState(false);
+  const orderAfter = useRef(false); // "Đặt in": lưu xong → Thiết kế của tôi (chọn các phần rồi Đặt đơn)
   const [designId, setDesignId] = useState<string | null>(null);
   const paths = useRef<Record<string, string>>({});
   const printsRef = useRef<PrintRef[]>([]);
@@ -259,19 +260,15 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
         <PhotoPanel photos={photos} used={st.used} max={MAX} hint="JPG, PNG, HEIC · ảnh chỉ xử lý trên máy bạn · tự điền vào ô trống của mẫu"
           onAdd={(f) => { addPhotos(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} onInsert={(id) => st.addAsset(`p:${id}`)} />
       )}
-      bottom={(
-        <div className="flex h-14 shrink-0 items-center gap-3 border-t border-[#efeff1] bg-[#f7f7f8] px-4">
-          {isBack ? (
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
-              <span className="shrink-0 text-[13px] font-medium text-[#3f3f46]">Số mặt:</span>
-              {BACK_FACES.map((n) => <button key={n} type="button" onClick={() => changeFaces(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", faces === n ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
-            </div>
-          ) : <span className="flex-1" />}
-          <Button size="sm" variant="secondary" icon={<Download size={16} />} onClick={downloadPrint} loading={busy}>Tải file in (PNG)</Button>
-          <Button size="sm" icon={<Save size={16} />} onClick={() => setSaveOpen(true)} disabled={!doc || busy}>Lưu</Button>
+      header={{ busy, onSave: () => { orderAfter.current = false; setSaveOpen(true); }, onOrder: () => { orderAfter.current = true; setSaveOpen(true); },
+        downloads: [{ label: isBack ? "Tải file in (PNG)" : "Tải file in mặt đĩa (PNG)", onClick: downloadPrint }] }}
+      bottom={isBack ? (
+        <div className="flex h-14 shrink-0 items-center gap-1.5 border-t border-[#efeff1] bg-[#f7f7f8] px-4">
+          <span className="shrink-0 text-[13px] font-medium text-[#3f3f46]">Số mặt:</span>
+          {BACK_FACES.map((n) => <button key={n} type="button" onClick={() => changeFaces(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", faces === n ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
         </div>
-      )} />
-    {saveOpen && <SaveDesignDialog onClose={() => setSaveOpen(false)} onSave={async () => { setBusy(true); try { await saveAccount(); } catch (e) { toast(e instanceof Error ? e.message : "Lưu thất bại", "err"); throw e; } finally { setBusy(false); } }} />}
+      ) : undefined} />
+    {saveOpen && <SaveDesignDialog onClose={() => setSaveOpen(false)} onSave={async () => { setBusy(true); try { await saveAccount(); if (orderAfter.current) router.push("/thiet-ke-cua-toi"); } catch (e) { toast(e instanceof Error ? e.message : "Lưu thất bại", "err"); throw e; } finally { setBusy(false); } }} />}
     </>
   );
 }

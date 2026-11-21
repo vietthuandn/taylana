@@ -223,6 +223,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
     toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
   };
   const [saveOpen, setSaveOpen] = useState(false);
+  const orderAfter = useRef(false); // "Đặt in": lưu xong → Thiết kế của tôi
 
   const nos = pagesOf(st.active, pages, count);
   const isSpread = cur?.surface === "spread";
@@ -290,19 +291,10 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
           <PhotoPanel photos={photos} used={st.used} max={MAX} hint="JPG, PNG, HEIC · ảnh chỉ xử lý trên máy bạn · tự điền vào ô trống của các trang"
             onAdd={(f) => { addPhotos(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} onInsert={(id) => st.addAsset(`p:${id}`)} />
         )}
-        bottom={(
-          <div className="flex h-14 shrink-0 items-center gap-2 border-t border-[#efeff1] bg-[#f7f7f8] px-3">
-            <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
-              <span className="shrink-0 text-[13px] font-medium text-[#3f3f46]">Số trang:</span>
-              {BUNDLE_PAGES.map((n) => <button key={n} type="button" onClick={() => changePages(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", pages === n ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
-            </div>
-            <DownloadMenu busy={busy} up items={[
-              { label: "Các trang (.zip)", icon: <FileStack size={16} />, onClick: dlPages },
-              ...(pages === 2 ? [] : [{ label: "Dàn trang in (.zip)", icon: <Download size={16} />, onClick: dlImposed }]),
-            ]} />
-            <Button size="sm" icon={<Save size={16} />} disabled={!doc || busy} onClick={() => { if (rightsOk) setSaveOpen(true); else setRightsOpen(true); }}>Lưu</Button>
-          </div>
-        )} />
+        header={{ busy, pages: { value: pages, options: BUNDLE_PAGES, onChange: changePages },
+          onSave: () => { orderAfter.current = false; if (rightsOk) setSaveOpen(true); else setRightsOpen(true); },
+          onOrder: () => { orderAfter.current = true; if (rightsOk) setSaveOpen(true); else setRightsOpen(true); },
+          downloads: [{ label: "Các trang (.zip)", onClick: dlPages }, ...(pages === 2 ? [] : [{ label: "Dàn trang in (.zip)", onClick: dlImposed }])] }} />
       {zoomPage !== null && zoomUrl && (
         <div className="fixed inset-0 z-[90] grid place-items-center bg-black/80 p-4" onClick={() => setZoomPage(null)} role="dialog" aria-modal>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -311,7 +303,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
         </div>
       )}
       {rightsOpen && <RightsModal onClose={() => setRightsOpen(false)} onOk={() => { setRightsOk(true); setRightsOpen(false); setSaveOpen(true); }} />}
-      {saveOpen && <SaveDesignDialog onClose={() => setSaveOpen(false)} onSave={async () => { setBusy(true); try { await saveAccount(); } catch (e) { toast(e instanceof Error ? e.message : "Lưu thất bại", "err"); throw e; } finally { setBusy(false); } }} />}
+      {saveOpen && <SaveDesignDialog onClose={() => setSaveOpen(false)} onSave={async () => { setBusy(true); try { await saveAccount(); if (orderAfter.current) router.push("/thiet-ke-cua-toi"); } catch (e) { toast(e instanceof Error ? e.message : "Lưu thất bại", "err"); throw e; } finally { setBusy(false); } }} />}
     </>
   );
 }

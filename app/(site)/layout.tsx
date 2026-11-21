@@ -6,7 +6,7 @@ import { ThemeShell } from "@/components/site/ThemeShell";
 // cả trang cao đúng 1 màn hình, không cuộn.
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeShell className="flex min-h-dvh flex-col md:has-[[data-fit-screen]]:h-dvh md:has-[[data-fit-screen]]:overflow-hidden">
+    <ThemeShell className="flex min-h-dvh flex-col md:has-[[data-fit-screen]]:h-dvh md:has-[[data-fit-screen]]:overflow-hidden [&:has([data-editor])>header]:hidden">
       <Header />
       <main className="relative isolate flex flex-1 flex-col overflow-x-clip md:has-[[data-fit-screen]]:min-h-0"><SiteSkin>{children}</SiteSkin></main>
     </ThemeShell>

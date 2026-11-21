@@ -435,25 +435,18 @@ export function useScrapStudio(o: {
   const selL = sel !== null ? L[sel] : null;
   const selPhoto = selL?.k === "sticker" && selL.asset?.startsWith("p:") ? photos.find((x) => x.id === selL.asset!.slice(2)) : undefined;
   // thanh công cụ nổi: 1 hàng nút icon 32px, tên chức năng ở tooltip
+  // thanh nhỏ nổi cạnh lớp đang chọn (mọi loại lớp): Nhân bản · Lên · Xuống · Xoá (+ công cụ riêng của loại lớp: Đổi khung, Viền sticker, Khôi phục ảnh gốc)
   const tools = selL?.ulock ? (
     <button type="button" onClick={() => { D.begin(); patchLayer(sel!, { ulock: undefined } as Partial<Layer>); }} title="Mở khoá" aria-label="Mở khoá" className={`${ibtn} w-auto gap-1 px-2 text-[12px] font-medium`}><Unlock size={15} /> Mở khoá</button>
-  ) : selL?.k === "sticker" && selL.asset?.startsWith("p:") && cur ? (
-    <PhotoToolbar l={selL} S={surfaceOf(cur)} img={assetsMap[selL.asset]?.img} photos={photos.map((p) => ({ id: p.id, url: p.url }))} photoUrl={selPhoto?.url} cutting={cutting !== null}
-      begin={D.begin} patch={(v) => patchLayer(sel!, v as Partial<Layer>)} onCrop={() => setCropFor(sel)} onCut={() => quickCut(sel!)}
-      onUp={() => reorder(sel!, 1)} onDown={() => reorder(sel!, -1)} onRemove={() => removeLayer(sel!)} onDuplicate={() => duplicate(sel!)}
-      onSetBg={() => { const id = selL.asset!; const i = sel!; setBg("all", { image: id, imageOpacity: 1 }); setLayers((ls) => ls.filter((_, j) => j !== i)); setSel(null); }}
-      onReplace={(pid) => { D.begin(); patchLayer(sel!, { asset: `p:${pid}`, orig: undefined, crop: undefined } as Partial<Layer>); }}
-      onUpload={async (f) => { const i = sel!; const [ph] = await addFiles([f]); if (ph) { D.begin(); patchLayer(i, { asset: `p:${ph.id}`, orig: undefined, crop: undefined } as Partial<Layer>); } }} />
   ) : selL ? (
     <>
       <button type="button" onClick={() => duplicate(sel!)} title="Nhân bản (Ctrl+D)" aria-label="Nhân bản" className={ibtn}><Copy size={16} /></button>
-      <button type="button" onClick={() => reorder(sel!, 1)} title="Lên trên" aria-label="Lên trên" className={ibtn}><ArrowUp size={16} /></button>
-      <button type="button" onClick={() => reorder(sel!, -1)} title="Xuống dưới" aria-label="Xuống dưới" className={ibtn}><ArrowDown size={16} /></button>
+      <button type="button" onClick={() => reorder(sel!, 1)} title="Lên trên một lớp" aria-label="Lên trên một lớp" className={ibtn}><ArrowUp size={16} /></button>
+      <button type="button" onClick={() => reorder(sel!, -1)} title="Xuống dưới một lớp" aria-label="Xuống dưới một lớp" className={ibtn}><ArrowDown size={16} /></button>
       {selL.k === "photo" && <button type="button" onClick={() => setFrameFor(sel)} title="Đổi khung" aria-label="Đổi khung" className={ibtn}><FrameIcon size={16} /></button>}
-      {selL.k === "sticker" && selL.asset?.startsWith("p:") && <button type="button" onClick={() => quickCut(sel!)} disabled={cutting !== null} title="Cắt (xoá nền tự động)" aria-label="Cắt — xoá nền" className={`${ibtn} disabled:opacity-50`}><Scissors size={16} /></button>}
       {selL.k === "sticker" && selL.orig && <button type="button" onClick={() => setBgFor(sel)} title="Xoá nền chi tiết (chọn cách tách, cọ xoá / khôi phục)" aria-label="Xoá nền chi tiết" className={ibtn}><Wand2 size={16} /></button>}
       {selL.k === "sticker" && selL.orig && <button type="button" onClick={() => restoreOrig(sel!)} title="Khôi phục ảnh gốc" aria-label="Khôi phục ảnh gốc" className={ibtn}><Undo2 size={16} /></button>}
-      {canOutline(selL) && (
+      {canOutline(selL) && !(selL.k === "sticker" && selL.asset?.startsWith("p:")) && (
         <span className="relative">
           <button type="button" onClick={() => setOlOpen((v) => !v)} title="Viền" aria-label="Viền" aria-expanded={olOpen} className={`${ibtn} ${selL.k === "sticker" && selL.ol?.w ? "text-[var(--c-primary)]" : ""}`}>
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3c3 2 7 2 8 6s-3 10-8 12C7 19 3 13 4 9s5-4 8-6z" /><path d="M12 7c2 1 4 1 4.5 3S15 15 12 16.5C9 15 7.5 12 8 10s2-2 4-3z" strokeWidth="1.5" /></svg>
@@ -463,6 +456,14 @@ export function useScrapStudio(o: {
       )}
       <button type="button" onClick={() => removeLayer(sel!)} title={selL.k === "photo" ? "Xoá ô ảnh (Delete)" : "Xoá (Delete)"} aria-label="Xoá" className={`${ibtn} text-[#dc2626] hover:bg-[#fef2f2]`}><Trash2 size={16} /></button>
     </>
+  ) : null;
+  /** thanh công cụ ẢNH (ảnh tự do đang chọn): máy tính ở đầu khu làm việc · điện thoại trong khung menu nổi dưới đáy */
+  const photoTools = (variant: "bar" | "mobile") => selL?.k === "sticker" && selL.asset?.startsWith("p:") && !selL.ulock && cur ? (
+    <PhotoToolbar variant={variant} l={selL} S={surfaceOf(cur)} img={assetsMap[selL.asset]?.img} photos={photos.map((p) => ({ id: p.id, url: p.url }))} photoUrl={selPhoto?.url} cutting={cutting !== null}
+      begin={D.begin} patch={(v) => patchLayer(sel!, v as Partial<Layer>)} onCut={() => quickCut(sel!)} onDuplicate={() => duplicate(sel!)}
+      onSetBg={() => { const id = selL.asset!; const i = sel!; setBg("all", { image: id, imageOpacity: 1 }); setLayers((ls) => ls.filter((_, j) => j !== i)); setSel(null); }}
+      onReplace={(pid) => { D.begin(); patchLayer(sel!, { asset: `p:${pid}`, orig: undefined, crop: undefined } as Partial<Layer>); }}
+      onUpload={async (f) => { const i = sel!; const [ph] = await addFiles([f]); if (ph) { D.begin(); patchLayer(i, { asset: `p:${ph.id}`, orig: undefined, crop: undefined } as Partial<Layer>); } }} />
   ) : null;
 
   /** nạp thiết kế đã lưu trên tài khoản (thay bản nháp) */
@@ -474,7 +475,7 @@ export function useScrapStudio(o: {
     hydrate, D, doc, cur, L, ready, photos, setPhotos, used, addFiles, replacePhoto, removePhoto, reorderPhotos, assignPhoto,
     text, setText, adjust, setAdjust, applied, setApplied, ustickers, addUserSticker, removeUserSticker, stickerFiles, setStickerFiles,
     assetImgs, frameImgs, cutFonts, fontPreviews, renderOpts, active, setActive, sel, setSel, editLayer, setEditLayer,
-    setLayers, patchLayer, duplicate, removeLayer, reorder, addAsset, addText, addWish, addSlot, setFrame, tools,
+    setLayers, patchLayer, duplicate, removeLayer, reorder, addAsset, addText, addWish, addSlot, setFrame, tools, photoTools,
     pickFor, setPickFor, frameFor, setFrameFor, addSlotOpen, setAddSlotOpen,
     bgFor, setBgFor, applyBgRemoved, insertImages, pasteLayer, cutting, cropFor, setCropFor, bgEdit, setBgEdit, patchBg, curBg, detachBg,
   };

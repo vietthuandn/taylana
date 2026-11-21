@@ -5,8 +5,8 @@
    Popover mở ra bằng portal (cố định theo nút), không bị thanh cuộn ngang trên điện thoại cắt mất. */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical, ArrowDown, ArrowUp, Blend, Copy, Crop, Expand,
-  FlipHorizontal2, ImageUp, Lock, MoreHorizontal, RefreshCw, Scissors, SlidersHorizontal, SquareRoundCorner, Trash2, Wallpaper } from "lucide-react";
+import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical, Blend, Copy, Expand,
+  FlipHorizontal2, ImageUp, Lock, MoreHorizontal, RefreshCw, Scissors, SlidersHorizontal, SquareRoundCorner, Wallpaper } from "lucide-react";
 import { PRESETS, filterCss } from "@/lib/scrapbook/render";
 import { imgAr } from "@/lib/scrapbook/edit";
 import type { Surface } from "@/lib/scrapbook/surface";
@@ -15,7 +15,6 @@ import { cx } from "@/components/ui/styles";
 
 type SL = Extract<Layer, { k: "sticker" }>;
 type Adj = NonNullable<SL["adj"]>;
-const ib = "grid h-8 w-8 shrink-0 place-items-center rounded-[6px] text-[#3f3f46] hover:bg-[#f4f4f5] disabled:opacity-40 max-md:h-11 max-md:w-11";
 const OL = ["#ffffff", "#18181b", "#ff5fa2", "#fde047", "#60a5fa", "#4ade80"];
 
 /** popover cố định theo nút (portal) — dưới nút, thiếu chỗ thì lên trên */
@@ -46,10 +45,11 @@ function Slider({ label, value, min, max, step = 1, unit = "", onBegin, onChange
   );
 }
 
-export function PhotoToolbar({ l, S, img, photos, photoUrl, cutting, begin, patch, onCrop, onCut, onUp, onDown, onRemove, onDuplicate, onSetBg, onReplace, onUpload }: {
+/** variant: "bar" = thanh bo tròn ở đầu khu làm việc (máy tính, icon + tên) · "mobile" = trong khung menu nổi dưới đáy (icon, tên bên dưới) */
+export function PhotoToolbar({ l, S, img, photos, photoUrl, cutting, begin, patch, onCut, onDuplicate, onSetBg, onReplace, onUpload, variant = "bar" }: {
   l: SL; S: Surface; img?: { width: number; height: number }; photos: { id: string; url: string }[]; photoUrl?: string; cutting: boolean;
-  begin: () => void; patch: (v: Partial<SL>) => void; onCrop: () => void; onCut: () => void; onUp: () => void; onDown: () => void; onRemove: () => void;
-  onDuplicate: () => void; onSetBg: () => void; onReplace: (photoId: string) => void; onUpload: (f: File) => void;
+  begin: () => void; patch: (v: Partial<SL>) => void; onCut: () => void;
+  onDuplicate: () => void; onSetBg: () => void; onReplace: (photoId: string) => void; onUpload: (f: File) => void; variant?: "bar" | "mobile";
 }) {
   const [open, setOpen] = useState<{ id: string; el: HTMLElement } | null>(null);
   const tog = (id: string) => (e: React.MouseEvent<HTMLButtonElement>) => { const el = e.currentTarget; setOpen((o) => (o?.id === id ? null : { id, el })); };
@@ -72,23 +72,22 @@ export function PhotoToolbar({ l, S, img, photos, photoUrl, cutting, begin, patc
     set({ x: nx, y: ny });
   };
   const fileIn = useRef<HTMLInputElement>(null);
+  const cls = variant === "mobile"
+    ? "flex min-w-[64px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-[12px] px-1.5 py-1.5 text-[11px] font-medium text-[#3f3f46] disabled:opacity-40"
+    : "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-medium text-[#3f3f46] hover:bg-white/80 disabled:opacity-40";
   const B = (id: string, title: string, icon: React.ReactNode, onClick: React.MouseEventHandler<HTMLButtonElement>, on = false, disabled = false) => (
-    <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled} className={cx(ib, (on || open?.id === id) && "bg-[var(--c-secondary)] text-[var(--c-primary)]")}>{icon}</button>
+    <button type="button" title={title} aria-label={title} onClick={onClick} disabled={disabled} className={cx(cls, (on || open?.id === id) && (variant === "mobile" ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "bg-white text-[var(--c-primary)] shadow-sm"))}>{icon}<span>{title}</span></button>
   );
   return (
     <>
       {B("replace", "Thay ảnh", <RefreshCw size={16} />, tog("replace"))}
-      {B("crop", "Cắt ảnh (bấm đúp)", <Crop size={16} />, () => { close(); onCrop(); })}
       {B("cut", "Xoá nền", <Scissors size={16} />, () => { close(); onCut(); }, false, cutting)}
       {B("ol", "Viền", <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3c3 2 7 2 8 6s-3 10-8 12C7 19 3 13 4 9s5-4 8-6z" /></svg>, tog("ol"), !!l.ol?.w)}
-      {B("op", "Độ trong suốt", <Blend size={16} />, tog("op"), l.op != null && l.op < 1)}
+      {B("op", "Trong suốt", <Blend size={16} />, tog("op"), l.op != null && l.op < 1)}
       {B("rad", "Bo góc", <SquareRoundCorner size={16} />, tog("rad"), !!l.rad)}
       {B("flip", "Lật", <FlipHorizontal2 size={16} />, tog("flip"), !!(l.fx || l.fy))}
       {B("fill", "Tràn viền", <Expand size={16} />, tog("fill"))}
       {B("adj", "Chỉnh màu", <SlidersHorizontal size={16} />, tog("adj"), !!l.adj)}
-      {B("down", "Xuống dưới một lớp", <ArrowDown size={16} />, () => onDown())}
-      {B("up", "Lên trên một lớp", <ArrowUp size={16} />, () => onUp())}
-      <button type="button" title="Xoá (Delete)" aria-label="Xoá" onClick={onRemove} className={cx(ib, "text-[#dc2626] hover:bg-[#fef2f2]")}><Trash2 size={16} /></button>
       {B("more", "Thêm", <MoreHorizontal size={16} />, tog("more"))}
       <input ref={fileIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { onUpload(f); close(); } }} />
 
