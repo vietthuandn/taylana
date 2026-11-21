@@ -132,9 +132,11 @@ function paintBg(x: X, bg: Template["bg"], seed: number, o: RenderOpts, W: numbe
   // ảnh nền (khách / admin tải lên): phủ kín bề mặt, có độ mờ (đĩa: tự cắt theo hình tròn)
   const img = bg.image ? o.bgImages?.[bg.image] : undefined;
   if (img) {
-    const s = Math.max(W / img.width, H / img.height);
+    const s = Math.max(W / img.width, H / img.height) * (bg.iz ?? 1), t = x.getTransform(), ppm = Math.hypot(t.a, t.b);
     x.save(); x.globalAlpha = bg.imageOpacity ?? 1;
-    x.drawImage(img, W / 2 - (img.width * s) / 2, H / 2 - (img.height * s) / 2, img.width * s, img.height * s);
+    if (bg.iadj && typeof x.filter === "string") x.filter = filterCss(bg.iadj, ppm) || "none";
+    x.translate(W / 2 + (bg.ix ?? 0), H / 2 + (bg.iy ?? 0)); x.scale(bg.ifx ? -1 : 1, bg.ify ? -1 : 1);
+    x.drawImage(img, -(img.width * s) / 2, -(img.height * s) / 2, img.width * s, img.height * s);
     x.restore();
   }
   x.save(); x.strokeStyle = bg.ink; x.fillStyle = bg.ink; x.lineWidth = 0.25;
@@ -475,7 +477,8 @@ export function renderSurface(o: RenderOpts) {
       if (a) { const h = l.w * (a.img.height / a.img.width); shadow(x, 0.8, 0.3, 0.14); x.globalAlpha = 0.92; x.drawImage(a.img, -l.w / 2, -h / 2, l.w, h); }
       else drawTape(x, l);
     } else if (l.k === "sticker") {
-      const a = l.asset ? o.assets?.[l.asset] : undefined;
+      // ảnh đã "Tách khỏi nền": asset là khoá ảnh nền (link / "u:bg_…") → lấy ở bgImages
+      const a = l.asset ? o.assets?.[l.asset] ?? (o.bgImages?.[l.asset] ? { img: o.bgImages[l.asset]! } : undefined) : undefined;
       if (a) {
         // hiệu ứng KHÔNG phá huỷ (vùng cắt, lật, bo góc, chỉnh màu) dựng ra canvas tạm đúng độ phân giải đang vẽ (in 300 DPI cũng vậy)
         const ar = imgAr(l, a.img), S0 = fitS(l, a.img), w = ar > 1 ? S0 / ar : S0, h = ar > 1 ? S0 : S0 * ar;

@@ -97,7 +97,8 @@ export type LayerBase =
 /** cờ chung của mọi lớp: user = khách tự thêm (giữ lại khi đổi mẫu) · locked = admin khoá (khách không chọn được) */
 export type LayerFlags = { user?: boolean; locked?: boolean; auto?: boolean; hidden?: boolean; ulock?: boolean }; // ulock = khách tự khoá (chọn được để mở khoá, không kéo / sửa) // hidden = admin ẩn lớp (không vẽ)
 /** nền bề mặt: màu + hoạ tiết + texture giấy (chất liệu) + ảnh nền (phủ kín, có độ mờ) */
-export type Bg = { color: string; pattern: "dots" | "grid" | "plain" | "lines"; ink: string; asset?: string; image?: string; imageOpacity?: number }; // auto = sticker / băng dính tự rải (nút "Xáo trộn" rải lại)
+export type Bg = { color: string; pattern: "dots" | "grid" | "plain" | "lines"; ink: string; asset?: string; image?: string; imageOpacity?: number;
+  ix?: number; iy?: number; iz?: number; ifx?: boolean; ify?: boolean; iadj?: { b?: number; c?: number; s?: number; t?: number; blur?: number; preset?: string } }; // ảnh nền: dịch (mm) · phóng (≥ 0.5) · lật · chỉnh màu // auto = sticker / băng dính tự rải (nút "Xáo trộn" rải lại)
 export type Template = {
   id: string; n: number; style: Style; seed: number;
   surface?: SurfaceKind; // mặc định "disc"

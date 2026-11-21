@@ -20,6 +20,7 @@ import { SurfaceView } from "./SurfaceView";
 import { AddFrameFlow, FramePicker } from "./FramePicker";
 import { PickPhotoModal } from "./parts";
 import { UserStickerModal } from "./UserStickerModal";
+import { BgEditBar } from "./BgEditBar";
 import { layerClip, type useScrapStudio } from "./useScrapStudio";
 import { SheetSlicer } from "@/app/admin/(panel)/scrapbook/SheetSlicer";
 import { FEATURE_OLD_STICKER_UPLOAD } from "@/lib/features";
@@ -203,7 +204,12 @@ export function ScrapbookEditor(p: {
               onDropFiles={(f, at) => { if (mode === "customer") st.insertImages(f, at); else st.setStickerFiles(f.slice(0, 1)); }}
               onDropPhoto={mode === "customer" ? (pid, i) => st.assignPhoto(st.active, i, pid) : undefined} onEmptySlot={mode === "customer" ? (i) => st.setPickFor(i) : undefined}
               editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
-              onBackgroundDbl={p.onBackgroundDbl} tools={st.tools} scanning={st.cutting} cropLayer={st.cropFor} onCrop={st.setCropFor} />
+              onBackgroundDbl={p.onBackgroundDbl} tools={st.tools} scanning={st.cutting} cropLayer={st.cropFor} onCrop={st.setCropFor}
+              bgEdit={!!st.bgEdit} onBgEdit={(on, right) => st.setBgEdit(on ? (right ? "bg2" : "bg") : null)}
+              onBgMove={(dx, dy, start) => { if (start) { st.D.begin(); return; } st.patchBg({ ix: (st.curBg?.ix ?? 0) + dx, iy: (st.curBg?.iy ?? 0) + dy }); }}
+              onBgZoom={(f) => st.patchBg({ iz: Math.min(4, Math.max(0.5, (st.curBg?.iz ?? 1) * f)) })}
+              bgBar={st.bgEdit && st.curBg ? <BgEditBar bg={st.curBg} onBegin={st.D.begin} onPatch={st.patchBg} onDetach={st.detachBg} onDone={() => st.setBgEdit(null)}
+                onUpload={async (f) => { try { const key = await st.uploadBg(f); st.D.begin(); st.patchBg({ image: key, ix: undefined, iy: undefined, iz: undefined }); } catch (e) { toast(e instanceof Error ? e.message : "Tải ảnh lỗi", "err"); } }} /> : null} />
           ))}
          </div>
         </div>

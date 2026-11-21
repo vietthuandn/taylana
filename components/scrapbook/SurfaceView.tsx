@@ -36,7 +36,8 @@ export type SurfaceViewProps = {
   onBackgroundDbl?: (at: { x: number; y: number }) => void;
   tools?: React.ReactNode;
   scanning?: number | null; // lớp ảnh đang được "cắt" (xoá nền) — hiện hiệu ứng quét
-  cropLayer?: number | null; onCrop?: (i: number | null) => void; // chế độ cắt ảnh tự do (bấm đúp / nút Cắt)
+  cropLayer?: number | null; onCrop?: (i: number | null) => void;
+  bgEdit?: boolean; onBgEdit?: (on: boolean, right?: boolean) => void; onBgMove?: (dx: number, dy: number, start: boolean) => void; onBgZoom?: (f: number) => void; bgBar?: React.ReactNode; // sửa ảnh nền // chế độ cắt ảnh tự do (bấm đúp / nút Cắt)
 };
 
 export function SurfaceView(p: SurfaceViewProps) {
@@ -45,6 +46,7 @@ export function SurfaceView(p: SurfaceViewProps) {
   const view = useRef<HTMLCanvasElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const textBoxes = useRef<Record<number, LBox>>({});
+  const bgDrag = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ mode: "move" | "scale" | "rotate" | "pan" | "width"; i: number; b0: LBox; sx: number; sy: number; adj0?: Adjust; layer0?: Layer; pid?: string; moved?: boolean; wasSel?: boolean; side?: -1 | 1; hx?: -1 | 0 | 1; hy?: -1 | 0 | 1 } | null>(null);
   const editing = p.editText ?? null;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
@@ -77,6 +79,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     setMenu(null);
     if (e.button === 2) return;
     const pt = toMM(e);
+    if (p.bgEdit) { e.currentTarget.setPointerCapture(e.pointerId); bgDrag.current = pt; p.onBgMove?.(0, 0, true); return; } // kéo để dịch ảnh nền
     if (editing !== null) p.onEditText?.(null); // bấm ra ngoài ô đang sửa → thoát chế độ sửa
     if (p.editLayer !== null) {
       const l = L[p.editLayer], b = layerBox(p.editLayer);
@@ -118,6 +121,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     drag.current = { mode, i: p.sel, b0: b, sx: pt.x, sy: pt.y, layer0: L[p.sel], hx, hy };
   }
   function onMove(e: React.PointerEvent) {
+    if (bgDrag.current) { const pt = toMM(e); p.onBgMove?.(pt.x - bgDrag.current.x, pt.y - bgDrag.current.y, false); bgDrag.current = pt; return; }
     const d = drag.current;
     if (!d) return;
     const pt = toMM(e), b0 = d.b0;
@@ -155,6 +159,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     p.setLayers((ls) => ls.map((l, j) => (j === d.i ? applyBox(l0, b, b0) : l)), l0);
   }
   const onUp = () => {
+    bgDrag.current = null;
     const d = drag.current;
     drag.current = null; setGuide(null);
     // bấm (không kéo) vào ô ảnh trống → chọn ảnh
@@ -166,7 +171,7 @@ export function SurfaceView(p: SurfaceViewProps) {
   };
   function onDbl(e: React.MouseEvent<HTMLCanvasElement>) {
     const pt = toMM(e), i = layerAt(pt.x, pt.y), l = L[i];
-    if (!l) { p.onBackgroundDbl?.(pt); return; }
+    if (!l) { if (p.onBgEdit && (pt.x >= S.w / 2 && t.bg2 ? t.bg2.image : t.bg.image)) { p.onSel(null); p.onBgEdit(true, pt.x >= S.w / 2 && !!t.bg2); } else p.onBackgroundDbl?.(pt); return; }
     if (l.k === "photo") { if (l.photo === "") p.onEmptySlot?.(i); else { p.onEditLayer(i); p.onSel(null); } }
     if (l.k === "sticker" && l.asset?.startsWith("p:") && !l.ulock) p.onCrop?.(i);
     if (l.k === "text" || l.k === "wish") { if (p.onEditText) p.onEditText(i); else p.onTextEdit?.(i); }
@@ -199,10 +204,17 @@ export function SurfaceView(p: SurfaceViewProps) {
   useEffect(() => {
     const v = view.current;
     if (!v) return;
-    const h = (e: WheelEvent) => { if (p.editLayer === null) return; e.preventDefault(); zoom(e.deltaY < 0 ? 0.08 : -0.08); };
+    const h = (e: WheelEvent) => { if (p.bgEdit) { e.preventDefault(); p.onBgZoom?.(e.deltaY < 0 ? 1.06 : 1 / 1.06); return; } if (p.editLayer === null) return; e.preventDefault(); zoom(e.deltaY < 0 ? 0.08 : -0.08); };
     v.addEventListener("wheel", h, { passive: false });
     return () => v.removeEventListener("wheel", h);
-  }, [p.editLayer, zoom]);
+  }, [p.editLayer, zoom, p.bgEdit, p.onBgZoom]); // eslint-disable-line react-hooks/exhaustive-deps
+  // sửa nền: bấm ra ngoài bề mặt → thoát
+  useEffect(() => {
+    if (!p.bgEdit) return;
+    const h = (e: PointerEvent) => { const el = e.target as HTMLElement; if (!root.current?.contains(el) && !el.closest?.("[data-bg-bar],[data-keep-sel]")) p.onBgEdit?.(false); };
+    document.addEventListener("pointerdown", h, true);
+    return () => document.removeEventListener("pointerdown", h, true);
+  }, [p.bgEdit]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (p.sel === null) setMenu(null); }, [p.sel]);
   // iPad / iPhone: đang kéo / phóng / xoay lớp thì chặn cuộn trang (Safari có lúc vẫn cuộn giữa chừng → thao tác bị ngắt)
   useEffect(() => {
@@ -287,6 +299,7 @@ export function SurfaceView(p: SurfaceViewProps) {
           ))}
         </div>
       )}
+      {p.bgEdit && <><div className="pointer-events-none absolute inset-0 z-10 outline outline-2 -outline-offset-2 outline-[var(--c-primary)]" />{p.bgBar}</>}
       {p.cropLayer != null && L[p.cropLayer]?.k === "sticker" && (() => {
         const l = L[p.cropLayer] as Extract<Layer, { k: "sticker" }>, img = l.asset ? p.render.assets?.[l.asset]?.img : undefined, b = layerBox(p.cropLayer);
         return img && b ? <CropOverlay key={p.cropLayer} l={l} img={img} box={b} k={k} onDone={(v) => { if (v) { p.begin(); const i = p.cropLayer!; p.setLayers((ls) => ls.map((x, j) => (j === i ? ({ ...x, ...v } as Layer) : x)), l); } p.onCrop?.(null); }} /> : null;

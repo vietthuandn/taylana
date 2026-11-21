@@ -356,7 +356,26 @@ export function useScrapStudio(o: {
 
   const [bgFor, setBgFor] = useState<number | null>(null); // lớp ảnh tự do đang mở "Xoá nền"
   const [cropFor, setCropFor] = useState<number | null>(null); // lớp ảnh tự do đang cắt
-  useEffect(() => { setCropFor(null); }, [active]);
+  const [bgEdit, setBgEdit] = useState<null | "bg" | "bg2">(null); // đang sửa ảnh nền (cặp trang: nền trái / phải)
+  useEffect(() => { setCropFor(null); setBgEdit(null); }, [active]);
+  /** sửa ảnh nền đang mở (không tạo mốc hoàn tác — gọi D.begin() trước khi kéo) */
+  function patchBg(v: Partial<Template["bg"]>) {
+    if (!bgEdit) return;
+    D.patchSurface(active, (t) => (bgEdit === "bg2" && t.bg2 ? { ...t, bg2: { ...t.bg2, ...v } } : { ...t, bg: { ...t.bg, ...v } }));
+    D.setEdited(true);
+  }
+  const curBg = cur ? (bgEdit === "bg2" && cur.bg2 ? cur.bg2 : cur.bg) : null;
+  /** Tách khỏi nền: ảnh nền → lớp ảnh thường (phủ đúng như đang thấy), bỏ ảnh nền */
+  function detachBg() {
+    if (!cur || !curBg?.image) return;
+    const S = surfaceOf(cur), W = bgEdit === "bg2" || cur.bg2 ? S.w / 2 : S.w, img = bgImages[curBg.image];
+    const s0 = img ? Math.max(W / img.width, S.h / img.height) * (curBg.iz ?? 1) : 1, w = img ? img.width * s0 : W, h = img ? img.height * s0 : S.h;
+    const ox = bgEdit === "bg2" ? S.w / 2 : 0;
+    const l: Layer = { k: "sticker", x: ox + W / 2 + (curBg.ix ?? 0), y: S.h / 2 + (curBg.iy ?? 0), s: Math.max(w, h), rot: 0, shape: "star", color: "#fff", asset: curBg.image, user: true,
+      fx: curBg.ifx, fy: curBg.ify, adj: curBg.iadj, op: curBg.imageOpacity != null && curBg.imageOpacity < 1 ? curBg.imageOpacity : undefined } as Layer;
+    D.begin(); patchBg({ image: undefined, ix: undefined, iy: undefined, iz: undefined, ifx: undefined, ify: undefined, iadj: undefined });
+    setLayers((ls) => [l, ...ls.filter(() => true)], l); setBgEdit(null); setSel(0);
+  }
   const [olOpen, setOlOpen] = useState(false);
   useEffect(() => { setOlOpen(false); }, [sel, active]);
   /** áp ảnh đã xoá nền cho lớp ảnh tự do: thêm vào "Ảnh của bạn" (lưu tạm trên máy) rồi đổi ảnh của lớp, nhớ ảnh gốc */
@@ -457,7 +476,7 @@ export function useScrapStudio(o: {
     assetImgs, frameImgs, cutFonts, fontPreviews, renderOpts, active, setActive, sel, setSel, editLayer, setEditLayer,
     setLayers, patchLayer, duplicate, removeLayer, reorder, addAsset, addText, addWish, addSlot, setFrame, tools,
     pickFor, setPickFor, frameFor, setFrameFor, addSlotOpen, setAddSlotOpen,
-    bgFor, setBgFor, applyBgRemoved, insertImages, pasteLayer, cutting, cropFor, setCropFor,
+    bgFor, setBgFor, applyBgRemoved, insertImages, pasteLayer, cutting, cropFor, setCropFor, bgEdit, setBgEdit, patchBg, curBg, detachBg,
   };
 }
 
