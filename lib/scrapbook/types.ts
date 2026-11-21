@@ -94,6 +94,7 @@ export type Template = {
   id: string; n: number; style: Style; seed: number;
   surface?: SurfaceKind; // mặc định "disc"
   gutter?: "left" | "right"; // trang đơn của booklet: gáy bên trái (trang 1) / bên phải (trang cuối)
+  side?: "inner"; // bìa sau: mặt trong (có thêm spine 1,1 cm sau gáy trái)
   kind?: number; // cặp trang booklet: kiểu dàn trang (SPREAD_KINDS)
   accents?: string[]; tone?: string; // bảng màu của mẫu (rải lại sticker)
   fixed?: boolean; // mẫu admin sửa tay: giữ nguyên sticker của mẫu, chỉ bổ sung khi thiếu

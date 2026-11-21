@@ -7,13 +7,13 @@ import type { Template } from "./types";
 import type { TemplateDoc } from "@/lib/cdDoc";
 
 export type TplKind = "cd" | "booklet_single" | "booklet_spread" | "back";
-export type CategoryScope = TplKind | "booklet_bundle";
+export type CategoryScope = TplKind | "booklet_bundle" | "back_bundle";
 export type Category = { id: string; scope: CategoryScope; name: string; sort_order: number; is_active: boolean };
 export type DesignTpl = {
   id: string; kind: TplKind; name: string; category_id: string | null; config: { template: Template; legacy?: string; cdDoc?: TemplateDoc }; // cdDoc: bản cho trình "Thiết kế CD" (mặt đĩa / trang đơn)
   photo_count: number; thumbnail_url: string | null; is_active: boolean; sort_order: number; updated_at?: string;
 };
-export type Bundle = { id: string; name: string; category_id: string | null; page_count: number; template_ids: string[]; thumbnail_url: string | null; is_active: boolean; sort_order: number };
+export type Bundle = { kind?: "booklet" | "back"; id: string; name: string; category_id: string | null; page_count: number; template_ids: string[]; thumbnail_url: string | null; is_active: boolean; sort_order: number };
 export type Library = { categories: Category[]; templates: DesignTpl[]; bundles: Bundle[] };
 
 export const KIND_INFO: Record<TplKind, { label: string; unit: string }> = {
@@ -70,5 +70,14 @@ export function bundleSlots(pages: number): { label: string; kind: TplKind; gutt
   out.push({ label: `Trang ${pages}`, kind: "booklet_single", gutter: "right" });
   return out;
 }
+/** bìa sau: các mặt (1 mặt = mặt ngoài · 2 mặt = mặt ngoài + mặt trong) */
+export const BACK_FACES = [1, 2] as const;
+export const backSlots = (faces: number): { label: string; kind: TplKind; side?: "inner" }[] =>
+  [{ label: "Mặt ngoài", kind: "back" as TplKind }, { label: "Mặt trong", kind: "back" as TplKind, side: "inner" as const }].slice(0, faces === 1 ? 1 : 2);
+export const blankBack = (faces: number): Template[] => backSlots(faces).map((s) => ({ ...blankTemplate("back"), id: `blank-back-${s.side ?? "outer"}`, ...(s.side ? { side: s.side } : {}) }));
+/** mẫu bìa sau → đặt đúng mặt (mặt trong có spine) */
+export const backTemplate = (d: DesignTpl, side?: "inner"): Template => { const t = libTemplate(d); delete t.side; return side ? { ...t, side } : t; };
+/** bộ mẫu thuộc loại nào (bộ cũ chưa có cột kind = booklet) */
+export const bundleKind = (b: Bundle) => b.kind ?? "booklet";
 /** cấu trúc trang trống của booklet theo số trang */
 export const blankBooklet = (pages: number): Template[] => bundleSlots(pages).map((s) => blankTemplate(s.kind, s.gutter));

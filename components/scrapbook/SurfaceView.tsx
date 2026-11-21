@@ -44,7 +44,7 @@ export function SurfaceView(p: SurfaceViewProps) {
   const drag = useRef<{ mode: "move" | "scale" | "rotate" | "pan" | "width"; i: number; b0: LBox; sx: number; sy: number; adj0?: Adjust; layer0?: Layer; pid?: string; moved?: boolean; wasSel?: boolean; side?: -1 | 1; hx?: -1 | 0 | 1; hy?: -1 | 0 | 1 } | null>(null);
   const editing = p.editText ?? null;
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-  const [guide, setGuide] = useState<{ center?: boolean; ring?: number } | null>(null);
+  const [guide, setGuide] = useState<{ center?: boolean; ring?: number; vx?: number; hy?: number } | null>(null);
   const [, setTick] = useState(0);
   const L = t.layers;
   const dpr = typeof window !== "undefined" ? Math.min(2, window.devicePixelRatio || 1) : 1;
@@ -126,7 +126,14 @@ export function SurfaceView(p: SurfaceViewProps) {
       if (!d.moved) return;
       const nx = b0.x + pt.x - d.sx, ny = b0.y + pt.y - d.sy;
       const s = S.round ? snap(nx, ny) : { x: nx, y: ny, guide: {} as { center?: boolean; ring?: number } };
-      setGuide(s.guide.center || s.guide.ring ? s.guide : null);
+      // gióng giữa kiểu Canva: tâm lớp gần đường giữa dọc / ngang của bề mặt (cặp trang: thêm giữa từng trang) → hít nhẹ + vạch đỏ
+      const tol = Math.max(1, 6 / k), g: { center?: boolean; ring?: number; vx?: number; hy?: number } = { ...s.guide };
+      if (!g.center && !g.ring) {
+        const vx = (S.kind === "spread" ? [S.w / 2, S.w / 4, (S.w * 3) / 4] : [S.w / 2]).find((v) => Math.abs(s.x - v) < tol);
+        if (vx !== undefined) { s.x = vx; g.vx = vx; }
+        if (Math.abs(s.y - S.h / 2) < tol) { s.y = S.h / 2; g.hy = S.h / 2; }
+      }
+      setGuide(g.center || g.ring || g.vx !== undefined || g.hy !== undefined ? g : null);
       b = { ...b0, x: s.x, y: s.y };
     } else if (d.mode === "rotate") {
       let r = Math.round((Math.atan2(pt.y - b0.y, pt.x - b0.x) * 180) / Math.PI + 90);
@@ -237,6 +244,8 @@ export function SurfaceView(p: SurfaceViewProps) {
         <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${S.w} ${S.h}`}>
           {guide.center && <g stroke="#2563eb" strokeWidth="0.3" strokeDasharray="1.2 1"><line x1={C} y1="0" x2={C} y2={S.h} /><line x1="0" y1={C} x2={S.w} y2={C} /></g>}
           {guide.ring && <circle cx={C} cy={C} r={guide.ring} fill="none" stroke="#2563eb" strokeWidth="0.3" strokeDasharray="1.2 1" />}
+          {guide.vx !== undefined && <line x1={guide.vx} y1="0" x2={guide.vx} y2={S.h} stroke="#ef4444" strokeWidth={1.2 / k} />}
+          {guide.hy !== undefined && <line x1="0" y1={guide.hy} x2={S.w} y2={guide.hy} stroke="#ef4444" strokeWidth={1.2 / k} />}
         </svg>
       )}
       {SB && (

@@ -8,7 +8,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Folder, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { revalidatePublic } from "@/app/admin/actions";
-import { BUNDLE_PAGES, bundleSlots, groupByCategory, type Bundle, type Category, type DesignTpl, type TplKind } from "@/lib/scrapbook/library";
+import { BUNDLE_PAGES, backSlots, bundleKind, bundleSlots, groupByCategory, type Bundle, type Category, type DesignTpl, type TplKind } from "@/lib/scrapbook/library";
+import { LiveThumb } from "@/components/scrapbook/LibraryGrid";
 import { MIGRATE_MSG, isMissing, loadBundles, loadCategories, loadTemplates } from "@/lib/scrapbook/libraryClient";
 import { confirmDialog } from "@/components/ui/dialog";
 import { Badge, Button, toast } from "@/components/admin/ui";
@@ -19,7 +20,9 @@ import { PUBLIC_PATHS } from "./LibraryAdmin";
 type Draft = { id?: string; name: string; category_id: string | null; page_count: number; template_ids: string[]; is_active: boolean };
 const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[13px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]");
 
-export function BundleAdmin() {
+/** kind = "back": bộ mẫu bìa sau 2 mặt (Mặt ngoài + Mặt trong) — chung bảng booklet_bundles (cột kind), danh mục scope back_bundle */
+export function BundleAdmin({ kind = "booklet" }: { kind?: "booklet" | "back" }) {
+  const back = kind === "back";
   const [cats, setCats] = useState<Category[]>([]);
   const [tplCats, setTplCats] = useState<Category[]>([]);
   const [tpls, setTpls] = useState<DesignTpl[]>([]);
@@ -33,16 +36,21 @@ export function BundleAdmin() {
 
   const load = useCallback(async () => {
     try {
-      const [c, c1, c2, t, b] = await Promise.all([loadCategories("booklet_bundle"), loadCategories("booklet_single"), loadCategories("booklet_spread"), loadTemplates(["booklet_single", "booklet_spread"]), loadBundles()]);
-      setCats(c); setTplCats([...c1, ...c2]); setTpls(t); setList(b); setErr("");
+      if (back) {
+        const [c, c1, t, b] = await Promise.all([loadCategories("back_bundle"), loadCategories("back"), loadTemplates(["back"]), loadBundles()]);
+        setCats(c); setTplCats(c1); setTpls(t); setList(b.filter((x) => bundleKind(x) === "back")); setErr("");
+      } else {
+        const [c, c1, c2, t, b] = await Promise.all([loadCategories("booklet_bundle"), loadCategories("booklet_single"), loadCategories("booklet_spread"), loadTemplates(["booklet_single", "booklet_spread"]), loadBundles()]);
+        setCats(c); setTplCats([...c1, ...c2]); setTpls(t); setList(b.filter((x) => bundleKind(x) === "booklet")); setErr("");
+      }
     } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi tải"); }
-  }, []);
+  }, [back]);
   useEffect(() => { load(); }, [load]);
   const byId = useMemo(() => new Map(tpls.map((t) => [t.id, t])), [tpls]);
   const shown = list.filter((b) => (!pages || b.page_count === pages) && (!cat || b.category_id === cat));
 
   async function save(d: Draft) {
-    const v = { name: d.name.trim() || "Bộ mẫu mới", category_id: d.category_id, page_count: d.page_count, template_ids: d.template_ids, is_active: d.is_active, thumbnail_url: byId.get(d.template_ids[0])?.thumbnail_url ?? null };
+    const v = { name: d.name.trim() || "Bộ mẫu mới", category_id: d.category_id, page_count: d.page_count, template_ids: d.template_ids, is_active: d.is_active, thumbnail_url: byId.get(d.template_ids[0])?.thumbnail_url ?? null, ...(back ? { kind: "back" as const, page_count: 2 } : {}) };
     const sb = createClient();
     const r = d.id ? await sb.from("booklet_bundles").update(v).eq("id", d.id) : await sb.from("booklet_bundles").insert({ ...v, sort_order: Math.max(0, ...list.map((x) => x.sort_order)) + 1 });
     if (r.error) return toast(isMissing(r.error.message) ? MIGRATE_MSG : r.error.message, "err");
@@ -73,20 +81,20 @@ export function BundleAdmin() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap gap-1.5">
+        {!back && <div className="flex flex-wrap gap-1.5">
           <button type="button" onClick={() => setPages(0)} className={chip(!pages)}>Mọi số trang</button>
           {BUNDLE_PAGES.map((n) => <button key={n} type="button" onClick={() => setPages(n)} className={chip(pages === n)}>{n} trang</button>)}
-        </div>
+        </div>}
         <span className="flex-1" />
         <Button variant="secondary" icon={<Folder size={16} />} onClick={() => setManage(true)}>Danh mục</Button>
-        <Button icon={<Plus size={16} />} onClick={() => setEdit({ name: "", category_id: cats[0]?.id ?? null, page_count: 8, template_ids: [], is_active: true })}>Tạo bộ mẫu</Button>
+        <Button icon={<Plus size={16} />} onClick={() => setEdit({ name: "", category_id: cats[0]?.id ?? null, page_count: back ? 2 : 8, template_ids: [], is_active: true })}>{back ? "Tạo bộ mẫu 2 mặt" : "Tạo bộ mẫu"}</Button>
       </div>
       <div className="flex flex-wrap gap-1.5">
         <button type="button" onClick={() => setCat("")} className={chip(!cat)}>Tất cả danh mục</button>
         {cats.map((c) => <button key={c.id} type="button" onClick={() => setCat(c.id)} className={chip(cat === c.id)}>{c.name}</button>)}
       </div>
       {err && <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#b91c1c]">{err}</p>}
-      {!err && !shown.length && <p className="rounded-[12px] border border-dashed border-[#d4d4d8] bg-white p-8 text-center text-[14px] text-[#71717a]">Chưa có bộ mẫu. Tạo mẫu Trang đơn / Trang đôi trước, rồi bấm “Tạo bộ mẫu” để ghép.</p>}
+      {!err && !shown.length && <p className="rounded-[12px] border border-dashed border-[#d4d4d8] bg-white p-8 text-center text-[14px] text-[#71717a]">{back ? "Chưa có bộ mẫu 2 mặt. Tạo mẫu bìa trước, rồi bấm “Tạo bộ mẫu 2 mặt” để ghép Mặt ngoài + Mặt trong." : "Chưa có bộ mẫu. Tạo mẫu Trang đơn / Trang đôi trước, rồi bấm “Tạo bộ mẫu” để ghép."}</p>}
       {groupByCategory(shown, cats).map((g) => (
         <section key={g.cat?.id ?? "o"}>
           <h3 className="mb-2 text-[14px] font-semibold">{g.cat?.name ?? "Chưa có danh mục"}</h3>
@@ -99,11 +107,11 @@ export function BundleAdmin() {
                   <button type="button" onClick={() => setEdit({ ...b })} className="relative grid aspect-square w-full place-items-center bg-[#f4f4f5] p-2">
                     <GripVertical size={15} className="absolute left-1 top-1 text-[#a1a1aa]" />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {thumb ? <img src={thumb} alt="" className={cx("max-h-full max-w-full", !b.is_active && "opacity-40")} /> : <BookOpen className="text-[#d4d4d8]" />}
+                    {thumb ? <img src={thumb} alt="" className={cx("max-h-full max-w-full", !b.is_active && "opacity-40")} /> : byId.get(b.template_ids[0]) ? <LiveThumb t={byId.get(b.template_ids[0])!} className="max-h-full max-w-full" /> : <BookOpen className="text-[#d4d4d8]" />}
                   </button>
                   <div className="border-t border-[#efeff1] p-2.5">
                     <p className="truncate text-[13px] font-medium">{b.name}</p>
-                    <div className="mt-1 flex gap-1"><Badge>{b.page_count} trang</Badge>{b.is_active ? <Badge tone="green">Bật</Badge> : <Badge>Tắt</Badge>}</div>
+                    <div className="mt-1 flex gap-1"><Badge>{back ? "2 mặt" : `${b.page_count} trang`}</Badge>{b.is_active ? <Badge tone="green">Bật</Badge> : <Badge>Tắt</Badge>}</div>
                     <div className="mt-1.5 flex justify-end gap-0.5">
                       <button type="button" className={icon} title="Sửa" onClick={() => setEdit({ ...b })}><Pencil size={14} /></button>
                       <button type="button" className={icon} title="Nhân bản" onClick={() => save({ ...b, id: undefined, name: `${b.name} (bản sao)` })}><Copy size={14} /></button>
@@ -117,18 +125,18 @@ export function BundleAdmin() {
           </ul>
         </section>
       ))}
-      {manage && <CategoryManager scope="booklet_bundle" cats={cats} counts={Object.fromEntries(cats.map((c) => [c.id, list.filter((x) => x.category_id === c.id).length]))} onChange={setCats} onClose={() => setManage(false)} />}
-      {edit && <Builder draft={edit} cats={cats} tplCats={tplCats} tpls={tpls} onClose={() => setEdit(null)} onSave={save} />}
+      {manage && <CategoryManager scope={back ? "back_bundle" : "booklet_bundle"} cats={cats} counts={Object.fromEntries(cats.map((c) => [c.id, list.filter((x) => x.category_id === c.id).length]))} onChange={setCats} onClose={() => setManage(false)} />}
+      {edit && <Builder back={back} draft={edit} cats={cats} tplCats={tplCats} tpls={tpls} onClose={() => setEdit(null)} onSave={save} />}
     </div>
   );
 }
 
-function Builder({ draft, cats, tplCats, tpls, onClose, onSave }: { draft: Draft; cats: Category[]; tplCats: Category[]; tpls: DesignTpl[]; onClose: () => void; onSave: (d: Draft) => Promise<void> }) {
+function Builder({ back = false, draft, cats, tplCats, tpls, onClose, onSave }: { back?: boolean; draft: Draft; cats: Category[]; tplCats: Category[]; tpls: DesignTpl[]; onClose: () => void; onSave: (d: Draft) => Promise<void> }) {
   const [d, setD] = useState<Draft>(draft);
   const [pick, setPick] = useState<number | null>(null);
   const [view, setView] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const slots = bundleSlots(d.page_count);
+  const slots: { label: string; kind: TplKind; gutter?: "left" | "right"; side?: "inner" }[] = back ? backSlots(2) : bundleSlots(d.page_count);
   const byId = new Map(tpls.map((t) => [t.id, t]));
   const setPages = (n: number) => setD({ ...d, page_count: n, template_ids: bundleSlots(n).map((s, k) => (bundleSlots(d.page_count)[k]?.kind === s.kind ? d.template_ids[k] : "") ?? "") });
   const missing = slots.some((_, k) => !d.template_ids[k]);
@@ -144,22 +152,22 @@ function Builder({ draft, cats, tplCats, tpls, onClose, onSave }: { draft: Draft
             {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5"><span className="text-[13px] font-medium">Số trang:</span>{BUNDLE_PAGES.map((n) => <button key={n} type="button" onClick={() => setPages(n)} className={chip(d.page_count === n)}>{n} trang</button>)}</div>
+        {!back && <div className="flex flex-wrap items-center gap-1.5"><span className="text-[13px] font-medium">Số trang:</span>{BUNDLE_PAGES.map((n) => <button key={n} type="button" onClick={() => setPages(n)} className={chip(d.page_count === n)}>{n} trang</button>)}</div>}
         <div className="flex flex-wrap gap-3">
           {slots.map((s, k) => (
             <button key={k} type="button" onClick={() => setPick(k)} className="text-center">
-              <span className={cx("grid place-items-center overflow-hidden rounded-[8px] border-[1.5px] bg-[#f4f4f5]", s.kind === "booklet_spread" ? "h-24 w-48" : "h-24 w-24", d.template_ids[k] ? "border-[#e5e5e7]" : "border-dashed border-[#d4d4d8]")}>
+              <span className={cx("grid place-items-center overflow-hidden rounded-[8px] border-[1.5px] bg-[#f4f4f5]", s.kind === "booklet_spread" ? "h-24 w-48" : s.kind === "back" ? "h-24 w-[123px]" : "h-24 w-24", d.template_ids[k] ? "border-[#e5e5e7]" : "border-dashed border-[#d4d4d8]")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {thumb(k) ? <img src={thumb(k)!} alt="" className="h-full w-full object-contain" /> : d.template_ids[k] ? <span className="px-1 text-[11px]">{byId.get(d.template_ids[k])?.name}</span> : <Plus size={18} className="text-[#a1a1aa]" />}
+                {thumb(k) ? <img src={thumb(k)!} alt="" className="h-full w-full object-contain" /> : byId.get(d.template_ids[k]) ? <LiveThumb t={byId.get(d.template_ids[k])!} /> : <Plus size={18} className="text-[#a1a1aa]" />}
               </span>
-              <span className="mt-1 block text-[12px] font-medium">{s.label} <span className="font-normal text-[#a1a1aa]">({s.kind === "booklet_spread" ? "đôi" : "đơn"})</span></span>
+              <span className="mt-1 block text-[12px] font-medium">{s.label} <span className="font-normal text-[#a1a1aa]">({s.kind === "back" ? "bìa sau" : s.kind === "booklet_spread" ? "đôi" : "đơn"})</span></span>
               <span className="block max-w-[190px] truncate text-[11px] text-[#71717a]">{byId.get(d.template_ids[k])?.name ?? "Chọn mẫu"}</span>
             </button>
           ))}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <Button variant="secondary" icon={<BookOpen size={15} />} onClick={() => setView(0)}>Xem trước cả bộ</Button>
-          <span className="flex-1 text-[12px] text-[#71717a]">{missing ? "Còn ô chưa chọn mẫu — trang đó sẽ trống." : "Thumbnail của bộ = Trang 1."}</span>
+          <span className="flex-1 text-[12px] text-[#71717a]">{missing ? `Còn ô chưa chọn mẫu — ${back ? "mặt" : "trang"} đó sẽ trống.` : `Thumbnail của bộ = ${back ? "Mặt ngoài" : "Trang 1"}.`}</span>
           <Button variant="secondary" onClick={onClose}>Huỷ</Button>
           <Button loading={busy} onClick={async () => { setBusy(true); await onSave(d); setBusy(false); }}>Lưu bộ mẫu</Button>
         </div>
@@ -174,9 +182,9 @@ function Builder({ draft, cats, tplCats, tpls, onClose, onSave }: { draft: Draft
               {slots[view].kind === "booklet_spread"
                 // eslint-disable-next-line @next/next/no-img-element
                 ? (thumb(view) ? <img src={thumb(view)!} alt="" className="h-full w-full object-contain shadow-2xl" /> : <span className="text-white/60">Chưa chọn mẫu</span>)
-                : <div className={cx("flex h-full w-1/2", slots[view].gutter === "right" ? "mr-[50%]" : "ml-[50%]")}>
+                : <div className={cx("flex h-full", back ? "aspect-[150/117]" : "w-1/2", !back && (slots[view].gutter === "right" ? "mr-[50%]" : "ml-[50%]"))}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {thumb(view) ? <img src={thumb(view)!} alt="" className="h-full w-full object-contain shadow-2xl" /> : <span className="m-auto text-white/60">Chưa chọn mẫu</span>}
+                    {thumb(view) ? <img src={thumb(view)!} alt="" className="h-full w-full object-contain shadow-2xl" /> : byId.get(d.template_ids[view]) ? <LiveThumb t={byId.get(d.template_ids[view])!} className="h-full w-full object-contain shadow-2xl" /> : <span className="m-auto text-white/60">Chưa chọn mẫu</span>}
                   </div>}
             </div>
             <div className="flex items-center gap-3 text-white">
@@ -196,11 +204,11 @@ function TplPicker({ kind, tpls, cats, current, onPick, onClose }: { kind: TplKi
   const [cat, setCat] = useState("");
   const scoped = cats.filter((c) => c.scope === kind);
   const items = tpls.filter((t) => t.kind === kind && (!cat || t.category_id === cat));
-  const spread = kind === "booklet_spread";
+  const spread = kind === "booklet_spread", backc = kind === "back";
   return (
     <Modal onClose={onClose} wide>
       <div className="space-y-3 p-5">
-        <h2 className="text-[16px] font-semibold">Chọn mẫu {spread ? "Trang đôi" : "Trang đơn"}</h2>
+        <h2 className="text-[16px] font-semibold">Chọn mẫu {backc ? "bìa sau" : spread ? "Trang đôi" : "Trang đơn"}</h2>
         <div className="flex flex-wrap gap-1.5">
           <button type="button" onClick={() => setCat("")} className={chip(!cat)}>Tất cả</button>
           {scoped.map((c) => <button key={c.id} type="button" onClick={() => setCat(c.id)} className={chip(cat === c.id)}>{c.name}</button>)}
@@ -209,9 +217,9 @@ function TplPicker({ kind, tpls, cats, current, onPick, onClose }: { kind: TplKi
         <div className={cx("grid gap-2", spread ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-3 sm:grid-cols-5")}>
           {items.map((t) => (
             <button key={t.id} type="button" onClick={() => onPick(t.id)} className={cx("rounded-[10px] border p-1 text-left", current === t.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#ff5fa2]")}>
-              <span className={cx("grid place-items-center overflow-hidden rounded-[6px] bg-[#f4f4f5]", spread ? "aspect-[2/1]" : "aspect-square")}>
+              <span className={cx("grid place-items-center overflow-hidden rounded-[6px] bg-[#f4f4f5]", spread ? "aspect-[2/1]" : backc ? "aspect-[150/117]" : "aspect-square")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                {t.thumbnail_url ? <img src={t.thumbnail_url} alt="" className="h-full w-full object-contain" /> : <span className="text-[10px] text-[#a1a1aa]">{t.name}</span>}
+                {t.thumbnail_url ? <img src={t.thumbnail_url} alt="" className="h-full w-full object-contain" /> : <LiveThumb t={t} />}
               </span>
               <span className="mt-1 block truncate text-[11px] font-medium">{t.name}</span>
               <span className="block text-[10px] text-[#a1a1aa]">{t.photo_count} ảnh{t.is_active ? "" : " · đang tắt"}</span>

@@ -42,15 +42,16 @@ export async function getScrapbookData(): Promise<ScrapbookData> {
 }
 
 /** thư viện mẫu cố định đang bật (khách): danh mục + mẫu theo loại + bộ booklet (chưa chạy migration → rỗng) */
-export async function getLibrary(kinds: TplKind[], bundles = false): Promise<Library> {
+export async function getLibrary(kinds: TplKind[], bundles: boolean | "booklet" | "back" = false): Promise<Library> {
+  const bk = bundles === true ? "booklet" : bundles || null;
   const sb = publicClient();
   const empty: Library = { categories: [], templates: [], bundles: [] };
   if (!sb) return empty;
-  const scopes: CategoryScope[] = [...kinds, ...(bundles ? ["booklet_bundle" as const] : [])];
+  const scopes: CategoryScope[] = [...kinds, ...(bk ? [bk === "back" ? ("back_bundle" as const) : ("booklet_bundle" as const)] : [])];
   const [c, t, b] = await Promise.all([
     sb.from("template_categories").select("*").in("scope", scopes).eq("is_active", true).order("sort_order"),
     sb.from("design_templates").select(TPL_COLS).in("kind", kinds).eq("is_active", true).order("sort_order"),
     bundles ? sb.from("booklet_bundles").select("*").eq("is_active", true).order("sort_order") : Promise.resolve({ data: [] }),
   ]);
-  return { categories: (c.data ?? []) as Library["categories"], templates: (t.data ?? []) as unknown as Library["templates"], bundles: (b.data ?? []) as Library["bundles"] };
+  return { categories: (c.data ?? []) as Library["categories"], templates: (t.data ?? []) as unknown as Library["templates"], bundles: ((b.data ?? []) as Library["bundles"]).filter((x) => (x.kind ?? "booklet") === bk) };
 }

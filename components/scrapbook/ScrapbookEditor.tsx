@@ -195,7 +195,7 @@ export function ScrapbookEditor(p: {
             <div className="no-scrollbar mt-1 flex justify-center gap-1.5 overflow-x-auto pb-1">
               {doc.map((s, i) => (
                 <button key={i} type="button" onClick={() => go(i)} title={p.pageLabel?.(i, count)}
-                  className={cx("h-16 shrink-0 overflow-hidden rounded-[4px] border bg-white p-px", s.surface === "spread" ? "w-32" : "w-16", i === st.active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+                  className={cx("h-16 shrink-0 overflow-hidden rounded-[4px] border bg-white p-px", s.surface === "spread" ? "w-32" : s.surface === "back" ? "w-20" : "w-16", i === st.active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {thumbs[i] ? <img src={thumbs[i]} alt="" className="block h-full w-full object-contain" /> : <span className="block h-full w-full bg-[#ececef]" />}
                 </button>
