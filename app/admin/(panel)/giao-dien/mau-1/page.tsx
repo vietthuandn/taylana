@@ -8,7 +8,7 @@ export default async function HomeAdminPage() {
   const { home, options } = await loadAdminSettings();
   return (
     <AdminPage wide>
-      <PageHeader title="Chỉnh sửa Mẫu 1 · Hiện tại" actions={<Button variant="secondary" size="sm" href="/admin/giao-dien" icon={<ArrowLeft size={16} />}>Giao diện trang chủ</Button>} />
+      <PageHeader title="Chỉnh sửa Mẫu 1 · Hiện tại" actions={<Button variant="secondary" size="sm" href="/admin/giao-dien" icon={<ArrowLeft size={16} />}>Giao diện</Button>} />
       <HomeForm initialHome={home} initialOptions={options} />
     </AdminPage>
   );

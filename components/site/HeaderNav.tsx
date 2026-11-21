@@ -16,6 +16,9 @@ const extra = [
   { href: "/don-hang-cua-toi", title: "Đơn hàng của tôi", desktop: false },
 ];
 
+// header không hiện "Lên mockup" và "Về chúng tôi"
+const navServices = services.filter((s) => s.href !== "/thiet-ke/mockup" && s.href !== "/ve-chung-toi");
+
 const isOn = (path: string, href: string) => path === href || path.startsWith(href + "/");
 
 const itemCls = (on: boolean) =>
@@ -26,7 +29,7 @@ export function HeaderNav() {
   const path = usePathname();
   return (
     <nav className="ml-4 hidden flex-1 gap-0.5 lg:flex">
-      {services.map((s) => <Link key={s.href} href={s.href} className={itemCls(isOn(path, s.href))}>{s.short}</Link>)}
+      {navServices.map((s) => <Link key={s.href} href={s.href} className={itemCls(isOn(path, s.href))}>{s.short}</Link>)}
       {extra.filter((x) => x.desktop).map((x) => <Link key={x.href} href={x.href} className={itemCls(isOn(path, x.href))}>{x.title}</Link>)}
     </nav>
   );
@@ -36,7 +39,7 @@ export function MobileNav() {
   const path = usePathname();
   return (
     <nav>
-      {services.map((s) => (
+      {navServices.map((s) => (
         <Link key={s.href} href={s.href}
           className={`flex items-center justify-between rounded-[8px] px-3 py-2.5 text-[14px] font-medium hover:bg-[#f4f4f5] ${isOn(path, s.href) ? "text-[#ff5fa2]" : "text-[#18181b]"}`}>
           {s.title}<span aria-hidden className="text-[#a1a1aa]">→</span>

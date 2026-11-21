@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Pencil } from "lucide-react";
+import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { HomeVariantMeta } from "@/lib/homeVariants";
-import { setActiveHomeVariant } from "@/app/admin/homeVariantActions";
+import { deleteHomeVariant, setActiveHomeVariant } from "@/app/admin/homeVariantActions";
 import { Badge, Button, Message, Textarea, confirmDialog } from "@/components/admin/ui";
 
 // Khung xem trước thu nhỏ: iframe 1280×960 thu nhỏ còn 25%, không tương tác
@@ -32,6 +32,15 @@ export function VariantGrid({ variants, active, notes, notesReady }: { variants:
     setBusy("");
     if (r.error) return setMsg({ type: "err", text: r.error });
     setMsg({ type: "ok", text: `Đã đặt "${v.name}" làm trang chủ.` });
+    router.refresh();
+  }
+  async function remove(v: HomeVariantMeta) {
+    if (!await confirmDialog(`Xoá "${v.name}"? Ghi chú và dữ liệu riêng của mẫu sẽ bị xoá sạch, không khôi phục được.`, { title: "Xoá mẫu trang chủ", ok: "Xoá mẫu", danger: true })) return;
+    setBusy(`del:${v.id}`);
+    const r = await deleteHomeVariant(v.id);
+    setBusy("");
+    if (r.error) return setMsg({ type: "err", text: r.error });
+    setMsg({ type: "ok", text: `Đã xoá "${v.name}".` });
     router.refresh();
   }
   async function saveNote(id: string) {
@@ -64,6 +73,7 @@ export function VariantGrid({ variants, active, notes, notesReady }: { variants:
                   onClick={() => window.open(`/?preview=${encodeURIComponent(v.id)}`, "_blank", "noopener")}>Xem trước</Button>
                 {v.id === "v1-hien-tai" && <Button variant="secondary" size="sm" icon={<Pencil size={16} />} href="/admin/giao-dien/mau-1">Chỉnh sửa</Button>}
                 {v.id !== active && <Button size="sm" loading={busy === v.id} onClick={() => makeActive(v)}>Đặt làm trang chủ</Button>}
+                {v.id !== active && <Button variant="ghost" size="sm" className="ml-auto !text-[#dc2626]" icon={<Trash2 size={16} />} loading={busy === `del:${v.id}`} onClick={() => remove(v)}>Xoá</Button>}
               </div>
             </div>
           </li>

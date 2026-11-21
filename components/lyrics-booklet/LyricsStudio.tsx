@@ -350,9 +350,9 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
 
   return (
     <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
-     <div className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col md:min-h-0 md:flex-row md:border-x md:border-[#e5e5e7]">
+     <div className="flex w-full flex-1 flex-col md:min-h-0 md:flex-row">
       {/* ---------- Trái ~64%: xem trước ---------- */}
-      <section className="relative flex min-h-[460px] min-w-0 flex-1 flex-col md:min-h-0">
+      <section className="relative flex min-h-[460px] min-w-0 flex-1 flex-col md:order-2 md:min-h-0">
         <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
           <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
             {(["booklet", "back"] as const).map((k) => (
@@ -419,8 +419,8 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
         </div>
       </section>
 
-      {/* ---------- Phải 36%: panel nhập liệu ---------- */}
-      <aside className="space-y-6 border-[#e5e5e7] bg-white p-6 md:w-[36%] md:min-w-[360px] md:shrink-0 md:overflow-y-auto md:border-l">
+      {/* ---------- Trái: panel nhập liệu (full màn hình, giống các trình thiết kế khác) ---------- */}
+      <aside className="space-y-6 border-[#e5e5e7] bg-white p-6 md:order-1 md:w-[380px] md:shrink-0 md:overflow-y-auto md:border-r">
         <Section title="Thông tin album">
           <div className="grid gap-2">
             {/* ảnh bìa riêng — dùng cho trang 1, không lấy từ mục Ảnh */}

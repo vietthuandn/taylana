@@ -120,10 +120,10 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
   const viewFrames = useMemo(() => (!FEATURE_MOCKUP_FRAMES ? NO_FRAMES : box ? (boxFrame ? [boxFrame] : NO_FRAMES) : frames), [box, boxFrame, frames]);
   return (
     <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
-     {/* giới hạn bề ngang như các trang khác (1200px) */}
-     <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col md:min-h-0 md:flex-row md:border-x md:border-[#e5e5e7]">
+     {/* full màn hình, giống các trình thiết kế khác */}
+     <div className="flex w-full flex-1 flex-col md:min-h-0 md:flex-row">
       {/* ---------- Trái 36%: khu tải ảnh / trình xem Booklet ---------- */}
-      <aside className="relative space-y-6 border-[#e5e5e7] bg-white p-6 md:w-[36%] md:min-w-[360px] md:shrink-0 md:overflow-y-auto md:border-r">
+      <aside className="relative space-y-6 border-[#e5e5e7] bg-white p-6 md:w-[380px] md:shrink-0 md:overflow-y-auto md:border-r">
           <>
             {/* chọn gói: floating label kiểu outlined (nhãn đè lên viền trên) */}
             <label className="group relative block">

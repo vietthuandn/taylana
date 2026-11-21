@@ -12,7 +12,7 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
     { href: "/admin/giam-gia", label: "Giảm giá", icon: "tag", group: "Sản phẩm" },
   ] },
   { title: "Nội dung", links: [
-    { href: "/admin/giao-dien", label: "Giao diện trang chủ", icon: "layout", group: "Nội dung" },
+    { href: "/admin/giao-dien", label: "Giao diện", icon: "layout", group: "Nội dung" },
     { href: "/admin/huong-dan", label: "Hướng dẫn", icon: "book", group: "Nội dung" },
     { href: "/admin/lien-he", label: "Liên hệ", icon: "phone", group: "Nội dung" },
   ] },

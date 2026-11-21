@@ -14,7 +14,7 @@ export default function HomeV1({ home, options, settings }: HomeVariantProps) {
 
   return (
     <div className="flex w-full flex-1 flex-col" style={pageBg ? { background: pageBg } : undefined}>
-    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-6 md:py-8">
+    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-4 md:py-6">
       {/* ---------- BANNER (chỉ máy tính, từ 768px) ---------- */}
       {home.banner_enabled && (
       <section className="hidden md:block">
@@ -49,7 +49,7 @@ export default function HomeV1({ home, options, settings }: HomeVariantProps) {
       )}
 
       {/* ---------- 6 MỤC: ô ảnh vuông + tên bên dưới ---------- */}
-      <section className={`flex flex-1 items-center justify-center ${home.banner_enabled ? "md:mt-6 md:flex-none" : ""}`}>
+      <section className={`flex justify-center pt-2 md:pt-4 ${home.banner_enabled ? "md:mt-6" : ""}`}>
         <ul className="mx-auto grid w-[92vw] grid-cols-2 gap-x-6 gap-y-5 md:w-full md:max-w-[min(900px,calc((100dvh-var(--header-h)-170px)*1.45))] md:grid-cols-3">
           {options.map((o, i) => (
             <li key={i} className="min-w-0 animate-[rise_.6s_cubic-bezier(.2,.8,.2,1)_both]" style={{ animationDelay: `${i * 60}ms` }}>
