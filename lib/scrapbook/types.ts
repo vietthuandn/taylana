@@ -80,6 +80,11 @@ export type LayerBase =
   | { k: "sticker"; x: number; y: number; s: number; rot: number; shape: StickerShape; color: string;
       asset?: string; // id chất liệu thư viện · "u:<id>" sticker của khách · "f:<id>" khung · "p:<id>" ẢNH TỰ DO (ảnh của khách, không khung)
       orig?: string; // ảnh tự do đã xoá nền: asset gốc (nút "Khôi phục ảnh gốc")
+      crop?: { x: number; y: number; w: number; h: number }; // vùng cắt (0..1 theo ảnh gốc) — KHÔNG sửa ảnh gốc
+      op?: number; rad?: number; fx?: boolean; fy?: boolean; // độ trong suốt 0..1 · bo góc 0..0.5 (theo cạnh ngắn) · lật ngang / dọc
+      adj?: { b?: number; c?: number; s?: number; t?: number; blur?: number; preset?: string }; // chỉnh màu: sáng, tương phản, bão hoà, ấm/lạnh (-100..100), làm mờ (0..10 px in)
+      sh?: { on: boolean; blur: number; d: number; c: string }; // bóng đổ (mm)
+      ulock?: boolean; // khách tự khoá lớp (chọn được để mở khoá, không kéo / sửa)
       ol?: { w: number; c: string; sh?: boolean } } // viền (không phá huỷ): độ dày px theo bản in 300 DPI · màu · bóng đổ nhẹ
   | { k: "doodle"; x: number; y: number; s: number; rot: number; shape: "arrow" | "swirl" | "dash"; color: string; asset?: string }
   | { k: "text"; role: "main" | "sub" | "custom"; x: number; y: number; w: number; size: number; rot: number; font: "hand" | "marker" | "label"; color: string; arc?: { r: number; mid: number };

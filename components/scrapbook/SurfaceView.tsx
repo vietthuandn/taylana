@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { FONTS, WISH_FONT, renderSurface, type RenderOpts, type TextHit } from "@/lib/scrapbook/render";
-import { applyBox, applyWidth, boxOf, inside, resizeBox, snap, type Box as LBox } from "@/lib/scrapbook/edit";
+import { applyBox, applyWidth, boxOf, imgAr, inside, resizeBox, snap, type Box as LBox } from "@/lib/scrapbook/edit";
 import { surfaceOf } from "@/lib/scrapbook/surface";
 import { C, R_HUB, R_OUT, R_SAFE, type Adjust, type Layer, type Template } from "@/lib/scrapbook/types";
 import { cx } from "@/components/ui/styles";
@@ -61,7 +61,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     setTick((x) => x + 1);
   }, [t, p.render, width, dpr, p.editLayer, editing]);
 
-  const layerBox = (i: number) => { const l = L[i]; return l ? boxOf(l, l.k === "text" ? textBoxes.current[i] : undefined) : null; };
+  const layerBox = (i: number) => { const l = L[i]; return l ? boxOf(l, l.k === "text" ? textBoxes.current[i] : undefined, (l.k === "sticker" || l.k === "doodle") && l.asset ? imgAr(l, p.render.assets?.[l.asset]?.img ?? p.render.bgImages?.[l.asset]) : 1) : null; };
   const toMM = (e: { clientX: number; clientY: number }) => { const r = view.current!.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * S.w, y: ((e.clientY - r.top) / r.height) * S.h }; };
   const layerAt = (x: number, y: number) => {
     // sticker khách thêm vẽ trên cùng → được ưu tiên bấm trúng
@@ -261,7 +261,7 @@ export function SurfaceView(p: SurfaceViewProps) {
         </svg>
       )}
       {SB && (
-        <div className="pointer-events-none absolute border-2 border-[#2563eb]"
+        <div className="pointer-events-none absolute z-30 border-2 border-[#2563eb]"
           style={{ left: (SB.x - SB.w / 2) * k, top: (SB.y - SB.h / 2) * k, width: SB.w * k, height: SB.h * k, transform: `rotate(${SB.rot}deg)` }}>
           {([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([hx, hy], i) => (
             <span key={i} onPointerDown={(e) => startHandle(e, "scale", hx, hy)} className={cx("pointer-events-auto absolute touch-none before:absolute before:-inset-3 before:content-[''] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-[2px] border-2 border-[#2563eb] bg-white", hx === hy ? "cursor-nwse-resize" : "cursor-nesw-resize")} style={{ left: `${(hx + 1) * 50}%`, top: `${(hy + 1) * 50}%` }} />
@@ -282,10 +282,10 @@ export function SurfaceView(p: SurfaceViewProps) {
           onChange={(v) => p.onTextValue!(editing, v)} onExit={() => p.onEditText?.(null)} />
       )}
       {SB && p.tools && !menu && (() => {
-        // 1 hàng nút icon: đặt phía trên lớp, sát mép trên thì lật xuống dưới lớp, luôn nằm gọn trong bề mặt
+        // 1 hàng nút icon: đặt BÊN DƯỚI lớp (nút xoay ở phía trên lớp nên không bao giờ bị che), sát mép dưới thì lật lên trên
         const TW = 182, TH = 40, ext = (Math.abs(SB.w * Math.sin((SB.rot * Math.PI) / 180)) + Math.abs(SB.h * Math.cos((SB.rot * Math.PI) / 180))) / 2;
-        const above = (SB.y - ext) * k - 8 - TH, below = (SB.y + ext) * k + 8;
-        const top = above >= 0 ? above : below + TH <= height ? below : Math.max(0, Math.min(height - TH, above));
+        const above = (SB.y - ext) * k - 34 - TH, below = (SB.y + ext) * k + 10;
+        const top = below + TH <= height ? below : above >= 0 ? above : Math.max(0, Math.min(height - TH, below));
         const left = Math.min(Math.max(SB.x * k, TW / 2 + 2), Math.max(TW / 2 + 2, width - TW / 2 - 2));
         return (
           <div data-keep-sel className="absolute z-10 flex -translate-x-1/2 flex-nowrap gap-0.5 rounded-[8px] border border-[#e5e5e7] bg-white p-0.5 shadow"

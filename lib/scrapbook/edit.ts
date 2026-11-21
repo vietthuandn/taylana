@@ -3,15 +3,21 @@ import { C, R_HUB, R_SAFE, type Layer } from "./types";
 
 export type Box = { x: number; y: number; w: number; h: number; rot: number };
 /** Khung bao (mm) của lớp — lớp chữ lấy theo kích thước đo được khi vẽ (truyền vào textBox) */
-export function boxOf(l: Layer, textBox?: Box): Box | null {
-  if (l.k === "sticker" || l.k === "doodle") return { x: l.x, y: l.y, w: l.s, h: l.s, rot: l.rot };
+/** tỉ lệ cao / rộng của ảnh sticker / ảnh tự do (đã tính vùng cắt) — để khung chọn ôm đúng ảnh, không thành hình vuông */
+export function imgAr(l: Layer, img?: { width: number; height: number } | null) {
+  if (!img || !img.width || (l.k !== "sticker" && l.k !== "doodle")) return 1;
+  const c = l.k === "sticker" ? l.crop : undefined;
+  return (img.height * (c?.h ?? 1)) / (img.width * (c?.w ?? 1));
+}
+export function boxOf(l: Layer, textBox?: Box, ar = 1): Box | null {
+  if (l.k === "sticker" || l.k === "doodle") return ar > 1 ? { x: l.x, y: l.y, w: l.s / ar, h: l.s, rot: l.rot } : { x: l.x, y: l.y, w: l.s, h: l.s * ar, rot: l.rot };
   if (l.k === "text") return textBox ?? (l.arc ? null : { x: l.x, y: l.y, w: l.w, h: l.size * 1.6, rot: l.rot });
   return { x: l.x, y: l.y, w: l.w, h: l.h, rot: l.rot };
 }
 /** Đặt lại vị trí / cỡ / góc theo khung mới (b0 = khung lúc bắt đầu kéo) */
 export function applyBox(l: Layer, b: Box, b0: Box): Layer {
   const k = b0.h > 0 ? b.h / b0.h : 1;
-  if (l.k === "sticker" || l.k === "doodle") return { ...l, x: b.x, y: b.y, s: Math.max(1, (b.w + b.h) / 2), rot: b.rot };
+  if (l.k === "sticker" || l.k === "doodle") return { ...l, x: b.x, y: b.y, s: Math.max(1, b.w === b.h ? b.w : Math.max(b.w, b.h)), rot: b.rot };
   if (l.k === "text") {
     // chữ: dịch theo tâm khung, phóng theo tỉ lệ cỡ chữ
     const dx = b.x - b0.x, dy = b.y - b0.y;

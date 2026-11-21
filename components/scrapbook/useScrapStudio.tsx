@@ -309,7 +309,9 @@ export function useScrapStudio(o: {
   function addSlot(c: FrameChoice, photoId: string | null = null) {
     if (!cur) return;
     const S = surfaceOf(cur), e = largestEmpty(S, L);
-    const ratio = c.kind === "frame" ? c.frame.ratio || 1 : c.kind === "shape" ? c.ratio : 0.78;
+    // khung PNG / hình dạng cố định (vuông, tròn, tim, polaroid) → tỉ lệ khung · "Chữ nhật" (hoặc không khung) đã chọn ảnh → đúng tỉ lệ ảnh gốc
+    const ph = photoId ? photos.find((x) => x.id === photoId) : undefined, phR = ph?.img ? ph.img.height / ph.img.width : 0;
+    const ratio = c.kind === "frame" ? c.frame.ratio || 1 : c.kind === "shape" ? (phR && c.shape === "rect" && c.ratio !== 1 ? phR : c.ratio) : phR || 0.78;
     let w = SLOT_W, h = w * ratio;
     if (h > S.h * 0.8) { h = S.h * 0.8; w = h / ratio; }
     const fits = e.r * 2 >= Math.hypot(w, h) * 0.75;
