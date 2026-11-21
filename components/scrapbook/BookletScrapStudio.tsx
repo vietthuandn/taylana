@@ -167,7 +167,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
   // ---------- xuất file ----------
   async function pageCanvases(px: number) {
     if (!doc) throw new Error("Tải ảnh và chọn mẫu trước");
-    await loadFonts();
+    await loadFonts(doc);
     const out: HTMLCanvasElement[] = [];
     for (const s of doc) {
       const c = renderSurface({ template: s, ...ro, size: s.surface === "spread" ? px * 2 : px, mode: "print" }).canvas;

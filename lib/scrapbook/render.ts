@@ -6,6 +6,7 @@
    Ô ảnh có thể gắn khung PNG (ảnh nằm dưới khung, cắt theo vùng ảnh / mặt nạ). Khung lời chúc: chữ tự xuống dòng + tự co.
    Sticker khách thêm luôn vẽ trên cùng.
    mode "print": nền ngoài đĩa + lỗ giữa (Ø 23 mm) trong suốt, không guideline. */
+import { ensureLayerFonts } from "@/lib/fonts/load";
 import { rng } from "./generate";
 import { drawCutout, layoutCutout, type LoadedFont } from "./cutout";
 import { surfaceOf } from "./surface";
@@ -32,9 +33,10 @@ export type RenderOpts = {
 
 export const FONTS: Record<"hand" | "marker" | "label", string> = { hand: '"Dancing Script", cursive', marker: '"Patrick Hand", "Itim", cursive', label: '"Pangolin", "Itim", sans-serif' } as const;
 /** Đợi font chữ viết tay tải xong (canvas không tự chờ font) */
-export async function loadFonts() {
+export async function loadFonts(doc?: Template[] | null) {
   if (typeof document === "undefined" || !document.fonts) return;
   await Promise.all(["700 20px \"Dancing Script\"", "20px \"Patrick Hand\"", "20px \"Pangolin\""].map((f) => document.fonts.load(f, "Aăâđêôơư").catch(() => null)));
+  if (doc) await ensureLayerFonts(doc.flatMap((t) => t.layers)); // font Google của thiết kế (họ · độ đậm · nghiêng) — không để rơi về font mặc định
 }
 
 type X = CanvasRenderingContext2D;
@@ -229,7 +231,7 @@ function drawDoodle(x: X, l: Extract<Layer, { k: "doodle" }>) {
 
 // ---------- chữ ----------
 function fontOf(l: Extract<Layer, { k: "text" }>, size: number) {
-  if (l.family) return `${l.italic ? "italic " : ""}${l.bold ? "700" : "400"} ${size}px "${l.family}", "Be Vietnam Pro", sans-serif`;
+  if (l.family) return `${l.italic ? "italic " : ""}${l.weight ?? (l.bold ? 700 : 400)} ${size}px "${l.family}", "Be Vietnam Pro", sans-serif`;
   return `${l.font === "hand" ? "700 " : ""}${size}px ${FONTS[l.font]}`;
 }
 /** nội dung của lớp chữ: main / sub = "Chữ trên đĩa", custom = nội dung riêng */

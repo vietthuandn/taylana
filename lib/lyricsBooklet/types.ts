@@ -1,3 +1,4 @@
+import { FONT_CATALOG } from "@/lib/fonts/catalog";
 /* Booklet Lyrics — kiểu dữ liệu + cài đặt mặc định (admin sửa ở Admin → Booklet Lyrics, lưu site_settings "lyrics_booklet").
    Đơn vị dàn trang: mm. 1 trang booklet 120 × 120 mm. */
 
@@ -48,8 +49,9 @@ export const BACKS: { id: BackId; name: string }[] = [
   { id: "photo", name: "Ảnh nền + tracklist" },
   { id: "corner", name: "Tối giản chữ nhỏ" },
 ];
-export const TITLE_FONTS = ["Bricolage Grotesque", "Oswald", "Be Vietnam Pro", "Dancing Script", "Anton"];
-export const BODY_FONTS = ["Be Vietnam Pro", "Inter"];
+// font tiêu đề / lời: font gốc + toàn bộ font Google có tiếng Việt (lib/fonts/catalog.ts — tải khi cần)
+export const TITLE_FONTS = [...new Set(["Bricolage Grotesque", "Oswald", "Be Vietnam Pro", "Dancing Script", "Anton", ...FONT_CATALOG.map((f) => f.family)])];
+export const BODY_FONTS = [...new Set(["Be Vietnam Pro", "Inter", ...FONT_CATALOG.filter((f) => f.group !== "display").map((f) => f.family)])];
 
 export type LyricsSettings = {
   longLines: number; // bài dài hơn số dòng này chiếm nguyên 1 trang

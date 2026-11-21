@@ -4,6 +4,7 @@ import { ScrapbookAdmin } from "../../scrapbook/ScrapbookAdmin";
 import { CutoutAdmin } from "../../scrapbook/CutoutAdmin";
 import { FrameAdmin } from "../../scrapbook/FrameAdmin";
 import { WishAdmin } from "../../scrapbook/WishAdmin";
+import { GoogleFontsAdmin } from "../../scrapbook/GoogleFontsAdmin";
 
 const TABS = [["sticker", "Sticker & trang trí"], ["khung", "Khung ảnh"], ["font", "Font chữ"], ["loi-chuc", "Lời chúc"]] as const;
 
@@ -14,7 +15,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ t
     <AdminPage>
       <PageHeader title="Quản lý chất liệu" />
       <div className="mb-6"><ResponsiveTabs value={tab} tabs={TABS.map(([id, label]) => ({ id, label, href: `/admin/thiet-ke/chat-lieu?tab=${id}` }))} /></div>
-      {tab === "font" ? <CutoutAdmin /> : tab === "khung" ? <FrameAdmin /> : tab === "loi-chuc" ? <WishAdmin /> : <ScrapbookAdmin />}
+      {tab === "font" ? <div className="space-y-6"><GoogleFontsAdmin /><CutoutAdmin /></div> : tab === "khung" ? <FrameAdmin /> : tab === "loi-chuc" ? <WishAdmin /> : <ScrapbookAdmin />}
     </AdminPage>
   );
 }

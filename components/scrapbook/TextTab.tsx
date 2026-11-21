@@ -6,7 +6,9 @@
       Font (dropdown tự làm: "Chữ cắt dán" trên cùng có ảnh xem trước "Taylana", rồi "Font thường" hiện bằng chính font đó),
       Loại giấy (khi có khung giấy), Màu chữ, Màu khung (pastel), Đã dùng (màu riêng đã chọn), cỡ chữ, căn lề, khoảng cách…
    3. "Lời chúc có sẵn": khối thu gọn, mặc định đóng. */
-import { AlignCenter, AlignLeft, AlignRight, Check, ChevronDown, Copy, Dices, Plus, Trash2 } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Check, ChevronDown, Copy, Dices, Loader2, Plus, Trash2 } from "lucide-react";
+import { FONT_GROUPS, WEIGHT_NAMES, nearestWeight, type FontGroup } from "@/lib/fonts/catalog";
+import { knownFont, loadFont, loadFontList, loadPreview, previewFamily } from "@/lib/fonts/load";
 import { useEffect, useRef, useState } from "react";
 import type { CutoutFont } from "@/lib/scrapbook/cutout";
 import type { Layer, Wish, WishCard, WishTopic } from "@/lib/scrapbook/types";
@@ -35,37 +37,78 @@ function useOutside(open: boolean, close: () => void) {
   }, [open, close]);
   return ref;
 }
-/** dropdown font tự làm: "Chữ cắt dán" (ảnh xem trước) ở trên, "Font thường" (tên hiện bằng chính font) ở dưới */
-function FontSelect({ value, fonts, previews, families, onPick }: { value: string; fonts: CutoutFont[]; previews: Record<string, string>; families: string[]; onPick: (v: string) => void }) {
+const RECENT_KEY = "taylana-recent-fonts";
+const readRecent = (): string[] => { try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); return Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 5) : []; } catch { return []; } };
+const pushRecent = (f: string) => { try { localStorage.setItem(RECENT_KEY, JSON.stringify([f, ...readRecent().filter((x) => x !== f)].slice(0, 5))); } catch { /* bỏ qua */ } };
+/** 1 dòng font: tên hiện bằng chính font đó — chỉ tải bản xem trước (đúng các chữ của tên) khi dòng hiện trong danh sách */
+function FontRow({ f, on, onPick }: { f: string; on: boolean; onPick: () => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !f || !knownFont(f)) return;
+    const io = new IntersectionObserver((es) => { if (es[0].isIntersecting) { io.disconnect(); loadPreview(f).then(() => setReady(true)); } }, { root: el.closest("[data-font-list]"), rootMargin: "80px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [f]);
+  return (
+    <button ref={ref} type="button" onClick={onPick} title={f || "Theo mẫu"}
+      className={cx("flex h-9 w-full items-center rounded-[6px] px-2 text-left text-[15px] hover:bg-[#fff5f9]", on && "bg-[var(--c-secondary)]")}
+      style={{ fontFamily: f ? (ready ? previewFamily(f) : `"${f}"`) : undefined }}>
+      <span className="truncate">{f || "Theo mẫu"}</span>{on && <Check size={14} className="ml-auto shrink-0 text-[var(--c-primary)]" />}
+    </button>
+  );
+}
+/** dropdown font: ô tìm · chip nhóm (Tất cả, Không chân, Có chân, Viết tay, Tiêu đề, Đơn cách, Chữ cắt dán) · "Đã dùng gần đây" (5 font) ·
+    "Chữ cắt dán" (ảnh xem trước) ở trên · font thường hiện bằng chính font đó (tải lười). */
+function FontSelect({ value, fonts, previews, families, loading, onPick }: { value: string; fonts: CutoutFont[]; previews: Record<string, string>; families: string[]; loading?: boolean; onPick: (v: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [grp, setGrp] = useState<"all" | "cut" | FontGroup>("all");
+  const [recent, setRecent] = useState<string[]>([]);
   const ref = useOutside(open, () => setOpen(false));
+  useEffect(() => { if (open) setRecent(readRecent().filter((f) => families.includes(f))); }, [open, families]);
   const show = (v: string) => {
     if (v.startsWith("cut:")) { const id = v.slice(4), f = fonts.find((x) => x.id === id); return previews[id] ? <img src={previews[id]} alt={f?.name} className="max-h-7 max-w-full" /> : <span className="text-[13px]">{f?.name ?? "Chữ cắt dán"}</span>; } // eslint-disable-line @next/next/no-img-element
     return <span className="truncate text-[15px]" style={{ fontFamily: v ? `"${v}"` : undefined }}>{v || "Theo mẫu"}</span>;
   };
+  const k = q.trim().toLowerCase();
+  const list = families.filter((f) => (!k || f.toLowerCase().includes(k)) && (grp === "all" || (grp !== "cut" && knownFont(f)?.group === grp)));
+  const cuts = grp === "all" || grp === "cut" ? fonts.filter((f) => !k || f.name.toLowerCase().includes(k)) : [];
+  const pick = (v: string) => { if (v && !v.startsWith("cut:")) pushRecent(v); onPick(v); setOpen(false); };
+  const head = "px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[#a1a1aa]";
+  const chip = (on: boolean) => cx("h-6 shrink-0 rounded-full border px-2 text-[11px] font-medium", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b]");
   return (
     <div ref={ref} className="relative">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex h-10 w-full items-center gap-2 rounded-[8px] border border-[#e5e5e7] bg-white px-2.5 text-left hover:border-[#a1a1aa]">
-        <span className="flex min-w-0 flex-1 items-center">{show(value)}</span><ChevronDown size={15} className="shrink-0 text-[#71717a]" />
+        <span className="flex min-w-0 flex-1 items-center">{show(value)}</span>
+        {loading ? <Loader2 size={15} className="shrink-0 animate-spin text-[var(--c-primary)]" aria-label="Đang tải font" /> : <ChevronDown size={15} className="shrink-0 text-[#71717a]" />}
       </button>
       {open && (
-        <div className="absolute inset-x-0 top-full z-30 mt-1 max-h-[300px] overflow-y-auto rounded-[10px] border border-[#e5e5e7] bg-white p-1 shadow-lg">
-          {fonts.length > 0 && <p className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#a1a1aa]">Chữ cắt dán</p>}
-          {fonts.map((f) => (
-            <button key={f.id} type="button" onClick={() => { onPick(`cut:${f.id}`); setOpen(false); }} title={f.name}
-              className={cx("flex h-11 w-full items-center gap-2 rounded-[6px] px-2 hover:bg-[#fff5f9]", value === `cut:${f.id}` && "bg-[var(--c-secondary)]")}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {previews[f.id] ? <img src={previews[f.id]} alt={f.name} className="max-h-8 max-w-[80%]" /> : <span className="text-[13px]">{f.name}</span>}
-              {value === `cut:${f.id}` && <Check size={14} className="ml-auto text-[var(--c-primary)]" />}
-            </button>
-          ))}
-          <p className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[#a1a1aa]">Font thường</p>
-          {families.map((f) => (
-            <button key={f || "tpl"} type="button" onClick={() => { onPick(f); setOpen(false); }}
-              className={cx("flex h-9 w-full items-center rounded-[6px] px-2 text-left text-[15px] hover:bg-[#fff5f9]", value === f && "bg-[var(--c-secondary)]")} style={{ fontFamily: f ? `"${f}"` : undefined }}>
-              {f || "Theo mẫu"}{value === f && <Check size={14} className="ml-auto text-[var(--c-primary)]" />}
-            </button>
-          ))}
+        <div className="absolute inset-x-0 top-full z-30 mt-1 rounded-[10px] border border-[#e5e5e7] bg-white shadow-lg">
+          <div className="space-y-1.5 border-b border-[#efeff1] p-2">
+            <input value={q} onChange={(e) => setQ(e.target.value)} autoFocus placeholder="Tìm font theo tên…" className="h-8 w-full rounded-[6px] border border-[#e5e5e7] px-2 text-[13px] outline-none focus:border-[var(--c-primary)]" />
+            <div className="no-scrollbar flex gap-1 overflow-x-auto">
+              <button type="button" onClick={() => setGrp("all")} className={chip(grp === "all")}>Tất cả</button>
+              {FONT_GROUPS.map(([g, n]) => <button key={g} type="button" onClick={() => setGrp(g)} className={chip(grp === g)}>{n}</button>)}
+              {fonts.length > 0 && <button type="button" onClick={() => setGrp("cut")} className={chip(grp === "cut")}>Chữ cắt dán</button>}
+            </div>
+          </div>
+          <div data-font-list className="max-h-[300px] overflow-y-auto p-1">
+            {!k && grp === "all" && recent.length > 0 && <><p className={head}>Đã dùng gần đây</p>{recent.map((f) => <FontRow key={`r-${f}`} f={f} on={value === f} onPick={() => pick(f)} />)}</>}
+            {cuts.length > 0 && <p className={head}>Chữ cắt dán</p>}
+            {cuts.map((f) => (
+              <button key={f.id} type="button" onClick={() => pick(`cut:${f.id}`)} title={f.name}
+                className={cx("flex h-11 w-full items-center gap-2 rounded-[6px] px-2 hover:bg-[#fff5f9]", value === `cut:${f.id}` && "bg-[var(--c-secondary)]")}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {previews[f.id] ? <img src={previews[f.id]} alt={f.name} className="max-h-8 max-w-[80%]" /> : <span className="text-[13px]">{f.name}</span>}
+                {value === `cut:${f.id}` && <Check size={14} className="ml-auto text-[var(--c-primary)]" />}
+              </button>
+            ))}
+            {grp !== "cut" && <p className={head}>Font thường</p>}
+            {grp !== "cut" && list.map((f) => <FontRow key={f || "tpl"} f={f} on={value === f} onPick={() => pick(f)} />)}
+            {grp !== "cut" && !list.length && <p className="px-2 py-3 text-[12px] text-[#a1a1aa]">Không có font phù hợp.</p>}
+          </div>
         </div>
       )}
     </div>
@@ -117,7 +160,16 @@ export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper
   const setInk = (c: string) => { onBegin(); onPatch(cur ? { color: c } : { ink: c }); };
   const setPaperColor = (c: string) => { onBegin(); onPatch({ color: c }); };
   const fontValue = L?.cutout ? `cut:${L.cutout.font}` : L?.family ?? (wl ? WISH_FONT : "");
-  const families = wl ? [WISH_FONT, ...FAMILIES.filter((f) => f !== WISH_FONT)] : cur && !cur.family ? ["", ...FAMILIES] : FAMILIES;
+  // font Google đang bật (Admin → Quản lý chất liệu → Font chữ) + font cũ còn trên thiết kế
+  const [gfonts, setGfonts] = useState<string[]>(FAMILIES);
+  useEffect(() => { loadFontList().then((l) => setGfonts([...new Set([...l.map((f) => f.family), ...FAMILIES.filter((f) => !knownFont(f))])])); }, []);
+  const base = L?.family && !gfonts.includes(L.family) ? [L.family, ...gfonts] : gfonts;
+  const families = wl ? [WISH_FONT, ...base.filter((f) => f !== WISH_FONT)] : cur && !cur.family ? ["", ...base] : base;
+  const [fontLoading, setFontLoading] = useState(false);
+  const gf = knownFont(cur?.family ?? "Be Vietnam Pro");
+  const curWeight = cur ? cur.weight ?? (cur.bold ? 700 : 400) : 400;
+  const canBold = !gf || gf.weights.some((w) => w >= 600), canItalic = !gf || gf.italic;
+  const weights = WEIGHT_NAMES.filter(([w]) => !gf || gf.weights.includes(w) || (w === 800 && gf.weights.includes(900)));
   return (
     <div className="space-y-4">
       <button type="button" onClick={onAdd} className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[var(--c-primary)] text-[14px] font-semibold text-white hover:bg-[var(--c-primary-hover)]"><Plus size={17} /> Thêm chữ</button>
@@ -126,11 +178,14 @@ export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper
         <section className="space-y-3 rounded-[10px] border border-[#e5e5e7] p-3">
           <p className="text-[13px] font-semibold">Cài đặt chữ</p>
           <Row label="Font">
-            <FontSelect value={fontValue} fonts={fonts} previews={previews} families={families} onPick={(v) => {
-              onBegin();
+            <FontSelect value={fontValue} fonts={fonts} previews={previews} families={families} loading={fontLoading} onPick={async (v) => {
               const c = L.cutout;
-              if (v.startsWith("cut:")) onPatch({ cutout: { curve: 0, chaos: 0.35, spacing: 0, seed: Math.floor(Math.random() * 1e6), ...(c ?? {}), font: v.slice(4) } });
-              else onPatch({ cutout: undefined, family: v || undefined });
+              if (v.startsWith("cut:")) { onBegin(); onPatch({ cutout: { curve: 0, chaos: 0.35, spacing: 0, seed: Math.floor(Math.random() * 1e6), ...(c ?? {}), font: v.slice(4) } }); return; }
+              // tải bản đầy đủ (latin + tiếng Việt) xong mới vẽ lại lớp chữ
+              const nf = knownFont(v), w = cur ? nearestWeight(nf, curWeight) : 400, it = !!cur?.italic && (!nf || nf.italic);
+              if (v) { setFontLoading(true); await loadFont(v, w, it); setFontLoading(false); }
+              onBegin();
+              onPatch(cur ? { cutout: undefined, family: v || undefined, weight: v && cur.weight ? w : cur.weight, italic: it || undefined } : { cutout: undefined, family: v || undefined });
             }} />
           </Row>
           {wl && (
@@ -159,12 +214,22 @@ export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper
 
           {cur && (
             <>
+              {!cur.cutout && weights.length > 1 && (
+                <Row label="Độ đậm">
+                  <div className="flex flex-wrap gap-1">
+                    {weights.map(([w, n]) => { const real = gf && !gf.weights.includes(w) ? 900 : w; return (
+                      <button key={w} type="button" onClick={async () => { const fam = cur.family ?? "Be Vietnam Pro"; await loadFont(fam, real, !!cur.italic); onBegin(); onPatch({ weight: real, bold: real >= 600, family: fam }); }}
+                        className={cx(toggle(curWeight === real), "h-7 text-[12px]")} style={{ fontWeight: real }}>{n}</button>
+                    ); })}
+                  </div>
+                </Row>
+              )}
               <Range label={cur.cutout ? "Cỡ chữ (chiều cao mảnh)" : "Cỡ chữ"} value={cur.size} min={2} max={24} step={0.2} unit="mm" onBegin={onBegin} onChange={(v) => onPatch({ size: v })} />
               <div className="flex flex-wrap gap-1.5">
                 {!cur.cutout && (
                   <>
-                    <button type="button" onClick={() => { onBegin(); onPatch({ bold: !cur.bold, family: cur.family ?? "Be Vietnam Pro" }); }} className={cx(toggle(!!cur.bold), "font-bold")}>B</button>
-                    <button type="button" onClick={() => { onBegin(); onPatch({ italic: !cur.italic, family: cur.family ?? "Be Vietnam Pro" }); }} className={cx(toggle(!!cur.italic), "italic")}>I</button>
+                    <button type="button" disabled={!canBold} title={canBold ? "Đậm" : "Font này không có bản đậm"} onClick={async () => { const fam = cur.family ?? "Be Vietnam Pro", b = !(curWeight >= 600), w = b ? nearestWeight(gf, 700) : nearestWeight(gf, 400); await loadFont(fam, w, !!cur.italic); onBegin(); onPatch({ bold: b, weight: w, family: fam }); }} className={cx(toggle(curWeight >= 600), "font-bold disabled:opacity-35")}>B</button>
+                    <button type="button" disabled={!canItalic} title={canItalic ? "Nghiêng" : "Font này không có kiểu nghiêng"} onClick={async () => { const fam = cur.family ?? "Be Vietnam Pro"; await loadFont(fam, curWeight, !cur.italic); onBegin(); onPatch({ italic: !cur.italic, family: fam }); }} className={cx(toggle(!!cur.italic), "italic disabled:opacity-35")}>I</button>
                     <button type="button" onClick={() => { onBegin(); onPatch({ stroke: !cur.stroke }); }} className={toggle(!!cur.stroke)}>Viền trắng</button>
                     <span className="mx-1 w-px bg-[#e5e5e7]" />
                   </>

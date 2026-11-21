@@ -148,7 +148,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
   // ---------- xuất file / đặt in ----------
   const printBlob = async (i = 0) => {
     if (!doc) throw new Error("Chưa có thiết kế");
-    await loadFonts();
+    await loadFonts(doc);
     if (isBack) return toBlob(renderSurface({ template: doc[i], ...st.renderOpts, size: Math.round((150 / 25.4) * 300), mode: "print" }).canvas, "image/png"); // bìa sau 15 cm, 300 dpi
     return toBlob(renderSurface({ template: doc[0], ...st.renderOpts, size: PRINT_PX, mode: "print", fullDisc: true }).canvas, "image/png"); // không khoét lỗ giữa
   };

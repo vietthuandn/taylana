@@ -3,6 +3,7 @@
 /* Booklet Lyrics — vẽ 1 trang booklet (120 × 120 mm) và bìa sau có tracklist (150 × 117 mm, 2 gáy 6 mm).
    Lyrics chia 3 cột (khoảng cách 4 mm), cỡ chữ tự co 7.5pt → tối thiểu (mặc định 6.5pt), line-height 1.3, không tràn khung.
    Xếp "Nối đuôi": các bài chảy liên tục qua các cột / trang lyrics (flowLayout), cỡ chữ cố định theo lựa chọn. */
+import { loadFont } from "@/lib/fonts/load";
 import { BACK_H_CM, BACK_SPINE_CM, BACK_W_CM, LEFT_SPINE_ROTATION, RIGHT_SPINE_ROTATION } from "@/lib/cdSpecs";
 import { contentBox } from "./layout";
 import { DEFAULT_FORMAT, FONT_SIZES, PAGE_MM as P, PT, type Adjust, type Album, type BackId, type Block, type LyricsFormat, type Page, type Palette, type Song } from "./types";
@@ -21,6 +22,7 @@ export type PageHit = { k: "photo"; slot: number; x: number; y: number; w: numbe
 let fontEpoch = 0; // tăng khi font tải xong → đo lại luồng chữ "Nối đuôi"
 export async function loadBookletFonts(title: string, body: string) {
   if (typeof document === "undefined" || !document.fonts) return;
+  await Promise.all([loadFont(title, 700), loadFont(body, 400), loadFont(body, 600), loadFont(body, 400, true)]); // font Google: tải bản đầy đủ khi cần
   await Promise.all([`700 20px "${title}"`, `400 20px "${body}"`, `600 20px "${body}"`, `italic 400 20px "${body}"`].map((f) => document.fonts.load(f, "Aăâđêôơư").catch(() => null)));
   fontEpoch++;
 }

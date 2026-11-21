@@ -85,6 +85,7 @@ export type LayerBase =
   | { k: "text"; role: "main" | "sub" | "custom"; x: number; y: number; w: number; size: number; rot: number; font: "hand" | "marker" | "label"; color: string; arc?: { r: number; mid: number };
       value?: string; // nội dung riêng (lớp chữ khách thêm); main / sub lấy từ "Chữ trên đĩa"
       family?: string; bold?: boolean; italic?: boolean; stroke?: boolean; // font thường (đè lên font mẫu)
+      weight?: number; // độ đậm (300 Mảnh · 400 Thường · 500 Vừa · 700 Đậm · 800 Rất đậm) — không có thì theo bold
       align?: "left" | "center" | "right"; lh?: number; ls?: number; // căn lề · khoảng cách dòng (× cỡ chữ) · khoảng cách chữ (mm). w = độ rộng khung (mm): chữ tự xuống dòng theo từ
       cutout?: { font: string; curve: number; chaos: number; spacing: number; seed: number } } // chữ cắt dán
   | { k: "wish"; x: number; y: number; w: number; h: number; rot: number; card: WishCard; color: string; ink: string; value: string; seed: number;

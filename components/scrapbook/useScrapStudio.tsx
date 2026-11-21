@@ -11,6 +11,7 @@ import { loadFrameImages } from "@/lib/scrapbook/frames";
 import { loadDraft, saveDraft, type DraftMeta } from "@/lib/scrapbook/draft";
 import { loadFonts, textOf, type LoadedFrame, type RenderOpts } from "@/lib/scrapbook/render";
 import { largestEmpty } from "@/lib/scrapbook/place";
+import { loadFont } from "@/lib/fonts/load";
 import { addPoint, surfaceOf } from "@/lib/scrapbook/surface";
 import { drawCutout, layoutCutout, loadCutoutFont, type CutoutFont, type Glyph, type LoadedFont } from "@/lib/scrapbook/cutout";
 import type { Adjust, DiscText, Frame, Layer, ScrapAsset, Template } from "@/lib/scrapbook/types";
@@ -160,11 +161,12 @@ export function useScrapStudio(o: {
 
   // ---------- font: font thường trên thiết kế + font cắt dán (tải ảnh mảnh khi cần) ----------
   const allLayers = useMemo(() => (doc ?? []).flatMap((t) => t.layers), [doc]);
-  const families = useMemo(() => [...new Set(allLayers.flatMap((l) => ((l.k === "text" || l.k === "wish") && l.family ? [l.family] : [])))], [allLayers]);
+  // chỉ tải font Google đang dùng trong thiết kế (họ · độ đậm · nghiêng), xong thì vẽ lại
+  const fontKeys = useMemo(() => [...new Set(allLayers.flatMap((l) => ((l.k === "text" || l.k === "wish") && l.family ? [`${l.family}|${(l.k === "text" && l.weight) || (l.k === "text" && l.bold ? 700 : 400)}|${l.k === "text" && l.italic ? 1 : 0}`] : [])))].sort().join(","), [allLayers]);
   useEffect(() => {
-    if (!families.length || !document.fonts) return;
-    Promise.all(families.flatMap((f) => [`400 20px "${f}"`, `700 20px "${f}"`].map((s) => document.fonts.load(s, "Aăđ").catch(() => null)))).then(() => setFontTick((t) => t + 1));
-  }, [families]);
+    if (!fontKeys || !document.fonts) return;
+    Promise.all(fontKeys.split(",").map((k) => { const [f, w, it] = k.split("|"); return loadFont(f, Number(w), it === "1"); })).then(() => setFontTick((t) => t + 1));
+  }, [fontKeys]);
   const usedCut = useMemo(() => [...new Set(allLayers.flatMap((l) => ((l.k === "text" || l.k === "wish") && l.cutout ? [l.cutout.font] : [])))], [allLayers]);
   useEffect(() => {
     const need = [...usedCut, ...(o.wantAllFonts ? o.fonts.map((f) => f.id) : [])].filter((id, i, a) => a.indexOf(id) === i && !cutFonts[id]);
