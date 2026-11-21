@@ -15,9 +15,10 @@ const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[len
 export { ASSET_DRAG };
 export type UserStickerItem = { id: string; url: string };
 
-export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, onAddMine, onRemoveMine }: {
+export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, onAddMine, onRemoveMine, onSaveMine, mineTitle = "Sticker của tôi" }: {
   assets: ScrapAsset[]; groups?: AssetGroupRow[]; onAdd: (a: ScrapAsset) => void;
   mine?: UserStickerItem[]; onUpload?: (files: File[]) => void; onAddMine?: (id: string) => void; onRemoveMine?: (id: string) => void;
+  onSaveMine?: (id: string) => void; mineTitle?: string; // admin (trình sửa mẫu): "Lưu vào thư viện"
 }) {
   const upIn = useRef<HTMLInputElement>(null);
   const [grp, setGrp] = useState("all"); // id nhóm
@@ -60,9 +61,9 @@ export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, on
       {onUpload && (
         <section className="space-y-2 rounded-[10px] border border-[#e5e5e7] p-3">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[13px] font-semibold">Sticker của bạn</p>
+            <p className="text-[13px] font-semibold">{mineTitle}</p>
             <button type="button" onClick={() => upIn.current?.click()} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><Upload size={13} /> Tải sticker của bạn</button>
-            <input ref={upIn} type="file" multiple accept="image/*" className="sr-only" onChange={(e) => { if (e.target.files?.length) onUpload([...e.target.files]); e.target.value = ""; }} />
+            <input ref={upIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { if (e.target.files?.length) onUpload([...e.target.files]); e.target.value = ""; }} />
           </div>
           {mine.length ? (
             <div className="grid grid-cols-4 gap-2">
@@ -72,11 +73,12 @@ export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, on
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={m.url} alt="" className="max-h-full max-w-full object-contain" draggable={false} />
                   </button>
+                  {onSaveMine && <button type="button" onClick={() => onSaveMine(m.id)} title="Lưu vào thư viện" aria-label="Lưu vào thư viện" className="absolute bottom-1 left-1 right-1 rounded-[5px] bg-[var(--c-primary)] py-0.5 text-[10px] font-semibold text-white shadow">Lưu vào thư viện</button>}
                   <button type="button" onClick={() => onRemoveMine?.(m.id)} aria-label="Xoá sticker" className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-white text-[#dc2626] shadow md:opacity-0 md:group-hover:opacity-100"><Trash2 size={11} /></button>
                 </div>
               ))}
             </div>
-          ) : <p className="text-[12px] text-[#a1a1aa]">PNG nền trong suốt dùng luôn · ảnh chụp sẽ được xoá nền, thêm viền trắng tuỳ chọn.</p>}
+          ) : <p className="text-[12px] text-[#a1a1aa]">Tải 1 ảnh tờ nhiều sticker hoặc 1 ảnh 1 sticker — web tự tách từng món, bạn chọn món muốn giữ. Sticker chỉ lưu trên máy bạn cho tới khi lưu thiết kế / đặt in.</p>}
         </section>
       )}
       {chips.length > 0 && (

@@ -4,7 +4,7 @@
    sticker khách tự tải, chất liệu + khung + font cut-out đã tải, thao tác trên lớp của bề mặt đang xem (nhân bản, lên / xuống,
    xoá, đổi khung, thêm / xoá ô ảnh, thêm sticker / chữ / lời chúc), phím tắt, lưu nháp IndexedDB. */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Frame as FrameIcon, ImagePlus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Frame as FrameIcon, ImagePlus, Scissors, Trash2, Undo2 } from "lucide-react";
 import { loadImg } from "@/lib/mockup/images";
 import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { loadFrameImages } from "@/lib/scrapbook/frames";
@@ -27,6 +27,16 @@ export function customizeText(t: Template, text: DiscText): Template {
 export const SLOT_W = 54;
 export type UserSticker = { id: string; blob: Blob; url: string; img: HTMLCanvasElement };
 const ibtn = "grid h-8 w-8 place-items-center rounded-[6px] text-[#3f3f46] hover:bg-[#f4f4f5]";
+/** clipboard NỘI BỘ của trình chỉnh (Ctrl+C lớp đang chọn) — Ctrl+V dán lại nếu trong 30 giây và clipboard hệ thống không có ảnh */
+/** sticker của khách thật sự có trên thiết kế (chỉ những cái này được tải lên khi Lưu / Đặt in) */
+export function usedStickers<T extends { id: string }>(doc: Template[] | null | undefined, list: T[]) {
+  const ids = new Set((doc ?? []).flatMap((t) => t.layers.flatMap((l) => (l.k === "sticker" && l.asset?.startsWith("u:") ? [l.asset.slice(2)] : []))));
+  return list.filter((x) => ids.has(x.id));
+}
+export const layerClip: { layer: Layer | null; at: number } = { layer: null, at: 0 };
+const OL_COLORS = ["#ffffff", "#18181b", "#ff5fa2", "#fde047", "#60a5fa", "#4ade80"];
+/** lớp có thể có viền: sticker / ảnh tự do (không phải khung trang trí) */
+const canOutline = (l: Layer | null | undefined) => !!l && l.k === "sticker" && !!l.asset && !l.asset.startsWith("f:");
 
 export function useScrapStudio(o: {
   prefix: string; max: number; assets: ScrapAsset[]; frames: Frame[]; fonts: CutoutFont[]; glyphs: Glyph[]; defaultText: DiscText;
@@ -99,7 +109,7 @@ export function useScrapStudio(o: {
   const doc = D.doc;
   const cur = doc?.[active] ?? null;
   const L = cur?.layers ?? [];
-  const used = useMemo(() => new Set((doc ?? []).flatMap((t) => t.layers.flatMap((l) => (l.k === "photo" && l.photo ? [l.photo] : [])))), [doc]);
+  const used = useMemo(() => new Set((doc ?? []).flatMap((t) => t.layers.flatMap((l) => (l.k === "photo" && l.photo ? [l.photo] : l.k === "sticker" && l.asset?.startsWith("p:") ? [l.asset.slice(2)] : [])))), [doc]);
 
   // ---------- ảnh ----------
   async function addFiles(files: File[]) {
@@ -117,7 +127,7 @@ export function useScrapStudio(o: {
   }
   function removePhoto(id: string) {
     setPhotos((c) => c.filter((x) => x.id !== id));
-    D.setDoc((d) => d && d.map((t) => ({ ...t, layers: t.layers.map((l) => (l.k === "photo" && l.photo === id ? { ...l, photo: "" } : l)) })));
+    D.setDoc((d) => d && d.map((t) => ({ ...t, layers: t.layers.filter((l) => !(l.k === "sticker" && l.asset === `p:${id}`)).map((l) => (l.k === "photo" && l.photo === id ? { ...l, photo: "" } : l)) })));
   }
   const reorderPhotos = (from: number, to: number) => setPhotos((c) => { const a = [...c]; const [x] = a.splice(from, 1); a.splice(to, 0, x); return a; });
   /** gán ảnh vào ô (ảnh cũ của ô quay về danh sách; ảnh đang ở ô khác thì chuyển sang ô này) */
@@ -128,11 +138,11 @@ export function useScrapStudio(o: {
   }
 
   // ---------- sticker của khách ----------
-  async function addUserSticker(blob: Blob) {
+  async function addUserSticker(blob: Blob, place = true) {
     const id = uid();
     const p = await readPhoto(blob, "sticker.png", id);
-    setUstickers((c) => [...c, { id, blob, url: p.url, img: p.img }]);
-    addAsset(`u:${id}`, undefined, p.img);
+    setUstickers((c) => [{ id, blob, url: p.url, img: p.img }, ...c]); // mới nhất ở đầu "Sticker của tôi"
+    if (place) addAsset(`u:${id}`, undefined, p.img);
   }
   function removeUserSticker(id: string) {
     setUstickers((c) => c.filter((s) => s.id !== id));
@@ -140,11 +150,13 @@ export function useScrapStudio(o: {
   }
   const assetsMap = useMemo(() => {
     const m: NonNullable<RenderOpts["assets"]> = { ...assetImgs };
+    // ảnh tự do (không khung): ảnh của khách dùng như 1 lớp
+    for (const ph of photos) m[`p:${ph.id}`] = { img: ph.img, asset: { id: `p:${ph.id}`, name: ph.name, grp: "sticker", url: "", tone: "any", region: null, is_active: true, sort_order: 0 } };
     for (const s of ustickers) m[`u:${s.id}`] = { img: s.img, asset: { id: `u:${s.id}`, name: "Sticker của bạn", grp: "sticker", url: "", tone: "any", region: null, is_active: true, sort_order: 0 } };
     // khung trang trí: khung PNG dùng như sticker (không chứa ảnh)
     for (const [id, f] of Object.entries(frameImgs)) m[`f:${id}`] = { img: f.img, asset: { id: `f:${id}`, name: f.frame.name, grp: "sticker", url: f.frame.url, tone: "any", region: null, is_active: true, sort_order: 0 } };
     return m;
-  }, [assetImgs, ustickers, frameImgs]);
+  }, [assetImgs, ustickers, frameImgs, photos]);
 
   // ---------- font: font thường trên thiết kế + font cắt dán (tải ảnh mảnh khi cần) ----------
   const allLayers = useMemo(() => (doc ?? []).flatMap((t) => t.layers), [doc]);
@@ -218,7 +230,7 @@ export function useScrapStudio(o: {
     if (!cur) { toast("Tải ảnh và chọn mẫu trước khi thêm sticker.", "err"); return; }
     const S = surfaceOf(cur), k = L.filter((l) => l.k === "sticker" && l.user).length, p = at ?? addPoint(S, k);
     let l: Layer;
-    if (typeof a === "string") l = { k: "sticker", x: p.x, y: p.y, s: a.startsWith("f:") ? (S.round ? 34 : 46) : S.round ? 18 : 26, rot: 0, shape: "star", color: "#ff8fab", asset: a, user: true };
+    if (typeof a === "string") l = { k: "sticker", x: p.x, y: p.y, s: a.startsWith("p:") ? Math.round(Math.min(S.w, S.h) * (S.round ? 0.42 : 0.5)) : a.startsWith("f:") ? (S.round ? 34 : 46) : S.round ? 18 : 26, rot: 0, shape: "star", color: "#ff8fab", asset: a, user: true };
     else {
       const im = img ?? assetImgs[a.id]?.img, ar = im ? im.height / im.width : 0.3;
       const base0 = { x: p.x, y: p.y, rot: 0, asset: a.id, user: true };
@@ -327,6 +339,7 @@ export function useScrapStudio(o: {
       if (e.key === "Escape") { setSel(null); setEditLayer(null); if (editText !== null) setEditText(null); }
       if (sel === null) return;
       if (mod && e.key.toLowerCase() === "d") { e.preventDefault(); duplicate(sel); return; }
+      if (mod && e.key.toLowerCase() === "c" && !window.getSelection()?.toString()) { layerClip.layer = clone(L[sel]); layerClip.at = Date.now(); return; } // Ctrl+V: xem sự kiện paste (ScrapbookEditor)
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeLayer(sel); return; }
       const st = e.shiftKey ? 2 : 0.5, mv: Record<string, [number, number]> = { ArrowLeft: [-st, 0], ArrowRight: [st, 0], ArrowUp: [0, -st], ArrowDown: [0, st] };
       if (mv[e.key]) { e.preventDefault(); D.begin(); const l = L[sel]; patchLayer(sel, { x: l.x + mv[e.key][0], y: l.y + mv[e.key][1] }); }
@@ -335,6 +348,36 @@ export function useScrapStudio(o: {
     return () => window.removeEventListener("keydown", h);
   });
 
+  const [bgFor, setBgFor] = useState<number | null>(null); // lớp ảnh tự do đang mở "Xoá nền"
+  const [olOpen, setOlOpen] = useState(false);
+  useEffect(() => { setOlOpen(false); }, [sel, active]);
+  /** áp ảnh đã xoá nền cho lớp ảnh tự do: thêm vào "Ảnh của bạn" (lưu tạm trên máy) rồi đổi ảnh của lớp, nhớ ảnh gốc */
+  async function applyBgRemoved(i: number, png: Blob) {
+    const l = L[i];
+    if (l?.k !== "sticker" || !l.asset) return;
+    const [ph] = await addFiles([new File([png], "anh-xoa-nen.png", { type: "image/png" })]);
+    if (!ph) return;
+    D.begin(); patchLayer(i, { asset: `p:${ph.id}`, orig: l.orig ?? l.asset } as Partial<Layer>);
+  }
+  function restoreOrig(i: number) {
+    const l = L[i];
+    if (l?.k !== "sticker" || !l.orig) return;
+    D.begin(); patchLayer(i, { asset: l.orig, orig: undefined } as Partial<Layer>);
+  }
+  /** thêm ảnh (file) thành lớp ảnh tự do: vào "Ảnh của bạn" + lớp ở điểm thả / vùng trống lớn nhất */
+  async function insertImages(files: File[], at?: { x: number; y: number }) {
+    if (!cur) { toast("Chọn mẫu hoặc bề mặt trước khi chèn ảnh.", "err"); return; }
+    const out = await addFiles(files);
+    const S = surfaceOf(cur), e = at ?? largestEmpty(S, L);
+    out.forEach((ph, k) => addAsset(`p:${ph.id}`, { x: e.x + k * 5, y: e.y + k * 5 }, ph.img));
+  }
+  /** dán lớp đã Ctrl+C (lệch 4 mm) */
+  function pasteLayer() {
+    if (!layerClip.layer || !cur) return false;
+    const l = { ...clone(layerClip.layer), x: layerClip.layer.x + 4, y: layerClip.layer.y + 4, user: true } as Layer;
+    D.begin(); setLayers((ls) => [...ls, l], l); setSel(L.length);
+    return true;
+  }
   const selL = sel !== null ? L[sel] : null;
   // thanh công cụ nổi: 1 hàng nút icon 32px, tên chức năng ở tooltip
   const tools = selL ? (
@@ -343,6 +386,16 @@ export function useScrapStudio(o: {
       <button type="button" onClick={() => reorder(sel!, 1)} title="Lên trên" aria-label="Lên trên" className={ibtn}><ArrowUp size={16} /></button>
       <button type="button" onClick={() => reorder(sel!, -1)} title="Xuống dưới" aria-label="Xuống dưới" className={ibtn}><ArrowDown size={16} /></button>
       {selL.k === "photo" && <button type="button" onClick={() => setFrameFor(sel)} title="Đổi khung" aria-label="Đổi khung" className={ibtn}><FrameIcon size={16} /></button>}
+      {selL.k === "sticker" && selL.asset?.startsWith("p:") && <button type="button" onClick={() => setBgFor(sel)} title="Xoá nền" aria-label="Xoá nền" className={ibtn}><Scissors size={16} /></button>}
+      {selL.k === "sticker" && selL.orig && <button type="button" onClick={() => restoreOrig(sel!)} title="Khôi phục ảnh gốc" aria-label="Khôi phục ảnh gốc" className={ibtn}><Undo2 size={16} /></button>}
+      {canOutline(selL) && (
+        <span className="relative">
+          <button type="button" onClick={() => setOlOpen((v) => !v)} title="Viền" aria-label="Viền" aria-expanded={olOpen} className={`${ibtn} ${selL.k === "sticker" && selL.ol?.w ? "text-[var(--c-primary)]" : ""}`}>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3c3 2 7 2 8 6s-3 10-8 12C7 19 3 13 4 9s5-4 8-6z" /><path d="M12 7c2 1 4 1 4.5 3S15 15 12 16.5C9 15 7.5 12 8 10s2-2 4-3z" strokeWidth="1.5" /></svg>
+          </button>
+          {olOpen && selL.k === "sticker" && <OutlinePop ol={selL.ol} onBegin={D.begin} onChange={(ol) => patchLayer(sel!, { ol } as Partial<Layer>)} onClose={() => setOlOpen(false)} />}
+        </span>
+      )}
       <button type="button" onClick={() => removeLayer(sel!)} title={selL.k === "photo" ? "Xoá ô ảnh (Delete)" : "Xoá (Delete)"} aria-label="Xoá" className={`${ibtn} text-[#dc2626] hover:bg-[#fef2f2]`}><Trash2 size={16} /></button>
     </>
   ) : null;
@@ -358,5 +411,28 @@ export function useScrapStudio(o: {
     assetImgs, frameImgs, cutFonts, fontPreviews, renderOpts, active, setActive, sel, setSel, editLayer, setEditLayer,
     setLayers, patchLayer, duplicate, removeLayer, reorder, addAsset, addText, addWish, addSlot, setFrame, tools,
     pickFor, setPickFor, frameFor, setFrameFor, addSlotOpen, setAddSlotOpen,
+    bgFor, setBgFor, applyBgRemoved, insertImages, pasteLayer,
   };
+}
+
+/** popover "Viền": bật / tắt · độ dày 0–20 px (theo bản in) · màu · bóng đổ nhẹ */
+function OutlinePop({ ol, onChange, onBegin, onClose }: { ol?: { w: number; c: string; sh?: boolean }; onChange: (v: { w: number; c: string; sh?: boolean } | undefined) => void; onBegin: () => void; onClose: () => void }) {
+  const on = !!ol && ol.w > 0, v = ol ?? { w: 6, c: "#ffffff", sh: false };
+  const set = (p: Partial<typeof v>) => { onBegin(); onChange({ ...v, ...p }); };
+  return (
+    <div data-keep-sel className="absolute left-1/2 top-[calc(100%+6px)] z-30 w-[232px] -translate-x-1/2 rounded-[10px] border border-[#e5e5e7] bg-white p-3 text-[12px] shadow-[0_8px_24px_rgb(0_0_0/0.12)]" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="mb-2 flex items-center justify-between"><span className="font-semibold">Viền</span>
+        <label className="flex items-center gap-1.5"><input type="checkbox" checked={on} onChange={(e) => { onBegin(); onChange(e.target.checked ? { ...v, w: v.w || 6 } : undefined); }} className="accent-[var(--c-primary)]" /> Bật</label></div>
+      <label className="mb-2 block"><span className="mb-1 flex justify-between text-[#52525b]">Độ dày <span className="tabular-nums">{on ? v.w : 0}px</span></span>
+        <input type="range" min={0} max={20} value={on ? v.w : 0} onPointerDown={onBegin} onChange={(e) => onChange(Number(e.target.value) ? { ...v, w: Number(e.target.value) } : undefined)} className="w-full accent-[var(--c-primary)]" /></label>
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        {OL_COLORS.map((c) => <button key={c} type="button" onClick={() => set({ c, w: v.w || 6 })} aria-label={`Màu ${c}`} className={`h-6 w-6 rounded-full border ${v.c === c && on ? "ring-2 ring-[var(--c-primary)] ring-offset-1" : "border-[#d4d4d8]"}`} style={{ background: c }} />)}
+        <label className="relative h-6 w-6 cursor-pointer overflow-hidden rounded-full border border-[#d4d4d8] bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]" title="Màu riêng">
+          <input type="color" value={v.c} onChange={(e) => set({ c: e.target.value, w: v.w || 6 })} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Màu riêng" />
+        </label>
+      </div>
+      <label className="flex items-center gap-1.5"><input type="checkbox" checked={!!v.sh} disabled={!on} onChange={(e) => set({ sh: e.target.checked })} className="accent-[var(--c-primary)]" /> Bóng đổ nhẹ</label>
+      <button type="button" onClick={onClose} className="mt-2 w-full rounded-[6px] bg-[#f4f4f5] py-1 font-medium">Xong</button>
+    </div>
+  );
 }

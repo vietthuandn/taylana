@@ -26,6 +26,8 @@ export type SurfaceViewProps = {
   adjustOf: (photoId: string) => Adjust | undefined; setAdjust: (photoId: string, a: Adjust) => void;
   onDropAsset?: (id: string, at: { x: number; y: number }) => void;
   onDropPhoto?: (photoId: string, layer: number) => void;
+  onDropFreePhoto?: (photoId: string, at: { x: number; y: number }) => void; // thả ảnh ra ngoài ô ảnh → lớp ảnh tự do
+  onDropFiles?: (files: File[], at: { x: number; y: number }) => void; // kéo file ảnh từ máy tính thả vào
   onEmptySlot?: (layer: number) => void;
   onTextEdit?: (layer: number) => void;
   // sửa chữ trực tiếp trên trang
@@ -173,10 +175,12 @@ export function SurfaceView(p: SurfaceViewProps) {
   }
   function onDrop(e: React.DragEvent) {
     const pid = e.dataTransfer.getData(PHOTO_DRAG), aid = e.dataTransfer.getData(ASSET_DRAG);
-    if (!pid && !aid) return;
+    const files = [...(e.dataTransfer.files ?? [])].filter((f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name));
+    if (!pid && !aid && !files.length) return;
     e.preventDefault();
     const pt = toMM(e);
-    if (pid) { const i = layerAt(pt.x, pt.y); const j = i >= 0 && L[i].k === "photo" ? i : L.findIndex((l, n) => l.k === "photo" && (() => { const b = layerBox(n); return b && inside(pt.x, pt.y, b); })()); if (j >= 0) p.onDropPhoto?.(pid, j); return; }
+    if (!pid && !aid) { p.onDropFiles?.(files, pt); return; }
+    if (pid) { const i = layerAt(pt.x, pt.y); const j = i >= 0 && L[i].k === "photo" ? i : L.findIndex((l, n) => l.k === "photo" && (() => { const b = layerBox(n); return b && inside(pt.x, pt.y, b); })()); if (j >= 0 && p.onDropPhoto) p.onDropPhoto(pid, j); else p.onDropFreePhoto?.(pid, pt); return; }
     p.onDropAsset?.(aid, pt);
   }
   const zoom = useCallback((dz: number) => {
@@ -217,7 +221,7 @@ export function SurfaceView(p: SurfaceViewProps) {
   const edgeHandles = !!selL && !sideHandles && stretchable(selL);
   return (
     <div ref={root} className="relative touch-none" style={{ width, height }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-      onDragOver={(e) => { if (e.dataTransfer.types.includes(ASSET_DRAG) || e.dataTransfer.types.includes(PHOTO_DRAG)) e.preventDefault(); }} onDrop={onDrop}>
+      onDragOver={(e) => { if (e.dataTransfer.types.includes(ASSET_DRAG) || e.dataTransfer.types.includes(PHOTO_DRAG) || (p.onDropFiles && e.dataTransfer.types.includes("Files"))) e.preventDefault(); }} onDrop={onDrop}>
       <canvas ref={view} className={cx("block h-full w-full touch-none", p.editLayer !== null ? "cursor-move" : "cursor-pointer", !S.round && "shadow-[0_10px_30px_rgba(0,0,0,0.12)]")}
         onPointerDown={onDown} onDoubleClick={onDbl} onContextMenu={onContext} />
       {/* guideline: lớp phủ riêng trên cùng, mảnh + mờ, không chặn thao tác */}

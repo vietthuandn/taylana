@@ -20,7 +20,8 @@ type Raw = { alpha: Uint8Array; color?: Uint8ClampedArray; used?: string; ai: bo
 const METHODS: [Method, string][] = [["auto", "Tự động (AI)"], ["portrait", "Chân dung"], ["object", "Đồ vật"], ["flat", "Nền trơn"]];
 const MB = (b: number) => Math.max(0, Math.round(b / 1024 / 1024));
 
-export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onAdd: (png: Blob) => void; onClose: () => void }) {
+/** initialBorder / okLabel: dùng lại làm modal "Xoá nền" cho ảnh tự do (mặc định không viền — viền chỉnh riêng ở nút "Viền") */
+export function UserStickerModal({ files, onAdd, onClose, initialBorder = "thin", okLabel = "Thêm vào thiết kế" }: { files: File[]; onAdd: (png: Blob) => void; onClose: () => void; initialBorder?: "none" | "thin" | "thick"; okLabel?: string }) {
   const [i, setI] = useState(0);
   const [img, setImg] = useState<Img | null>(null);
   const [alphaImg, setAlphaImg] = useState(false);
@@ -36,7 +37,7 @@ export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onA
   const [keepMany, setKeepMany] = useState(false);
   const [tool, setTool] = useState<"erase" | "restore" | null>(null);
   const [brushPct, setBrushPct] = useState(3);
-  const [border, setBorder] = useState<"none" | "thin" | "thick">("thin");
+  const [border, setBorder] = useState<"none" | "thin" | "thick">(initialBorder);
   const [thick, setThick] = useState(0);
   const [ver, setVer] = useState(0);
   const edits = useRef<Uint8Array | null>(null);
@@ -189,7 +190,7 @@ export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onA
         <div className="flex shrink-0 justify-end gap-2 border-t border-[#efeff1] bg-white px-5 py-3">
           {files.length > 1 && i + 1 < files.length && <Button variant="secondary" onClick={() => setI(i + 1)}>Bỏ qua ảnh này</Button>}
           <Button variant="secondary" onClick={onClose}>Huỷ</Button>
-          <Button onClick={add} disabled={busy || !preview}>Thêm vào thiết kế</Button>
+          <Button onClick={add} disabled={busy || !preview}>{okLabel}</Button>
         </div>
       </div>
     </div>

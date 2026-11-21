@@ -46,7 +46,7 @@ import { PhotoPanel, RightsModal, readPhoto, type Photo } from "./parts";
 import { SaveDesignDialog } from "./SaveDesignDialog";
 import type { PrintRef } from "@/lib/designs";
 import { setFrameLibrary } from "@/lib/scrapbook/decor";
-import { customizeText, useScrapStudio, type UserSticker } from "./useScrapStudio";
+import { customizeText, usedStickers, useScrapStudio, type UserSticker } from "./useScrapStudio";
 
 const MAX = 40;
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -216,8 +216,8 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
     const px = cmToPx(12), cs = await pageCanvases(px), prints = [];
     for (const [i, c] of cs.entries()) prints.push({ kind: "booklet" as const, page: i + 1, name: `booklet-trang-${pad(i + 1)}.jpg`, blob: await toBlob(c), w: px, h: px });
     const thumb = renderSurface({ template: doc[0], ...ro, size: 360 }).canvas.toDataURL("image/jpeg", 0.8);
-    const files = [...photos.map((p) => ({ id: p.id, blob: p.blob })), ...st.ustickers.map((s) => ({ id: s.id, blob: s.blob }))];
-    const r = await saveScrapToAccount({ v: 1, kind: "booklet-scrapbook", pages, showTitle: true, rightsOk, text: st.text, adjust: st.adjust, doc, applied: st.applied, photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((s) => s.id), paths: paths.current, colors: st.colors, prints: printsRef.current },
+    const files = [...photos.map((p) => ({ id: p.id, blob: p.blob })), ...usedStickers(doc, st.ustickers).map((x) => ({ id: x.id, blob: x.blob }))];
+    const r = await saveScrapToAccount({ v: 1, kind: "booklet-scrapbook", pages, showTitle: true, rightsOk, text: st.text, adjust: st.adjust, doc, applied: st.applied, photoIds: photos.map((p) => p.id), stickerIds: usedStickers(doc, st.ustickers).map((x) => x.id), paths: paths.current, colors: st.colors, prints: printsRef.current },
       files, { id: designId, name: `Booklet ${pages} trang`, thumbnail: thumb }, prints);
     paths.current = r.paths; printsRef.current = r.prints; setDesignId(r.id);
     toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
@@ -288,7 +288,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
         onBackgroundDbl={(at) => setZoomPage(nos[cur?.surface === "spread" && at.x >= 120 ? 1 : 0])}
         photoTab={(
           <PhotoPanel photos={photos} used={st.used} max={MAX} hint="JPG, PNG, HEIC · ảnh chỉ xử lý trên máy bạn · tự điền vào ô trống của các trang"
-            onAdd={(f) => { addPhotos(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} />
+            onAdd={(f) => { addPhotos(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} onInsert={(id) => st.addAsset(`p:${id}`)} />
         )}
         bottom={(
           <div className="flex h-14 shrink-0 items-center gap-2 border-t border-[#efeff1] bg-[#f7f7f8] px-3">

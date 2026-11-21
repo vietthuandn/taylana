@@ -23,10 +23,13 @@ const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[len
 type Meta = { group?: string | null; tags?: string[]; manual?: string };
 export const DENSE = "grid grid-cols-5 gap-1.5 lg:grid-cols-8 min-[1440px]:grid-cols-10";
 
-export function SheetSlicer({ onDone, assets, groups, onCreateGroup }: {
-  onDone: () => void; assets: ScrapAsset[]; groups: (AssetGroupRow & { count: number })[]; onCreateGroup: (name: string) => Promise<AssetGroupRow | null>;
+/** customer: phía khách (trình chỉnh) — ẩn Nhóm / Tags / Loại / tên, KHÔNG upload: trả các món PNG đã chọn qua customer(blobs).
+    initial: ảnh mở sẵn (khách vừa chọn file). */
+export function SheetSlicer({ onDone = () => {}, assets = [], groups = [], onCreateGroup = async () => null, customer, initial }: {
+  onDone?: () => void; assets?: ScrapAsset[]; groups?: (AssetGroupRow & { count: number })[]; onCreateGroup?: (name: string) => Promise<AssetGroupRow | null>;
+  customer?: (blobs: Blob[]) => void; initial?: Blob | null;
 }) {
-  const [src, setSrc] = useState<Blob | null>(null);
+  const [src, setSrc] = useState<Blob | null>(initial ?? null);
   const [link, setLink] = useState("");
   const [defGrp, setDefGrp] = useState<string>("auto");
   const [sheetGroup, setSheetGroup] = useState<string | null>(null);
@@ -200,6 +203,11 @@ export function SheetSlicer({ onDone, assets, groups, onCreateGroup }: {
     if (!sheet) return;
     const list = items.filter((i) => i.checked);
     if (!list.length) return toast("Chưa chọn món nào.", "err");
+    if (customer) { // phía khách: chỉ trả PNG (giữ trên máy), không tải lên
+      const out: Blob[] = [];
+      for (const it of list) { const c = itemCanvas(sheet, it); const b = c && await new Promise<Blob | null>((res) => c.toBlob(res, "image/png")); if (b) out.push(b); }
+      customer(out); return;
+    }
     const sb = createClient();
     setBusy("Đang lưu..."); setProgress(0);
     let ok = 0;
@@ -225,7 +233,7 @@ export function SheetSlicer({ onDone, assets, groups, onCreateGroup }: {
     if (ok) { toast(`Đã lưu ${ok} món`); onDone(); }
   }
 
-  const sheetFields = (
+  const sheetFields = customer ? null : (
     <div className="grid w-full gap-3 sm:grid-cols-[180px_1fr_1fr]">
       <label className="block"><span className="mb-1 block text-[12px] font-medium">Loại (cả tờ)</span>
         <Select value={defGrp} onChange={(e) => setSheetType(e.target.value)} className="h-9">
@@ -292,7 +300,7 @@ export function SheetSlicer({ onDone, assets, groups, onCreateGroup }: {
         </div>
         {/* món đang chọn: sửa riêng */}
         <div className="space-y-2 rounded-[10px] border border-[#e5e5e7] p-3">
-          {picked.length ? (() => {
+          {customer ? <p className="text-[12px] leading-relaxed text-[#52525b]">Bấm khung trên ảnh hoặc ô bên dưới để bật / tắt từng món. Chọn nhiều ô (giữ Ctrl / Shift) rồi bấm <b>Gộp</b> để ghép thành 1 sticker. <b>Vẽ khung</b> để tự tách 1 vùng · <b>Chia đôi</b> để cắt 1 món · <b>Cọ xoá / khôi phục</b> để sửa mép.</p> : picked.length ? (() => {
             const keys = picked, first = items.find((i) => i.key === keys[0]);
             const e0 = first ? eff[first.key] : null;
             if (!first || !e0) return null;
@@ -338,7 +346,7 @@ export function SheetSlicer({ onDone, assets, groups, onCreateGroup }: {
       {busy === "Đang lưu..." && <div className="h-2 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full bg-[#ff5fa2] transition-[width]" style={{ width: `${Math.round(progress * 100)}%` }} /></div>}
       <div className="flex flex-wrap justify-end gap-2">
         <Button variant="secondary" onClick={() => { setSheet(null); setItems([]); setSrc(null); }}>Chọn ảnh khác</Button>
-        <Button onClick={saveAll} loading={busy === "Đang lưu..."} disabled={!checked}>Lưu các món đã chọn ({checked})</Button>
+        <Button onClick={saveAll} loading={busy === "Đang lưu..."} disabled={!checked}>{customer ? `Thêm vào Sticker của tôi (${checked})` : `Lưu các món đã chọn (${checked})`}</Button>
       </div>
     </div>
   );

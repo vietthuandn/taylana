@@ -3,7 +3,7 @@
 /* Phần giao diện dùng chung của CD Template + Booklet Template: danh sách ảnh (đánh dấu đang dùng / chưa dùng, kéo thả lên ô),
    chọn ảnh cho ô, thêm ô ảnh (hình dạng / khung), đổi khung, xác nhận bản quyền khi đặt in. */
 import { useMemo, useRef, useState } from "react";
-import { RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { Plus, RefreshCw, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 import { PHOTO_DRAG } from "./SurfaceView";
@@ -35,9 +35,10 @@ function Modal({ title, onClose, children, wide }: { title: string; onClose: () 
 }
 
 // ---------- danh sách ảnh ----------
-export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove, onReorder, onAddSlot }: {
+export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove, onReorder, onAddSlot, onInsert }: {
   photos: Photo[]; used: Set<string>; max: number; hint: string;
   onAdd: (files: File[]) => void; onReplace: (id: string, f: File) => void; onRemove: (id: string) => void; onReorder: (from: number, to: number) => void; onAddSlot?: () => void;
+  onInsert?: (id: string) => void; // "+" chèn ảnh tự do (không khung) vào giữa bề mặt
 }) {
   const fileIn = useRef<HTMLInputElement>(null), replaceIn = useRef<HTMLInputElement>(null), replaceId = useRef<string | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -63,6 +64,7 @@ export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove
               <img src={p.url} alt="" className={cx("h-full w-full object-cover", !used.has(p.id) && "opacity-70")} draggable={false} />
               <span className={cx("pointer-events-none absolute left-1.5 top-1.5 rounded-[4px] px-1.5 text-[10px] font-medium leading-[16px] text-white", used.has(p.id) ? "bg-[#16a34a]" : "bg-[#f59e0b]")}>{used.has(p.id) ? "Đang dùng" : "Chưa dùng"}</span>
               <div className="absolute bottom-1.5 right-1.5 flex gap-1.5 md:inset-0 md:items-center md:justify-center md:bg-black/40 md:opacity-0 md:group-hover:opacity-100">
+                {onInsert && <button type="button" title="Chèn ảnh tự do vào thiết kế" aria-label="Chèn ảnh tự do" onClick={() => onInsert(p.id)} className="grid h-8 w-8 place-items-center rounded-full bg-[var(--c-primary)] text-white shadow"><Plus size={15} /></button>}
                 <button type="button" title="Thay ảnh" aria-label="Thay ảnh" onClick={() => { replaceId.current = p.id; replaceIn.current?.click(); }} className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#18181b] shadow"><RefreshCw size={14} /></button>
                 <button type="button" title="Xoá" aria-label="Xoá" onClick={() => onRemove(p.id)} className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#dc2626] shadow"><Trash2 size={14} /></button>
               </div>
@@ -71,7 +73,7 @@ export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove
         </div>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {photos.length > 0 && <p className="text-[12px] text-[#a1a1aa]">Kéo ảnh thả lên 1 ô để gán ảnh vào ô đó.</p>}
+        {photos.length > 0 && <p className="text-[12px] text-[#a1a1aa]">Kéo ảnh thả lên 1 ô để gán vào ô đó · thả ra chỗ khác (hoặc bấm +) để chèn ảnh tự do · Ctrl+V để dán ảnh.</p>}
       </div>
     </section>
   );

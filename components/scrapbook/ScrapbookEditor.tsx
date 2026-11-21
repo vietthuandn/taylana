@@ -20,7 +20,12 @@ import { SurfaceView } from "./SurfaceView";
 import { AddFrameFlow, FramePicker } from "./FramePicker";
 import { PickPhotoModal } from "./parts";
 import { UserStickerModal } from "./UserStickerModal";
-import type { useScrapStudio } from "./useScrapStudio";
+import { layerClip, type useScrapStudio } from "./useScrapStudio";
+import { SheetSlicer } from "@/app/admin/(panel)/scrapbook/SheetSlicer";
+import { FEATURE_OLD_STICKER_UPLOAD } from "@/lib/features";
+import { createClient } from "@/lib/supabase/client";
+import { uploadFile } from "@/lib/storage/client";
+import { uploadAssetThumb } from "@/lib/scrapbook/assetGroupsClient";
 
 export type EditorTab = "mau" | "anh" | "sticker" | "chu" | "nen";
 type Studio = ReturnType<typeof useScrapStudio>;
@@ -104,6 +109,30 @@ export function ScrapbookEditor(p: {
     if (st.editText !== null) st.setEditText(null);
     if (st.editLayer !== null) st.setEditLayer(null);
   };
+  // ---------- Ctrl+V: ảnh trong clipboard → "Ảnh của bạn" + lớp ảnh tự do ở vùng trống lớn nhất (admin: tách sticker)
+  //            link ảnh → tải qua /api/img-proxy · không có ảnh mà vừa Ctrl+C 1 lớp (≤ 30 giây) → dán lớp ----------
+  const [saveMine, setSaveMine] = useState<string | null>(null);
+  useEffect(() => {
+    const h = async (e: ClipboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t?.closest?.("input, textarea, select, [contenteditable=true], [contenteditable='']") || document.querySelector('[role="dialog"]')) return;
+      const files = [...(e.clipboardData?.items ?? [])].filter((it) => it.kind === "file" && it.type.startsWith("image/")).map((it) => it.getAsFile()).filter((f): f is File => !!f);
+      const text = e.clipboardData?.getData("text/plain")?.trim() ?? "";
+      const useFiles = (f: File[]) => { if (mode === "customer") st.insertImages(f); else st.setStickerFiles(f.slice(0, 1)); };
+      if (files.length) { e.preventDefault(); useFiles(files.map((f, i) => new File([f], f.name && f.name !== "image.png" ? f.name : `anh-dan-${Date.now()}-${i}.png`, { type: f.type }))); return; }
+      if (/^https?:\/\/\S+$/i.test(text)) {
+        e.preventDefault();
+        try {
+          const r = await fetch(`/api/img-proxy?url=${encodeURIComponent(text)}`);
+          const b = r.ok ? await r.blob() : null;
+          if (b && b.type.startsWith("image/")) { useFiles([new File([b], `anh-tu-link.${b.type.split("/")[1] || "jpg"}`, { type: b.type })]); return; }
+        } catch { /* không phải ảnh */ }
+      }
+      if (layerClip.layer && Date.now() - layerClip.at < 30000) { e.preventDefault(); st.pasteLayer(); }
+    };
+    window.addEventListener("paste", h);
+    return () => window.removeEventListener("paste", h);
+  });
   const RAIL: [EditorTab, string, React.ReactNode][] = [
     ...(p.templateTab ? [["mau", "Mẫu", <LayoutTemplate key="m" size={20} />] as [EditorTab, string, React.ReactNode]] : []),
     ["anh", "Ảnh", <ImageIcon key="a" size={20} />], ["sticker", "Sticker", <Smile key="s" size={20} />], ["chu", "Chữ", <Type key="c" size={20} />], ["nen", "Nền", <PaintBucket key="n" size={20} />],
@@ -139,8 +168,9 @@ export function ScrapbookEditor(p: {
           </>
         )}
         {p.tab === "sticker" && (
-          <StickerTab assets={p.assets} groups={p.assetGroups} onAdd={(a) => st.addAsset(a)} mine={mode === "customer" ? st.ustickers.map((s) => ({ id: s.id, url: s.url })) : []}
-            onUpload={mode === "customer" ? (f) => st.setStickerFiles(f) : undefined} onAddMine={(id) => st.addAsset(`u:${id}`)} onRemoveMine={st.removeUserSticker} />
+          <StickerTab assets={p.assets} groups={p.assetGroups} onAdd={(a) => st.addAsset(a)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
+            onUpload={(f) => st.setStickerFiles(f)} onAddMine={mode === "customer" ? (id) => st.addAsset(`u:${id}`) : undefined} onRemoveMine={st.removeUserSticker}
+            onSaveMine={mode === "template" ? (id) => setSaveMine(id) : undefined} mineTitle={mode === "template" ? "Sticker vừa tách (chưa vào thư viện)" : "Sticker của tôi"} />
         )}
         {p.tab === "chu" && (
           <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={p.fonts} previews={st.fontPreviews} colors={st.colors} onCustomColor={st.addColor}
@@ -168,7 +198,9 @@ export function ScrapbookEditor(p: {
           {p.overlay ?? (!cur ? p.empty : st.ready && (
             <SurfaceView key={st.active} t={cur} width={width} render={ro} guides={p.guides} sel={st.sel} onSel={st.setSel} editLayer={st.editLayer} onEditLayer={st.setEditLayer}
               begin={st.D.begin} setLayers={st.setLayers} adjustOf={(id) => st.adjust[id]} setAdjust={(id, a) => st.setAdjust((c) => ({ ...c, [id]: a }))}
-              onDropAsset={(id, at) => { if (id.startsWith("u:") || id.startsWith("f:")) st.addAsset(id, at); else { const a = p.assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
+              onDropAsset={(id, at) => { if (id.startsWith("u:") && mode === "template") return; if (id.startsWith("u:") || id.startsWith("f:")) st.addAsset(id, at); else { const a = p.assets.find((x) => x.id === id); if (a) st.addAsset(a, at); } }}
+              onDropFreePhoto={mode === "customer" ? (pid, at) => st.addAsset(`p:${pid}`, at) : undefined}
+              onDropFiles={(f, at) => { if (mode === "customer") st.insertImages(f, at); else st.setStickerFiles(f.slice(0, 1)); }}
               onDropPhoto={mode === "customer" ? (pid, i) => st.assignPhoto(st.active, i, pid) : undefined} onEmptySlot={mode === "customer" ? (i) => st.setPickFor(i) : undefined}
               editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
               onBackgroundDbl={p.onBackgroundDbl} tools={st.tools} />
@@ -221,7 +253,72 @@ export function ScrapbookEditor(p: {
         <AddFrameFlow frames={p.frames} sets={p.frameSets} loaded={st.frameImgs} photos={p.framePhotos ?? st.photos} used={mode === "customer" ? st.used : new Set()} onClose={() => st.setAddSlotOpen(false)}
           onDone={(c, pid) => st.addSlot(c, pid)} onUpload={async (f) => { if (mode === "template") return null; const [ph] = await st.addFiles([f]); return ph?.id ?? null; }} />
       )}
-      {st.stickerFiles && <UserStickerModal files={st.stickerFiles} onAdd={(b) => st.addUserSticker(b)} onClose={() => st.setStickerFiles(null)} />}
+      {st.stickerFiles && FEATURE_OLD_STICKER_UPLOAD && <UserStickerModal files={st.stickerFiles} onAdd={(b) => st.addUserSticker(b)} onClose={() => st.setStickerFiles(null)} />}
+      {st.stickerFiles && !FEATURE_OLD_STICKER_UPLOAD && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/40 p-3" role="dialog" aria-modal>
+          <div className="flex max-h-[94dvh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[14px] bg-white shadow-xl">
+            <div className="flex items-center gap-2 border-b border-[#efeff1] px-4 py-3">
+              <p className="min-w-0 flex-1 text-[15px] font-semibold">Tải sticker của bạn</p>
+              <button type="button" onClick={() => st.setStickerFiles(null)} className="grid h-8 w-8 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5]" aria-label="Đóng"><X size={16} /></button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <SheetSlicer initial={st.stickerFiles[0]} customer={async (blobs) => {
+                for (const b of blobs) await st.addUserSticker(b, false);
+                st.setStickerFiles(null); p.setTab("sticker");
+                toast(`Đã thêm ${blobs.length} sticker vào “${mode === "template" ? "Sticker vừa tách" : "Sticker của tôi"}”`);
+              }} />
+            </div>
+          </div>
+        </div>
+      )}
+      {st.bgFor !== null && (() => {
+        const l = st.L[st.bgFor], ph = l?.k === "sticker" && l.asset?.startsWith("p:") ? st.photos.find((x) => x.id === l.asset!.slice(2)) : undefined;
+        if (!ph) return null;
+        const i = st.bgFor;
+        return <UserStickerModal files={[new File([ph.blob], ph.name || "anh.png", { type: ph.blob.type || "image/png" })]} initialBorder="none" okLabel="Áp dụng xoá nền"
+          onAdd={(png) => { st.applyBgRemoved(i, png); }} onClose={() => st.setBgFor(null)} />;
+      })()}
+      {saveMine && <SaveToLibrary sticker={st.ustickers.find((x) => x.id === saveMine) ?? null} groups={p.assetGroups ?? []} onClose={() => setSaveMine(null)} onSaved={(id) => { st.removeUserSticker(id); setSaveMine(null); }} />}
+    </div>
+  );
+}
+
+/** Trình sửa mẫu (admin): "Lưu vào thư viện" 1 sticker vừa tách → Quản lý chất liệu (chọn Nhóm, Tags) */
+function SaveToLibrary({ sticker, groups, onClose, onSaved }: { sticker: { id: string; blob: Blob; img: HTMLCanvasElement } | null; groups: AssetGroupRow[]; onClose: () => void; onSaved: (id: string) => void }) {
+  const [name, setName] = useState("Sticker mới");
+  const [group, setGroup] = useState<string>("");
+  const [tags, setTags] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!sticker) return null;
+  async function save() {
+    if (!sticker) return;
+    setBusy(true);
+    try {
+      const url = (await uploadFile("scrapbook", sticker.blob, { folder: "sticker", contentType: "image/png" })).url!;
+      const thumb = await uploadAssetThumb(sticker.img).catch(() => null);
+      const { error } = await createClient().from("scrapbook_assets").insert({ name: name.trim() || "Sticker", grp: "sticker", asset_type: "sticker", group_id: group || null,
+        tags: tags.split(",").map((t) => t.trim()).filter(Boolean), tone: "any", url, thumb_url: thumb, sort_order: Date.now() % 1e6 });
+      if (error) throw new Error(error.message);
+      toast("Đã lưu vào thư viện — tải lại trang để dùng trong mẫu"); onSaved(sticker.id);
+    } catch (e) { toast(e instanceof Error ? e.message : "Lưu thất bại", "err"); }
+    setBusy(false);
+  }
+  const inp = "h-9 w-full rounded-[8px] border border-[#e5e5e7] px-2.5 text-[13px] outline-none focus:border-[var(--c-primary)]";
+  return (
+    <div className="fixed inset-0 z-[95] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}>
+      <div className="w-full max-w-[380px] space-y-3 rounded-[14px] bg-white p-5 shadow-xl">
+        <p className="text-[15px] font-semibold">Lưu vào thư viện chất liệu</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <div className="grid h-28 place-items-center rounded-[8px] bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]"><img src={sticker.img.toDataURL("image/png")} alt="" className="max-h-24 max-w-full object-contain" /></div>
+        <label className="block text-[12px]"><span className="mb-1 block font-medium">Tên</span><input value={name} onChange={(e) => setName(e.target.value)} className={inp} /></label>
+        <label className="block text-[12px]"><span className="mb-1 block font-medium">Nhóm</span>
+          <select value={group} onChange={(e) => setGroup(e.target.value)} className={inp}><option value="">— Theo loại (Sticker) —</option>{groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select></label>
+        <label className="block text-[12px]"><span className="mb-1 block font-medium">Tags (cách nhau dấu phẩy)</span><input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="vd. hoa, cute" className={inp} /></label>
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose} disabled={busy} className="h-9 rounded-[8px] border border-[#e5e5e7] px-3 text-[13px] font-medium">Huỷ</button>
+          <button type="button" onClick={save} disabled={busy} className="h-9 rounded-[8px] bg-[var(--c-primary)] px-3 text-[13px] font-semibold text-white disabled:opacity-60">{busy ? "Đang lưu..." : "Lưu vào thư viện"}</button>
+        </div>
+      </div>
     </div>
   );
 }

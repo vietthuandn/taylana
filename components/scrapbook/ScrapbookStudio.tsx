@@ -43,7 +43,7 @@ import { loadScrapFromAccount, saveScrapToAccount, type PrintFile } from "@/lib/
 import type { PrintRef } from "@/lib/designs";
 import { hasSupabase } from "@/lib/supabase/env";
 import { setFrameLibrary } from "@/lib/scrapbook/decor";
-import { customizeText, useScrapStudio, type UserSticker } from "./useScrapStudio";
+import { customizeText, usedStickers, useScrapStudio, type UserSticker } from "./useScrapStudio";
 import { clone } from "./useScrapDoc";
 
 const toBlob = (c: HTMLCanvasElement, type: string, q?: number) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Không xuất được ảnh"))), type, q));
@@ -196,9 +196,9 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
       for (let i = 0; i < doc.length; i++) prints.push({ kind: "back", page: doc.length > 1 ? i + 1 : null, name: `bia-sau-${i ? "mat-trong" : "mat-ngoai"}.png`, blob: await printBlob(i), w, h });
     } else prints.push({ kind: "disc", page: null, name: "mat-dia.png", blob: await printBlob(), w: PRINT_PX, h: PRINT_PX });
     const thumb = renderSurface({ template: doc[0], ...st.renderOpts, size: 360 }).canvas.toDataURL("image/jpeg", 0.8);
-    const files = [...photos.map((p) => ({ id: p.id, blob: p.blob })), ...st.ustickers.map((x) => ({ id: x.id, blob: x.blob }))];
+    const files = [...photos.map((p) => ({ id: p.id, blob: p.blob })), ...usedStickers(doc, st.ustickers).map((x) => ({ id: x.id, blob: x.blob }))];
     const r = await saveScrapToAccount({ v: 1, kind: scrapKind, pages: 0, faces: isBack ? doc.length : undefined, showTitle: false, rightsOk: true, text: st.text, adjust: st.adjust, doc, applied: st.applied,
-      photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((x) => x.id), paths: paths.current, colors: st.colors, prints: printsRef.current },
+      photoIds: photos.map((p) => p.id), stickerIds: usedStickers(doc, st.ustickers).map((x) => x.id), paths: paths.current, colors: st.colors, prints: printsRef.current },
       files, { id: designId, name: isBack ? `Bìa sau ${doc.length} mặt` : "Mặt đĩa CD", thumbnail: thumb }, prints);
     paths.current = r.paths; printsRef.current = r.prints; setDesignId(r.id);
     toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
@@ -257,7 +257,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
       )}
       photoTab={(
         <PhotoPanel photos={photos} used={st.used} max={MAX} hint="JPG, PNG, HEIC · ảnh chỉ xử lý trên máy bạn · tự điền vào ô trống của mẫu"
-          onAdd={(f) => { addPhotos(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} />
+          onAdd={(f) => { addPhotos(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} onInsert={(id) => st.addAsset(`p:${id}`)} />
       )}
       bottom={(
         <div className="flex h-14 shrink-0 items-center gap-3 border-t border-[#efeff1] bg-[#f7f7f8] px-4">

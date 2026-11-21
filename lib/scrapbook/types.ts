@@ -77,7 +77,10 @@ export type LayerBase =
       frame?: string; // khung PNG từ thư viện Khung ảnh (ảnh nằm dưới khung)
       frameSets?: string[] } // mẫu admin: "Ngẫu nhiên từ bộ…" — khi khách áp mẫu, lấy 1 khung ngẫu nhiên trong các bộ này (theo seed)
   | { k: "tape"; x: number; y: number; w: number; h: number; rot: number; color: string; pattern: "stripe" | "dots" | "plain"; seed: number; asset?: string }
-  | { k: "sticker"; x: number; y: number; s: number; rot: number; shape: StickerShape; color: string; asset?: string }
+  | { k: "sticker"; x: number; y: number; s: number; rot: number; shape: StickerShape; color: string;
+      asset?: string; // id chất liệu thư viện · "u:<id>" sticker của khách · "f:<id>" khung · "p:<id>" ẢNH TỰ DO (ảnh của khách, không khung)
+      orig?: string; // ảnh tự do đã xoá nền: asset gốc (nút "Khôi phục ảnh gốc")
+      ol?: { w: number; c: string; sh?: boolean } } // viền (không phá huỷ): độ dày px theo bản in 300 DPI · màu · bóng đổ nhẹ
   | { k: "doodle"; x: number; y: number; s: number; rot: number; shape: "arrow" | "swirl" | "dash"; color: string; asset?: string }
   | { k: "text"; role: "main" | "sub" | "custom"; x: number; y: number; w: number; size: number; rot: number; font: "hand" | "marker" | "label"; color: string; arc?: { r: number; mid: number };
       value?: string; // nội dung riêng (lớp chữ khách thêm); main / sub lấy từ "Chữ trên đĩa"

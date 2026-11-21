@@ -2,6 +2,8 @@
 // Photostrip: tắt thì ẩn khỏi menu, footer, trang chủ, phụ kiện; /photostrip chuyển về trang chủ.
 // Admin vẫn giữ mục "Khung Photostrip" và toàn bộ dữ liệu.
 export const FEATURE_PHOTOSTRIP = false;
+// Modal cũ "Tải sticker của bạn" (xoá nền 1 ảnh) — thay bằng bộ tách tờ sticker (giống Admin). Đổi true để dùng lại.
+export const FEATURE_OLD_STICKER_UPLOAD = false;
 
 // Phụ kiện liên quan photostrip (ẩn khi tắt tính năng)
 export const isPhotostripItem = (name: string) => /photo\s*-?\s*strip/i.test(name);

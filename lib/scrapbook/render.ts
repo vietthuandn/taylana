@@ -473,7 +473,16 @@ export function renderSurface(o: RenderOpts) {
       else drawTape(x, l);
     } else if (l.k === "sticker") {
       const a = l.asset ? o.assets?.[l.asset] : undefined;
-      if (a) { const s = fitS(l, a.img) / Math.max(a.img.width, a.img.height); shadow(x, 1, 0.4, 0.22); x.drawImage(a.img, (-a.img.width * s) / 2, (-a.img.height * s) / 2, a.img.width * s, a.img.height * s); }
+      if (a) {
+        const s = fitS(l, a.img) / Math.max(a.img.width, a.img.height), w = a.img.width * s, h = a.img.height * s;
+        if (l.ol && l.ol.w > 0) {
+          // viền: nở kênh alpha theo độ dày (px ở 300 DPI → mm), tô màu, đặt dưới ảnh — vẽ theo đúng độ phân giải đang dựng
+          const t = x.getTransform(), ppm = Math.hypot(t.a, t.b), rMM = (l.ol.w * 25.4) / 300;
+          const oc = outlined(a.img, Math.max(1, Math.round(w * ppm)), Math.max(1, Math.round(h * ppm)), Math.max(1, Math.round(rMM * ppm)), l.ol.c);
+          x.save(); if (l.ol.sh) shadow(x, 1, 0.4, 0.22); x.drawImage(oc, -w / 2 - rMM, -h / 2 - rMM, w + rMM * 2, h + rMM * 2); x.restore();
+          x.drawImage(a.img, -w / 2, -h / 2, w, h);
+        } else { shadow(x, 1, 0.4, 0.22); x.drawImage(a.img, -w / 2, -h / 2, w, h); }
+      }
       else drawSticker(x, l.shape, l.s, l.color);
     } else if (l.k === "doodle") {
       const a = l.asset ? o.assets?.[l.asset] : undefined;
@@ -526,6 +535,26 @@ export function renderSurface(o: RenderOpts) {
 /** (tên cũ) vẽ mặt đĩa */
 export const renderDisc = renderSurface;
 /** sticker tự rải: không phóng quá 2× cỡ gốc ở 300 DPI (tránh mờ khi in); sticker khách tự kéo to thì giữ nguyên */
+/** viền sticker / ảnh nền trong suốt: ảnh nở alpha r px (vẽ ảnh lệch theo vòng tròn) rồi tô 1 màu. Cache theo (ảnh, cỡ, độ dày, màu). */
+const olCache = new WeakMap<object, Map<string, HTMLCanvasElement>>();
+function outlined(img: Img, w: number, h: number, r: number, color: string) {
+  const sc = Math.min(1, 2400 / Math.max(w, h)); // giới hạn cỡ canvas
+  w = Math.round(w * sc); h = Math.round(h * sc); r = Math.max(1, Math.round(r * sc));
+  const key = `${w}x${h}|${r}|${color}`;
+  let m = olCache.get(img as object);
+  if (!m) { m = new Map(); olCache.set(img as object, m); }
+  const hit = m.get(key);
+  if (hit) return hit;
+  const c = document.createElement("canvas"); c.width = w + r * 2; c.height = h + r * 2;
+  const x = c.getContext("2d")!, n = Math.min(64, Math.max(16, Math.round(r * 2.5)));
+  for (let i = 0; i < n; i++) { const a = (i / n) * Math.PI * 2; x.drawImage(img, r + Math.cos(a) * r, r + Math.sin(a) * r, w, h); }
+  for (let rr = r * 0.5; rr >= 1; rr *= 0.5) for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; x.drawImage(img, r + Math.cos(a) * rr, r + Math.sin(a) * rr, w, h); } // lấp kín phía trong
+  x.drawImage(img, r, r, w, h);
+  x.globalCompositeOperation = "source-in"; x.fillStyle = color; x.fillRect(0, 0, c.width, c.height);
+  if (m.size > 12) m.delete(m.keys().next().value!);
+  m.set(key, c);
+  return c;
+}
 const fitS = (l: { s: number; auto?: boolean }, img: Img) => (l.auto ? Math.min(l.s, (2 * Math.max(img.width, img.height) * 25.4) / 300) : l.s);
 const isTopSticker = (l: Layer) => l.k === "sticker" && !!l.user;
 
