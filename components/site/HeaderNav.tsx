@@ -17,9 +17,9 @@ const extra = [
 ];
 
 // header không hiện "Lên mockup" và "Về chúng tôi"
-const navServices = services.filter((s) => s.href !== "/thiet-ke/mockup" && s.href !== "/ve-chung-toi");
+const navServices = [{ href: "/", title: "Trang chủ", short: "Trang chủ" }, ...services.filter((s) => s.href !== "/thiet-ke/mockup" && s.href !== "/ve-chung-toi")];
 
-const isOn = (path: string, href: string) => path === href || path.startsWith(href + "/");
+const isOn = (path: string, href: string) => (href === "/" ? path === "/" : path === href || path.startsWith(href + "/"));
 
 const itemCls = (on: boolean) =>
   `rounded-[8px] px-3 py-2 font-tile text-[15px] tracking-[-0.01em] transition-colors hover:bg-black/5 font-bold ${on ? "text-[var(--c-header-active)] underline decoration-[1.5px] underline-offset-[6px]" : "text-[var(--c-header-text)]"}`;

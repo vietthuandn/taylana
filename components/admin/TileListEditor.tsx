@@ -5,7 +5,7 @@ import { Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import { newTileId, type TileItem } from "@/lib/tileItems";
 import { Button, Field, ImageInput, Input, SortButtons, confirmDialog } from "@/components/admin/ui";
 
-export function TileListEditor({ items, onChange, folder, withDesc = false }: { items: TileItem[]; onChange: (v: TileItem[]) => void; folder: string; withDesc?: boolean }) {
+export function TileListEditor({ items, onChange, folder, withDesc = false, descLabel = "Mô tả (Mẫu 2)", linkOptional = false }: { items: TileItem[]; onChange: (v: TileItem[]) => void; folder: string; withDesc?: boolean; descLabel?: string; linkOptional?: boolean }) {
   const set = (i: number, p: Partial<TileItem>) => onChange(items.map((x, j) => (j === i ? { ...x, ...p } : x)));
   const move = (i: number, d: number) => { const n = [...items]; const [x] = n.splice(i, 1); n.splice(i + d, 0, x); onChange(n); };
   return (
@@ -25,13 +25,13 @@ export function TileListEditor({ items, onChange, folder, withDesc = false }: { 
             <ImageInput value={o.image_url} onChange={(u) => set(i, { image_url: u })} folder={folder} allowSvg shrink={900} label="Ảnh (PNG nền trong suốt)" removeLabel="Xoá ảnh — chỉ hiện chữ" />
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Tên"><Input value={o.title} onChange={(e) => set(i, { title: e.target.value })} /></Field>
-              <Field label="Link"><Input value={o.href} onChange={(e) => set(i, { href: e.target.value })} placeholder="/dat-don" /></Field>
-              {withDesc && <Field label="Mô tả (Mẫu 2)" className="sm:col-span-2"><Input value={o.desc ?? ""} onChange={(e) => set(i, { desc: e.target.value || undefined })} /></Field>}
+              <Field label={linkOptional ? "Link (không bắt buộc)" : "Link"}><Input value={o.href} onChange={(e) => set(i, { href: e.target.value })} placeholder={linkOptional ? "https://… · tel:0905… · để trống = chỉ hiện thông tin" : "/dat-don"} /></Field>
+              {withDesc && <Field label={descLabel} className="sm:col-span-2"><Input value={o.desc ?? ""} onChange={(e) => set(i, { desc: e.target.value || undefined })} /></Field>}
             </div>
           </div>
         </div>
       ))}
-      <Button variant="secondary" icon={<Plus size={16} />} onClick={() => onChange([...items, { id: newTileId(), title: "Mục mới", href: "/", image_url: null }])}>Thêm mục</Button>
+      <Button variant="secondary" icon={<Plus size={16} />} onClick={() => onChange([...items, { id: newTileId(), title: "Mục mới", href: linkOptional ? "" : "/", image_url: null }])}>Thêm mục</Button>
     </div>
   );
 }

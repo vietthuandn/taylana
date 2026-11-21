@@ -1,7 +1,7 @@
 import "server-only";
 import { publicClient } from "@/lib/supabase/public";
 import { getSettings, type HomeOption, type HomeSettings } from "@/lib/settings";
-import { itemsFromOptions, normalizeDesignPage, normalizeItems, type DesignPage, type TileItem } from "@/lib/tileItems";
+import { defaultContactItems, itemsFromOptions, normalizeDesignPage, normalizeItems, type DesignPage, type TileItem } from "@/lib/tileItems";
 
 // Dữ liệu CHUNG cho mọi mẫu trang chủ (Admin → Trang chủ: banner, 6 ô) + dữ liệu riêng của mẫu (variant_settings[id])
 export type HomeVariantProps = { home: HomeSettings; options: HomeOption[]; items: TileItem[]; settings: Record<string, unknown> };
@@ -41,4 +41,10 @@ async function getVariantSettings(): Promise<Record<string, unknown>> {
   if (!sb) return {};
   const { data } = await sb.from("site_settings").select("value").eq("key", "variant_settings").maybeSingle();
   return data?.value && typeof data.value === "object" ? (data.value as Record<string, unknown>) : {};
+}
+
+// Trang /lien-he: các mục (Admin → Giao diện → Liên hệ), mặc định dựng từ cài đặt liên hệ cũ
+export async function getContactItems(): Promise<TileItem[]> {
+  const [{ contact }, v] = await Promise.all([getSettings(), getSetting("contact_items")]);
+  return normalizeItems(v, defaultContactItems(contact), { emptyHref: true });
 }
