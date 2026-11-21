@@ -43,6 +43,8 @@ import { cx } from "@/components/ui/styles";
 import { ScrapbookEditor, type EditorTab } from "./ScrapbookEditor";
 import { LibraryGrid } from "./LibraryGrid";
 import { PhotoPanel, RightsModal, readPhoto, type Photo } from "./parts";
+import { SaveDesignDialog } from "./SaveDesignDialog";
+import type { PrintRef } from "@/lib/designs";
 import { setFrameLibrary } from "@/lib/scrapbook/decor";
 import { customizeText, useScrapStudio, type UserSticker } from "./useScrapStudio";
 
@@ -96,7 +98,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
       const ph: Photo[] = [], us: UserSticker[] = [];
       for (const pid of r.data.photoIds) { const b = r.blobs[pid]; if (b) { try { ph.push(await readPhoto(b, "anh.jpg", pid)); } catch { /* bỏ */ } } }
       for (const sid of r.data.stickerIds) { const b = r.blobs[sid]; if (b) { try { const p = await readPhoto(b, "sticker.png", sid); us.push({ id: sid, blob: b, url: p.url, img: p.img }); } catch { /* bỏ */ } } }
-      paths.current = r.data.paths ?? {};
+      paths.current = r.data.paths ?? {}; printsRef.current = r.data.prints ?? [];
       setPages(r.data.pages); setRightsOk(r.data.rightsOk);
       st.hydrate({ photos: ph, stickers: us, text: r.data.text, adjust: r.data.adjust, doc: r.data.doc, applied: r.data.applied, colors: r.data.colors });
     })();
@@ -207,23 +209,20 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
       { arrange: "single", single: "booklet", seed: 1, tray: "clear", glass: defaultGlass }, (ctx, w, h) => paintBackground(ctx, w, h, bg));
     saveBlob(await toBlob(c, "image/jpeg", 0.92), "Mockup-Booklet-Template.jpg"); toast("Đã tải xuống");
   });
-  const orderId = packIds[pages];
-  const order = () => run(async () => {
-    const cs = await pageCanvases(cmToPx(12)), px = cmToPx(12);
-    const files: PendingFile[] = [];
-    for (const [i, c] of cs.entries()) files.push({ kind: "booklet", page: i + 1, name: `booklet-trang-${pad(i + 1)}.jpg`, blob: await toBlob(c), w: px, h: px });
-    await savePendingFiles(files); // giữ trên máy, gắn vào đơn ngay sau khi đặt
-    router.push(`/san-pham/in-cd-theo-yeu-cau${orderId ? `?goi=${encodeURIComponent(orderId)}` : ""}`);
-  });
-  const saveAccount = () => run(async () => {
+  // Lưu vào "Thiết kế của tôi" (kèm file in từng trang — để Tải / Đặt đơn ở đó)
+  const printsRef = useRef<PrintRef[]>([]);
+  const saveAccount = async () => {
     if (!doc) throw new Error("Tải ảnh và chọn mẫu trước");
+    const px = cmToPx(12), cs = await pageCanvases(px), prints = [];
+    for (const [i, c] of cs.entries()) prints.push({ kind: "booklet" as const, page: i + 1, name: `booklet-trang-${pad(i + 1)}.jpg`, blob: await toBlob(c), w: px, h: px });
     const thumb = renderSurface({ template: doc[0], ...ro, size: 360 }).canvas.toDataURL("image/jpeg", 0.8);
     const files = [...photos.map((p) => ({ id: p.id, blob: p.blob })), ...st.ustickers.map((s) => ({ id: s.id, blob: s.blob }))];
-    const r = await saveScrapToAccount({ v: 1, kind: "booklet-scrapbook", pages, showTitle: true, rightsOk, text: st.text, adjust: st.adjust, doc, applied: st.applied, photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((s) => s.id), paths: paths.current, colors: st.colors },
-      files, { id: designId, name: st.text.main || "Booklet Template", thumbnail: thumb });
-    paths.current = r.paths; setDesignId(r.id);
+    const r = await saveScrapToAccount({ v: 1, kind: "booklet-scrapbook", pages, showTitle: true, rightsOk, text: st.text, adjust: st.adjust, doc, applied: st.applied, photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((s) => s.id), paths: paths.current, colors: st.colors, prints: printsRef.current },
+      files, { id: designId, name: `Booklet ${pages} trang`, thumbnail: thumb }, prints);
+    paths.current = r.paths; printsRef.current = r.prints; setDesignId(r.id);
     toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
-  });
+  };
+  const [saveOpen, setSaveOpen] = useState(false);
 
   const nos = pagesOf(st.active, pages, count);
   const isSpread = cur?.surface === "spread";
@@ -297,12 +296,11 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
               <span className="shrink-0 text-[13px] font-medium text-[#3f3f46]">Số trang:</span>
               {BUNDLE_PAGES.map((n) => <button key={n} type="button" onClick={() => changePages(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", pages === n ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
             </div>
-            {user && <Button variant="secondary" size="sm" icon={<Save size={16} />} onClick={saveAccount} loading={busy} disabled={!doc}>Lưu</Button>}
             <DownloadMenu busy={busy} up items={[
               { label: "Các trang (.zip)", icon: <FileStack size={16} />, onClick: dlPages },
               ...(pages === 2 ? [] : [{ label: "Dàn trang in (.zip)", icon: <Download size={16} />, onClick: dlImposed }]),
             ]} />
-            <Button size="sm" icon={<ShoppingBag size={16} />} disabled={!doc || busy} onClick={() => { if (rightsOk) order(); else setRightsOpen(true); }}>Đặt in booklet này</Button>
+            <Button size="sm" icon={<Save size={16} />} disabled={!doc || busy} onClick={() => { if (rightsOk) setSaveOpen(true); else setRightsOpen(true); }}>Lưu</Button>
           </div>
         )} />
       {zoomPage !== null && zoomUrl && (
@@ -312,7 +310,8 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
           <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[12px] text-white/80">Trang {zoomPage} · bấm ra ngoài hoặc Esc để thoát</p>
         </div>
       )}
-      {rightsOpen && <RightsModal onClose={() => setRightsOpen(false)} onOk={() => { setRightsOk(true); setRightsOpen(false); order(); }} />}
+      {rightsOpen && <RightsModal onClose={() => setRightsOpen(false)} onOk={() => { setRightsOk(true); setRightsOpen(false); setSaveOpen(true); }} />}
+      {saveOpen && <SaveDesignDialog onClose={() => setSaveOpen(false)} onSave={async () => { setBusy(true); try { await saveAccount(); } catch (e) { toast(e instanceof Error ? e.message : "Lưu thất bại", "err"); throw e; } finally { setBusy(false); } }} />}
     </>
   );
 }

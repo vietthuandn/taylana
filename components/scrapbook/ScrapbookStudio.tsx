@@ -16,10 +16,10 @@ import "@fontsource/be-vietnam-pro/400.css";
 import "@fontsource/be-vietnam-pro/700.css";
 import "@fontsource/be-vietnam-pro/400-italic.css";
 import "@fontsource/be-vietnam-pro/700-italic.css";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, LayoutTemplate } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Box, Download, ShoppingBag } from "lucide-react";
+import { Box, Download, Save, ShoppingBag } from "lucide-react";
 import { GRADIENTS, paintBackground, type BgChoice } from "@/lib/mockup/backgrounds";
 import type { MockupBackground } from "@/lib/mockup/types";
 import { defaultGlass } from "@/lib/mockup/types";
@@ -27,7 +27,6 @@ import { renderSystem } from "@/lib/mockup/system/compose";
 import { loadSprites } from "@/lib/mockup/system/sprites";
 import { saveBlob, saveZip } from "@/lib/imageTools";
 import { cx } from "@/components/ui/styles";
-import { savePendingDisc } from "@/lib/scrapbook/pending";
 import { loadFonts, renderSurface } from "@/lib/scrapbook/render";
 import { BACK_FACES, backSlots, backTemplate, blankBack, blankTemplate, fillDoc, fillSlots, groupByCategory, libTemplate, type Bundle, type DesignTpl, type Library } from "@/lib/scrapbook/library";
 import type { CutoutFont, Glyph } from "@/lib/scrapbook/cutout";
@@ -38,9 +37,13 @@ import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
 import { Button, Toggle, toast } from "@/components/ui/kit";
 import { ScrapbookEditor, type EditorTab } from "./ScrapbookEditor";
 import { LibraryGrid, LiveThumb } from "./LibraryGrid";
-import { PhotoPanel } from "./parts";
+import { PhotoPanel, readPhoto, type Photo } from "./parts";
+import { SaveDesignDialog } from "./SaveDesignDialog";
+import { loadScrapFromAccount, saveScrapToAccount, type PrintFile } from "@/lib/scrapbook/account";
+import type { PrintRef } from "@/lib/designs";
+import { hasSupabase } from "@/lib/supabase/env";
 import { setFrameLibrary } from "@/lib/scrapbook/decor";
-import { customizeText, useScrapStudio } from "./useScrapStudio";
+import { customizeText, useScrapStudio, type UserSticker } from "./useScrapStudio";
 import { clone } from "./useScrapDoc";
 
 const toBlob = (c: HTMLCanvasElement, type: string, q?: number) => new Promise<Blob>((res, rej) => c.toBlob((b) => (b ? res(b) : rej(new Error("Không xuất được ảnh"))), type, q));
@@ -164,16 +167,46 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
     catch (e) { toast(e instanceof Error ? e.message : "Xuất ảnh thất bại", "err"); }
     setBusy(false);
   }
-  async function order() {
-    if (!doc) return toast("Chưa có thiết kế", "err");
-    setBusy(true);
-    try {
-      await savePendingDisc(await printBlob());
-      router.push(`/san-pham/in-cd-theo-yeu-cau${boxPackageId ? `?goi=${encodeURIComponent(boxPackageId)}` : ""}`);
-    } catch (e) { toast(e instanceof Error ? e.message : "Không tạo được file in", "err"); setBusy(false); }
+  // ---------- Lưu vào "Thiết kế của tôi" (kèm file in — để Tải / Đặt đơn ở đó) · mở lại bằng ?design=<id> ----------
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [designId, setDesignId] = useState<string | null>(null);
+  const paths = useRef<Record<string, string>>({});
+  const printsRef = useRef<PrintRef[]>([]);
+  const scrapKind = isBack ? "back-scrapbook" : "cd-scrapbook";
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("design");
+    if (!st.ready || !id || !hasSupabase) return;
+    (async () => {
+      const r = await loadScrapFromAccount(id, scrapKind).catch(() => null);
+      if (!r) return;
+      const ph: Photo[] = [], us: UserSticker[] = [];
+      for (const pid of r.data.photoIds) { const b = r.blobs[pid]; if (b) { try { ph.push(await readPhoto(b, "anh.jpg", pid)); } catch { /* bỏ */ } } }
+      for (const sid of r.data.stickerIds) { const b = r.blobs[sid]; if (b) { try { const p = await readPhoto(b, "sticker.png", sid); us.push({ id: sid, blob: b, url: p.url, img: p.img }); } catch { /* bỏ */ } } }
+      paths.current = r.data.paths ?? {}; printsRef.current = r.data.prints ?? [];
+      if (isBack && (r.data.faces === 1 || r.data.faces === 2)) setFaces(r.data.faces);
+      setDesignId(id);
+      st.hydrate({ photos: ph, stickers: us, text: r.data.text, adjust: r.data.adjust, doc: r.data.doc, applied: r.data.applied, colors: r.data.colors });
+    })();
+  }, [st.ready]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function saveAccount() {
+    if (!doc) throw new Error("Chưa có thiết kế");
+    const prints: PrintFile[] = [];
+    if (isBack) {
+      const w = Math.round((150 / 25.4) * 300), h = Math.round((117 / 25.4) * 300);
+      for (let i = 0; i < doc.length; i++) prints.push({ kind: "back", page: doc.length > 1 ? i + 1 : null, name: `bia-sau-${i ? "mat-trong" : "mat-ngoai"}.png`, blob: await printBlob(i), w, h });
+    } else prints.push({ kind: "disc", page: null, name: "mat-dia.png", blob: await printBlob(), w: PRINT_PX, h: PRINT_PX });
+    const thumb = renderSurface({ template: doc[0], ...st.renderOpts, size: 360 }).canvas.toDataURL("image/jpeg", 0.8);
+    const files = [...photos.map((p) => ({ id: p.id, blob: p.blob })), ...st.ustickers.map((x) => ({ id: x.id, blob: x.blob }))];
+    const r = await saveScrapToAccount({ v: 1, kind: scrapKind, pages: 0, faces: isBack ? doc.length : undefined, showTitle: false, rightsOk: true, text: st.text, adjust: st.adjust, doc, applied: st.applied,
+      photoIds: photos.map((p) => p.id), stickerIds: st.ustickers.map((x) => x.id), paths: paths.current, colors: st.colors, prints: printsRef.current },
+      files, { id: designId, name: isBack ? `Bìa sau ${doc.length} mặt` : "Mặt đĩa CD", thumbnail: thumb }, prints);
+    paths.current = r.paths; printsRef.current = r.prints; setDesignId(r.id);
+    toast("Đã lưu vào Thiết kế của tôi", "ok", { label: "Xem", href: "/thiet-ke-cua-toi" });
   }
 
+
   return (
+    <>
     <ScrapbookEditor mode="customer" st={st} assets={assets} assetGroups={assetGroups} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
       guides={guides} setGuides={setGuides}
       toolbar={isBack ? undefined : <Toggle checked={boxView} onChange={(v) => { setBoxView(v); st.setEditLayer(null); st.setSel(null); }} label="Xem trong hộp" />}
@@ -235,9 +268,10 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
             </div>
           ) : <span className="flex-1" />}
           <Button size="sm" variant="secondary" icon={<Download size={16} />} onClick={downloadPrint} loading={busy}>Tải file in (PNG)</Button>
-          {isBack ? <Button size="sm" icon={<ShoppingBag size={16} />} href="/dat-don">Đặt in</Button>
-            : <Button size="sm" icon={<ShoppingBag size={16} />} onClick={order} disabled={!doc || busy}>Đặt in CD này</Button>}
+          <Button size="sm" icon={<Save size={16} />} onClick={() => setSaveOpen(true)} disabled={!doc || busy}>Lưu</Button>
         </div>
       )} />
+    {saveOpen && <SaveDesignDialog onClose={() => setSaveOpen(false)} onSave={async () => { setBusy(true); try { await saveAccount(); } catch (e) { toast(e instanceof Error ? e.message : "Lưu thất bại", "err"); throw e; } finally { setBusy(false); } }} />}
+    </>
   );
 }

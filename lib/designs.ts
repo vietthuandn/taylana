@@ -57,13 +57,24 @@ export async function saveDesign(data: DesignData, opts: { id?: string | null; n
     if (error) throw new Error(error.message);
     return { id: opts.id, data: clean };
   }
+  await assertDesignSlot();
   const { data: ins, error } = await sb.from("designs").insert(row).select("id").single();
   if (error) throw new Error(error.code === "PGRST205" || error.code === "42P01" ? "Tiệm chưa bật tính năng lưu thiết kế (cần chạy migration)." : error.message);
   return { id: ins.id as string, data: clean };
 }
 
-export async function listDesigns(): Promise<DesignRow[]> {
-  const { data, error } = await createClient().from("designs").select("id, name, thumbnail, created_at, updated_at, kind:data->>kind").order("updated_at", { ascending: false });
+/** thiết kế chỉ lưu 24 giờ kể từ lần sửa gần nhất · mỗi tài khoản tối đa 5 thiết kế */
+export const DESIGN_TTL_MS = 24 * 3600 * 1000, MAX_DESIGNS = 5;
+export const designSince = () => new Date(Date.now() - DESIGN_TTL_MS).toISOString();
+/** còn chỗ lưu thiết kế mới không (đếm thiết kế chưa hết hạn) — hết chỗ thì báo lỗi */
+export async function assertDesignSlot() {
+  const { count } = await createClient().from("designs").select("id", { count: "exact", head: true }).gt("updated_at", designSince());
+  if ((count ?? 0) >= MAX_DESIGNS) throw new Error(`Bạn đã lưu tối đa ${MAX_DESIGNS} thiết kế — vào Thiết kế của tôi xoá bớt rồi lưu lại nhé.`);
+}
+export type PrintRef = { kind: "booklet" | "back" | "disc" | "front"; page: number | null; name: string; path: string; w: number; h: number };
+export async function listDesigns(): Promise<(DesignRow & { prints?: PrintRef[] | null; pages?: number | null; faces?: number | null; rightsOk?: boolean | null })[]> {
+  const { data, error } = await createClient().from("designs").select("id, name, thumbnail, created_at, updated_at, kind:data->>kind, prints:data->prints, pages:data->pages, faces:data->faces, rightsOk:data->rightsOk")
+    .gt("updated_at", designSince()).order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as DesignRow[];
 }
@@ -76,7 +87,7 @@ export async function renameDesign(id: string, name: string) {
   if (error) throw new Error(error.message);
 }
 /** đường dẫn ảnh (design-assets/<user_id>/…) mà 1 thiết kế đang dùng — ảnh "sb:…", photoPaths, paths */
-function assetPaths(data: unknown): Set<string> {
+export function assetPaths(data: unknown): Set<string> {
   const out = new Set<string>();
   const re = /^(?:sb:)?([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[A-Za-z0-9._-]+\.(?:jpg|jpeg|png|webp|gif))$/i;
   const walk = (v: unknown) => {

@@ -1,4 +1,5 @@
 "use client";
+import { assertDesignSlot } from "@/lib/designs";
 import { downloadPrivate, uploadFile } from "@/lib/storage/client";
 /* Bản nháp Booklet Lyrics (IndexedDB) + lưu vào "Thiết kế của tôi" (bảng designs, ảnh lên bucket riêng tư design-assets/<user_id>/). */
 import { getBlob, putBlob } from "@/lib/blobStore";
@@ -51,6 +52,7 @@ export async function saveToAccount(doc: LyricsDoc, photos: DocPhoto[], opts: { 
     if (error) throw new Error(error.message);
     return { id: opts.id, paths };
   }
+  await assertDesignSlot();
   const { data, error } = await sb.from("designs").insert(row).select("id").single();
   if (error) throw new Error(error.code === "PGRST205" || error.code === "42P01" ? "Tiệm chưa bật tính năng lưu thiết kế (cần chạy migration)." : error.message);
   return { id: data.id as string, paths };
