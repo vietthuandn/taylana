@@ -494,6 +494,7 @@ export function renderSurface(o: RenderOpts) {
       if (S.kind === "spread") { x.strokeRect(5, 5, 110 - 2, 110); x.strokeRect(127, 5, 108, 110); }
       else x.strokeRect(S.safe.x0, S.safe.y0, S.safe.x1 - S.safe.x0, S.safe.y1 - S.safe.y0);
       if (S.gutter !== null) { x.setLineDash([]); x.strokeStyle = "rgba(255,95,162,0.7)"; x.beginPath(); x.moveTo(S.gutter, 0); x.lineTo(S.gutter, S.h); x.stroke(); }
+      for (const f of S.folds ?? []) { x.setLineDash([]); x.strokeStyle = "rgba(255,95,162,0.7)"; x.beginPath(); x.moveTo(f, 0); x.lineTo(f, S.h); x.stroke(); }
       x.restore();
     }
     return { canvas: c, hits, texts };

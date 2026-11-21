@@ -228,6 +228,7 @@ export function SurfaceView(p: SurfaceViewProps) {
               {S.kind === "spread" ? (<><rect x={5} y={5} width={108} height={110} /><rect x={127} y={5} width={108} height={110} /></>)
                 : <rect x={S.safe.x0} y={S.safe.y0} width={S.safe.x1 - S.safe.x0} height={S.safe.y1 - S.safe.y0} />}
               {S.gutter !== null && <line x1={S.gutter} y1={0} x2={S.gutter} y2={S.h} stroke="rgba(255,95,162,0.55)" strokeDasharray="none" strokeWidth="0.4" />}
+              {(S.folds ?? []).map((f) => <line key={f} x1={f} y1={0} x2={f} y2={S.h} stroke="rgba(255,95,162,0.55)" strokeDasharray="none" strokeWidth="0.4" />)}
             </g>
           )}
         </svg>

@@ -6,7 +6,7 @@ import { clone } from "@/components/scrapbook/useScrapDoc";
 import type { Template } from "./types";
 import type { TemplateDoc } from "@/lib/cdDoc";
 
-export type TplKind = "cd" | "booklet_single" | "booklet_spread";
+export type TplKind = "cd" | "booklet_single" | "booklet_spread" | "back";
 export type CategoryScope = TplKind | "booklet_bundle";
 export type Category = { id: string; scope: CategoryScope; name: string; sort_order: number; is_active: boolean };
 export type DesignTpl = {
@@ -20,6 +20,7 @@ export const KIND_INFO: Record<TplKind, { label: string; unit: string }> = {
   cd: { label: "CD Template", unit: "mặt đĩa" },
   booklet_single: { label: "Trang đơn", unit: "trang 12 × 12 cm" },
   booklet_spread: { label: "Trang đôi", unit: "cặp trang 24 × 12 cm" },
+  back: { label: "Back cover Template", unit: "bìa sau 15 × 11,7 cm" },
 };
 export const BUNDLE_PAGES = [2, 4, 8, 12] as const;
 export const SUGGESTED_CATEGORIES = ["Cơ bản", "Sinh nhật", "Tốt nghiệp", "Tình iu", "Bạn thân", "Gia đình"];
@@ -29,6 +30,7 @@ const WHITE = { color: "#ffffff", pattern: "plain" as const, ink: "#3f3f46" };
 /** bề mặt trống theo loại mẫu */
 export function blankTemplate(kind: TplKind, gutter: "left" | "right" = "left"): Template {
   if (kind === "cd") return { id: "blank-cd", n: 0, style: "polaroid", seed: 1, surface: "disc", bg: { ...WHITE }, layers: [] };
+  if (kind === "back") return { id: "blank-back", n: 0, style: "polaroid", seed: 1, surface: "back", bg: { ...WHITE }, layers: [] };
   if (kind === "booklet_spread") return { id: "blank-spread", n: 0, style: "polaroid", seed: 1, surface: "spread", bg: { ...WHITE }, layers: [] };
   return { id: "blank-page", n: 0, style: "polaroid", seed: 1, surface: "page", gutter, bg: { ...WHITE }, layers: [] };
 }

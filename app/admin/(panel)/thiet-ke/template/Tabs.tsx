@@ -5,7 +5,7 @@ import { DESIGNER_TEMPLATE_TABS } from "@/lib/roles";
 
 // Admin → Thiết kế → Quản lý template: các tab (mỗi tab 1 đường dẫn riêng)
 export const TEMPLATE_TABS = [
-  ["cd-template", "CD Template"], ["booklet-template", "Booklet Template"],
+  ["cd-template", "CD Template"], ["booklet-template", "Booklet Template"], ["back-template", "Back cover Template"],
   ["photostrip", "Khung Photostrip"], ["booklet-lyrics", "Booklet Lyrics"], ["canva", "Template Canva"], ["mockup", "Mockup"],
 ] as const;
 export type TemplateTab = (typeof TEMPLATE_TABS)[number][0];

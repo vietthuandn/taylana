@@ -64,7 +64,7 @@ export type Frame = { id: string; set_id: string; name: string; url: string; reg
 export type WishTopic = { id: string; name: string; is_active: boolean; sort_order: number };
 export type Wish = { id: string; topic_id: string; content: string; lang: "vi" | "en"; is_active: boolean; sort_order: number };
 export type WishCard = "card" | "note" | "lined" | "label";
-export type SurfaceKind = "disc" | "page" | "spread"; // template: mẫu admin chỉnh tay (đè lên mẫu tạo bằng code)
+export type SurfaceKind = "disc" | "page" | "spread" | "back"; // back: bìa sau 15 × 11,7 cm (2 nếp gấp gáy) // template: mẫu admin chỉnh tay (đè lên mẫu tạo bằng code)
 
 // ---------- cấu hình 1 mẫu (danh sách lớp) ----------
 export type PhotoShape = "rect" | "polaroid" | "torn" | "circle" | "heart" | "frame";

@@ -16,6 +16,7 @@ import { confirmDialog, promptDialog } from "@/components/ui/dialog";
 import { Badge, Button, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
 import { RowMenu } from "@/components/ui/RowMenu";
+import { LiveThumb } from "@/components/scrapbook/LibraryGrid";
 import { CategoryManager, Modal } from "./CategoryManager";
 
 export const EDITOR = "/admin/thiet-ke/template/sua";
@@ -34,7 +35,7 @@ export function LibraryAdmin({ kind, extra, reloadKey = 0 }: { kind: TplKind; ex
   const [creating, setCreating] = useState(false);
   const [manage, setManage] = useState(false);
   const [moving, setMoving] = useState<DesignTpl | null>(null);
-  const spread = kind === "booklet_spread", disc = kind === "cd";
+  const spread = kind === "booklet_spread", disc = kind === "cd", backc = kind === "back";
 
   const load = useCallback(async () => {
     try { const [c, t] = await Promise.all([loadCategories(kind), loadTemplates([kind])]); setCats(c); setItems(t); setErr(""); }
@@ -120,10 +121,11 @@ export function LibraryAdmin({ kind, extra, reloadKey = 0 }: { kind: TplKind; ex
             {g.items.map((t) => (
               <li key={t.id} draggable onDragStart={() => setDrag(t.id)} onDragEnd={() => setDrag(null)} onDragOver={(e) => e.preventDefault()} onDrop={() => drop(t)}
                 className={cx("flex flex-col overflow-hidden rounded-[12px] border bg-white transition-shadow hover:shadow-[0_4px_16px_rgb(0_0_0/0.06)]", drag === t.id ? "border-[#ff5fa2] opacity-50" : "border-[#e5e5e7]")}>
-                <button type="button" onClick={() => router.push(`${EDITOR}?tpl=${t.id}`)} className={cx("relative grid place-items-center bg-[#f4f4f5] p-2", spread ? "aspect-[2/1]" : "aspect-square")} aria-label={`Sửa ${t.name}`}>
+                <button type="button" onClick={() => router.push(`${EDITOR}?tpl=${t.id}`)} className={cx("relative grid place-items-center bg-[#f4f4f5] p-2", spread ? "aspect-[2/1]" : backc ? "aspect-[150/117]" : "aspect-square")} aria-label={`Sửa ${t.name}`}>
                   <GripVertical size={15} className="absolute left-1 top-1 cursor-grab text-[#a1a1aa]" />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {t.thumbnail_url ? <img src={t.thumbnail_url} alt="" draggable={false} className={cx("max-h-full max-w-full", !t.is_active && "opacity-40")} loading="lazy" />
+                    : backc ? <LiveThumb t={t} className={cx("max-h-full max-w-full", !t.is_active && "opacity-40")} />
                     : <span className={cx("grid place-items-center bg-white text-[11px] text-[#a1a1aa]", disc ? "aspect-square w-[80%] rounded-full" : spread ? "h-[80%] w-[90%]" : "aspect-square w-[80%]")}>Chưa có ảnh</span>}
                 </button>
                 <div className="flex flex-1 flex-col border-t border-[#efeff1] p-2.5">
@@ -192,7 +194,7 @@ function CreateModal({ kind, cats, items, onClose, onCreate }: { kind: TplKind; 
           </select></label>
         <label className="block"><span className="mb-1.5 block text-[13px] font-medium">Bắt đầu từ</span>
           <select value={from ?? ""} onChange={(e) => setFrom(e.target.value || null)} className={sel}>
-            <option value="">{kind === "cd" ? "Mặt đĩa trống" : kind === "booklet_spread" ? "Cặp trang trống" : "Trang trống"}</option>
+            <option value="">{kind === "cd" ? "Mặt đĩa trống" : kind === "back" ? "Bìa sau trống" : kind === "booklet_spread" ? "Cặp trang trống" : "Trang trống"}</option>
             {items.map((t) => <option key={t.id} value={t.id}>Nhân bản: {t.name}</option>)}
           </select></label>
         <div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={onClose}>Huỷ</Button><Button type="submit" loading={busy}>Tạo và mở trình sửa</Button></div>

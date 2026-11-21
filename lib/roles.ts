@@ -5,9 +5,9 @@ export const ROLE_LABEL: Record<StaffRole, string> = { admin: "Quản trị viê
 /** đường dẫn Nhà thiết kế được vào (kèm trang Tổng quan rút gọn /admin): Quản lý chất liệu (mọi tab) + Quản lý template gồm
    CD Template, Booklet Template (Trang đơn · Trang đôi · Trình tạo template), Khung Photostrip và trình sửa mẫu.
    KHÔNG: Booklet Lyrics (cài đặt), Template Canva, Mockup, Link chia sẻ và mọi trang khác. */
-export const DESIGNER_PATHS = ["/admin/thiet-ke/chat-lieu", "/admin/thiet-ke/template/cd-template", "/admin/thiet-ke/template/booklet-template", "/admin/thiet-ke/template/photostrip", "/admin/thiet-ke/template/sua"];
+export const DESIGNER_PATHS = ["/admin/thiet-ke/chat-lieu", "/admin/thiet-ke/template/cd-template", "/admin/thiet-ke/template/booklet-template", "/admin/thiet-ke/template/back-template", "/admin/thiet-ke/template/photostrip", "/admin/thiet-ke/template/sua"];
 /** tab Quản lý template nhà thiết kế thấy */
-export const DESIGNER_TEMPLATE_TABS = ["cd-template", "booklet-template", "photostrip"];
+export const DESIGNER_TEMPLATE_TABS = ["cd-template", "booklet-template", "back-template", "photostrip"];
 export const designerHome = "/admin";
 export function canAccess(role: StaffRole | null, path: string) {
   if (!role) return false;

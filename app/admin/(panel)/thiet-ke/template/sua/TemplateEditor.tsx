@@ -122,7 +122,7 @@ function Workbench({ row: row0, lib: lib0 }: { row: DesignTpl; lib: Lib }) {
       const template = clean(t);
       const thumb = await uploadThumb([template], { ...st.renderOpts, photos: samples }).catch(() => null);
       // mặt đĩa / trang đơn: kèm bản cho trình "Thiết kế CD" (bìa trước, trang booklet, mặt đĩa)
-      const cdDoc = row.kind === "booklet_spread" ? undefined : await buildCdDoc(template, st.renderOpts).catch(() => row.config.cdDoc);
+      const cdDoc = row.kind === "booklet_spread" || row.kind === "back" ? undefined : await buildCdDoc(template, st.renderOpts).catch(() => row.config.cdDoc);
       const v = { name: name.trim() || "Mẫu mới", config: { ...row.config, template, ...(cdDoc ? { cdDoc } : {}) }, photo_count: slotCount(template), thumbnail_url: thumb ?? row.thumbnail_url, updated_at: new Date().toISOString() };
       const { error } = await createClient().from("design_templates").update(v).eq("id", row.id);
       if (error) throw new Error(error.message);
@@ -205,7 +205,7 @@ function Workbench({ row: row0, lib: lib0 }: { row: DesignTpl; lib: Lib }) {
               </label>
             ))}
           </div>
-          <p className="text-[10px] text-[#a1a1aa]">Đơn vị mm · bề mặt {cur?.surface === "spread" ? "240 × 120" : "120 × 120"} mm</p>
+          <p className="text-[10px] text-[#a1a1aa]">Đơn vị mm · bề mặt {cur?.surface === "spread" ? "240 × 120" : cur?.surface === "back" ? "150 × 117 (nếp gấp gáy cách 2 cạnh 6 mm)" : "120 × 120"} mm</p>
           {layer.k === "photo" && (
             <>
               <label className="flex items-center justify-between gap-2 text-[12px] text-[#52525b]">Ảnh số
@@ -246,12 +246,12 @@ function Workbench({ row: row0, lib: lib0 }: { row: DesignTpl; lib: Lib }) {
       ))}
     </div>
   );
-  const back = row.kind === "cd" ? "/admin/thiet-ke/template/cd-template" : `/admin/thiet-ke/template/booklet-template?sub=${row.kind === "booklet_spread" ? "spread" : "single"}`;
+  const back = row.kind === "cd" ? "/admin/thiet-ke/template/cd-template" : row.kind === "back" ? "/admin/thiet-ke/template/back-template" : `/admin/thiet-ke/template/booklet-template?sub=${row.kind === "booklet_spread" ? "spread" : "single"}`;
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-[#e5e5e7] bg-white px-4 py-2">
         <Link href={back} className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Template</Link>
-        <span className="text-[12px] text-[#a1a1aa]">{row.kind === "cd" ? "CD Template" : `Booklet Template · ${KIND_INFO[row.kind].label}`}</span>
+        <span className="text-[12px] text-[#a1a1aa]">{row.kind === "cd" ? "CD Template" : row.kind === "back" ? "Back cover Template" : `Booklet Template · ${KIND_INFO[row.kind].label}`}</span>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên mẫu" aria-label="Tên mẫu" className="h-8 min-w-[180px] flex-1 rounded-[6px] border border-transparent px-2 text-[14px] font-semibold hover:border-[#e5e5e7] focus:border-[#ff5fa2] focus:outline-none" />
         <span className="inline-flex">
           <Button size="sm" variant="secondary" icon={<Sparkles size={14} />} onClick={decorate} className="rounded-r-none">Rải sticker tự động</Button>

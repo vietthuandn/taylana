@@ -47,10 +47,13 @@ const NO_EXTRA = {};
 export const fromTemplate = (t: Template, photos: { id: string }[]): Template => ({ ...clone(t), layers: clone(t.layers).map((l) => (l.k === "photo" ? { ...l, photo: photos[l.slot]?.id ?? "" } : l)) });
 
 const MAX = 30; // số ảnh tối đa (mẫu có bao nhiêu ô cũng được)
-export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyphs, frames, frameSets, topics, wishes, backgrounds, boxPackageId }: {
+export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyphs, frames, frameSets, topics, wishes, backgrounds, boxPackageId, kind = "cd" }: {
   assets: ScrapAsset[]; assetGroups?: AssetGroupRow[]; library: Library; fonts: CutoutFont[]; glyphs: Glyph[]; frames: Frame[]; frameSets: FrameSet[];
   topics: WishTopic[]; wishes: Wish[]; backgrounds: MockupBackground[]; boxPackageId: string | null;
+  /** cd = CD Template (mặt đĩa) · back = Back cover Template (bìa sau 15 × 11,7 cm) */
+  kind?: "cd" | "back";
 }) {
+  const isBack = kind === "back";
   const T = topics.length ? topics : DEFAULT_TOPICS, W = wishes.length ? wishes : DEFAULT_WISHES;
   setFrameLibrary(frameSets);
   const router = useRouter();
@@ -60,7 +63,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
   const [bg, setBg] = useState<BgChoice>({ kind: "gradient", g: GRADIENTS[0] });
   const [busy, setBusy] = useState(false);
   const st = useScrapStudio({
-    prefix: "scrapbook", max: MAX, assets, frames, fonts, glyphs, defaultText: { main: "Happy Birthday", sub: "" }, extra: NO_EXTRA, wantAllFonts: tab === "chu",
+    prefix: isBack ? "scrapbook-back" : "scrapbook", max: MAX, assets, frames, fonts, glyphs, defaultText: { main: "Happy Birthday", sub: "" }, extra: NO_EXTRA, wantAllFonts: tab === "chu",
     // bản nháp cũ: mẫu đã sửa (work) → thiết kế, ô ảnh theo thứ tự ảnh
     onLoad: (meta, list) => (meta.work ? [fromTemplate(meta.work, list)] : undefined),
   });
@@ -68,7 +71,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
 
 
   // ---------- mặt đĩa trắng khi chưa có thiết kế ----------
-  useEffect(() => { if (st.ready && !doc) { st.D.setDoc([blankTemplate("cd")]); st.D.reset(); st.D.setEdited(false); } }, [st.ready, doc]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (st.ready && !doc) { st.D.setDoc([blankTemplate(kind)]); st.D.reset(); st.D.setEdited(false); } }, [st.ready, doc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---------- mẫu cố định của admin ----------
   const tpls = library.templates;
@@ -110,11 +113,12 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
   const printBlob = async () => {
     if (!doc) throw new Error("Chưa có thiết kế");
     await loadFonts();
+    if (isBack) return toBlob(renderSurface({ template: doc[0], ...st.renderOpts, size: Math.round((150 / 25.4) * 300), mode: "print" }).canvas, "image/png"); // bìa sau 15 cm, 300 dpi
     return toBlob(renderSurface({ template: doc[0], ...st.renderOpts, size: PRINT_PX, mode: "print", fullDisc: true }).canvas, "image/png"); // không khoét lỗ giữa
   };
   async function downloadPrint() {
     setBusy(true);
-    try { saveBlob(await printBlob(), "Mat-dia-CD-Template-12x12cm-300dpi.png"); toast("Đã tải xuống"); } catch (e) { toast(e instanceof Error ? e.message : "Xuất file thất bại", "err"); }
+    try { saveBlob(await printBlob(), isBack ? "Bia-sau-15x11.7cm-300dpi.png" : "Mat-dia-CD-Template-12x12cm-300dpi.png"); toast("Đã tải xuống"); } catch (e) { toast(e instanceof Error ? e.message : "Xuất file thất bại", "err"); }
     setBusy(false);
   }
   async function downloadMockup() {
@@ -135,7 +139,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
   return (
     <ScrapbookEditor mode="customer" st={st} assets={assets} assetGroups={assetGroups} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
       guides={guides} setGuides={setGuides}
-      toolbar={<Toggle checked={boxView} onChange={(v) => { setBoxView(v); st.setEditLayer(null); st.setSel(null); }} label="Xem trong hộp" />}
+      toolbar={isBack ? undefined : <Toggle checked={boxView} onChange={(v) => { setBoxView(v); st.setEditLayer(null); st.setSel(null); }} label="Xem trong hộp" />}
       overlay={boxView && doc ? (boxUrl
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={boxUrl} alt="Mặt đĩa trên nền" className="max-h-full max-w-full rounded-[12px] border border-[#e5e5e7]" />
@@ -143,7 +147,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
       templateTab={(
         <section className="space-y-3">
           <p className="text-[12px] text-[#71717a]">Chọn 1 mẫu — ảnh bạn đã tải tự điền vào các ô theo thứ tự. Chọn mẫu trước rồi tải ảnh sau cũng được.</p>
-          <LibraryGrid items={tpls} cats={library.categories} current={st.applied} onPick={apply} round />
+          <LibraryGrid items={tpls} cats={library.categories} current={st.applied} onPick={apply} round={!isBack} cols={isBack ? 2 : 3} aspect={isBack ? "aspect-[150/117]" : undefined} />
         </section>
       )}
       photoTab={(
@@ -154,7 +158,8 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
         <div className="flex h-14 shrink-0 items-center gap-3 border-t border-[#efeff1] bg-[#f7f7f8] px-4">
           <span className="flex-1" />
           <Button size="sm" variant="secondary" icon={<Download size={16} />} onClick={downloadPrint} loading={busy}>Tải file in (PNG)</Button>
-          <Button size="sm" icon={<ShoppingBag size={16} />} onClick={order} disabled={!doc || busy}>Đặt in CD này</Button>
+          {isBack ? <Button size="sm" icon={<ShoppingBag size={16} />} href="/dat-don">Đặt in</Button>
+            : <Button size="sm" icon={<ShoppingBag size={16} />} onClick={order} disabled={!doc || busy}>Đặt in CD này</Button>}
         </div>
       )} />
   );
