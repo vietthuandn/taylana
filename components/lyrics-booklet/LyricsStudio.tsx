@@ -410,12 +410,6 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
             </div>
           </div>
         )}
-        {/* hành động */}
-        <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2">
-          {orderId
-            ? <Button size="sm" icon={<ShoppingBag size={16} />} onClick={() => { if (rightsOk) order(); else { setRightsTick(false); setRightsOpen(true); } }} disabled={busy || !fits}>Đặt in booklet này</Button>
-            : <Button size="sm" href="/lien-he">Liên hệ tiệm để in {pack} trang</Button>}
-        </div>
       </section>
 
       {/* ---------- Trái: panel nhập liệu (full màn hình, giống các trình thiết kế khác) ---------- */}

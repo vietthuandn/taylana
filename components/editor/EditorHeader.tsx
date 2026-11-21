@@ -11,7 +11,7 @@ import { useSiteTheme } from "@/components/site/ThemeContext";
 import { cx } from "@/components/ui/styles";
 
 export type EditorHeaderProps = {
-  pages?: { value: number; options: readonly number[]; onChange: (n: number) => void }; // chỉ Booklet
+  pages?: { value: number; options: readonly number[]; onChange: (n: number) => void; unit?: string }; // Booklet: số trang · Bìa sau: số mặt (unit "mặt")
   onSave?: () => void; downloads?: { label: string; onClick: () => void }[]; share?: { onClick: () => void; busy?: boolean };
   guides?: { value: boolean; onChange: (v: boolean) => void };
   undo?: { onUndo: () => void; onRedo: () => void; canUndo: boolean; canRedo: boolean };
@@ -48,7 +48,7 @@ export function EditorHeader({ h }: { h: EditorHeaderProps }) {
       </Menu>;
   const pages = (label: React.ReactNode, cls: string) => h.pages && (
     <Menu button={(t) => <button type="button" onClick={t} className={cls}>{label} <ChevronDown size={14} /></button>}>
-      {h.pages.options.map((n) => <button key={n} type="button" onClick={() => h.pages!.onChange(n)} className={cx(item, h.pages!.value === n && "font-semibold text-[var(--c-primary)]")}>{n} trang{h.pages!.value === n && <Check size={15} className="ml-auto" />}</button>)}
+      {h.pages.options.map((n) => <button key={n} type="button" onClick={() => h.pages!.onChange(n)} className={cx(item, h.pages!.value === n && "font-semibold text-[var(--c-primary)]")}>{n} {h.pages!.unit ?? "trang"}{h.pages!.value === n && <Check size={15} className="ml-auto" />}</button>)}
     </Menu>
   );
   const more = h.guides && (
@@ -67,11 +67,11 @@ export function EditorHeader({ h }: { h: EditorHeaderProps }) {
     <header className="sticky top-0 z-40 shrink-0 border-b border-black/5 font-sans text-[var(--c-header-text)] [background:var(--c-header-bg)]">
       {/* điện thoại */}
       <div className="flex h-14 items-center gap-0.5 px-2 md:hidden">
-        {brand}
+        <Link href="/thiet-ke" aria-label="Quay lại Thiết kế" title="Quay lại" className={icon}><ArrowLeft size={20} /></Link>
         {h.undo && <button type="button" onClick={h.undo.onUndo} disabled={!h.undo.canUndo} title="Hoàn tác" aria-label="Hoàn tác" className={icon}><Undo2 size={18} /></button>}
         {h.undo && <button type="button" onClick={h.undo.onRedo} disabled={!h.undo.canRedo} title="Làm lại" aria-label="Làm lại" className={icon}><Redo2 size={18} /></button>}
         <span className="min-w-0 flex-1" />
-        {pages(<>{h.pages?.value} trang</>, "inline-flex h-9 items-center gap-1 rounded-[10px] border border-current/60 px-2.5 text-[13px] font-medium")}
+        {pages(<>{h.pages?.value} {h.pages?.unit ?? "trang"}</>, "inline-flex h-9 items-center gap-1 rounded-[10px] border border-current/60 px-2.5 text-[13px] font-medium")}
         {h.share && <button type="button" onClick={h.share.onClick} disabled={h.share.busy} title="Chia sẻ" aria-label="Chia sẻ" className={icon}><Share2 size={18} /></button>}
         {h.onSave && <button type="button" onClick={h.onSave} disabled={h.busy} title="Lưu" aria-label="Lưu" className={icon}><Save size={18} /></button>}
         {dl(<Download size={18} />, icon)}
@@ -82,7 +82,7 @@ export function EditorHeader({ h }: { h: EditorHeaderProps }) {
         <Link href="/thiet-ke" aria-label="Quay lại Thiết kế" title="Quay lại" className={icon}><ArrowLeft size={18} /></Link>
         {brand}
         <span className="flex-1" />
-        {pages(<>Số trang: {h.pages?.value}</>, pill)}
+        {pages(<>Số {h.pages?.unit ?? "trang"}: {h.pages?.value}</>, pill)}
         {share}
         {h.onSave && <button type="button" onClick={h.onSave} disabled={h.busy} className={pill}><Save size={16} /> Lưu</button>}
         {dl(<><Download size={16} /> Tải về</>, pill)}

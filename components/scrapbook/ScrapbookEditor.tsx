@@ -144,6 +144,7 @@ export function ScrapbookEditor(p: {
   const open = !collapsed;
   const title = RAIL.find((x) => x[0] === p.tab)?.[1];
   const photoBar = st.photoTools("bar"), photoMobile = st.photoTools("mobile");
+  const multi = !!doc && count > 1;
   return (
     <div data-fit-screen data-editor={p.header ? "" : undefined} className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
      {p.header && <EditorHeader h={{ ...p.header, guides: { value: p.guides, onChange: p.setGuides }, undo: { onUndo: () => { if (st.D.undo()) st.setSel(null); }, onRedo: () => { if (st.D.redo()) st.setSel(null); }, canUndo: st.D.canUndo, canRedo: st.D.canRedo } }} />}
@@ -193,7 +194,7 @@ export function ScrapbookEditor(p: {
       </aside>
 
       {/* ---------- giữa: bề mặt ---------- */}
-      <section onPointerDown={deselectOutside} className="relative order-1 flex min-h-[460px] min-w-0 flex-1 flex-col pb-[96px] md:order-2 md:min-h-0 md:pb-0">
+      <section onPointerDown={deselectOutside} className="relative order-1 flex min-w-0 flex-1 flex-col md:order-2 md:min-h-0">
         {/* máy tính: thanh công cụ ẢNH ở đầu khu làm việc (chọn 1 ảnh) — bỏ chọn thì ẩn */}
         {photoBar && <div className="hidden justify-center px-3 pt-2 md:flex"><div data-keep-sel className="no-scrollbar flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-[var(--c-secondary)] p-1 shadow-sm">{photoBar}</div></div>}
         {(p.onRestore || p.toolbar || !p.header) && (
@@ -204,7 +205,8 @@ export function ScrapbookEditor(p: {
             {!p.header && <Toggle checked={p.guides} onChange={p.setGuides} label="Guideline" />}
           </div>
         )}
-        <div className="relative flex min-h-[300px] flex-1 flex-col max-md:h-[56dvh] max-md:flex-none md:min-h-0">
+        {/* điện thoại: khu xem cao cố định = màn hình − header − khung menu − dải trang / zoom (cố định dưới đáy) */}
+        <div className={cx("relative flex min-h-[220px] flex-1 flex-col max-md:flex-none md:min-h-0", multi ? "max-md:h-[calc(100dvh-56px-176px-env(safe-area-inset-bottom))]" : "max-md:h-[calc(100dvh-56px-136px-env(safe-area-inset-bottom))]")}>
         <div ref={area} className="flex min-h-0 flex-1 touch-none overflow-auto px-2 py-1">
          <div className="m-auto">
           {p.overlay ?? (!cur ? p.empty : st.ready && (
@@ -226,7 +228,7 @@ export function ScrapbookEditor(p: {
          </div>
         </div>
         {!p.overlay && cur && (
-          <div data-keep-sel className="absolute bottom-2 right-3 z-10 flex items-center gap-0.5 rounded-full border border-[#e5e5e7] bg-white/95 p-0.5 text-[12px] shadow-sm">
+          <div data-keep-sel className="absolute bottom-2 right-3 z-10 flex items-center gap-0.5 rounded-full border border-[#e5e5e7] bg-white/95 p-0.5 text-[12px] shadow-sm max-md:hidden">
             <button type="button" onClick={() => setZoom((z) => clampZ(z - 0.1))} disabled={zoom <= 0.25} title="Thu nhỏ" aria-label="Thu nhỏ" className="grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5] disabled:opacity-40"><Minus size={14} /></button>
             <span className="w-11 text-center tabular-nums text-[#3f3f46]">{Math.round(zoom * 100)}%</span>
             <button type="button" onClick={() => setZoom((z) => clampZ(z + 0.1))} disabled={zoom >= 4} title="Phóng to" aria-label="Phóng to" className="grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5] disabled:opacity-40"><Plus size={14} /></button>
@@ -234,8 +236,28 @@ export function ScrapbookEditor(p: {
           </div>
         )}
         </div>
+        {/* điện thoại: dải trang (xem trước) + zoom cố định ngay trên khung menu cuối trang */}
+        {cur && !p.overlay && (
+          <div data-keep-sel className="fixed inset-x-3 bottom-[calc(88px+env(safe-area-inset-bottom))] z-30 flex items-end gap-2 md:hidden">
+            <div className="no-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
+              {multi && doc!.map((sf, i) => (
+                <button key={i} type="button" onClick={() => go(i)} title={p.pageLabel?.(i, count)}
+                  className={cx("h-14 shrink-0 overflow-hidden rounded-[4px] border bg-white p-px shadow-sm", sf.surface === "spread" ? "w-28" : sf.surface === "back" ? "w-[72px]" : "w-14", i === st.active ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7]")}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {thumbs[i] ? <img src={thumbs[i]} alt="" className="block h-full w-full object-contain" /> : <span className="block h-full w-full bg-[#ececef]" />}
+                </button>
+              ))}
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5 rounded-full border border-[#e5e5e7] bg-white/95 p-0.5 text-[12px] shadow-sm">
+              <button type="button" onClick={() => setZoom((z) => clampZ(z - 0.1))} disabled={zoom <= 0.25} aria-label="Thu nhỏ" className="grid h-8 w-8 place-items-center rounded-full disabled:opacity-40"><Minus size={14} /></button>
+              <span className="w-10 text-center tabular-nums text-[#3f3f46]">{Math.round(zoom * 100)}%</span>
+              <button type="button" onClick={() => setZoom((z) => clampZ(z + 0.1))} disabled={zoom >= 4} aria-label="Phóng to" className="grid h-8 w-8 place-items-center rounded-full disabled:opacity-40"><Plus size={14} /></button>
+              <button type="button" onClick={() => setZoom(1)} aria-label="Vừa màn hình" className={cx("grid h-8 w-8 place-items-center rounded-full", zoom === 1 && "text-[var(--c-primary)]")}><Maximize size={13} /></button>
+            </div>
+          </div>
+        )}
         {doc && count > 1 && !p.overlay && (
-          <div className="px-3">
+          <div className="px-3 max-md:hidden">
             <div className="flex items-center justify-center gap-1.5">
               <button type="button" onClick={() => go(st.active - 1)} disabled={st.active === 0} aria-label="Trang trước" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7] bg-white disabled:opacity-40"><ChevronLeft size={14} /></button>
               <span className="min-w-[96px] text-center text-[12px] tabular-nums text-[#3f3f46]">{p.pageLabel?.(st.active, count) ?? `${st.active + 1} / ${count}`}</span>

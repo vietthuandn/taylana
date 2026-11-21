@@ -261,13 +261,9 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
           onAdd={(f) => { addPhotos(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} onInsert={(id) => st.addAsset(`p:${id}`)} />
       )}
       header={{ busy, onSave: () => { orderAfter.current = false; setSaveOpen(true); },
-        downloads: [{ label: isBack ? "Tải file in (PNG)" : "Tải file in mặt đĩa (PNG)", onClick: downloadPrint }] }}
-      bottom={isBack ? (
-        <div className="flex h-14 shrink-0 items-center gap-1.5 border-t border-[#efeff1] bg-[#f7f7f8] px-4">
-          <span className="shrink-0 text-[13px] font-medium text-[#3f3f46]">Số mặt:</span>
-          {BACK_FACES.map((n) => <button key={n} type="button" onClick={() => changeFaces(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", faces === n ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
-        </div>
-      ) : undefined} />
+        downloads: [{ label: isBack ? "Tải file in (PNG)" : "Tải file in mặt đĩa (PNG)", onClick: downloadPrint }],
+        pages: isBack ? { value: faces, options: BACK_FACES, onChange: changeFaces, unit: "mặt" } : undefined }}
+      />
     {saveOpen && <SaveDesignDialog onClose={() => setSaveOpen(false)} onSave={async () => { setBusy(true); try { await saveAccount(); if (orderAfter.current) router.push("/thiet-ke-cua-toi"); } catch (e) { toast(e instanceof Error ? e.message : "Lưu thất bại", "err"); throw e; } finally { setBusy(false); } }} />}
     </>
   );
