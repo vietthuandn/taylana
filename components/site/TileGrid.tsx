@@ -21,11 +21,16 @@ export function TileGrid({ items, preview = false }: { items: TileItem[]; previe
             {o.image_url && (
               // ảnh admin tải lên: hiện nguyên ảnh. Qua bộ tối ưu ảnh của Next (tự thu nhỏ đúng cỡ hiển thị + WebP/AVIF)
               // → cả ảnh cũ tải lên trước khi có nén vẫn nhẹ. SVG giữ nguyên.
-              <Image src={o.image_url} alt="" width={600} height={600} priority={!preview && i < 6} unoptimized={/\.svg($|\?)/i.test(o.image_url)}
-                sizes={preview ? "140px" : four ? "(min-width: 768px) 250px, 46vw" : "(min-width: 768px) 300px, 46vw"} className="block aspect-square h-auto w-full object-contain" />
+              // Khung cố định tỉ lệ 1400 × 1150 (đúng cỡ ảnh icon PNG nền trong suốt). Phía sau là 1 nền bo góc 1308 × 1048, căn giữa,
+              // màu theo Theme (--c-tile-bg) → đổi màu nền ở Theme, không phải sửa từng ảnh. Tỉ lệ giữ nguyên ở mọi cỡ màn hình.
+              <span className="relative block aspect-[1400/1150] w-full">
+                <span aria-hidden className="absolute left-1/2 top-1/2 h-[91.13%] w-[93.43%] -translate-x-1/2 -translate-y-1/2 rounded-[6%/7.3%] bg-[var(--c-tile-bg)]" />
+                <Image src={o.image_url} alt="" width={700} height={575} priority={!preview && i < 6} unoptimized={/\.svg($|\?)/i.test(o.image_url)}
+                  sizes={preview ? "140px" : four ? "(min-width: 768px) 250px, 46vw" : "(min-width: 768px) 300px, 46vw"} className="relative block h-full w-full object-contain" />
+              </span>
             )}
             {/* cỡ chữ theo bề ngang ô (~11%, giống bản xem trước trong admin), tối đa 2 dòng — không bị cắt mất chữ */}
-            <span className={`line-clamp-2 block w-full pt-[0.18em] font-tile font-bold leading-[1.3] tracking-[-0.01em] text-[var(--c-section-text)] ${o.image_url ? "-mt-[5%]" : ""}`}
+            <span className={`line-clamp-2 block w-full pt-[0.18em] font-tile font-bold leading-[1.3] tracking-[-0.01em] text-[var(--c-section-text)] ${o.image_url ? "mt-1" : ""}`}
               style={{ fontSize: preview ? 13 : "clamp(14px, 11cqw, 24px)" }}>{o.title}</span>
           </Link>
         </li>

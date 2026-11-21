@@ -87,7 +87,10 @@ function Preview({ t }: { t: Theme }) {
           <span className="rounded-[8px] border border-[#e5e5e7] bg-white px-3 py-1.5 text-[13px] font-medium text-[#18181b]">Nút phụ</span>
         </div>
         <p className="text-[13px] font-semibold" style={{ color: t.section_text }}>Tiêu đề khối</p>
-        <p className="font-tile text-[18px] font-bold" style={{ color: t.section_text }}>Tên mục trang chủ</p>
+        <div className="w-32 text-center">
+          <span className="relative block aspect-[1400/1150]"><span className="absolute left-1/2 top-1/2 h-[91.13%] w-[93.43%] -translate-x-1/2 -translate-y-1/2 rounded-[6%/7.3%]" style={{ background: t.tile_bg }} /></span>
+          <p className="mt-1 font-tile text-[14px] font-bold" style={{ color: t.section_text }}>Tên mục</p>
+        </div>
         <p className="text-[13px] text-[#3f3f46]">Chữ thường · <span style={{ color: t.primary }}>chữ nhấn / link</span></p>
       </div>
     </div>
@@ -128,7 +131,10 @@ export function ThemeForm({ initial }: { initial: Theme }) {
           </div>
         </SettingsSection>
         <SettingsSection title="Chữ của khối" description="Tiêu đề các khối (vd. “Giỏ hàng”, tên danh mục mẫu) và tên các mục ở Trang chủ / trang Thiết kế.">
-          <Color label="Màu chữ khối (Section text)" value={t.section_text} def={DEFAULT_THEME.section_text} onChange={(v) => set({ section_text: v })} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Color label="Màu chữ khối (Section text)" value={t.section_text} def={DEFAULT_THEME.section_text} onChange={(v) => set({ section_text: v })} />
+            <Color label="Nền phía sau ảnh các mục" hint="Khung bo góc sau ảnh icon (ảnh nên là PNG 1400 × 1150 nền trong suốt)." value={t.tile_bg} def={DEFAULT_THEME.tile_bg} onChange={(v) => set({ tile_bg: v })} />
+          </div>
         </SettingsSection>
         <SettingsSection title="Logo" description="Ảnh logo hiện trên header (nên dùng PNG nền trong suốt). Không có logo thì hiện chữ TAYLANA.">
           <ImageInput label="Logo website" value={t.logo_url} onChange={(u) => set({ logo_url: u })} folder="logo" allowSvg shrink={600} removeLabel="Bỏ logo — dùng chữ" />

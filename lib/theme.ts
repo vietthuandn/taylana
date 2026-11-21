@@ -9,11 +9,12 @@ export type Theme = {
   header_text: string; // chữ trên header (logo, menu)
   header_active: string; // menu đang chọn trên header
   section_text: string; // tiêu đề khối + tên các mục ở Trang chủ / trang Thiết kế
+  tile_bg: string; // nền bo góc phía sau ảnh các mục (Trang chủ, Thiết kế, Đặt đơn)
   logo_url: string | null; // logo riêng (không có = chữ TAYLANA)
 };
 export const DEFAULT_THEME: Theme = {
   primary: "#ff5fa2", secondary: "#fff0f6", page_bg: "#f7f7f8", page_bg_image: null,
-  header_bg: "#ffffff", header_text: "#18181b", header_active: "#ff5fa2", section_text: "#1a1a1a", logo_url: null,
+  header_bg: "#ffffff", header_text: "#18181b", header_active: "#ff5fa2", section_text: "#1a1a1a", tile_bg: "#fde4ec", logo_url: null,
 };
 /** nền header: mã màu #rrggbb HOẶC mã gradient CSS (linear-gradient(...) / radial-gradient(...)) */
 export const isHeaderBg = (v: string) => /^#[0-9a-f]{6}$/i.test(v) || (/^(linear|radial)-gradient\([#%0-9a-z.,\s()-]+\)$/i.test(v) && v.length <= 300);
@@ -28,7 +29,7 @@ export function normalizeTheme(v: unknown): Theme {
   const c = (k: keyof Theme) => (typeof o[k] === "string" && HEX.test(o[k] as string) ? (o[k] as string) : (DEFAULT_THEME[k] as string));
   const url = (k: string) => (typeof o[k] === "string" && /^https?:\/\//.test(o[k] as string) ? (o[k] as string) : null);
   const hb = typeof o.header_bg === "string" && isHeaderBg(o.header_bg.trim()) ? o.header_bg.trim() : DEFAULT_THEME.header_bg;
-  return { primary: c("primary"), secondary: c("secondary"), page_bg: c("page_bg"), page_bg_image: url("page_bg_image"), header_bg: hb, header_text: c("header_text"), header_active: c("header_active"), section_text: c("section_text"), logo_url: url("logo_url") };
+  return { primary: c("primary"), secondary: c("secondary"), page_bg: c("page_bg"), page_bg_image: url("page_bg_image"), header_bg: hb, header_text: c("header_text"), header_active: c("header_active"), section_text: c("section_text"), tile_bg: c("tile_bg"), logo_url: url("logo_url") };
 }
 /** CSS ghi đè biến màu (chỉ các giá trị khác mặc định) */
 export function themeCss(t: Theme) {
@@ -40,6 +41,7 @@ export function themeCss(t: Theme) {
   if (t.header_text !== d.header_text) v.push(`--c-header-text:${t.header_text}`);
   if (t.header_active !== d.header_active) v.push(`--c-header-active:${t.header_active}`);
   if (t.section_text !== d.section_text) v.push(`--c-section-text:${t.section_text}`);
+  if (t.tile_bg !== d.tile_bg) v.push(`--c-tile-bg:${t.tile_bg}`);
   return v.length ? `:root{${v.join(";")}}` : "";
 }
 /** nền trang: ảnh (phủ kín) đè lên màu */
