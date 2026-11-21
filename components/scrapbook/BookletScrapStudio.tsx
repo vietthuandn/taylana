@@ -129,6 +129,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
     const next = customizeText(fillSlots(libTemplate(d, t0.surface === "page" ? t0.gutter : undefined), avail).t, st.text);
     st.setEditText(null); st.setSel(null); st.setEditLayer(null);
     st.D.begin(); st.D.patchSurface(i, () => next); st.D.setEdited(true);
+    window.dispatchEvent(new Event("scrap-close-panel")); // điện thoại: chọn mẫu xong → đóng panel
   }, [st, doc, photos]); // eslint-disable-line react-hooks/exhaustive-deps
   /** dựng cả cuốn từ 1 bộ mẫu (ô thiếu mẫu → trang trống), điền ảnh theo thứ tự qua các trang */
   const fromBundle = (b: Bundle) => bundleSlots(b.page_count).map((sl, k) => { const d = tplById.get(b.template_ids[k]); return d ? libTemplate(d, sl.gutter) : blankBooklet(b.page_count)[k]; });
@@ -138,6 +139,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
     st.setEditText(null); st.setSel(null); st.setEditLayer(null);
     st.D.setDoc(next); st.D.setEdited(false); st.D.reset();
     st.setApplied(b.id); st.setActive(0); setPeek(null);
+    window.dispatchEvent(new Event("scrap-close-panel")); // điện thoại: chọn mẫu xong → đóng panel
   }, [st, photos, tplById]); // eslint-disable-line react-hooks/exhaustive-deps
   async function changePages(n: number) {
     if (n === pages) return;

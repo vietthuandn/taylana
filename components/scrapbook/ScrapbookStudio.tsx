@@ -95,11 +95,13 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
       const next = customizeText(fillSlots(backTemplate(d, t0.side), avail).t, st.text);
       st.setEditText(null); st.setSel(null); st.setEditLayer(null);
       st.D.begin(); st.D.patchSurface(i, () => next); st.D.setEdited(true); st.setApplied(d.id);
+      window.dispatchEvent(new Event("scrap-close-panel"));
       return;
     }
     if (dirty() && !(await confirmDialog({ title: "Áp mẫu này?", message: "Toàn bộ thiết kế hiện tại (sticker, chữ, ô ảnh) sẽ được thay bằng mẫu. Ảnh bạn đã tải vẫn được giữ và tự điền vào các ô của mẫu.", confirmText: "Áp mẫu" }))) return;
     const t = customizeText(fillSlots(libTemplate(d), photos.map((p) => p.id)).t, st.text);
     st.D.begin(); st.D.setDoc([t]); st.D.setEdited(false); st.setApplied(d.id); st.setSel(null); st.setEditLayer(null);
+    window.dispatchEvent(new Event("scrap-close-panel")); // điện thoại: chọn mẫu xong → đóng panel
   }, [st, photos]); // eslint-disable-line react-hooks/exhaustive-deps
   async function restore() {
     const d = tpls.find((x) => x.id === st.applied);
@@ -122,6 +124,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
     st.setEditText(null); st.setSel(null); st.setEditLayer(null);
     st.D.begin(); st.D.setDoc(fillDoc(next, photos.map((p) => p.id)).map((t) => customizeText(t, st.text))); st.D.setEdited(false);
     st.setApplied(b.id); st.setActive(0); setBundleMode(false);
+    window.dispatchEvent(new Event("scrap-close-panel")); // điện thoại: chọn mẫu xong → đóng panel
   }, [st, photos, tplById]); // eslint-disable-line react-hooks/exhaustive-deps
   /** tải ảnh → tự điền vào các ô trống theo thứ tự */
   async function addPhotos(f: File[]) {

@@ -22,6 +22,7 @@ import { AddFrameFlow, FramePicker } from "./FramePicker";
 import { PickPhotoModal } from "./parts";
 import { UserStickerModal } from "./UserStickerModal";
 import { BgEditBar } from "./BgEditBar";
+import { TextToolbar } from "./TextToolbar";
 import { layerClip, type useScrapStudio } from "./useScrapStudio";
 import { SheetSlicer } from "@/app/admin/(panel)/scrapbook/SheetSlicer";
 import { FEATURE_OLD_STICKER_UPLOAD } from "@/lib/features";
@@ -145,7 +146,13 @@ export function ScrapbookEditor(p: {
   ];
   const open = !collapsed;
   const title = RAIL.find((x) => x[0] === p.tab)?.[1];
-  const photoBar = st.photoTools("bar"), photoMobile = st.photoTools("mobile");
+  const selT = st.sel !== null && st.isTextLayer(st.L[st.sel]) && !st.L[st.sel].ulock ? (st.L[st.sel] as Extract<(typeof st.L)[number], { k: "text" | "wish" }>) : null;
+  const photoBar = st.photoTools("bar");
+  // điện thoại: khung menu nổi đổi thành công cụ ảnh / khung ảnh / chữ theo lớp đang chọn
+  const photoMobile = st.photoTools("mobile") ?? (selT && st.sel !== null ? (
+    <TextToolbar l={selT} begin={st.D.begin} patch={(v) => st.patchLayer(st.sel!, v)} onEdit={() => st.setEditText(st.sel)}
+      onFont={() => { p.setTab("chu"); setCollapsed(false); }} onMore={() => { p.setTab("chu"); setCollapsed(false); }} />
+  ) : null);
   const multi = !!doc && count > 1;
   return (
     <div data-fit-screen data-editor={p.header ? "" : undefined} className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
@@ -181,15 +188,15 @@ export function ScrapbookEditor(p: {
           </>
         )}
         {p.tab === "sticker" && (
-          <StickerTab assets={p.assets} groups={p.assetGroups} onAdd={(a) => st.addAsset(a)} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
-            onUpload={(f) => st.setStickerFiles(f)} onAddMine={mode === "customer" ? (id) => st.addAsset(`u:${id}`) : undefined} onRemoveMine={st.removeUserSticker}
+          <StickerTab assets={p.assets} groups={p.assetGroups} onAdd={(a) => { st.addAsset(a); window.dispatchEvent(new Event("scrap-close-panel")); }} mine={st.ustickers.map((s) => ({ id: s.id, url: s.url }))}
+            onUpload={(f) => st.setStickerFiles(f)} onAddMine={mode === "customer" ? (id) => { st.addAsset(`u:${id}`); window.dispatchEvent(new Event("scrap-close-panel")); } : undefined} onRemoveMine={st.removeUserSticker}
             onSaveMine={mode === "template" ? (id) => setSaveMine(id) : undefined} mineTitle={mode === "template" ? "Sticker vừa tách (chưa vào thư viện)" : "Sticker của tôi"} />
         )}
         {p.tab === "chu" && (
           <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={p.fonts} previews={st.fontPreviews} colors={st.colors} onCustomColor={st.addColor}
-            onPaper={() => { if (st.sel !== null) st.wishToText(st.sel); }} onAdd={() => st.addText()}
+            onPaper={() => { if (st.sel !== null) st.wishToText(st.sel); }} onAdd={() => { st.addText(); window.dispatchEvent(new Event("scrap-close-panel")); }}
             onPatch={(v) => { if (st.sel !== null) st.patchLayer(st.sel, v); }} onBegin={st.D.begin} onDuplicate={() => { if (st.sel !== null) st.duplicate(st.sel); }} onRemove={() => { if (st.sel !== null) st.removeLayer(st.sel); }}
-            topics={T} wishes={W} onWish={st.addWish} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
+            topics={T} wishes={W} onWish={(c) => { st.addWish(c); window.dispatchEvent(new Event("scrap-close-panel")); }} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
         )}
         {p.tab === "nen" && <BgTab t={cur} assets={p.assets} bgImages={bgPreview} onSet={st.setBg} onUpload={st.uploadBg} />}
        </div>
@@ -293,7 +300,7 @@ export function ScrapbookEditor(p: {
       )}
       {st.addSlotOpen && (
         <AddFrameFlow frames={p.frames} sets={p.frameSets} loaded={st.frameImgs} photos={p.framePhotos ?? st.photos} used={mode === "customer" ? st.used : new Set()} onClose={() => st.setAddSlotOpen(false)}
-          onDone={(c, pid) => st.addSlot(c, pid)} onUpload={async (f) => { if (mode === "template") return null; const [ph] = await st.addFiles([f]); return ph?.id ?? null; }} />
+          onDone={(c, pid) => { st.addSlot(c, pid); window.dispatchEvent(new Event("scrap-close-panel")); }} onUpload={async (f) => { if (mode === "template") return null; const [ph] = await st.addFiles([f]); return ph?.id ?? null; }} />
       )}
       {st.stickerFiles && FEATURE_OLD_STICKER_UPLOAD && <UserStickerModal files={st.stickerFiles} onAdd={(b) => st.addUserSticker(b)} onClose={() => st.setStickerFiles(null)} />}
       {st.stickerFiles && !FEATURE_OLD_STICKER_UPLOAD && (
