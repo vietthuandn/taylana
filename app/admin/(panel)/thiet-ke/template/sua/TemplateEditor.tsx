@@ -5,6 +5,7 @@
    Mục "Ảnh" có thêm các khối thu gọn được của admin: Ảnh thử · Thuộc tính (X, Y, W, H, góc xoay mm, số ảnh của ô,
    "Ngẫu nhiên từ bộ khung…") · Lớp (đổi thứ tự, ẩn / hiện, khoá). Thanh trên: tên mẫu, "Rải sticker tự động" (+ bánh răng
    Cài đặt rải sticker), Khôi phục bản đã lưu, Lưu mẫu (tự tạo ảnh thu nhỏ bằng ảnh thử). */
+import { FEATURE_AUTO_STICKERS } from "@/lib/features";
 import "@fontsource/dancing-script/400.css";
 import "@fontsource/dancing-script/700.css";
 import "@fontsource/patrick-hand/400.css";
@@ -253,10 +254,10 @@ function Workbench({ row: row0, lib: lib0 }: { row: DesignTpl; lib: Lib }) {
         <Link href={back} className="inline-flex items-center gap-1 text-[13px] text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={15} /> Template</Link>
         <span className="text-[12px] text-[#a1a1aa]">{row.kind === "cd" ? "CD Template" : row.kind === "back" ? "Back cover Template" : `Booklet Template · ${KIND_INFO[row.kind].label}`}</span>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tên mẫu" aria-label="Tên mẫu" className="h-8 min-w-[180px] flex-1 rounded-[6px] border border-transparent px-2 text-[14px] font-semibold hover:border-[#e5e5e7] focus:border-[#ff5fa2] focus:outline-none" />
-        <span className="inline-flex">
+        {FEATURE_AUTO_STICKERS && <span className="inline-flex">
           <Button size="sm" variant="secondary" icon={<Sparkles size={14} />} onClick={decorate} className="rounded-r-none">Rải sticker tự động</Button>
           <button type="button" onClick={() => setGear(true)} title="Cài đặt rải sticker" aria-label="Cài đặt rải sticker" className="grid h-8 w-8 place-items-center rounded-r-[8px] border border-l-0 border-[#e5e5e7] bg-white text-[#52525b] hover:bg-[#f4f4f5]"><Settings size={14} /></button>
-        </span>
+        </span>}
         <Button size="sm" variant="secondary" icon={<RotateCcw size={14} />} onClick={restore} disabled={saving}>Khôi phục bản đã lưu</Button>
         <Button size="sm" icon={<Save size={14} />} onClick={save} loading={saving}>Lưu mẫu</Button>
       </div>

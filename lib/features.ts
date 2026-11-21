@@ -21,3 +21,6 @@ export const FEATURE_LYRICS_SUGGEST = true;
 // Gửi file in (trang /gui-file, nút "Gửi file in", badge "Đã / Chưa gửi file"): TẠM ẨN — thay bằng "Lên mockup" (/thiet-ke/mockup).
 // Code Gửi file vẫn giữ (CdUploadPanel dùng chung cho trang Mockup). Admin vẫn xem file của đơn cũ. Đổi thành true để mở lại.
 export const FEATURE_UPLOAD_FILES = false;
+
+// Admin → sửa template: nút "Rải sticker tự động" (+ bánh răng Cài đặt rải sticker): TẠM ẨN. Đổi thành true để mở lại.
+export const FEATURE_AUTO_STICKERS = false;
