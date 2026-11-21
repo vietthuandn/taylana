@@ -6,6 +6,8 @@ import { ResponsiveTabs } from "@/components/ui/ResponsiveTabs";
 import { VariantGrid } from "./VariantGrid";
 import { DesignPageForm } from "./DesignPageForm";
 import { ThemeForm } from "./ThemeForm";
+import { StatusPagesForm } from "./StatusPagesForm";
+import { normalizeStatus } from "@/lib/statusPages";
 import { DEFAULT_THEME, MAX_THEMES, type SavedTheme, type Theme } from "@/lib/theme";
 
 /** danh sách theme đã lưu; chưa có mà theme đang dùng khác mặc định → tự tạo "Theme 1" từ theme đó (đang dùng) */
@@ -29,9 +31,9 @@ const mergeContact = (v: unknown): ContactSettings => ({ ...defaultContact, ...(
 // Admin → Giao diện: tab "Trang chủ" (các mẫu trang chủ) · tab "Theme" (sắp có)
 export default async function HomeVariantsAdmin({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const q = (await searchParams).tab;
-  const tab = q === "theme" || q === "thiet-ke" || q === "lien-he" ? q : "trang-chu";
+  const tab = q === "theme" || q === "thiet-ke" || q === "lien-he" || q === "khac" ? q : "trang-chu";
   const { supabase } = await requireAdmin();
-  const [a, n, d, dp, th, tl, ci, ct] = await Promise.all([
+  const [a, n, d, dp, th, tl, ci, ct, sp] = await Promise.all([
     supabase.from("site_settings").select("value").eq("key", "active_home_variant").maybeSingle(),
     supabase.from("home_variant_notes").select("variant_id, note"),
     supabase.from("site_settings").select("value").eq("key", "deleted_home_variants").maybeSingle(),
@@ -40,6 +42,7 @@ export default async function HomeVariantsAdmin({ searchParams }: { searchParams
     supabase.from("site_settings").select("value").eq("key", "themes").maybeSingle(),
     supabase.from("site_settings").select("value").eq("key", "contact_items").maybeSingle(),
     supabase.from("site_settings").select("value").eq("key", "contact").maybeSingle(),
+    supabase.from("site_settings").select("value").eq("key", "status_pages").maybeSingle(),
   ]);
   const raw = typeof a.data?.value === "string" ? a.data.value : DEFAULT_HOME_VARIANT;
   const active = findHomeVariant(raw) ? raw : DEFAULT_HOME_VARIANT;
@@ -48,8 +51,8 @@ export default async function HomeVariantsAdmin({ searchParams }: { searchParams
   return (
     <AdminPage>
       <PageHeader title="Giao diện" />
-      <div className="mb-6"><ResponsiveTabs value={tab} tabs={[{ id: "trang-chu", label: "Trang chủ", href: "/admin/giao-dien" }, { id: "thiet-ke", label: "Thiết kế", href: "/admin/giao-dien?tab=thiet-ke" }, { id: "lien-he", label: "Liên hệ", href: "/admin/giao-dien?tab=lien-he" }, { id: "theme", label: "Theme", href: "/admin/giao-dien?tab=theme" }]} /></div>
-      {tab === "lien-he" ? <ContactItemsForm initial={normalizeItems(ci.data?.value, defaultContactItems(mergeContact(ct.data?.value)), { emptyHref: true })} /> : tab === "thiet-ke" ? <DesignPageForm initial={normalizeDesignPage(dp.data?.value)} /> : tab === "theme"
+      <div className="mb-6"><ResponsiveTabs value={tab} tabs={[{ id: "trang-chu", label: "Trang chủ", href: "/admin/giao-dien" }, { id: "thiet-ke", label: "Thiết kế", href: "/admin/giao-dien?tab=thiet-ke" }, { id: "lien-he", label: "Liên hệ", href: "/admin/giao-dien?tab=lien-he" }, { id: "khac", label: "Khác", href: "/admin/giao-dien?tab=khac" }, { id: "theme", label: "Theme", href: "/admin/giao-dien?tab=theme" }]} /></div>
+      {tab === "khac" ? <StatusPagesForm initial={normalizeStatus(sp.data?.value)} /> : tab === "lien-he" ? <ContactItemsForm initial={normalizeItems(ci.data?.value, defaultContactItems(mergeContact(ct.data?.value)), { emptyHref: true })} /> : tab === "thiet-ke" ? <DesignPageForm initial={normalizeDesignPage(dp.data?.value)} /> : tab === "theme"
         ? <ThemeForm {...themesOf(tl.data?.value, normalizeTheme(th.data?.value))} />
         : <VariantGrid variants={homeVariantMeta().filter((v) => !deleted.includes(v.id))} active={active} notes={notes} notesReady={!n.error} />}
     </AdminPage>

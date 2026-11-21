@@ -1,3 +1,5 @@
+import { getStatusPage, isShopPaused } from "@/lib/statusPagesLoad";
+import { StatusView } from "@/components/site/StatusView";
 import { publicClient } from "@/lib/supabase/public";
 import type { PublicDiscount } from "@/lib/discount";
 import { getCatalog } from "@/lib/catalogLoad";
@@ -11,6 +13,7 @@ export const metadata = { title: "Giỏ hàng", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
 export default async function CartPage() {
+  if (await isShopPaused()) return <StatusView page={await getStatusPage("paused")} />; // "Tạm nghỉ bán" (Sản phẩm của tôi)
   const sb = publicClient();
   const [products, d, settings, shipping] = await Promise.all([
     getCatalog(sb),

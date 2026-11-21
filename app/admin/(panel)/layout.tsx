@@ -5,6 +5,8 @@ import { requireStaff } from "@/lib/admin";
 import { canAccess } from "@/lib/roles";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { LogoutButton } from "@/components/admin/LogoutButton";
+import { getStatusPage } from "@/lib/statusPagesLoad";
+import { StatusView } from "@/components/site/StatusView";
 
 export const metadata: Metadata = { title: "Quản trị", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -13,14 +15,12 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   const { user, role } = await requireStaff();
 
   if (!role) {
+    // 403 (trang hệ thống — không có header). Nội dung chỉnh ở Admin → Giao diện → Khác.
     return (
-      <main className="admin-ui grid min-h-dvh place-items-center px-4 text-center">
-        <div className="w-full max-w-sm rounded-[12px] border border-[#e5e5e7] bg-white p-6">
-          <h1>Tài khoản không có quyền quản trị</h1>
-          <p className="mt-1 text-[13px] text-[#71717a]">{user.email}</p>
-          <div className="mt-4 flex justify-center"><LogoutButton /></div>
-        </div>
-      </main>
+      <div className="relative">
+        <StatusView page={await getStatusPage("forbidden")} full />
+        <div className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-2 text-[13px] text-[#71717a]">{user.email}<LogoutButton /></div>
+      </div>
     );
   }
 

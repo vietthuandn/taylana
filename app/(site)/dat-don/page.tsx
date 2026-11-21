@@ -1,3 +1,5 @@
+import { getStatusPage, isShopPaused } from "@/lib/statusPagesLoad";
+import { StatusView } from "@/components/site/StatusView";
 import { redirect } from "next/navigation";
 import { productOfOption } from "@/lib/catalog";
 import { TileGrid } from "@/components/site/TileGrid";
@@ -8,6 +10,7 @@ export const metadata = { title: "Đặt đơn" };
 
 // Trang danh sách sản phẩm. Link cũ /dat-don?goi=<id> (hoặc ?sp=&chon=) → trang chi tiết sản phẩm, chọn sẵn đúng lựa chọn.
 export default async function ProductListPage({ searchParams }: { searchParams: Promise<{ goi?: string; sp?: string; chon?: string; sl?: string }> }) {
+  if (await isShopPaused()) return <StatusView page={await getStatusPage("paused")} />; // "Tạm nghỉ bán" (Sản phẩm của tôi)
   const q = await searchParams;
   const products = (await getCatalog()).filter((p) => p.is_active);
   if (q.goi || q.sp || q.chon) {

@@ -1,3 +1,5 @@
+import { getStatusPage, isShopPaused } from "@/lib/statusPagesLoad";
+import { StatusView } from "@/components/site/StatusView";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { publicClient } from "@/lib/supabase/public";
@@ -18,6 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 // Trang chi tiết sản phẩm: chọn Loại, Mua kèm, Số lượng → Thêm vào giỏ / Đặt đơn
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+  if (await isShopPaused()) return <StatusView page={await getStatusPage("paused")} />; // "Tạm nghỉ bán" (Sản phẩm của tôi)
   const { slug } = await params;
   const sb = publicClient();
   const [products, d, settings, shipping] = await Promise.all([
