@@ -2,7 +2,6 @@
 /* Thiết kế của tôi: thiết kế lưu 24 giờ kể từ lần sửa gần nhất (tối đa 5). CD · Booklet · Bìa sau là các phần của 1 gói combo
    → chọn nhiều thiết kế (mỗi loại 1) rồi "Tải về" hoặc "Đặt đơn": web tự chọn gói khớp (preset Bìa trước / Bìa sau / Mặt đĩa của gói).
    Thiếu phần nào → modal "Có vẻ bạn đang muốn in: {gói}" + hướng dẫn ngắn mở / thêm đúng thiết kế còn thiếu. */
-import { promptDialog } from "@/components/ui/dialog";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,7 +9,7 @@ import type { User } from "@supabase/supabase-js";
 import { Check, Clock, Download, ShoppingBag, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { hasSupabase } from "@/lib/supabase/env";
-import { DESIGN_TTL_MS, MAX_DESIGNS, deleteDesign, listDesigns, renameDesign, type PrintRef } from "@/lib/designs";
+import { DESIGN_TTL_MS, MAX_DESIGNS, deleteDesign, listDesigns, type PrintRef } from "@/lib/designs";
 import { downloadPrivate } from "@/lib/storage/client";
 import { saveBlob, saveZip } from "@/lib/imageTools";
 import { savePendingFiles, type PendingFile } from "@/lib/pendingOrderFiles";
@@ -156,13 +155,8 @@ export function MyDesigns({ packages }: { packages: Package[] }) {
                   <p className="text-[12px] text-[#71717a]">{part ? PART_LABEL[part] : "Thiết kế"}{r.kind === "booklet-scrapbook" && r.pages ? ` · ${r.pages} trang` : ""}{r.kind === "back-scrapbook" ? ` · ${r.faces ?? 1} mặt` : ""}</p>
                   <p className="text-[12px] text-[#b45309]">{leftText(left(r))}</p>
                   <div className="flex gap-1.5">
-                    <Button href={openHref(r)} size="sm" className="flex-1">Mở</Button>
-                    <button className={btnClass("secondary", "sm")} onClick={async () => {
-                      const name = await promptDialog({ title: "Đổi tên thiết kế", label: "Tên mới", defaultValue: r.name, confirmText: "Đổi tên" });
-                      if (name === null) return;
-                      try { await renameDesign(r.id, name); await load(); } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
-                    }}>Đổi tên</button>
-                    <button className={btnClass("danger", "sm")} aria-label="Xoá" onClick={async () => {
+                    <Button href={openHref(r)} size="sm" className="min-w-0 flex-1">Mở</Button>
+                    <button className={cx(btnClass("danger", "sm"), "shrink-0")} aria-label="Xoá" onClick={async () => {
                       if (!await confirmDialog(`Xoá thiết kế "${r.name}"?`)) return;
                       try { await deleteDesign(r.id); setSel((s) => Object.fromEntries(Object.entries(s).filter(([, v]) => v !== r.id))); await load(); } catch (e) { setErr(e instanceof Error ? e.message : "Lỗi"); }
                     }}><Trash2 size={16} /></button>
