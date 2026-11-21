@@ -14,7 +14,7 @@ export function TileGrid({ items, preview = false }: { items: TileItem[]; previe
   return (
     <ul className={`flex flex-wrap justify-center ${preview ? "gap-x-3 gap-y-2.5" : "gap-x-6 gap-y-5"} ${box}`}>
       {list.map((o, i) => (
-        <li key={o.id} className={`min-w-0 ${w} ${preview ? "" : "animate-[rise_.6s_cubic-bezier(.2,.8,.2,1)_both]"}`} style={preview ? undefined : { animationDelay: `${i * 60}ms` }}>
+        <li key={o.id} className={`min-w-0 [container-type:inline-size] ${w} ${preview ? "" : "animate-[rise_.6s_cubic-bezier(.2,.8,.2,1)_both]"}`} style={preview ? undefined : { animationDelay: `${i * 60}ms` }}>
           <Link href={o.href || "/"} scroll={!o.href.includes("?")} tabIndex={preview ? -1 : undefined}
             className={`flex flex-col items-center text-center outline-none focus-visible:ring-4 focus-visible:ring-[#ff5fa2] ${preview ? "pointer-events-none" : ""}`}>
             {o.image_url && (
@@ -22,8 +22,9 @@ export function TileGrid({ items, preview = false }: { items: TileItem[]; previe
               // eslint-disable-next-line @next/next/no-img-element
               <img src={o.image_url} alt="" loading={i > 5 ? "lazy" : undefined} decoding="async" className="block aspect-square w-full object-contain" />
             )}
-            <span className={`block w-full truncate font-tile font-bold leading-[1.1] tracking-[-0.02em] text-[#1A1A1A] ${o.image_url ? "-mt-[4%]" : ""}`}
-              style={{ fontSize: preview ? 13 : "clamp(22px, 6vw, 36px)" }}>{o.title}</span>
+            {/* cỡ chữ theo bề ngang ô (~11%, giống bản xem trước trong admin), tối đa 2 dòng — không bị cắt mất chữ */}
+            <span className={`line-clamp-2 block w-full font-tile font-bold leading-[1.15] tracking-[-0.01em] text-[#1A1A1A] ${o.image_url ? "-mt-[4%]" : ""}`}
+              style={{ fontSize: preview ? 13 : "clamp(14px, 11cqw, 24px)" }}>{o.title}</span>
           </Link>
         </li>
       ))}
