@@ -4,15 +4,19 @@ import { findHomeVariant, homeVariantMeta } from "@/lib/homeVariants";
 import { AdminPage, PageHeader } from "@/components/admin/ui";
 import { ResponsiveTabs } from "@/components/ui/ResponsiveTabs";
 import { VariantGrid } from "./VariantGrid";
+import { DesignPageForm } from "./DesignPageForm";
+import { normalizeDesignPage } from "@/lib/tileItems";
 
 // Admin → Giao diện: tab "Trang chủ" (các mẫu trang chủ) · tab "Theme" (sắp có)
 export default async function HomeVariantsAdmin({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const tab = (await searchParams).tab === "theme" ? "theme" : "trang-chu";
+  const q = (await searchParams).tab;
+  const tab = q === "theme" || q === "thiet-ke" ? q : "trang-chu";
   const { supabase } = await requireAdmin();
-  const [a, n, d] = await Promise.all([
+  const [a, n, d, dp] = await Promise.all([
     supabase.from("site_settings").select("value").eq("key", "active_home_variant").maybeSingle(),
     supabase.from("home_variant_notes").select("variant_id, note"),
     supabase.from("site_settings").select("value").eq("key", "deleted_home_variants").maybeSingle(),
+    supabase.from("site_settings").select("value").eq("key", "design_page").maybeSingle(),
   ]);
   const raw = typeof a.data?.value === "string" ? a.data.value : DEFAULT_HOME_VARIANT;
   const active = findHomeVariant(raw) ? raw : DEFAULT_HOME_VARIANT;
@@ -21,8 +25,8 @@ export default async function HomeVariantsAdmin({ searchParams }: { searchParams
   return (
     <AdminPage>
       <PageHeader title="Giao diện" />
-      <div className="mb-6"><ResponsiveTabs value={tab} tabs={[{ id: "trang-chu", label: "Trang chủ", href: "/admin/giao-dien" }, { id: "theme", label: "Theme", href: "/admin/giao-dien?tab=theme" }]} /></div>
-      {tab === "theme"
+      <div className="mb-6"><ResponsiveTabs value={tab} tabs={[{ id: "trang-chu", label: "Trang chủ", href: "/admin/giao-dien" }, { id: "thiet-ke", label: "Thiết kế", href: "/admin/giao-dien?tab=thiet-ke" }, { id: "theme", label: "Theme", href: "/admin/giao-dien?tab=theme" }]} /></div>
+      {tab === "thiet-ke" ? <DesignPageForm initial={normalizeDesignPage(dp.data?.value)} /> : tab === "theme"
         ? <div className="rounded-[12px] border border-dashed border-[#d4d4d8] bg-white p-10 text-center text-[14px] text-[#71717a]">Theme — sắp có.</div>
         : <VariantGrid variants={homeVariantMeta().filter((v) => !deleted.includes(v.id))} active={active} notes={notes} notesReady={!n.error} />}
     </AdminPage>

@@ -6,7 +6,7 @@ import { DialogHost, confirmDialog as dlgConfirm } from "./dialog";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowDown, ArrowUp, CheckCircle2, ImagePlus, Loader2, X } from "lucide-react";
-import { uploadPublicImage } from "@/lib/upload";
+import { shrinkImage, uploadPublicImage } from "@/lib/upload";
 import { btnClass, cx, inputClass, type BtnVariant } from "./styles";
 
 export { btnClass, cx, inputClass };
@@ -99,12 +99,11 @@ export function SettingsSection({ title, description, children }: { title: strin
 // Tiêu đề trang admin: căn trái, không có dòng mô tả, cách nội dung bên dưới 16px
 export function PageHeader({ title, actions }: { title: string; actions?: React.ReactNode }) {
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
-      <div className="min-w-0">
-        <h1 className="text-left text-[20px] font-semibold tracking-[-0.01em] text-[#18181b]">{title}</h1>
-      </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-    </div>
+    // tiêu đề trang không hiển thị (đỡ diện tích — tên trang đã có ở thanh trên); còn nút thao tác thì hiện 1 hàng căn phải
+    <>
+      <h1 className="sr-only">{title}</h1>
+      {actions && <div className="mb-4 flex flex-wrap items-center justify-end gap-2">{actions}</div>}
+    </>
   );
 }
 // Khung trang dạng form / danh sách: rộng tối đa 1200px, căn giữa
@@ -178,7 +177,7 @@ export function SortButtons({ onUp, onDown, first, last }: { onUp: () => void; o
 }
 
 // ---------- Ô chọn ảnh: tải lên Storage và trả về link ----------
-export function ImageInput({ value, onChange, folder, label = "Ảnh", allowSvg = false, removeLabel = "Bỏ ảnh" }: { value: string | null; onChange: (url: string | null) => void; folder: string; label?: string; allowSvg?: boolean; removeLabel?: string }) {
+export function ImageInput({ value, onChange, folder, label = "Ảnh", allowSvg = false, removeLabel = "Bỏ ảnh", shrink }: { value: string | null; onChange: (url: string | null) => void; folder: string; label?: string; allowSvg?: boolean; removeLabel?: string; shrink?: number }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   return (
@@ -205,7 +204,7 @@ export function ImageInput({ value, onChange, folder, label = "Ảnh", allowSvg 
                 setBusy(true);
                 setErr("");
                 try {
-                  onChange(await uploadPublicImage(f, folder, 15, allowSvg));
+                  onChange(await uploadPublicImage(shrink ? await shrinkImage(f, shrink) : f, folder, 15, allowSvg));
                 } catch (x) {
                   setErr(x instanceof Error ? x.message : "Lỗi tải ảnh");
                 }

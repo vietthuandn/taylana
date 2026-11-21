@@ -6,6 +6,7 @@ import { findHomeVariant } from "@/lib/homeVariants";
 // Trang chủ: hiện mẫu chính thức (Admin → Giao diện trang chủ).
 // /?preview=<id> chỉ có tác dụng khi người xem đang đăng nhập admin.
 export const dynamic = "force-dynamic";
+export const metadata = { title: { absolute: "Taylana Printing Service" } };
 
 async function viewerIsAdmin() {
   if (!hasSupabase) return false;

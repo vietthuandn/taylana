@@ -65,3 +65,20 @@ export async function uploadCanvaImage(file: File) {
   if (file.size > 10 * 1024 * 1024) throw new Error("Ảnh tối đa 10MB");
   return put("mockups", file, "canva");
 }
+
+/* Thu nhỏ ảnh trước khi tải (ảnh mục trang chủ / trang Thiết kế): cạnh dài tối đa `max` px (đủ nét cho màn hình 2x),
+   xuất WebP chất lượng 0.86 — giữ nền trong suốt. Trình duyệt không xuất được WebP → PNG. SVG / GIF giữ nguyên. */
+export async function shrinkImage(file: File, max = 900): Promise<File> {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return file;
+  const bmp = await createImageBitmap(file).catch(() => null);
+  if (!bmp) return file;
+  const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const x = c.getContext("2d")!; x.imageSmoothingQuality = "high"; x.drawImage(bmp, 0, 0, w, h); bmp.close();
+  const enc = (type: string, q?: number) => new Promise<Blob | null>((r) => c.toBlob(r, type, q));
+  let b = await enc("image/webp", 0.86);
+  if (!b || b.type !== "image/webp") b = await enc("image/png");
+  if (!b || (k === 1 && b.size >= file.size)) return file; // không nhỏ hơn thì giữ file gốc
+  return new File([b], file.name.replace(/\.[^.]+$/, "") + (b.type === "image/webp" ? ".webp" : ".png"), { type: b.type });
+}

@@ -1,17 +1,30 @@
 import "server-only";
 import { publicClient } from "@/lib/supabase/public";
 import { getSettings, type HomeOption, type HomeSettings } from "@/lib/settings";
+import { itemsFromOptions, normalizeDesignPage, normalizeItems, type DesignPage, type TileItem } from "@/lib/tileItems";
 
 // Dữ liệu CHUNG cho mọi mẫu trang chủ (Admin → Trang chủ: banner, 6 ô) + dữ liệu riêng của mẫu (variant_settings[id])
-export type HomeVariantProps = { home: HomeSettings; options: HomeOption[]; settings: Record<string, unknown> };
+export type HomeVariantProps = { home: HomeSettings; options: HomeOption[]; items: TileItem[]; settings: Record<string, unknown> };
 
 export const DEFAULT_HOME_VARIANT = "v1-hien-tai";
 
 // Lấy dữ liệu trang chủ — dùng cho mọi mẫu (xem docs/HOME_VARIANTS.md)
 export async function getHomeData(variantId: string): Promise<HomeVariantProps> {
   const { home, options } = await getSettings();
-  const all = await getVariantSettings();
-  return { home, options, settings: (all[variantId] as Record<string, unknown>) ?? {} };
+  const [all, items] = await Promise.all([getVariantSettings(), getSetting("home_items")]);
+  return { home, options, items: normalizeItems(items, itemsFromOptions(options)), settings: (all[variantId] as Record<string, unknown>) ?? {} };
+}
+
+async function getSetting(key: string): Promise<unknown> {
+  const sb = publicClient();
+  if (!sb) return undefined;
+  const { data } = await sb.from("site_settings").select("value").eq("key", key).maybeSingle();
+  return data?.value;
+}
+
+// Trang /thiet-ke: mẫu đang dùng + các mục (Admin → Giao diện → Thiết kế)
+export async function getDesignPage(): Promise<DesignPage> {
+  return normalizeDesignPage(await getSetting("design_page"));
 }
 
 // Mẫu đang dùng (site_settings.active_home_variant)
