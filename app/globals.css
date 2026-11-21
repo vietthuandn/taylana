@@ -86,7 +86,7 @@
 @layer base {
   /* chiều cao header cố định (56px + viền 1px) — các thanh dính dùng biến này */
   :root {
-    --header-h: 57px;
+    --header-h: calc(57px + env(safe-area-inset-top));
   }
   html {
     -webkit-tap-highlight-color: transparent;

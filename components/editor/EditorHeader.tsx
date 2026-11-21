@@ -64,7 +64,7 @@ export function EditorHeader({ h }: { h: EditorHeaderProps }) {
   );
   const share = h.share && <button type="button" onClick={h.share.onClick} disabled={h.share.busy} className={pill}><Share2 size={16} /> Chia sẻ</button>;
   return (
-    <header className="sticky top-0 z-40 shrink-0 border-b border-black/5 font-sans text-[var(--c-header-text)] [background:var(--c-header-bg)]">
+    <header className="sticky top-0 z-40 shrink-0 pt-[env(safe-area-inset-top)] border-b border-black/5 font-sans text-[var(--c-header-text)] [background:var(--c-header-bg)]">
       {/* điện thoại */}
       <div className="flex h-14 items-center gap-0.5 px-2 md:hidden">
         <Link href="/thiet-ke" aria-label="Quay lại Thiết kế" title="Quay lại" className={icon}><ArrowLeft size={20} /></Link>

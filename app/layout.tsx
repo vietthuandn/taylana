@@ -26,6 +26,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   themeColor: "#f7f0e6",
+  viewportFit: "cover", // header tràn lên vùng tai thỏ (iPhone) — header tự chừa env(safe-area-inset-top)
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

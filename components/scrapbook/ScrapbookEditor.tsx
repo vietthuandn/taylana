@@ -236,7 +236,7 @@ export function ScrapbookEditor(p: {
           </div>
         )}
         {/* điện thoại: khu xem cao cố định = màn hình − header − khung menu − dải trang / zoom (cố định dưới đáy) */}
-        <div className={cx("relative flex min-h-[220px] flex-1 flex-col max-md:flex-none md:min-h-0", multi ? "max-md:h-[calc(100dvh-56px-188px-env(safe-area-inset-bottom))]" : "max-md:h-[calc(100dvh-56px-148px-env(safe-area-inset-bottom))]")}>
+        <div className={cx("relative flex min-h-[220px] flex-1 flex-col max-md:flex-none md:min-h-0", multi ? "max-md:h-[calc(100dvh-56px-188px-env(safe-area-inset-top)-env(safe-area-inset-bottom))]" : "max-md:h-[calc(100dvh-56px-148px-env(safe-area-inset-top)-env(safe-area-inset-bottom))]")}>
         <div ref={area} className="flex min-h-0 flex-1 touch-none overflow-auto px-2 py-1">
          <div className="m-auto">
           {p.overlay ?? (!cur ? p.empty : st.ready && (

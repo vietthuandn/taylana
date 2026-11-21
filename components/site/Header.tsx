@@ -18,7 +18,7 @@ export async function Logo() {
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 h-[var(--header-h)] border-b border-[#e5e5e7] [background:var(--c-header-bg)] font-sans">
+    <header className="sticky top-0 z-40 h-[var(--header-h)] pt-[env(safe-area-inset-top)] border-b border-[#e5e5e7] [background:var(--c-header-bg)] font-sans">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
         <Logo />
         <HeaderNav />
