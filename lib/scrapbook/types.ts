@@ -84,7 +84,6 @@ export type LayerBase =
       op?: number; rad?: number; fx?: boolean; fy?: boolean; // độ trong suốt 0..1 · bo góc 0..0.5 (theo cạnh ngắn) · lật ngang / dọc
       adj?: { b?: number; c?: number; s?: number; t?: number; blur?: number; preset?: string }; // chỉnh màu: sáng, tương phản, bão hoà, ấm/lạnh (-100..100), làm mờ (0..10 px in)
       sh?: { on: boolean; blur: number; d: number; c: string }; // bóng đổ (mm)
-      ulock?: boolean; // khách tự khoá lớp (chọn được để mở khoá, không kéo / sửa)
       ol?: { w: number; c: string; sh?: boolean } } // viền (không phá huỷ): độ dày px theo bản in 300 DPI · màu · bóng đổ nhẹ
   | { k: "doodle"; x: number; y: number; s: number; rot: number; shape: "arrow" | "swirl" | "dash"; color: string; asset?: string }
   | { k: "text"; role: "main" | "sub" | "custom"; x: number; y: number; w: number; size: number; rot: number; font: "hand" | "marker" | "label"; color: string; arc?: { r: number; mid: number };
@@ -96,7 +95,7 @@ export type LayerBase =
   | { k: "wish"; x: number; y: number; w: number; h: number; rot: number; card: WishCard; color: string; ink: string; value: string; seed: number;
       family?: string; cutout?: { font: string; curve: number; chaos: number; spacing: number; seed: number } }; // khung lời chúc: chữ tự xuống dòng + tự co
 /** cờ chung của mọi lớp: user = khách tự thêm (giữ lại khi đổi mẫu) · locked = admin khoá (khách không chọn được) */
-export type LayerFlags = { user?: boolean; locked?: boolean; auto?: boolean; hidden?: boolean }; // hidden = admin ẩn lớp (không vẽ)
+export type LayerFlags = { user?: boolean; locked?: boolean; auto?: boolean; hidden?: boolean; ulock?: boolean }; // ulock = khách tự khoá (chọn được để mở khoá, không kéo / sửa) // hidden = admin ẩn lớp (không vẽ)
 /** nền bề mặt: màu + hoạ tiết + texture giấy (chất liệu) + ảnh nền (phủ kín, có độ mờ) */
 export type Bg = { color: string; pattern: "dots" | "grid" | "plain" | "lines"; ink: string; asset?: string; image?: string; imageOpacity?: number }; // auto = sticker / băng dính tự rải (nút "Xáo trộn" rải lại)
 export type Template = {

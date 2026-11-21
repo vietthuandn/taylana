@@ -8,7 +8,7 @@
    độ rộng, font, cỡ, màu, căn lề, khoảng cách dòng); Esc / Ctrl+Enter / bấm ra ngoài để thoát. Kéo 2 nút cạnh trái / phải
    để đổi độ rộng khung (chữ tự xuống dòng, cỡ giữ nguyên); 4 góc phóng / thu cả khối chữ. */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Lock, Minus, Plus } from "lucide-react";
 import { FONTS, WISH_FONT, renderSurface, type RenderOpts, type TextHit } from "@/lib/scrapbook/render";
 import { applyBox, applyWidth, boxOf, imgAr, inside, resizeBox, snap, type Box as LBox } from "@/lib/scrapbook/edit";
 import { surfaceOf } from "@/lib/scrapbook/surface";
@@ -51,6 +51,9 @@ export function SurfaceView(p: SurfaceViewProps) {
   const [guide, setGuide] = useState<{ center?: boolean; ring?: number; vx?: number; hy?: number } | null>(null);
   const [, setTick] = useState(0);
   const L = t.layers;
+  const [mobile, setMobile] = useState(false);
+  const toolW = useRef(0);
+  useEffect(() => { const m = window.matchMedia("(max-width: 767px)"), f = () => setMobile(m.matches); f(); m.addEventListener("change", f); return () => m.removeEventListener("change", f); }, []);
   const dpr = typeof window !== "undefined" ? Math.min(2, window.devicePixelRatio || 1) : 1;
 
   useEffect(() => {
@@ -89,7 +92,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     const wasSel = p.sel === i && editing === null;
     p.onSel(i);
     const b = layerBox(i);
-    if (!b) return;
+    if (!b || L[i].ulock) return; // lớp khách khoá: chỉ chọn được (để mở khoá), không kéo
     e.currentTarget.setPointerCapture(e.pointerId);
     p.begin();
     drag.current = { mode: "move", i, b0: b, sx: pt.x, sy: pt.y, layer0: L[i], wasSel };
@@ -262,7 +265,12 @@ export function SurfaceView(p: SurfaceViewProps) {
           {guide.hy !== undefined && <line x1="0" y1={guide.hy} x2={S.w} y2={guide.hy} stroke="#ef4444" strokeWidth={1.2 / k} />}
         </svg>
       )}
-      {SB && (
+      {SB && selL?.ulock && (
+        <div className="pointer-events-none absolute z-30 border-2 border-dashed border-[#a1a1aa]" style={{ left: (SB.x - SB.w / 2) * k, top: (SB.y - SB.h / 2) * k, width: SB.w * k, height: SB.h * k, transform: `rotate(${SB.rot}deg)` }}>
+          <span className="absolute -right-2 -top-2 grid h-5 w-5 place-items-center rounded-full bg-white text-[#52525b] shadow"><Lock size={11} /></span>
+        </div>
+      )}
+      {SB && !selL?.ulock && (
         <div className="pointer-events-none absolute z-30 border-2 border-[#2563eb]"
           style={{ left: (SB.x - SB.w / 2) * k, top: (SB.y - SB.h / 2) * k, width: SB.w * k, height: SB.h * k, transform: `rotate(${SB.rot}deg)` }}>
           {([[-1, -1], [1, -1], [1, 1], [-1, 1]] as const).map(([hx, hy], i) => (
@@ -289,12 +297,17 @@ export function SurfaceView(p: SurfaceViewProps) {
       )}
       {SB && p.tools && !menu && p.cropLayer == null && (() => {
         // 1 hàng nút icon: đặt BÊN DƯỚI lớp (nút xoay ở phía trên lớp nên không bao giờ bị che), sát mép dưới thì lật lên trên
-        const TW = 182, TH = 40, ext = (Math.abs(SB.w * Math.sin((SB.rot * Math.PI) / 180)) + Math.abs(SB.h * Math.cos((SB.rot * Math.PI) / 180))) / 2;
+        const TW = Math.min(width, toolW.current || 182), TH = 40, ext = (Math.abs(SB.w * Math.sin((SB.rot * Math.PI) / 180)) + Math.abs(SB.h * Math.cos((SB.rot * Math.PI) / 180))) / 2;
         const above = (SB.y - ext) * k - 34 - TH, below = (SB.y + ext) * k + 10;
         const top = below + TH <= height ? below : above >= 0 ? above : Math.max(0, Math.min(height - TH, below));
         const left = Math.min(Math.max(SB.x * k, TW / 2 + 2), Math.max(TW / 2 + 2, width - TW / 2 - 2));
+        // điện thoại: dải cuộn ngang cố định ở đáy màn hình (trên thanh công cụ dọc), nút 44px
+        if (mobile) return (
+          <div data-keep-sel className="no-scrollbar fixed inset-x-0 bottom-[58px] z-[45] flex flex-nowrap gap-1 overflow-x-auto border-t border-[#e5e5e7] bg-white px-2 py-1 shadow-[0_-4px_12px_rgb(0_0_0/0.06)]"
+            onPointerDown={(e) => e.stopPropagation()}>{p.tools}</div>
+        );
         return (
-          <div data-keep-sel className="absolute z-10 flex -translate-x-1/2 flex-nowrap gap-0.5 rounded-[8px] border border-[#e5e5e7] bg-white p-0.5 shadow"
+          <div data-keep-sel ref={(el) => { if (el && el.offsetWidth !== toolW.current) { toolW.current = el.offsetWidth; requestAnimationFrame(() => setTick((x) => x + 1)); } }} className="absolute z-20 flex -translate-x-1/2 flex-nowrap gap-0.5 rounded-[8px] border border-[#e5e5e7] bg-white p-0.5 shadow"
             style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>{p.tools}</div>
         );
       })()}

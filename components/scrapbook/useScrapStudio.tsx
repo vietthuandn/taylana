@@ -4,7 +4,8 @@
    sticker khách tự tải, chất liệu + khung + font cut-out đã tải, thao tác trên lớp của bề mặt đang xem (nhân bản, lên / xuống,
    xoá, đổi khung, thêm / xoá ô ảnh, thêm sticker / chữ / lời chúc), phím tắt, lưu nháp IndexedDB. */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Frame as FrameIcon, ImagePlus, Scissors, Trash2, Undo2, Wand2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Frame as FrameIcon, ImagePlus, Scissors, Trash2, Undo2, Unlock, Wand2 } from "lucide-react";
+import { PhotoToolbar } from "./PhotoToolbar";
 import { loadImg } from "@/lib/mockup/images";
 import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { loadFrameImages } from "@/lib/scrapbook/frames";
@@ -189,7 +190,8 @@ export function useScrapStudio(o: {
   useEffect(() => {
     for (const k of bgKeys) if (/^https?:/.test(k) && !bgUrlImgs[k]) loadImg(k).then((im) => setBgUrlImgs((c) => ({ ...c, [k]: im }))).catch(() => null);
   }, [bgKeys, bgUrlImgs]);
-  const bgImages = useMemo(() => ({ ...bgUrlImgs, ...Object.fromEntries(bgLocal.map((b) => [`u:${b.id}`, b.img])) }), [bgUrlImgs, bgLocal]);
+  // ảnh nền: link admin · ảnh nền khách tải ("u:bg_…") · ảnh của khách đặt làm nền ("p:<id>")
+  const bgImages = useMemo(() => ({ ...bgUrlImgs, ...Object.fromEntries(bgLocal.map((b) => [`u:${b.id}`, b.img])), ...Object.fromEntries(photos.map((p) => [`p:${p.id}`, p.img])) }), [bgUrlImgs, bgLocal, photos]);
   const renderOpts = useMemo<Omit<RenderOpts, "template" | "size">>(() => ({ photoMap, adjustMap: adjust, text, assets: assetsMap, frames: frameImgs, cutoutFonts: cutFonts, bgImages, photos: o.slotPhotos }), [photoMap, adjust, text, assetsMap, frameImgs, cutFonts, fontTick, bgImages, o.slotPhotos]); // eslint-disable-line react-hooks/exhaustive-deps
   /** đổi nền bề mặt đang xem. scope (cặp trang): "all" cả cặp · "left" trang trái · "right" trang phải */
   function setBg(scope: "all" | "left" | "right", v: Partial<Template["bg"]>) {
@@ -341,7 +343,7 @@ export function useScrapStudio(o: {
       if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey ? D.redo() : D.undo()) setSel(null); return; }
       if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); if (D.redo()) setSel(null); return; }
       if (e.key === "Escape") { setSel(null); setEditLayer(null); if (editText !== null) setEditText(null); }
-      if (sel === null) return;
+      if (sel === null || L[sel]?.ulock) return;
       if (mod && e.key.toLowerCase() === "d") { e.preventDefault(); duplicate(sel); return; }
       if (mod && e.key.toLowerCase() === "c" && !window.getSelection()?.toString()) { layerClip.layer = clone(L[sel]); layerClip.at = Date.now(); return; } // Ctrl+V: xem sự kiện paste (ScrapbookEditor)
       if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); removeLayer(sel); return; }
@@ -412,8 +414,18 @@ export function useScrapStudio(o: {
     return true;
   }
   const selL = sel !== null ? L[sel] : null;
+  const selPhoto = selL?.k === "sticker" && selL.asset?.startsWith("p:") ? photos.find((x) => x.id === selL.asset!.slice(2)) : undefined;
   // thanh công cụ nổi: 1 hàng nút icon 32px, tên chức năng ở tooltip
-  const tools = selL ? (
+  const tools = selL?.ulock ? (
+    <button type="button" onClick={() => { D.begin(); patchLayer(sel!, { ulock: undefined } as Partial<Layer>); }} title="Mở khoá" aria-label="Mở khoá" className={`${ibtn} w-auto gap-1 px-2 text-[12px] font-medium`}><Unlock size={15} /> Mở khoá</button>
+  ) : selL?.k === "sticker" && selL.asset?.startsWith("p:") && cur ? (
+    <PhotoToolbar l={selL} S={surfaceOf(cur)} img={assetsMap[selL.asset]?.img} photos={photos.map((p) => ({ id: p.id, url: p.url }))} photoUrl={selPhoto?.url} cutting={cutting !== null}
+      begin={D.begin} patch={(v) => patchLayer(sel!, v as Partial<Layer>)} onCrop={() => setCropFor(sel)} onCut={() => quickCut(sel!)}
+      onUp={() => reorder(sel!, 1)} onDown={() => reorder(sel!, -1)} onRemove={() => removeLayer(sel!)} onDuplicate={() => duplicate(sel!)}
+      onSetBg={() => { const id = selL.asset!; const i = sel!; setBg("all", { image: id, imageOpacity: 1 }); setLayers((ls) => ls.filter((_, j) => j !== i)); setSel(null); }}
+      onReplace={(pid) => { D.begin(); patchLayer(sel!, { asset: `p:${pid}`, orig: undefined, crop: undefined } as Partial<Layer>); }}
+      onUpload={async (f) => { const i = sel!; const [ph] = await addFiles([f]); if (ph) { D.begin(); patchLayer(i, { asset: `p:${ph.id}`, orig: undefined, crop: undefined } as Partial<Layer>); } }} />
+  ) : selL ? (
     <>
       <button type="button" onClick={() => duplicate(sel!)} title="Nhân bản (Ctrl+D)" aria-label="Nhân bản" className={ibtn}><Copy size={16} /></button>
       <button type="button" onClick={() => reorder(sel!, 1)} title="Lên trên" aria-label="Lên trên" className={ibtn}><ArrowUp size={16} /></button>
