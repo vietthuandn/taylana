@@ -1,13 +1,6 @@
-import { loadAdminSettings } from "@/lib/adminSettings";
-import { HomeForm } from "./HomeForm";
-import { AdminPage, PageHeader } from "@/components/admin/ui";
+import { redirect } from "next/navigation";
 
-export default async function HomeAdminPage() {
-  const { home, options } = await loadAdminSettings();
-  return (
-    <AdminPage wide>
-      <PageHeader title="Trang chủ" />
-      <HomeForm initialHome={home} initialOptions={options} />
-    </AdminPage>
-  );
+// Đường dẫn cũ → trang chỉnh nội dung Mẫu 1 trong "Giao diện trang chủ"
+export default function Page() {
+  redirect("/admin/giao-dien/mau-1");
 }

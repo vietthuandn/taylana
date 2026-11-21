@@ -78,7 +78,7 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
           )}
         </div>
         <p className="mt-1 text-[11px] text-[#a1a1aa]">Ảnh phủ kín bề mặt{spread ? "" : " (mặt đĩa tự cắt tròn)"}.</p>
-        <input ref={fileIn} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={async (e) => {
+        <input ref={fileIn} type="file" accept="image/*" className="sr-only" onChange={async (e) => {
           const f = e.target.files?.[0]; e.target.value = "";
           if (!f) return;
           setBusy(true);

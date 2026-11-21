@@ -67,7 +67,7 @@ export function ReviewForm() {
           <span className={btnClass("secondary", "sm")}>Chọn ảnh</span>
           <span className="truncate text-[13px] text-[#71717a]">{file ? file.name : "Chưa chọn ảnh"}</span>
         </span>
-        <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        <input type="file" accept="image/*" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       </label>
       {error && <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</p>}
       <button type="submit" className={`${btnClass("primary")} w-full`} disabled={state === "sending"}>{state === "sending" ? "Đang gửi..." : "Gửi đánh giá"}</button>

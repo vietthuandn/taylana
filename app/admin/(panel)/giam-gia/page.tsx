@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/admin";
 import { formatDate } from "@/lib/format";
 import { discountState, valueText, type Discount } from "@/lib/discountAdmin";
 import { AdminPage, Badge, Button, EmptyState, PageHeader, Table } from "@/components/admin/ui";
-import { btnClass } from "@/components/admin/styles";
+import { DiscountRowMenu } from "./DiscountRowMenu";
 
 export default async function DiscountsAdmin() {
   const { supabase } = await requireAdmin();
@@ -18,7 +18,7 @@ export default async function DiscountsAdmin() {
       <PageHeader title="Giảm giá"
         actions={<Button href="/admin/giam-gia/moi" icon={<Plus size={16} />}>Tạo giảm giá</Button>} />
       {error && <p className="mb-3 text-[13px] text-[#dc2626]">{error.message.includes("discounts") ? "Chưa có bảng giảm giá — cần chạy supabase/migration_discounts.sql." : error.message}</p>}
-      <Table head={["Tên", "Mã", "Loại", "Phạm vi", "Giá trị", "Thời gian", "Đã dùng", "Trạng thái", ""]}
+      <Table keep={[0, 4]} head={["Tên", "Mã", "Loại", "Phạm vi", "Giá trị", "Thời gian", "Đã dùng", "Trạng thái", ""]}
         empty={!rows.length && <EmptyState>Chưa có chương trình giảm giá nào.</EmptyState>}>
         {rows.map((d) => {
           const s = discountState(d);
@@ -33,7 +33,7 @@ export default async function DiscountsAdmin() {
               <td className="text-[12px] text-[#71717a]">{time(d)}</td>
               <td className="text-[13px]">{d.used_count}{d.usage_limit ? ` / ${d.usage_limit}` : ""}</td>
               <td><Badge tone={s.tone}>{s.label}</Badge></td>
-              <td className="text-right"><Link href={`/admin/giam-gia/${d.id}`} className={btnClass("ghost", "sm")}>Sửa</Link></td>
+              <td className="text-right"><DiscountRowMenu id={d.id!} name={d.name} /></td>
             </tr>
           );
         })}

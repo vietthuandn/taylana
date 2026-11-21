@@ -48,7 +48,7 @@ export function BgPicker({ value, onChange, shop, className }: { value: BgChoice
             <ImagePlus size={14} />
           </button>
         </div>
-        <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={async (e) => {
+        <input ref={input} type="file" accept="image/*" className="sr-only" onChange={async (e) => {
           const f = e.target.files?.[0]; e.target.value = "";
           if (!f) return;
           const url = URL.createObjectURL(f); // chỉ dùng trên máy, không lưu lại

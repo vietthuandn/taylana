@@ -3,6 +3,7 @@
 import { deleteObjects, deletePrefix } from "@/lib/storage";
 import { canDelete, whoAmI } from "@/lib/storage/access";
 import { isValidKey, keyFromUrl } from "@/lib/storage/keys";
+import { serviceClient } from "@/lib/supabase/service";
 
 export async function POST(req: Request) {
   let b: { keys?: string[]; urls?: string[]; prefixes?: string[] };
@@ -14,6 +15,10 @@ export async function POST(req: Request) {
   try {
     let deleted = await deleteObjects(keys);
     for (const p of prefixes) deleted += await deletePrefix(p);
+    // bỏ dòng dung lượng của file khách đã xoá
+    const svc = serviceClient(), dk = keys.filter((k) => k.startsWith("design-assets/"));
+    if (svc && dk.length) await svc.from("user_files").delete().in("key", dk).then(() => undefined, () => undefined);
+    if (svc) for (const p of prefixes.filter((x) => x.startsWith("design-assets/"))) await svc.from("user_files").delete().like("key", `${p}%`).then(() => undefined, () => undefined);
     return Response.json({ deleted });
   } catch (e) { return Response.json({ error: e instanceof Error ? e.message : "Xoá file thất bại" }, { status: 500 }); }
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import { useMenuDismiss } from "@/components/ui/useMenuDismiss";
 import { usePathname } from "next/navigation";
 import { ShoppingCart } from "lucide-react";
 import { services } from "@/lib/services";
@@ -65,5 +67,32 @@ export function CartButton() {
         </span>
       )}
     </Link>
+  );
+}
+
+// Điện thoại & máy tính bảng: nút hamburger + menu thả xuống (lớp nền phủ: chạm ra ngoài / Esc / chuyển trang → đóng)
+export function MobileMenu({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  useMenuDismiss(open, () => setOpen(false));
+  return (
+    <div className="relative lg:hidden">
+      <button type="button" aria-label={open ? "Đóng menu" : "Mở menu"} aria-expanded={open} onClick={() => setOpen(!open)}
+        className="relative z-[2] grid h-9 w-9 place-items-center rounded-[8px] border border-[#e5e5e7] bg-white text-[#18181b]">
+        {open ? <span className="text-[15px] leading-none">✕</span> : (
+          <span className="flex flex-col gap-[4px]">
+            <span className="h-[1.5px] w-4 bg-current" /><span className="h-[1.5px] w-4 bg-current" /><span className="h-[1.5px] w-4 bg-current" />
+          </span>
+        )}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[1] bg-black/20" onClick={() => setOpen(false)} aria-hidden />
+          <div className="absolute right-0 z-[2] mt-2 max-h-[calc(100dvh-80px)] w-72 max-w-[calc(100vw-32px)] overflow-y-auto overscroll-contain rounded-[12px] border border-[#e5e5e7] bg-white p-2 shadow-[0_8px_24px_rgb(0_0_0/0.08)]"
+            onClick={(e) => { if ((e.target as HTMLElement).closest("a")) setOpen(false); }}>
+            {children}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

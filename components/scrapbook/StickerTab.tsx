@@ -62,7 +62,7 @@ export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, on
           <div className="flex items-center justify-between gap-2">
             <p className="text-[13px] font-semibold">Sticker của bạn</p>
             <button type="button" onClick={() => upIn.current?.click()} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Upload size={13} /> Tải sticker của bạn</button>
-            <input ref={upIn} type="file" multiple accept="image/png,image/jpeg,image/webp,image/heic,image/heif" className="sr-only" onChange={(e) => { if (e.target.files?.length) onUpload([...e.target.files]); e.target.value = ""; }} />
+            <input ref={upIn} type="file" multiple accept="image/*" className="sr-only" onChange={(e) => { if (e.target.files?.length) onUpload([...e.target.files]); e.target.value = ""; }} />
           </div>
           {mine.length ? (
             <div className="grid grid-cols-4 gap-2">

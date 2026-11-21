@@ -251,7 +251,7 @@ export function SheetSlicer({ onDone, assets, groups, onCreateGroup }: {
           <span className="text-[14px] font-medium">{busy || "Kéo thả, bấm để chọn, hoặc Ctrl + V để dán ảnh tờ sticker"}</span>
           <span className="text-[12px] text-[#71717a]">JPG, PNG, WEBP, JFIF · ảnh lớn được thu nhỏ còn 4000px · xử lý ngay trên trình duyệt</span>
         </button>
-        <input ref={fileIn} type="file" accept="image/jpeg,image/png,image/webp,.jfif" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setSrc(f); }} />
+        <input ref={fileIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setSrc(f); }} />
         <div className="flex gap-2">
           <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Hoặc dán link ảnh (tối đa 15MB)" className="h-10 min-w-0 flex-1 rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[#ff5fa2]" />
           <Button variant="secondary" icon={<Link2 size={16} />} onClick={fromLink} disabled={!!busy}>Tải từ link</Button>

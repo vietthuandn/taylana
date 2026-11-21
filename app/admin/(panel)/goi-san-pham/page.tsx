@@ -5,7 +5,7 @@ import { formatVND } from "@/lib/format";
 import { fromPrice, kindOf } from "@/lib/catalog";
 import { getCatalog } from "@/lib/catalogLoad";
 import { AdminPage, Badge, Button, EmptyState, PageHeader, Table } from "@/components/admin/ui";
-import { btnClass } from "@/components/admin/styles";
+import { ProductRowMenu } from "./ProductRowMenu";
 
 export default async function ProductsAdmin() {
   const { supabase } = await requireAdmin();
@@ -14,7 +14,7 @@ export default async function ProductsAdmin() {
     <AdminPage>
       <PageHeader title="Sản phẩm của tôi"
         actions={<Button href="/admin/goi-san-pham/moi" icon={<Plus size={16} />}>Tạo sản phẩm</Button>} />
-      <Table head={["", "Tên", "Loại", "Giá từ", "Nhóm tuỳ chọn", "Trạng thái", ""]}
+      <Table keep={[0, 1]} head={["", "Tên", "Loại", "Giá từ", "Nhóm tuỳ chọn", "Trạng thái", ""]}
         empty={!products.length && <EmptyState>Chưa có sản phẩm. Nếu bạn vừa cập nhật web, hãy chạy supabase/migration_products.sql để chuyển gói & phụ kiện cũ sang.</EmptyState>}>
         {products.map((p) => (
           <tr key={p.id}>
@@ -29,7 +29,7 @@ export default async function ProductsAdmin() {
             <td className="tabular-nums">{formatVND(fromPrice(p))}</td>
             <td className="text-[13px] text-[#71717a]">{p.groups.map((g) => `${g.name} (${g.options.length})`).join(" · ") || "—"}</td>
             <td>{p.is_active ? <Badge tone="green">Đang bán</Badge> : <Badge>Đang ẩn</Badge>}</td>
-            <td className="text-right"><Link href={`/admin/goi-san-pham/${p.id}`} className={btnClass("ghost", "sm")}>Sửa</Link></td>
+            <td className="text-right"><ProductRowMenu id={p.id} name={p.name} slug={p.slug} active={p.is_active} /></td>
           </tr>
         ))}
       </Table>

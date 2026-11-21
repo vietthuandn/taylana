@@ -134,7 +134,7 @@ export function AddFrameFlow({ frames, sets, loaded, photos, used, onDone, onUpl
               </button>
             ))}
           </div>
-          <input ref={(el) => { fileIn.current = el; }} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" className="sr-only"
+          <input ref={(el) => { fileIn.current = el; }} type="file" accept="image/*" className="sr-only"
             onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setBusy(true); const id = await onUpload(f); setBusy(false); if (id) onDone(choice, id); }} />
         </div>
         <div className="flex shrink-0 justify-between gap-2 border-t border-[#efeff1] px-5 py-3">

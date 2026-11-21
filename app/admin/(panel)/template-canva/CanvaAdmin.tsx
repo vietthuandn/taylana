@@ -115,7 +115,7 @@ export function CanvaAdmin() {
               </span>
               <Button size="sm" variant="secondary" icon={<Upload size={14} />} loading={busy} onClick={() => iconIn.current?.click()}>{btn.icon_url ? "Đổi icon" : "Tải icon"}</Button>
               {btn.icon_url && <button type="button" onClick={() => saveButton({ ...btn, icon_url: null })} className="text-[12px] text-[#dc2626]">Bỏ icon</button>}
-              <input ref={iconIn} type="file" accept="image/png,image/svg+xml" className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setBusy(true); try { await saveButton({ ...btn, icon_url: await uploadCanvaImage(f) }); } catch (err) { setMsg({ type: "err", text: err instanceof Error ? err.message : "Tải icon thất bại" }); } setBusy(false); }} />
+              <input ref={iconIn} type="file" accept="image/*" className="sr-only" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (!f) return; setBusy(true); try { await saveButton({ ...btn, icon_url: await uploadCanvaImage(f) }); } catch (err) { setMsg({ type: "err", text: err instanceof Error ? err.message : "Tải icon thất bại" }); } setBusy(false); }} />
             </div>
             <p className="mt-1 text-[12px] text-[#a1a1aa]">Chưa có icon thì nút dùng icon “mở liên kết”.</p>
           </div>
@@ -156,7 +156,7 @@ function TemplateForm({ value, onClose, onSave, onErr }: { value: Form; onClose:
               <Button size="sm" variant="secondary" icon={<Upload size={14} />} loading={busy} onClick={() => imgIn.current?.click()}>Tải ảnh lên</Button>
               <Input value={f.image_url} onChange={(e) => setF({ ...f, image_url: e.target.value })} placeholder="hoặc dán link ảnh https://..." />
               {f.image_url && <button type="button" onClick={() => setF({ ...f, image_url: "" })} className="text-[12px] text-[#dc2626]">Bỏ ảnh</button>}
-              <input ref={imgIn} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={async (e) => { const file = e.target.files?.[0]; e.target.value = ""; if (!file) return; setBusy(true); try { setF((c) => ({ ...c, image_url: "" })); const u = await uploadCanvaImage(file); setF((c) => ({ ...c, image_url: u })); } catch (err) { onErr(err instanceof Error ? err.message : "Tải ảnh thất bại"); } setBusy(false); }} />
+              <input ref={imgIn} type="file" accept="image/*" className="sr-only" onChange={async (e) => { const file = e.target.files?.[0]; e.target.value = ""; if (!file) return; setBusy(true); try { setF((c) => ({ ...c, image_url: "" })); const u = await uploadCanvaImage(file); setF((c) => ({ ...c, image_url: u })); } catch (err) { onErr(err instanceof Error ? err.message : "Tải ảnh thất bại"); } setBusy(false); }} />
             </div>
           </div>
         </div>

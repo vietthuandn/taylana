@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Sparkle } from "@/components/ui/Shapes";
 import { AccountButton } from "./AccountButton";
-import { CartButton, HeaderNav, MobileNav } from "./HeaderNav";
+import { CartButton, HeaderNav, MobileMenu, MobileNav } from "./HeaderNav";
 
 function SearchBox({ className = "" }: { className?: string }) {
   return (
@@ -37,19 +37,10 @@ export function Header() {
         </div>
 
         {/* Điện thoại & máy tính bảng: menu hamburger */}
-        <details className="group relative lg:hidden">
-          <summary aria-label="Mở menu"
-            className="grid h-9 w-9 cursor-pointer list-none place-items-center rounded-[8px] border border-[#e5e5e7] bg-white text-[#18181b] [&::-webkit-details-marker]:hidden">
-            <span className="flex flex-col gap-[4px] group-open:hidden">
-              <span className="h-[1.5px] w-4 bg-current" /><span className="h-[1.5px] w-4 bg-current" /><span className="h-[1.5px] w-4 bg-current" />
-            </span>
-            <span className="hidden text-[15px] leading-none group-open:block">✕</span>
-          </summary>
-          <div className="absolute right-0 mt-2 w-72 rounded-[12px] border border-[#e5e5e7] bg-white p-2 shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
-            <SearchBox className="mb-2 md:hidden" />
-            <MobileNav />
-          </div>
-        </details>
+        <MobileMenu>
+          <SearchBox className="mb-2 md:hidden" />
+          <MobileNav />
+        </MobileMenu>
       </div>
     </header>
   );

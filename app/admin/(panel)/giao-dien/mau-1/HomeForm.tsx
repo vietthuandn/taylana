@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { removePublicImage } from "@/lib/upload";
 import { defaultHome, defaultOptions, isDark, TEXT_COLORS, TILE_COLORS, type HomeOption, type HomeSettings, type TextColor } from "@/lib/settings";
 import { Tile } from "@/components/site/HomeTiles";
-import { revalidatePublic } from "../../actions";
+import { revalidatePublic } from "@/app/admin/actions";
 import { CdDisc } from "@/components/ui/Shapes";
 import { ColorInput, Field, ImageInput, Input, Message, SaveBar, SettingsSection, Swatch, Textarea, Toggle } from "@/components/admin/ui";
 

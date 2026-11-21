@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { HomeVariantMeta } from "@/lib/homeVariants";
 import { setActiveHomeVariant } from "@/app/admin/homeVariantActions";
@@ -62,6 +62,7 @@ export function VariantGrid({ variants, active, notes, notesReady }: { variants:
               <div className="mt-auto flex flex-wrap gap-2">
                 <Button variant="secondary" size="sm" icon={<ExternalLink size={16} />}
                   onClick={() => window.open(`/?preview=${encodeURIComponent(v.id)}`, "_blank", "noopener")}>Xem trước</Button>
+                {v.id === "v1-hien-tai" && <Button variant="secondary" size="sm" icon={<Pencil size={16} />} href="/admin/giao-dien/mau-1">Chỉnh sửa</Button>}
                 {v.id !== active && <Button size="sm" loading={busy === v.id} onClick={() => makeActive(v)}>Đặt làm trang chủ</Button>}
               </div>
             </div>

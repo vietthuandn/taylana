@@ -39,7 +39,7 @@ import { cx } from "@/components/ui/styles";
 
 type Photo = { id: string; blob: Blob; url: string; img: HTMLCanvasElement };
 const uid = () => Math.random().toString(36).slice(2, 10);
-const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+const ACCEPT = "image/*";
 const newSong = (i: number): Song => ({ id: uid(), title: `Bài ${i + 1}`, duration: "", lyrics: "", note: "", titleOnly: false });
 async function readPhoto(blob: Blob, id = uid()): Promise<Photo> {
   const url = URL.createObjectURL(blob);

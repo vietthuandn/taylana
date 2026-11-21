@@ -1,5 +1,4 @@
-import { PROVIDER, STORAGE_QUOTA, storageUsageRows } from "@/lib/storage";
-import { readMigrationStatus } from "@/lib/storage/migrate";
+import { STORAGE_QUOTA, storageUsageRows } from "@/lib/storage";
 import { requireAdmin } from "@/lib/admin";
 import { formatBytes } from "@/lib/format";
 import { CleanupList, type CleanupOrder } from "./CleanupList";
@@ -25,8 +24,6 @@ export default async function CleanupPage() {
       .limit(5000),
   ]);
 
-  const mig = PROVIDER === "r2" ? await readMigrationStatus() : null;
-  const migPct = mig?.total ? Math.min(100, (mig.cursor / mig.total) * 100) : 0;
   const rows = (usage ?? []) as { bucket: string; file_count: number; total_bytes: number }[];
   const total = rows.reduce((t, r) => t + Number(r.total_bytes), 0);
   const pct = Math.min(100, (total / QUOTA) * 100);
@@ -49,33 +46,6 @@ export default async function CleanupPage() {
       <PageHeader title="Dọn file" />
 
       <div className="space-y-6">
-        {PROVIDER === "r2" && (
-          <Card title="Chuyển file cũ sang Cloudflare R2" description="Tự chạy mỗi 15 phút (cùng lịch dọn link chia sẻ) cho tới khi xong. Không xoá gì trên Supabase Storage.">
-            {!mig ? (
-              <p className="text-[13px] text-[#71717a]">Chưa bắt đầu — sẽ tự chạy ở lần gọi lịch tiếp theo (tối đa 15 phút).</p>
-            ) : (
-              <>
-                <p className="text-[14px] font-medium text-[#18181b]">
-                  {mig.phase === "done" ? "✓ Đã chuyển xong" : mig.phase === "db" ? "Đang đổi link ảnh trong database…" : `Đang chép file: ${mig.cursor} / ${mig.total}`}
-                </p>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#f4f4f5]">
-                  <div className="h-full rounded-full bg-[#ff5fa2]" style={{ width: `${mig.phase === "files" ? migPct : 100}%` }} />
-                </div>
-                <p className="mt-2 text-[13px] text-[#71717a]">
-                  {mig.copied} đã chép · {mig.skipped} đã có sẵn · {mig.failedKeys.length} lỗi · {mig.rows} dòng database đã đổi link · cập nhật {new Date(mig.updatedAt).toLocaleString("vi-VN")}
-                </p>
-                {mig.error && <p className="mt-1 text-[13px] text-[#dc2626]">Đợt gần nhất dừng: {mig.error} — lần sau tự chạy tiếp.</p>}
-                {mig.failedKeys.length > 0 && <p className="mt-1 text-[12px] text-[#dc2626]">File lỗi: {mig.failedKeys.slice(0, 10).join(", ")}{mig.failedKeys.length > 10 ? "…" : ""}</p>}
-                {mig.log.length > 0 && (
-                  <details className="mt-3">
-                    <summary className="cursor-pointer text-[13px] text-[#52525b]">Nhật ký ({mig.log.length} dòng gần nhất)</summary>
-                    <pre className="mt-2 max-h-[320px] overflow-auto rounded-[8px] bg-[#fafafa] p-3 text-[11px] leading-relaxed text-[#3f3f46]">{[...mig.log].reverse().join("\n")}</pre>
-                  </details>
-                )}
-              </>
-            )}
-          </Card>
-        )}
         <Card title="Dung lượng Storage đang dùng" description={`Gói miễn phí có ${formatBytes(QUOTA)}.`}>
           {usageErr ? (
             <p className="text-[13px] text-[#dc2626]">{usageErr.message}</p>

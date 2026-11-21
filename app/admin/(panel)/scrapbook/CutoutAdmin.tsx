@@ -412,7 +412,7 @@ function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void })
           <Upload size={20} className="mb-1 text-[#a1a1aa]" />
           <span className="text-[14px] font-medium">{busy || "Kéo thả hoặc bấm để chọn 1 hoặc nhiều ảnh tờ chữ"}</span>
         </button>
-        <input ref={fileIn} type="file" multiple accept="image/jpeg,image/png,image/webp,.jfif" className="sr-only" onChange={(e) => { if (e.target.files?.length) addFiles([...e.target.files]); e.target.value = ""; }} />
+        <input ref={fileIn} type="file" multiple accept="image/*" className="sr-only" onChange={(e) => { if (e.target.files?.length) addFiles([...e.target.files]); e.target.value = ""; }} />
         <div className="flex gap-2">
           <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Hoặc dán link ảnh" className="h-10 min-w-0 flex-1 rounded-[8px] border border-[#e5e5e7] px-3 text-[14px]" />
           <Button variant="secondary" icon={<Link2 size={16} />} onClick={fromLink}>Tải từ link</Button>
@@ -432,7 +432,7 @@ function GlyphSlicer({ fontId, onDone }: { fontId: string; onDone: () => void })
         <button type="button" onClick={() => setRectMode((v) => !v)} title="Tách thủ công: vẽ khung trên ảnh"
           className={cx("inline-flex h-8 items-center gap-1 rounded-[6px] border px-2 text-[12px]", rectMode ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white")}><Square size={13} /> Vẽ khung</button>
         <Button size="sm" variant="secondary" onClick={() => fileIn.current?.click()} icon={<Plus size={14} />}>Thêm tờ</Button>
-        <input ref={fileIn} type="file" multiple accept="image/jpeg,image/png,image/webp,.jfif" className="sr-only" onChange={(e) => { if (e.target.files?.length) addFiles([...e.target.files]); e.target.value = ""; }} />
+        <input ref={fileIn} type="file" multiple accept="image/*" className="sr-only" onChange={(e) => { if (e.target.files?.length) addFiles([...e.target.files]); e.target.value = ""; }} />
         <span className="ml-auto text-[12px]">{items.filter((i) => i.ch).length} / {items.length} mảnh đã gán{low ? ` · ${low} mảnh cần kiểm tra` : ""}</span>
       </div>
       {busy && <div><p className="text-[12px]">{busy}</p><div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full bg-[#ff5fa2]" style={{ width: `${progress * 100}%` }} /></div></div>}

@@ -9,7 +9,7 @@ import { cx } from "@/components/ui/styles";
 import { PHOTO_DRAG } from "./SurfaceView";
 
 export type Photo = { id: string; name: string; blob: Blob; url: string; img: HTMLCanvasElement };
-export const ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif";
+export const ACCEPT = "image/*";
 export const uid = () => Math.random().toString(36).slice(2, 10);
 export async function readPhoto(file: Blob, name: string, id = uid()): Promise<Photo> {
   const url = URL.createObjectURL(file);

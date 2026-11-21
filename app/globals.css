@@ -515,3 +515,36 @@
 
 /* iPhone / iPad: không cho kéo quá đầu / cuối trang (lòi ra khoảng trống trên / dưới khi vuốt) */
 html, body { overscroll-behavior: none; }
+
+/* Ô ngày giờ (toàn web): không tràn viền — co theo ô chứa, dưới 640px mỗi ô rộng 100% */
+input:is([type="date"], [type="datetime-local"], [type="time"], [type="month"], [type="week"]) {
+  min-width: 0; max-width: 100%; box-sizing: border-box;
+}
+input:is([type="date"], [type="datetime-local"], [type="time"], [type="month"], [type="week"])::-webkit-date-and-time-value { text-align: left; }
+label:has(> input:is([type="date"], [type="datetime-local"], [type="time"])) { min-width: 0; }
+@media (max-width: 639px) {
+  input:is([type="date"], [type="datetime-local"], [type="time"], [type="month"], [type="week"]) { display: block; width: 100%; }
+}
+
+/* iPhone tự phóng to khi bấm vào ô chữ < 16px → dưới 768px mọi ô nhập tối thiểu 16px (toàn web, kể cả admin & trình chỉnh).
+   Không khoá phóng to trong viewport: người dùng vẫn chụm 2 ngón phóng to được. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  select, textarea { font-size: 16px !important; }
+}
+
+/* Bảng admin trên điện thoại (< 640px, component Table): chỉ hiện các cột chính + nút ⋮; chạm vào dòng để mở các cột còn lại */
+@media (max-width: 639px) {
+  .rtable table { min-width: 0 !important; }
+  .rtable thead { display: none; }
+  .rtable tbody > tr { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; height: auto !important; padding: 8px 12px; }
+  .rtable tbody > tr[data-more="1"] { cursor: pointer; }
+  .rtable tbody td { display: block; padding: 0 !important; text-align: left; }
+  .rtable tbody td[data-m="k"] { order: 0; flex: 0 1 auto; min-width: 0; }
+  .rtable tbody td[data-m="k"] ~ td[data-m="k"] { flex: 1 1 0; }
+  .rtable tbody td[data-m="a"] { order: 1; margin-left: auto; }
+  .rtable tbody td[data-m="x"] { display: none; order: 2; }
+  .rtable tbody > tr[data-open] td[data-m="x"] { display: flex; flex-basis: 100%; gap: 8px; padding-top: 6px !important; font-size: 13px; }
+  .rtable tbody > tr[data-open] td[data-m="x"]::before { content: attr(data-label); flex: 0 0 104px; color: #a1a1aa; }
+  .rtable tbody td[colspan] { flex-basis: 100%; }
+}

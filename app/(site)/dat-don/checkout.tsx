@@ -487,7 +487,12 @@ export function useAutofill(setForm: (f: (x: Form) => Form) => void) {
     if (!hasSupabase) return;
     createClient().auth.getUser().then(({ data }) => {
       const m = data.user?.user_metadata;
-      if (m) setForm((f) => ({ ...f, name: f.name || (m.display_name as string) || "", phone: f.phone || (m.phone as string) || "" }));
+      if (!m) return;
+      // thông tin nhận hàng mặc định (trang Tài khoản) → ưu tiên; không có thì lấy tên + SĐT tài khoản
+      const d = (m.ship ?? {}) as Partial<Form>;
+      setForm((f) => ({ ...f,
+        name: f.name || d.name || (m.display_name as string) || "", phone: f.phone || d.phone || (m.phone as string) || "",
+        province: f.province || d.province || "", ward: f.ward || d.ward || "", street: f.street || d.street || "" }));
     });
   }, [setForm]);
 }

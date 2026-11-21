@@ -85,7 +85,7 @@ export function ShowcaseAdmin() {
         <div className="flex gap-2">
           <label className="btn cursor-pointer btn-sm">
             {bulk || "Tải nhiều ảnh"}
-            <input type="file" multiple accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={!!bulk}
+            <input type="file" multiple accept="image/*" className="sr-only" disabled={!!bulk}
               onChange={(e) => { if (e.target.files?.length) bulkUpload(e.target.files); e.target.value = ""; }} />
           </label>
           <button className="btn btn-sm" onClick={() => setEditing({ ...empty, category: categories[0] ?? "CD" })}>+ Thêm</button>

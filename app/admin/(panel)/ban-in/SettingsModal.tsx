@@ -8,6 +8,7 @@ import { addonOfRule, packOfRule } from "@/lib/printShop/rules";
 import type { Addon, Pack, Rule } from "@/lib/printShop/types";
 import { Button, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
+import { ResponsiveTabs } from "@/components/ui/ResponsiveTabs";
 
 const inp = "h-8 rounded-[6px] border border-[#e5e5e7] bg-white px-2 text-[13px] outline-none focus:border-[#ff5fa2]";
 const RESULTS: [Rule["result"], string][] = [["package", "Gói CD"], ["addon", "Món in lẻ"], ["skip", "Không cần in"]];
@@ -25,9 +26,7 @@ export function SettingsModal({ packs, rules, addons, onRules, onAddons, onClose
       <div className="flex max-h-[92dvh] w-full max-w-[960px] flex-col rounded-[14px] bg-white shadow-xl">
         <div className="flex items-center gap-2 border-b border-[#efeff1] px-5 py-3">
           <p className="text-[16px] font-semibold">Cài đặt Bàn in</p>
-          <div className="ml-3 flex gap-1">
-            {([["rules", "Quy tắc quy đổi"], ["addons", "Món in lẻ"]] as const).map(([k, l]) => <button key={k} type="button" onClick={() => setTab(k)} className={cx("rounded-[8px] px-3 py-1.5 text-[13px] font-medium", tab === k ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b] hover:bg-[#f4f4f5]")}>{l}</button>)}
-          </div>
+          <div className="ml-3 min-w-0 flex-1 sm:flex-none"><ResponsiveTabs size="sm" value={tab} onChange={setTab} tabs={[{ id: "rules", label: "Quy tắc quy đổi" }, { id: "addons", label: "Món in lẻ" }] as const} /></div>
           <button type="button" onClick={onClose} className="ml-auto grid h-8 w-8 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5]" aria-label="Đóng"><X size={16} /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">

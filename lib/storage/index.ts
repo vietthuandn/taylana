@@ -87,6 +87,7 @@ export const deleteObject = (key: string) => deleteKeys([key]);
 export const deleteObjects = (keys: string[]) => deleteKeys([...new Set(keys)]);
 
 /** liệt kê mọi file có tiền tố (đệ quy) */
+export async function listObjects(prefix: string) { return list(prefix); }
 async function list(prefix: string): Promise<{ key: string; size: number }[]> {
   const out: { key: string; size: number }[] = [];
   if (PROVIDER === "supabase") {

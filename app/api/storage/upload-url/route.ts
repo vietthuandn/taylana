@@ -4,6 +4,7 @@
 import { getPublicUrl, getUploadUrl } from "@/lib/storage";
 import { canWrite, whoAmI } from "@/lib/storage/access";
 import { isValidKey } from "@/lib/storage/keys";
+import { serviceClient } from "@/lib/supabase/service";
 
 const MB = 1024 * 1024;
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg", "application/pdf": "pdf", "application/zip": "zip", "model/gltf-binary": "glb" };
@@ -42,6 +43,8 @@ export async function POST(req: Request) {
   const pub = ["scrapbook", "mockups", "public-assets"].includes(s.root);
   try {
     const up = await getUploadUrl(pub ? "public" : "private", key, type, max, size);
+    // file của khách (thiết kế / sticker tự tải): ghi sẵn dung lượng → trang Quản lý tài khoản không phải liệt kê bucket
+    if (b.scope === "design" && w.userId) await serviceClient()?.from("user_files").insert({ key, user_id: w.userId, size }).then(() => undefined, () => undefined);
     return Response.json({ ...up, key, path: key.slice(s.root.length + 1), publicUrl: pub ? getPublicUrl(key) : null });
   } catch (e) { return bad(e instanceof Error ? e.message : "Không tạo được link tải lên", 500); }
 }

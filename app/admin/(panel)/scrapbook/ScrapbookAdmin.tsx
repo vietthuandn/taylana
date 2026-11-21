@@ -5,6 +5,7 @@
    NHÓM chủ đề (admin tự đặt, bảng asset_groups; để trống = tên Loại), TAGS, tên tự động (Nhóm + " - " tag đầu + số thứ tự).
    Danh sách: lọc theo Nhóm / Loại / tìm tên + tag, lưới dày (tải dần, ảnh thu nhỏ), chọn nhiều để đổi Nhóm / Tag / Loại,
    "Đặt lại tên theo Nhóm và Tag" (xem trước), "Xoá nền lại" (Nền trơn, xem trước, lưu PNG trong suốt), quản lý nhóm. */
+import { ResponsiveTabs } from "@/components/ui/ResponsiveTabs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Crop, Folder, GripVertical, Pencil, Plus, Search, Trash2, Upload, Wand2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -148,11 +149,7 @@ export function ScrapbookAdmin() {
   return (
     <div className="space-y-6">
       <Card title="Thêm chất liệu" actions={
-        <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
-          {([["sheet", "Tách từ tờ sticker"], ["one", "Thêm từng món"]] as const).map(([k, t]) => (
-            <button key={k} type="button" onClick={() => setMode(k)} className={cx("rounded-[6px] px-3 py-1.5 text-[13px] font-medium", mode === k ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{t}</button>
-          ))}
-        </div>}>
+        <ResponsiveTabs size="sm" value={mode} onChange={setMode} tabs={[{ id: "sheet", label: "Tách từ tờ sticker" }, { id: "one", label: "Thêm từng món" }] as const} />}>
         {mode === "sheet" ? <SheetSlicer assets={list} groups={gc} onCreateGroup={createGroup} onDone={async () => { await after("Đã lưu các món đã tách."); }} /> : (
           <>
             <p className="mb-3 text-[13px] text-[#71717a]">Ảnh PNG / WebP nền trong suốt (file giữ nguyên định dạng, không chuyển sang JPG). Tải file lên hoặc dán link ảnh.</p>
@@ -167,7 +164,7 @@ export function ScrapbookAdmin() {
               <Field label="Link ảnh" className="min-w-[240px] flex-1"><Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://..." /></Field>
               <Button icon={<Plus size={16} />} onClick={() => add(form.url.trim())}>Thêm từ link</Button>
               <Button variant="secondary" icon={<Upload size={16} />} loading={busy} onClick={() => fileIn.current?.click()}>Tải file lên</Button>
-              <input ref={fileIn} type="file" accept="image/png,image/webp,image/jpeg,image/svg+xml" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) upload(f); }} />
+              <input ref={fileIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) upload(f); }} />
             </div>
           </>
         )}

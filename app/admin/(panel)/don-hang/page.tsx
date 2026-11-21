@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ResponsiveTabs } from "@/components/ui/ResponsiveTabs";
 import { requireAdmin } from "@/lib/admin";
 import { formatDate, formatVND, orderTypeLabels, statusLabels } from "@/lib/format";
 import type { Order } from "@/lib/types";
@@ -62,14 +63,7 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
       <PageHeader title="Đơn hàng" />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
-          {["", "new", "in_progress", "delivered"].map((s) => (
-            <Link key={s || "all"} href={link({ status: s })}
-              className={`rounded-[6px] px-3 py-1.5 text-[13px] font-medium ${status === s ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b] hover:text-[#18181b]"}`}>
-              {s ? statusLabels[s] : "Tất cả"}
-            </Link>
-          ))}
-        </div>
+        <ResponsiveTabs size="sm" className="w-full sm:w-auto" value={status || "all"} tabs={["", "new", "in_progress", "delivered"].map((s) => ({ id: s || "all", label: s ? statusLabels[s] : "Tất cả", href: link({ status: s }) }))} />
         <form className="flex w-full gap-2 sm:w-auto" action="/admin/don-hang">
           {status && <input type="hidden" name="status" value={status} />}
           {pay && <input type="hidden" name="pay" value={pay} />}

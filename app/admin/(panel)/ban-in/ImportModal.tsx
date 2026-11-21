@@ -2,6 +2,7 @@
 /* Bàn in → "Thêm đơn": (a) file Excel / CSV Shopee — tự nhận cột, chọn lại được, gộp dòng cùng mã đơn · (b) ảnh chụp màn hình
    danh sách đơn — OCR trên trình duyệt, bảng kết quả sửa được, ô kém tin cậy tô vàng · (c) nhập tay (username, gói, món lẻ).
    Chống trùng: username + sản phẩm + phân loại đã có trong phiên → hỏi trước khi thêm. */
+import { ResponsiveTabs } from "@/components/ui/ResponsiveTabs";
 import { useState } from "react";
 import { FileSpreadsheet, ImageIcon, Keyboard, Plus, Trash2, X } from "lucide-react";
 import { COLS, guessCols, ocrImage, readSheet, rowKey, rowsFromOcr, rowsFromSheet, type Col, type ImportRow, type Sheet } from "@/lib/printShop/importers";
@@ -60,15 +61,12 @@ export function ImportModal({ packs, addons, rules, existing, onAdd, onClose }: 
     setBusy("");
   }
 
-  const tabBtn = (k: typeof tab, label: string, icon: React.ReactNode) => (
-    <button type="button" onClick={() => setTab(k)} className={cx("inline-flex items-center gap-1.5 rounded-[8px] px-3 py-1.5 text-[13px] font-medium", tab === k ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b] hover:bg-[#f4f4f5]")}>{icon}{label}</button>
-  );
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="relative flex max-h-[92dvh] w-full max-w-[980px] flex-col rounded-[14px] bg-white shadow-xl">
         <div className="flex items-center gap-2 border-b border-[#efeff1] px-5 py-3">
           <p className="text-[16px] font-semibold">Thêm đơn</p>
-          <div className="ml-3 flex gap-1">{tabBtn("excel", "File Excel / CSV", <FileSpreadsheet size={15} />)}{tabBtn("ocr", "Ảnh chụp màn hình", <ImageIcon size={15} />)}{tabBtn("manual", "Nhập tay", <Keyboard size={15} />)}</div>
+          <div className="ml-3 min-w-0 flex-1 sm:flex-none"><ResponsiveTabs size="sm" value={tab} onChange={setTab} tabs={[{ id: "excel", label: "File Excel / CSV", icon: <FileSpreadsheet size={15} /> }, { id: "ocr", label: "Ảnh chụp màn hình", icon: <ImageIcon size={15} /> }, { id: "manual", label: "Nhập tay", icon: <Keyboard size={15} /> }] as const} /></div>
           <button type="button" onClick={onClose} className="ml-auto grid h-8 w-8 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5]" aria-label="Đóng"><X size={16} /></button>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">

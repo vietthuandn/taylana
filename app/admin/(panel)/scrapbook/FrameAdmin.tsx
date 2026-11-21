@@ -175,7 +175,7 @@ export function FrameAdmin() {
         <Card title={`Khung trong bộ “${set.name}” (${list.length})`}>
           <div className="mb-4 flex flex-wrap items-end gap-2">
             <Button icon={<Upload size={16} />} loading={!!busy} onClick={() => fileIn.current?.click()}>Tải nhiều khung lên</Button>
-            <input ref={fileIn} type="file" multiple accept="image/png,image/webp" className="sr-only" onChange={(e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ""; if (fs.length) uploadMany(fs); }} />
+            <input ref={fileIn} type="file" multiple accept="image/*" className="sr-only" onChange={(e) => { const fs = [...(e.target.files ?? [])]; e.target.value = ""; if (fs.length) uploadMany(fs); }} />
             <Field label="Hoặc dán link ảnh khung" className="min-w-[240px] flex-1"><Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." /></Field>
             <Button variant="secondary" onClick={addLink}>Thêm từ link</Button>
             {busy && <span className="text-[12px] text-[#71717a]">{busy}</span>}
@@ -280,7 +280,7 @@ function RegionEditor({ frame, photo, onClose, onSave }: { frame: Frame; photo: 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button size="sm" variant="secondary" icon={<Upload size={14} />} loading={busy} onClick={() => maskIn.current?.click()}>{mask ? "Đổi ảnh mặt nạ" : "Tải ảnh mặt nạ"}</Button>
               {mask && <button type="button" onClick={() => setMask(null)} className="text-[12px] text-[#dc2626]">Bỏ mặt nạ</button>}
-              <input ref={maskIn} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) upMask(f); }} />
+              <input ref={maskIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) upMask(f); }} />
             </div>
           </div>
         </div>

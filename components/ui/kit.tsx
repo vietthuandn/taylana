@@ -3,7 +3,7 @@
 /* Bộ component dùng chung cho trang Admin (kiểu dashboard SaaS tối giản).
    Màu nhấn duy nhất: hồng #ff5fa2. Lỗi: đỏ #dc2626. Icon: lucide-react 16px. */
 import { DialogHost, confirmDialog as dlgConfirm } from "./dialog";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowDown, ArrowUp, CheckCircle2, ImagePlus, Loader2, X } from "lucide-react";
 import { uploadPublicImage } from "@/lib/upload";
@@ -113,9 +113,27 @@ export function AdminPage({ children, wide }: { children: React.ReactNode; wide?
 }
 
 // ---------- Bảng ----------
-export function Table({ head, children, empty }: { head: React.ReactNode[]; children: React.ReactNode; empty?: React.ReactNode }) {
+/* Điện thoại (< 640px): chỉ hiện các cột `keep` (mặc định 2 cột đầu) + cột thao tác cuối (cột tiêu đề rỗng);
+   chạm vào dòng → mở các cột còn lại (kèm tên cột). Máy tính: bảng bình thường. */
+export function Table({ head, children, empty, keep = [0, 1] }: { head: React.ReactNode[]; children: React.ReactNode; empty?: React.ReactNode; keep?: number[] }) {
+  const body = useRef<HTMLTableSectionElement>(null);
+  const last = head.length - 1, action = head[last] === "" || head[last] == null;
+  useEffect(() => {
+    for (const tr of Array.from(body.current?.rows ?? [])) {
+      Array.from(tr.cells).forEach((td, i) => {
+        td.dataset.m = action && i === last ? "a" : keep.includes(i) ? "k" : "x";
+        const h = head[i]; td.dataset.label = typeof h === "string" ? h : "";
+      });
+      tr.dataset.more = Array.from(tr.cells).some((td) => td.dataset.m === "x" && td.textContent?.trim()) ? "1" : "";
+    }
+  });
+  function onClick(e: React.MouseEvent) {
+    if (window.innerWidth >= 640 || (e.target as HTMLElement).closest("a,button,input,select,textarea,label")) return;
+    const tr = (e.target as HTMLElement).closest("tr");
+    if (tr?.dataset.more) tr.toggleAttribute("data-open");
+  }
   return (
-    <div className="overflow-x-auto rounded-[12px] border border-[#e5e5e7] bg-white">
+    <div className="rtable overflow-x-auto rounded-[12px] border border-[#e5e5e7] bg-white">
       <table className="w-full min-w-[640px] border-collapse text-left text-[14px]">
         <thead>
           <tr className="border-b border-[#e5e5e7] bg-[#fafafa]">
@@ -124,7 +142,7 @@ export function Table({ head, children, empty }: { head: React.ReactNode[]; chil
             ))}
           </tr>
         </thead>
-        <tbody className="[&>tr]:h-12 [&>tr]:border-b [&>tr]:border-[#f0f0f2] [&>tr:last-child]:border-0 [&>tr:hover]:bg-[#fafafa] [&_td]:px-4">
+        <tbody ref={body} onClick={onClick} className="[&>tr]:h-12 [&>tr]:border-b [&>tr]:border-[#f0f0f2] [&>tr:last-child]:border-0 [&>tr:hover]:bg-[#fafafa] [&_td]:px-4">
           {children}
         </tbody>
       </table>
@@ -179,7 +197,7 @@ export function ImageInput({ value, onChange, folder, label = "Ảnh", allowSvg 
           <label className={cx(btnClass("secondary", "sm"), "cursor-pointer")}>
             {busy ? <Loader2 size={16} className="animate-spin" /> : null}
             {busy ? "Đang tải..." : value ? "Đổi ảnh" : "Chọn ảnh"}
-            <input type="file" accept={allowSvg ? "image/png,image/svg+xml,image/jpeg,image/webp" : "image/jpeg,image/png,image/webp,image/gif"} className="sr-only" disabled={busy}
+            <input type="file" accept="image/*" className="sr-only" disabled={busy}
               onChange={async (e) => {
                 const f = e.target.files?.[0];
                 e.target.value = "";
@@ -249,7 +267,7 @@ export function ImagesInput({ value, onChange, folder, label = "Ảnh", hint }: 
         ))}
         <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-[8px] border border-dashed border-[#d4d4d8] bg-[#fafafa] text-[#71717a] hover:border-[#ff5fa2] hover:text-[#ff5fa2]">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
-          <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" disabled={busy > 0}
+          <input type="file" multiple accept="image/*" className="sr-only" disabled={busy > 0}
             onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; add(f); }} />
         </label>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 
 /* Khung trang Admin: sidebar trái 240px (nền trắng) + topbar 56px + vùng nội dung co giãn. */
+import { useMenuDismiss } from "@/components/ui/useMenuDismiss";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -34,9 +35,11 @@ function Sidebar({ email, role, onNavigate, mini = false }: { email: string; rol
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menu) return;
-    const off = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setMenu(false); };
-    document.addEventListener("mousedown", off);
-    return () => document.removeEventListener("mousedown", off);
+    // pointerdown (không dùng mousedown: iPhone không bắn mousedown khi chạm vùng không bấm được) + Esc
+    const off = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setMenu(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setMenu(false); };
+    document.addEventListener("pointerdown", off); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", off); document.removeEventListener("keydown", esc); };
   }, [menu]);
 
   return (
@@ -97,6 +100,7 @@ export function AdminShell({ email, role = "admin", children }: { email: string;
     if (u.searchParams.get("khong-quyen")) { toast("Bạn không có quyền truy cập trang này", "err"); u.searchParams.delete("khong-quyen"); history.replaceState(null, "", u.pathname + u.search); }
   }, [path]);
   const [open, setOpen] = useState(false);
+  useMenuDismiss(open, () => setOpen(false)); // ngăn kéo menu (điện thoại): Esc / chuyển trang → đóng, khoá cuộn
   // menu trái thu gọn (chỉ icon) — nhớ trên máy này
   const [mini, setMini] = useState(false);
   useEffect(() => { try { setMini(localStorage.getItem("admin-sidebar-mini") === "1"); } catch { /* bỏ qua */ } }, []);

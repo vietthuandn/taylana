@@ -5,7 +5,7 @@ import JSZip from "jszip";
 import { COLOR_SPACE, DPI, JPG_QUALITY } from "./printSpecs";
 
 export type LoadedImage = { id: string; name: string; file: File; url: string; el: HTMLImageElement; w: number; h: number; error?: string };
-export const ACCEPT_IMG = "image/jpeg,image/png,image/webp";
+export const ACCEPT_IMG = "image/*";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 // Đọc số thành phần màu của JPEG (4 = CMYK)

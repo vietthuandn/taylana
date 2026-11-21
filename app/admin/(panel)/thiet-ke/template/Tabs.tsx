@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { PageHeader } from "@/components/admin/ui";
-import { cx } from "@/components/admin/styles";
+import { ResponsiveTabs } from "@/components/ui/ResponsiveTabs";
 import { requireStaff } from "@/lib/admin";
 import { DESIGNER_TEMPLATE_TABS } from "@/lib/roles";
 
@@ -18,12 +17,7 @@ export async function TemplateTabs({ tab, title = true }: { tab: TemplateTab; ti
   return (
     <>
       {title && <PageHeader title="Quản lý template" />}
-      <nav className="mb-6 flex max-w-full flex-wrap gap-0.5 rounded-[10px] border border-[#e5e5e7] bg-white p-1">
-        {tabs.map(([id, label]) => (
-          <Link key={id} href={`/admin/thiet-ke/template/${id}`}
-            className={cx("rounded-[8px] px-3.5 py-1.5 text-[14px] font-medium", tab === id ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b] hover:text-[#18181b]")}>{label}</Link>
-        ))}
-      </nav>
+      <ResponsiveTabs className="mb-6" value={tab} tabs={tabs.map(([id, label]) => ({ id, label, href: `/admin/thiet-ke/template/${id}` }))} />
     </>
   );
 }

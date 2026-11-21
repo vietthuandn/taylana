@@ -15,6 +15,7 @@ import { MIGRATE_MSG, isMissing, loadCategories, loadTemplates } from "@/lib/scr
 import { confirmDialog, promptDialog } from "@/components/ui/dialog";
 import { Badge, Button, toast } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
+import { RowMenu } from "@/components/ui/RowMenu";
 import { CategoryManager, Modal } from "./CategoryManager";
 
 export const EDITOR = "/admin/thiet-ke/template/sua";
@@ -92,7 +93,6 @@ export function LibraryAdmin({ kind, extra, reloadKey = 0 }: { kind: TplKind; ex
   }
 
   const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[13px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]");
-  const icon = "grid h-7 w-7 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b]";
   const catName = (id: string | null) => cats.find((c) => c.id === id)?.name ?? "Chưa có danh mục";
 
   return (
@@ -128,17 +128,19 @@ export function LibraryAdmin({ kind, extra, reloadKey = 0 }: { kind: TplKind; ex
                 </button>
                 <div className="flex flex-1 flex-col border-t border-[#efeff1] p-2.5">
                   <p className="truncate text-[13px] font-medium" title={t.name}>{t.name}</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
+                  <div className="mt-1 flex items-center gap-1">
                     <Badge>{t.photo_count} ảnh</Badge>
-                    {t.is_active ? <Badge tone="green">Bật</Badge> : <Badge>Tắt</Badge>}
-                  </div>
-                  <div className="mt-auto flex flex-wrap items-center justify-end gap-0.5 pt-1.5">
-                    <button type="button" className={icon} title="Sửa" onClick={() => router.push(`${EDITOR}?tpl=${t.id}`)}><Pencil size={14} /></button>
-                    <button type="button" className={icon} title="Đổi tên" onClick={() => rename(t)}><Type size={14} /></button>
-                    <button type="button" className={icon} title={`Đổi danh mục (đang: ${catName(t.category_id)})`} onClick={() => setMoving(t)}><FolderInput size={14} /></button>
-                    <button type="button" className={icon} title="Nhân bản" onClick={() => duplicate(t)}><Copy size={14} /></button>
-                    <button type="button" className={icon} title={t.is_active ? "Tắt" : "Bật"} onClick={() => patch(t, { is_active: !t.is_active }, t.is_active ? "Đã tắt mẫu" : "Đã bật mẫu")}>{t.is_active ? <EyeOff size={14} /> : <Eye size={14} />}</button>
-                    <button type="button" className="grid h-7 w-7 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#fef2f2] hover:text-[#dc2626]" title="Xoá" onClick={() => remove(t)}><Trash2 size={14} /></button>
+                    <button type="button" title={t.is_active ? "Đang bật — bấm để tắt" : "Đang tắt — bấm để bật"} onClick={() => patch(t, { is_active: !t.is_active }, t.is_active ? "Đã tắt mẫu" : "Đã bật mẫu")}
+                      className={cx("inline-flex h-[22px] items-center gap-1 rounded-full border px-2 text-[12px] font-medium", t.is_active ? "border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]" : "border-[#e5e5e7] bg-[#f4f4f5] text-[#71717a]")}>
+                      {t.is_active ? <Eye size={12} /> : <EyeOff size={12} />}{t.is_active ? "Bật" : "Tắt"}
+                    </button>
+                    <RowMenu className="ml-auto -mr-1" items={[
+                      { label: "Sửa", icon: <Pencil size={14} />, onClick: () => router.push(`${EDITOR}?tpl=${t.id}`) },
+                      { label: "Đổi tên", icon: <Type size={14} />, onClick: () => rename(t) },
+                      { label: "Đổi danh mục", icon: <FolderInput size={14} />, title: `Đang: ${catName(t.category_id)}`, onClick: () => setMoving(t) },
+                      { label: "Nhân bản", icon: <Copy size={14} />, onClick: () => duplicate(t) },
+                      { label: "Xoá", icon: <Trash2 size={14} />, danger: true, onClick: () => remove(t) },
+                    ]} />
                   </div>
                 </div>
               </li>

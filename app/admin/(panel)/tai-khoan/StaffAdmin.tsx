@@ -3,8 +3,9 @@
 /* Quản lý tài khoản nội bộ: bảng (tên hiển thị, email, vai trò, trạng thái, lần đăng nhập gần nhất) · "Tạo tài khoản"
    (mật khẩu tạo ngẫu nhiên / sao chép) · mỗi dòng: Đổi vai trò, Đặt lại mật khẩu, Tạm khoá / Mở khoá, Xoá.
    Mọi thao tác qua /api/admin/staff (server kiểm tra quyền + Supabase Auth Admin API). */
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Copy, KeyRound, Lock, MoreVertical, Plus, Shuffle, Trash2, Unlock, UserCog } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { RowMenu } from "@/components/ui/RowMenu";
+import { Copy, KeyRound, Lock, Plus, Shuffle, Trash2, Unlock, UserCog } from "lucide-react";
 import { ROLE_LABEL, type StaffRole } from "@/lib/roles";
 import { confirmDialog, promptDialog } from "@/components/ui/dialog";
 import { Badge, Button, Card, EmptyState, Field, Input, Select, toast } from "@/components/admin/ui";
@@ -97,38 +98,6 @@ export function StaffAdmin() {
             <p className="text-[12px] text-[#71717a]">Tài khoản được xác nhận email sẵn, đăng nhập ngay ở /admin/login. Gửi email + mật khẩu cho người dùng qua kênh riêng.</p>
             <div className="flex justify-end gap-2 pt-1"><Button variant="secondary" onClick={() => setForm(null)}>Huỷ</Button><Button onClick={create} loading={busy}>Tạo tài khoản</Button></div>
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-type MenuItem = { label: string; icon: React.ReactNode; onClick: () => void; disabled?: boolean; danger?: boolean; title?: string };
-/** nút ⋮ mở menu thao tác của 1 dòng */
-function RowMenu({ items }: { items: MenuItem[] }) {
-  const [open, setOpen] = useState<{ top: number; right: number } | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(null); };
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
-    const close = () => setOpen(null);
-    document.addEventListener("mousedown", h); document.addEventListener("keydown", k); window.addEventListener("scroll", close, true); window.addEventListener("resize", close);
-    return () => { document.removeEventListener("mousedown", h); document.removeEventListener("keydown", k); window.removeEventListener("scroll", close, true); window.removeEventListener("resize", close); };
-  }, [open]);
-  return (
-    <div ref={ref} className="relative flex justify-end">
-      <button type="button" onClick={(e) => { if (open) return setOpen(null); const b = e.currentTarget.getBoundingClientRect(); setOpen({ top: Math.min(b.bottom + 4, window.innerHeight - 180), right: window.innerWidth - b.right }); }} aria-label="Thao tác" aria-haspopup="menu" aria-expanded={!!open}
-        className="grid h-8 w-8 place-items-center rounded-[6px] text-[#52525b] hover:bg-[#f4f4f5]"><MoreVertical size={16} /></button>
-      {open && (
-        <div role="menu" style={{ top: open.top, right: open.right }} className="fixed z-[80] min-w-[190px] overflow-hidden rounded-[10px] border border-[#e5e5e7] bg-white py-1 shadow-[0_8px_24px_rgb(0_0_0/0.12)]">
-          {items.map((it) => (
-            <button key={it.label} type="button" role="menuitem" disabled={it.disabled} title={it.title}
-              onClick={() => { setOpen(null); it.onClick(); }}
-              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] disabled:cursor-not-allowed disabled:opacity-40 ${it.danger ? "text-[#dc2626] hover:bg-[#fef2f2]" : "text-[#18181b] hover:bg-[#f4f4f5]"}`}>
-              {it.icon}{it.label}
-            </button>
-          ))}
         </div>
       )}
     </div>
