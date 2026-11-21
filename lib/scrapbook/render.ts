@@ -635,7 +635,7 @@ function outlined(img: Img, w: number, h: number, r: number, color: string) {
   return c;
 }
 const fitS = (l: { s: number; auto?: boolean }, img: Img) => (l.auto ? Math.min(l.s, (2 * Math.max(img.width, img.height) * 25.4) / 300) : l.s);
-const isTopSticker = (l: Layer) => l.k === "sticker" && !!l.user;
+const isTopSticker = (l: Layer) => !!l.user && (l.k === "sticker" || l.k === "text" || l.k === "wish"); // lớp khách thêm (sticker · ảnh · chữ · lời chúc) luôn nằm trên lớp của mẫu
 
 /** Điểm (mm) có nằm trong ô (hình chữ nhật xoay) không */
 export function inBox(px0: number, py0: number, b: { x: number; y: number; w: number; h: number; rot: number }) {

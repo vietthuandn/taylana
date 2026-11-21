@@ -60,6 +60,8 @@ export function ScrapbookEditor(p: {
   useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel])) p.setTab("chu"); }, [st.sel]); // eslint-disable-line react-hooks/exhaustive-deps
   // cột công cụ kiểu Canva: bấm lại mục đang mở → thu gọn panel (khu làm việc rộng hơn)
   const [collapsed, setCollapsed] = useState(false);
+  // điện thoại: mở trình thiết kế → panel đóng sẵn (chỉ thấy bề mặt + menu dưới)
+  useEffect(() => { if (window.innerWidth < 768) setCollapsed(true); }, []);
   // điện thoại: bấm 1 ảnh trong "Ảnh của bạn" → chèn vào thiết kế + đóng panel để sửa ảnh ngay
   useEffect(() => { const h = () => { if (window.innerWidth < 768) setCollapsed(true); }; window.addEventListener("scrap-close-panel", h); return () => window.removeEventListener("scrap-close-panel", h); }, []);
   const switchTab = (id: EditorTab) => {
@@ -149,21 +151,25 @@ export function ScrapbookEditor(p: {
   const selT = st.sel !== null && st.isTextLayer(st.L[st.sel]) && !st.L[st.sel].ulock ? (st.L[st.sel] as Extract<(typeof st.L)[number], { k: "text" | "wish" }>) : null;
   const photoBar = st.photoTools("bar");
   // điện thoại: khung menu nổi đổi thành công cụ ảnh / khung ảnh / chữ theo lớp đang chọn
-  const photoMobile = st.photoTools("mobile") ?? (selT && st.sel !== null ? (
-    <TextToolbar l={selT} begin={st.D.begin} patch={(v) => st.patchLayer(st.sel!, v)} onEdit={() => st.setEditText(st.sel)} onPaper={(v) => { if (v === "none") st.wishToText(st.sel!); else st.textToWish(st.sel!, v); }}
-      onFont={() => { p.setTab("chu"); setCollapsed(false); }} onMore={() => { p.setTab("chu"); setCollapsed(false); }} />
-  ) : null);
+  // màu đã dùng trong thiết kế (màu chữ · màu giấy lời chúc · màu riêng đã chọn) → hiện trước trong "Màu sắc"
+  const usedColors = useMemo(() => [...new Set([...(doc ?? []).flatMap((t) => t.layers.flatMap((l) => (l.k === "text" ? [l.color] : l.k === "wish" ? [l.ink] : []))), ...st.colors].filter((c): c is string => !!c && c.startsWith("#")).map((c) => c.toLowerCase()))], [doc, st.colors]);
+  const photoMobile = st.photoTools("mobile");
+  const textMobile = !photoMobile && selT && st.sel !== null ? (
+    <TextToolbar key={st.sel} l={selT} begin={st.D.begin} patch={(v) => st.patchLayer(st.sel!, v)} onEdit={() => st.setEditText(st.sel)} onPaper={(v) => { if (v === "none") st.wishToText(st.sel!); else st.textToWish(st.sel!, v); }}
+      onDone={() => { st.setEditText(null); st.setSel(null); }} used={usedColors} onCustomColor={st.addColor} />
+  ) : null;
   const multi = !!doc && count > 1;
   return (
     <div data-fit-screen data-editor={p.header ? "" : undefined} className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
      {p.header && <EditorHeader h={{ ...p.header, guides: { value: p.guides, onChange: p.setGuides }, undo: { onUndo: () => { if (st.D.undo()) st.setSel(null); }, onRedo: () => { if (st.D.redo()) st.setSel(null); }, canUndo: st.D.canUndo, canRedo: st.D.canRedo } }} />}
      <div className={cx("flex w-full flex-1 flex-col md:min-h-0 md:flex-row", p.maxW)}>
       {/* ---------- trái: cột công cụ dọc (máy tính) / thanh ngang dưới đáy (điện thoại) + panel nội dung ---------- */}
-      {/* điện thoại: khung menu NỔI dưới đáy (bo 20px, cách đáy 12px + safe-area, cách 2 bên 12px) — chọn 1 ảnh thì đổi thành công cụ ảnh */}
+      {/* điện thoại: khung menu NỔI dưới đáy (bo 20px, cách đáy 24px + safe-area (tránh vuốt Home của iPhone), cách 2 bên 12px) — chọn 1 ảnh thì đổi thành công cụ ảnh */}
+      {textMobile && <div className="fixed inset-x-3 bottom-[calc(24px+env(safe-area-inset-bottom))] z-40 md:hidden">{textMobile}</div>}
       {photoMobile && (
-        <div data-keep-sel className="no-scrollbar fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-40 flex gap-0.5 overflow-x-auto rounded-[20px] bg-[var(--c-secondary)] p-1.5 shadow-[0_8px_28px_rgb(0_0_0/0.16)] md:hidden">{photoMobile}</div>
+        <div data-keep-sel className="no-scrollbar fixed inset-x-3 bottom-[calc(24px+env(safe-area-inset-bottom))] z-40 flex gap-0.5 overflow-x-auto rounded-[20px] bg-[var(--c-secondary)] p-1.5 shadow-[0_8px_28px_rgb(0_0_0/0.16)] md:hidden">{photoMobile}</div>
       )}
-      <nav aria-label="Công cụ" className={cx("fixed inset-x-3 bottom-[calc(12px+env(safe-area-inset-bottom))] z-40 flex rounded-[20px] bg-[var(--c-secondary)] p-1 md:bg-white shadow-[0_8px_28px_rgb(0_0_0/0.16)] md:static md:z-auto md:order-1 md:flex md:w-[72px] md:shrink-0 md:flex-col md:gap-1 md:rounded-none md:border-r md:border-[#e5e5e7] md:p-0 md:py-2 md:shadow-none", photoMobile && "max-md:hidden")}>
+      <nav aria-label="Công cụ" className={cx("fixed inset-x-3 bottom-[calc(24px+env(safe-area-inset-bottom))] z-40 flex rounded-[20px] bg-[var(--c-secondary)] p-1 md:bg-white shadow-[0_8px_28px_rgb(0_0_0/0.16)] md:static md:z-auto md:order-1 md:flex md:w-[72px] md:shrink-0 md:flex-col md:gap-1 md:rounded-none md:border-r md:border-[#e5e5e7] md:p-0 md:py-2 md:shadow-none", (photoMobile || textMobile) && "max-md:hidden")}>
         {RAIL.map(([id, label, icon]) => {
           const on = p.tab === id && open;
           return (
@@ -175,7 +181,7 @@ export function ScrapbookEditor(p: {
         })}
       </nav>
       {open && <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setCollapsed(true)} aria-hidden />}
-      <aside className={cx("border-[#e5e5e7] bg-white", open ? "fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-40 max-h-[78dvh] overflow-y-auto rounded-t-[16px] p-4 shadow-[0_-8px_24px_rgb(0_0_0/0.12)] md:static md:z-auto md:order-1 md:block md:max-h-none md:w-[380px] md:shrink-0 md:rounded-none md:border-r md:p-4 md:shadow-none" : "hidden")}>
+      <aside className={cx("border-[#e5e5e7] bg-white", open ? "fixed inset-x-0 bottom-[calc(96px+env(safe-area-inset-bottom))] z-40 max-h-[78dvh] overflow-y-auto rounded-t-[16px] p-4 shadow-[0_-8px_24px_rgb(0_0_0/0.12)] md:static md:z-auto md:order-1 md:block md:max-h-none md:w-[380px] md:shrink-0 md:rounded-none md:border-r md:p-4 md:shadow-none" : "hidden")}>
        <div className="space-y-5">
         <div className="flex items-center justify-between md:hidden"><p className="text-[15px] font-semibold">{title}</p><button type="button" onClick={() => setCollapsed(true)} aria-label="Đóng" className="grid h-8 w-8 place-items-center rounded-full hover:bg-[#f4f4f5]"><X size={16} /></button></div>
         {p.tab === "mau" && p.templateTab}
@@ -215,7 +221,7 @@ export function ScrapbookEditor(p: {
           </div>
         )}
         {/* điện thoại: khu xem cao cố định = màn hình − header − khung menu − dải trang / zoom (cố định dưới đáy) */}
-        <div className={cx("relative flex min-h-[220px] flex-1 flex-col max-md:flex-none md:min-h-0", multi ? "max-md:h-[calc(100dvh-56px-176px-env(safe-area-inset-bottom))]" : "max-md:h-[calc(100dvh-56px-136px-env(safe-area-inset-bottom))]")}>
+        <div className={cx("relative flex min-h-[220px] flex-1 flex-col max-md:flex-none md:min-h-0", multi ? "max-md:h-[calc(100dvh-56px-188px-env(safe-area-inset-bottom))]" : "max-md:h-[calc(100dvh-56px-148px-env(safe-area-inset-bottom))]")}>
         <div ref={area} className="flex min-h-0 flex-1 touch-none overflow-auto px-2 py-1">
          <div className="m-auto">
           {p.overlay ?? (!cur ? p.empty : st.ready && (
@@ -247,7 +253,7 @@ export function ScrapbookEditor(p: {
         </div>
         {/* điện thoại: dải trang (xem trước) + zoom cố định ngay trên khung menu cuối trang */}
         {cur && !p.overlay && (
-          <div data-keep-sel className="fixed inset-x-3 bottom-[calc(88px+env(safe-area-inset-bottom))] z-30 flex items-end gap-2 md:hidden">
+          <div data-keep-sel className="fixed inset-x-3 bottom-[calc(100px+env(safe-area-inset-bottom))] z-30 flex items-end gap-2 md:hidden">
             <div className="no-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
               {multi && doc!.map((sf, i) => (
                 <button key={i} type="button" onClick={() => go(i)} title={p.pageLabel?.(i, count)}

@@ -1,77 +1,113 @@
 "use client";
-/* Điện thoại: chọn 1 lớp chữ → khung menu nổi dưới đáy đổi thành công cụ chữ (icon + tên, cuộn ngang):
-   Sửa chữ · Font · Cỡ chữ · Màu · Căn lề · Đậm · Nghiêng · Thêm tuỳ chỉnh (mở panel Chữ đầy đủ). Popover mở phía trên khung. */
-import { useState } from "react";
-import { StickyNote, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Palette, PencilLine, SlidersHorizontal, Type, ALargeSmall } from "lucide-react";
-import type { Layer } from "@/lib/scrapbook/types";
-import { ToolPop } from "./PhotoToolbar";
+/* Điện thoại: chọn 1 lớp chữ / lời chúc → khung menu nổi dưới đáy đổi thành công cụ chữ (kiểu Canva).
+   Hàng chính: Sửa · Phông chữ · Cỡ chữ · Màu sắc · Định dạng · Giấy  + nút ✓ (bỏ chọn).
+   Bấm 1 mục → hàng phụ nằm NGANG ngay phía trên (font hiện bằng chính font đó · màu: tự chọn → màu đã dùng → màu sẵn · căn lề bằng icon).
+   Không mục nào mở panel Chữ. */
+import { useEffect, useRef, useState } from "react";
+import { AlignCenter, AlignLeft, AlignRight, ALargeSmall, Check, Keyboard, Palette, Plus, StickyNote, Type, AlignJustify } from "lucide-react";
+import type { Layer, WishCard } from "@/lib/scrapbook/types";
+import { knownFont, loadFont, loadFontList, loadPreview, previewFamily } from "@/lib/fonts/load";
+import { nearestWeight } from "@/lib/fonts/catalog";
+import { WISH_FONT } from "@/lib/scrapbook/render";
 import { CARDS, PASTELS } from "./TextTab";
-import type { WishCard } from "@/lib/scrapbook/types";
 import { cx } from "@/components/ui/styles";
 
 const INKS = ["#18181b", "#3f3f46", "#ffffff", "#ff5fa2", "#e63946", "#f4a261", "#2a9d8f", "#1d3557", "#7b2cbf", "#fbbf24"];
 type TL = Extract<Layer, { k: "text" | "wish" }>;
+type Tool = "font" | "size" | "ink" | "format" | "paper";
 
-export function TextToolbar({ l, begin, patch, onEdit, onFont, onMore, onPaper }: {
-  l: TL; begin: () => void; patch: (v: Partial<Layer>) => void; onEdit: () => void; onFont: () => void; onMore: () => void; onPaper: (v: WishCard | "none") => void;
+export function TextToolbar({ l, begin, patch, onEdit, onPaper, onDone, used, onCustomColor }: {
+  l: TL; begin: () => void; patch: (v: Partial<Layer>) => void; onEdit: () => void; onPaper: (v: WishCard | "none") => void;
+  onDone: () => void; used: string[]; onCustomColor: (c: string) => void; // used = màu đã dùng trong thiết kế (hiện trước)
 }) {
-  const [open, setOpen] = useState<{ id: string; el: HTMLElement } | null>(null);
-  const tog = (id: string) => (e: React.MouseEvent<HTMLButtonElement>) => { const el = e.currentTarget; setOpen((o) => (o?.id === id ? null : { id, el })); };
-  const cls = "flex min-w-[60px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-[12px] px-1.5 py-1.5 text-[11px] font-medium text-[#3f3f46] disabled:opacity-40";
-  const on = "bg-white text-[var(--c-primary)] shadow-sm";
+  const [tool, setTool] = useState<Tool | null>(null);
   const isText = l.k === "text", cut = !!l.cutout;
-  const ink = isText ? l.color : l.ink;
+  const ink = (isText ? l.color : l.ink) ?? "#18181b";
   const align = isText ? l.align ?? "center" : "center";
   const set = (v: Partial<Layer>) => { begin(); patch(v); };
-  const AlignI = align === "left" ? AlignLeft : align === "right" ? AlignRight : AlignCenter;
+  const tog = (t: Tool) => setTool((x) => (x === t ? null : t));
+
+  // ---------- font: danh sách font đang bật, xem trước bằng chính font đó ----------
+  const [fams, setFams] = useState<string[]>([]);
+  useEffect(() => { if (tool === "font" && !fams.length) loadFontList().then((f) => setFams(f.map((x) => x.family))); }, [tool, fams.length]);
+  useEffect(() => { if (tool === "font") fams.forEach((f) => loadPreview(f)); }, [tool, fams]);
+  const curFam = l.family ?? (isText ? "" : WISH_FONT);
+  const list = curFam && !fams.includes(curFam) ? [curFam, ...fams] : fams;
+  const row = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (tool === "font") row.current?.querySelector<HTMLElement>("[data-on]")?.scrollIntoView({ inline: "center", block: "nearest" }); }, [tool, list.length]);
+  async function pickFont(v: string) {
+    const nf = knownFont(v);
+    if (isText) {
+      const w = nearestWeight(nf, l.weight ?? (l.bold ? 700 : 400)), it = !!l.italic && (!nf || nf.italic);
+      await loadFont(v, w, it);
+      set({ cutout: undefined, family: v, weight: l.weight ? w : undefined, italic: it || undefined } as Partial<Layer>);
+    } else { await loadFont(v, 400, false); set({ cutout: undefined, family: v } as Partial<Layer>); }
+  }
+
+  // ---------- màu: tự chọn → đã dùng → màu sẵn ----------
+  const usedC = [...new Set(used.map((c) => c.toLowerCase()))];
+  const presets = INKS.filter((c) => !usedC.includes(c));
+  const dot = (c: string) => (
+    <button key={c} type="button" onClick={() => set((isText ? { color: c } : { ink: c }) as Partial<Layer>)} aria-label={c}
+      className={cx("h-10 w-10 shrink-0 rounded-full border-2", ink.toLowerCase() === c ? "border-[var(--c-primary)] ring-2 ring-white" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />
+  );
+
+  const cls = "flex min-w-[64px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-[12px] px-1.5 py-1.5 text-[11px] font-medium text-[#3f3f46]";
+  const on = "bg-white text-[var(--c-primary)] shadow-sm";
+  const chip = (a: boolean) => cx("h-10 shrink-0 rounded-[12px] border px-3 text-[13px] font-medium", a ? "border-[var(--c-primary)] bg-white text-[var(--c-primary)]" : "border-transparent bg-white/70 text-[#3f3f46]");
+  const sub = tool && (
+    <div data-keep-sel className="no-scrollbar flex items-center gap-1.5 overflow-x-auto rounded-[20px] bg-[var(--c-secondary)] p-1.5 shadow-[0_8px_28px_rgb(0_0_0/0.16)]" ref={row}>
+      {tool === "font" && (list.length ? list.map((f) => (
+        <button key={f} type="button" data-on={f === curFam ? "" : undefined} onClick={() => pickFont(f)} className={cx(chip(f === curFam), "whitespace-nowrap text-[15px]")} style={{ fontFamily: previewFamily(f) }}>{f}</button>
+      )) : <span className="px-3 py-2.5 text-[12px] text-[#71717a]">Đang tải font…</span>)}
+      {tool === "size" && isText && (
+        <label className="flex w-full items-center gap-3 px-2 py-1.5 text-[12px] text-[#52525b]">
+          <input type="range" min={2} max={24} step={0.2} value={l.size} onPointerDown={begin} onChange={(e) => patch({ size: Number(e.target.value) } as Partial<Layer>)} className="min-w-0 flex-1 accent-[var(--c-primary)]" />
+          <span className="w-14 shrink-0 text-right tabular-nums">{Math.round(l.size * 10) / 10} mm</span>
+        </label>
+      )}
+      {tool === "ink" && (
+        <>
+          <label className="relative grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-full bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]" title="Màu tự chọn">
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-[#18181b] text-white"><Plus size={14} /></span>
+            <input type="color" value={ink} onClick={begin} onChange={(e) => patch((isText ? { color: e.target.value } : { ink: e.target.value }) as Partial<Layer>)} onBlur={(e) => onCustomColor(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Màu tự chọn" />
+          </label>
+          {usedC.map(dot)}
+          {usedC.length > 0 && <span className="mx-0.5 h-6 w-px shrink-0 bg-[#d4d4d8]" />}
+          {presets.map(dot)}
+        </>
+      )}
+      {tool === "format" && isText && (
+        <div className="flex w-full rounded-[14px] bg-white/70 p-1">
+          {([["left", AlignLeft], ["center", AlignCenter], ["right", AlignRight]] as const).map(([a, I]) => (
+            <button key={a} type="button" onClick={() => set({ align: a } as Partial<Layer>)} aria-label={a} className={cx("grid h-10 flex-1 place-items-center rounded-[10px]", align === a ? "bg-white text-[var(--c-primary)] shadow-sm" : "text-[#3f3f46]")}><I size={20} /></button>
+          ))}
+        </div>
+      )}
+      {tool === "paper" && (
+        <>
+          {CARDS.map(([k, name, bg]) => <button key={k} type="button" onClick={() => { if (isText) onPaper(k); else set({ card: k, color: k === l.card ? l.color : bg } as Partial<Layer>); }} className={chip(!isText && l.card === k)}>{name}</button>)}
+          <button type="button" onClick={() => { if (!isText) onPaper("none"); }} className={chip(isText)}>Không giấy</button>
+          {!isText && <span className="mx-0.5 h-6 w-px shrink-0 bg-[#d4d4d8]" />}
+          {!isText && PASTELS.map((c) => <button key={c} type="button" onClick={() => set({ color: c } as Partial<Layer>)} aria-label={c} className={cx("h-10 w-10 shrink-0 rounded-full border-2", l.color.toLowerCase() === c ? "border-[var(--c-primary)] ring-2 ring-white" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
+        </>
+      )}
+    </div>
+  );
   return (
-    <>
-      <button type="button" onClick={onEdit} className={cls}><PencilLine size={18} /><span>Sửa chữ</span></button>
-      <button type="button" onClick={onFont} className={cls}><Type size={18} /><span>Font</span></button>
-      {isText && <button type="button" onClick={tog("size")} className={cx(cls, open?.id === "size" && on)}><ALargeSmall size={18} /><span>Cỡ chữ</span></button>}
-      {!cut && <button type="button" onClick={tog("ink")} className={cx(cls, open?.id === "ink" && on)}><Palette size={18} style={{ color: ink }} /><span>Màu</span></button>}
-      {isText && <button type="button" onClick={() => set({ align: align === "left" ? "center" : align === "center" ? "right" : "left" } as Partial<Layer>)} className={cls}><AlignI size={18} /><span>Căn lề</span></button>}
-      {isText && !cut && <button type="button" onClick={() => set({ bold: !l.bold, weight: undefined, family: l.family ?? "Be Vietnam Pro" } as Partial<Layer>)} className={cx(cls, l.bold && on)}><Bold size={18} /><span>Đậm</span></button>}
-      {isText && !cut && <button type="button" onClick={() => set({ italic: !l.italic, family: l.family ?? "Be Vietnam Pro" } as Partial<Layer>)} className={cx(cls, l.italic && on)}><Italic size={18} /><span>Nghiêng</span></button>}
-      {(!isText || !cut) && <button type="button" onClick={tog("paper")} className={cx(cls, open?.id === "paper" && on)}><StickyNote size={18} /><span>{isText ? "Thêm giấy" : "Giấy"}</span></button>}
-      <button type="button" onClick={onMore} className={cls}><SlidersHorizontal size={18} /><span>Tuỳ chỉnh</span></button>
-      {open?.id === "size" && isText && (
-        <ToolPop anchor={open.el} onClose={() => setOpen(null)} w={260}>
-          <label className="block"><span className="mb-1 flex justify-between text-[#52525b]">Cỡ chữ<span className="tabular-nums">{Math.round(l.size * 10) / 10} mm</span></span>
-            <input type="range" min={2} max={24} step={0.2} value={l.size} onPointerDown={begin} onChange={(e) => patch({ size: Number(e.target.value) } as Partial<Layer>)} className="w-full accent-[var(--c-primary)]" /></label>
-        </ToolPop>
-      )}
-      {open?.id === "ink" && (
-        <ToolPop anchor={open.el} onClose={() => setOpen(null)} w={260}>
-          <p className="mb-2 font-semibold">Màu chữ</p>
-          <div className="flex flex-wrap items-center gap-2">
-            {INKS.map((c) => <button key={c} type="button" onClick={() => set((isText ? { color: c } : { ink: c }) as Partial<Layer>)} aria-label={c} className={cx("h-8 w-8 rounded-full border-2", ink?.toLowerCase() === c ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
-            <label className="relative h-8 w-8 cursor-pointer overflow-hidden rounded-full border border-[#d4d4d8] bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]" title="Màu riêng">
-              <input type="color" value={ink ?? "#18181b"} onChange={(e) => set((isText ? { color: e.target.value } : { ink: e.target.value }) as Partial<Layer>)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Màu riêng" />
-            </label>
-          </div>
-        </ToolPop>
-      )}
-      {open?.id === "paper" && (
-        <ToolPop anchor={open.el} onClose={() => setOpen(null)} w={280}>
-          <p className="mb-2 font-semibold">Loại giấy</p>
-          <div className="flex flex-wrap gap-1.5">
-            {CARDS.map(([k, name, bg]) => <button key={k} type="button" onClick={() => { if (isText) { onPaper(k); setOpen(null); } else set({ card: k, color: k === l.card ? l.color : bg } as Partial<Layer>); }} className={cx("h-8 rounded-full border px-3 text-[12px] font-medium", !isText && l.card === k ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7]")}>{name}</button>)}
-            <button type="button" onClick={() => { if (!isText) { onPaper("none"); setOpen(null); } }} className={cx("h-8 rounded-full border px-3 text-[12px] font-medium", isText ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7]")}>Không giấy</button>
-          </div>
-          {!isText && (
-            <>
-              <p className="mb-2 mt-3 font-semibold">Màu giấy</p>
-              <div className="flex flex-wrap items-center gap-2">
-                {PASTELS.map((c) => <button key={c} type="button" onClick={() => set({ color: c } as Partial<Layer>)} aria-label={c} className={cx("h-8 w-8 rounded-full border-2", l.color.toLowerCase() === c ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
-                <label className="relative h-8 w-8 cursor-pointer overflow-hidden rounded-full border border-[#d4d4d8] bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]" title="Màu riêng">
-                  <input type="color" value={l.color} onChange={(e) => set({ color: e.target.value } as Partial<Layer>)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Màu riêng" />
-                </label>
-              </div>
-            </>
-          )}
-        </ToolPop>
-      )}
-    </>
+    <div className="flex flex-col gap-2">
+      {sub}
+      <div data-keep-sel className="flex items-center gap-1 rounded-[20px] bg-[var(--c-secondary)] p-1.5 shadow-[0_8px_28px_rgb(0_0_0/0.16)]">
+        <div className="no-scrollbar flex min-w-0 flex-1 gap-0.5 overflow-x-auto">
+          <button type="button" onClick={() => { setTool(null); onEdit(); }} className={cls}><Keyboard size={18} /><span>Sửa</span></button>
+          <button type="button" onClick={() => tog("font")} className={cx(cls, tool === "font" && on)}><Type size={18} /><span>Phông chữ</span></button>
+          {isText && <button type="button" onClick={() => tog("size")} className={cx(cls, tool === "size" && on)}><ALargeSmall size={18} /><span>Cỡ chữ</span></button>}
+          {!cut && <button type="button" onClick={() => tog("ink")} className={cx(cls, tool === "ink" && on)}><Palette size={18} style={{ color: ink }} /><span>Màu sắc</span></button>}
+          {isText && <button type="button" onClick={() => tog("format")} className={cx(cls, tool === "format" && on)}><AlignJustify size={18} /><span>Định dạng</span></button>}
+          {(!isText || !cut) && <button type="button" onClick={() => tog("paper")} className={cx(cls, tool === "paper" && on)}><StickyNote size={18} /><span>{isText ? "Thêm giấy" : "Giấy"}</span></button>}
+        </div>
+        <button type="button" onClick={onDone} aria-label="Xong" className="grid h-11 w-11 shrink-0 place-items-center rounded-full border border-[#d4d4d8] bg-white text-[#3f3f46]"><Check size={20} /></button>
+      </div>
+    </div>
   );
 }
