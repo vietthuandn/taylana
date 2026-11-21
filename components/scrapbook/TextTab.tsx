@@ -17,10 +17,10 @@ import { cx } from "@/components/ui/styles";
 
 type T = Extract<Layer, { k: "text" }>;
 type WL = Extract<Layer, { k: "wish" }>;
-const CARDS: [WishCard, string, string][] = [["card", "Thiệp", "#ffffff"], ["note", "Note", "#fff3a8"], ["lined", "Kẻ dòng", "#fffdf6"], ["label", "Nhãn", "#ffffff"]];
+export const CARDS: [WishCard, string, string][] = [["card", "Thiệp", "#ffffff"], ["note", "Note", "#fff3a8"], ["lined", "Kẻ dòng", "#fffdf6"], ["label", "Nhãn", "#ffffff"]];
 export const FAMILIES = ["Dancing Script", "Patrick Hand", "Pangolin", "Itim", "Be Vietnam Pro", "Oswald"];
 const INKS = ["#18181b", "#3f3f46", "#ffffff", "#ff5fa2", "#e63946", "#f4a261", "#2a9d8f", "#1d3557", "#7b2cbf"];
-const PASTELS = ["#fbcfe8", "#fdf6e3", "#c7f0db", "#cfe8fb", "#ddd6fe", "#fef3a8", "#fed7c3", "#e4e4e7"]; // hồng phấn, kem, bạc hà, trời nhạt, lavender, vàng bơ, cam đào, xám nhạt
+export const PASTELS = ["#fbcfe8", "#fdf6e3", "#c7f0db", "#cfe8fb", "#ddd6fe", "#fef3a8", "#fed7c3", "#e4e4e7"]; // hồng phấn, kem, bạc hà, trời nhạt, lavender, vàng bơ, cam đào, xám nhạt
 const MORE = ["#000000", "#52525b", "#a1a1aa", "#ffffff", "#7f1d1d", "#dc2626", "#fb7185", "#f9a8d4", "#9a3412", "#f97316", "#fbbf24", "#fde68a",
   "#14532d", "#16a34a", "#86efac", "#0f766e", "#1e3a8a", "#2563eb", "#93c5fd", "#4c1d95", "#8b5cf6", "#c4b5fd", "#78350f", "#d6b88c"];
 
@@ -145,7 +145,7 @@ function Swatches({ colors, value, onPick, onCustom }: { colors: string[]; value
 
 export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper, onAdd, onPatch, onBegin, onDuplicate, onRemove, topics, wishes, onWish, wishOpen, onWishOpen }: {
   layer: Layer | null; fonts: CutoutFont[]; previews: Record<string, string>;
-  colors: string[]; onCustomColor: (c: string) => void; onPaper: (v: "none") => void; // màu riêng đã dùng · "Không giấy" (khung lời chúc → chữ thường)
+  colors: string[]; onCustomColor: (c: string) => void; onPaper: (v: WishCard | "none") => void; // màu riêng đã dùng · "Không giấy" (khung lời chúc → chữ thường)
   onAdd: () => void; onPatch: (v: Partial<T> | Partial<WL>) => void; onBegin: () => void; // onBegin: lưu mốc hoàn tác trước khi kéo thanh trượt
   onDuplicate: () => void; onRemove: () => void;
   topics?: WishTopic[]; wishes?: Wish[]; onWish?: (content: string) => void; wishOpen: boolean; onWishOpen: (v: boolean) => void;
@@ -188,11 +188,11 @@ export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper
               onPatch(cur ? { cutout: undefined, family: v || undefined, weight: v && cur.weight ? w : cur.weight, italic: it || undefined } : { cutout: undefined, family: v || undefined });
             }} />
           </Row>
-          {wl && (
+          {(wl || !cur?.cutout) && (
             <Row label="Loại giấy">
               <div className="flex flex-wrap gap-1.5">
-                {CARDS.map(([k, name, bg]) => <button key={k} type="button" onClick={() => { onBegin(); onPatch({ card: k, color: k === wl.card ? wl.color : bg }); }} className={chip(wl.card === k)}>{name}</button>)}
-                <button type="button" onClick={() => onPaper("none")} className={chip(false)}>Không giấy</button>
+                {CARDS.map(([k, name, bg]) => <button key={k} type="button" onClick={() => { if (!wl) { onPaper(k); return; } onBegin(); onPatch({ card: k, color: k === wl.card ? wl.color : bg }); }} className={chip(wl?.card === k)}>{name}</button>)}
+                <button type="button" onClick={() => { if (wl) onPaper("none"); }} className={chip(!wl)}>Không giấy</button>
               </div>
             </Row>
           )}

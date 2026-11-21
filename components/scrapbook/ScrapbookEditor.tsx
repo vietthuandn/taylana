@@ -67,7 +67,7 @@ export function ScrapbookEditor(p: {
     setCollapsed(false); p.setTab(id);
     if (id !== "chu" && st.sel !== null && st.isTextLayer(st.L[st.sel])) { st.setEditText(null); st.setSel(null); }
   };
-  useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel])) setCollapsed(false); }, [st.sel]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel]) && window.innerWidth >= 768) setCollapsed(false); }, [st.sel]); // điện thoại: chọn chữ chỉ hiện thanh công cụ, không mở panel // eslint-disable-line react-hooks/exhaustive-deps
 
   // khung xem: bề mặt to nhất có thể (trang: cao × 0.85 · rộng × 0.92)
   const area = useRef<HTMLDivElement>(null);
@@ -150,7 +150,7 @@ export function ScrapbookEditor(p: {
   const photoBar = st.photoTools("bar");
   // điện thoại: khung menu nổi đổi thành công cụ ảnh / khung ảnh / chữ theo lớp đang chọn
   const photoMobile = st.photoTools("mobile") ?? (selT && st.sel !== null ? (
-    <TextToolbar l={selT} begin={st.D.begin} patch={(v) => st.patchLayer(st.sel!, v)} onEdit={() => st.setEditText(st.sel)}
+    <TextToolbar l={selT} begin={st.D.begin} patch={(v) => st.patchLayer(st.sel!, v)} onEdit={() => st.setEditText(st.sel)} onPaper={(v) => { if (v === "none") st.wishToText(st.sel!); else st.textToWish(st.sel!, v); }}
       onFont={() => { p.setTab("chu"); setCollapsed(false); }} onMore={() => { p.setTab("chu"); setCollapsed(false); }} />
   ) : null);
   const multi = !!doc && count > 1;
@@ -194,7 +194,7 @@ export function ScrapbookEditor(p: {
         )}
         {p.tab === "chu" && (
           <TextTab layer={st.sel !== null && st.isTextLayer(st.L[st.sel]) ? st.L[st.sel] : null} fonts={p.fonts} previews={st.fontPreviews} colors={st.colors} onCustomColor={st.addColor}
-            onPaper={() => { if (st.sel !== null) st.wishToText(st.sel); }} onAdd={() => { st.addText(); window.dispatchEvent(new Event("scrap-close-panel")); }}
+            onPaper={(v) => { if (st.sel === null) return; if (v === "none") st.wishToText(st.sel); else st.textToWish(st.sel, v); }} onAdd={() => { st.addText(); window.dispatchEvent(new Event("scrap-close-panel")); }}
             onPatch={(v) => { if (st.sel !== null) st.patchLayer(st.sel, v); }} onBegin={st.D.begin} onDuplicate={() => { if (st.sel !== null) st.duplicate(st.sel); }} onRemove={() => { if (st.sel !== null) st.removeLayer(st.sel); }}
             topics={T} wishes={W} onWish={(c) => { st.addWish(c); window.dispatchEvent(new Event("scrap-close-panel")); }} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
         )}

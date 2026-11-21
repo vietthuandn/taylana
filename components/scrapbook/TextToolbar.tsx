@@ -2,16 +2,18 @@
 /* Điện thoại: chọn 1 lớp chữ → khung menu nổi dưới đáy đổi thành công cụ chữ (icon + tên, cuộn ngang):
    Sửa chữ · Font · Cỡ chữ · Màu · Căn lề · Đậm · Nghiêng · Thêm tuỳ chỉnh (mở panel Chữ đầy đủ). Popover mở phía trên khung. */
 import { useState } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Palette, PencilLine, SlidersHorizontal, Type, ALargeSmall } from "lucide-react";
+import { StickyNote, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Palette, PencilLine, SlidersHorizontal, Type, ALargeSmall } from "lucide-react";
 import type { Layer } from "@/lib/scrapbook/types";
 import { ToolPop } from "./PhotoToolbar";
+import { CARDS, PASTELS } from "./TextTab";
+import type { WishCard } from "@/lib/scrapbook/types";
 import { cx } from "@/components/ui/styles";
 
 const INKS = ["#18181b", "#3f3f46", "#ffffff", "#ff5fa2", "#e63946", "#f4a261", "#2a9d8f", "#1d3557", "#7b2cbf", "#fbbf24"];
 type TL = Extract<Layer, { k: "text" | "wish" }>;
 
-export function TextToolbar({ l, begin, patch, onEdit, onFont, onMore }: {
-  l: TL; begin: () => void; patch: (v: Partial<Layer>) => void; onEdit: () => void; onFont: () => void; onMore: () => void;
+export function TextToolbar({ l, begin, patch, onEdit, onFont, onMore, onPaper }: {
+  l: TL; begin: () => void; patch: (v: Partial<Layer>) => void; onEdit: () => void; onFont: () => void; onMore: () => void; onPaper: (v: WishCard | "none") => void;
 }) {
   const [open, setOpen] = useState<{ id: string; el: HTMLElement } | null>(null);
   const tog = (id: string) => (e: React.MouseEvent<HTMLButtonElement>) => { const el = e.currentTarget; setOpen((o) => (o?.id === id ? null : { id, el })); };
@@ -31,6 +33,7 @@ export function TextToolbar({ l, begin, patch, onEdit, onFont, onMore }: {
       {isText && <button type="button" onClick={() => set({ align: align === "left" ? "center" : align === "center" ? "right" : "left" } as Partial<Layer>)} className={cls}><AlignI size={18} /><span>Căn lề</span></button>}
       {isText && !cut && <button type="button" onClick={() => set({ bold: !l.bold, weight: undefined, family: l.family ?? "Be Vietnam Pro" } as Partial<Layer>)} className={cx(cls, l.bold && on)}><Bold size={18} /><span>Đậm</span></button>}
       {isText && !cut && <button type="button" onClick={() => set({ italic: !l.italic, family: l.family ?? "Be Vietnam Pro" } as Partial<Layer>)} className={cx(cls, l.italic && on)}><Italic size={18} /><span>Nghiêng</span></button>}
+      {(!isText || !cut) && <button type="button" onClick={tog("paper")} className={cx(cls, open?.id === "paper" && on)}><StickyNote size={18} /><span>{isText ? "Thêm giấy" : "Giấy"}</span></button>}
       <button type="button" onClick={onMore} className={cls}><SlidersHorizontal size={18} /><span>Tuỳ chỉnh</span></button>
       {open?.id === "size" && isText && (
         <ToolPop anchor={open.el} onClose={() => setOpen(null)} w={260}>
@@ -47,6 +50,26 @@ export function TextToolbar({ l, begin, patch, onEdit, onFont, onMore }: {
               <input type="color" value={ink ?? "#18181b"} onChange={(e) => set((isText ? { color: e.target.value } : { ink: e.target.value }) as Partial<Layer>)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Màu riêng" />
             </label>
           </div>
+        </ToolPop>
+      )}
+      {open?.id === "paper" && (
+        <ToolPop anchor={open.el} onClose={() => setOpen(null)} w={280}>
+          <p className="mb-2 font-semibold">Loại giấy</p>
+          <div className="flex flex-wrap gap-1.5">
+            {CARDS.map(([k, name, bg]) => <button key={k} type="button" onClick={() => { if (isText) { onPaper(k); setOpen(null); } else set({ card: k, color: k === l.card ? l.color : bg } as Partial<Layer>); }} className={cx("h-8 rounded-full border px-3 text-[12px] font-medium", !isText && l.card === k ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7]")}>{name}</button>)}
+            <button type="button" onClick={() => { if (!isText) { onPaper("none"); setOpen(null); } }} className={cx("h-8 rounded-full border px-3 text-[12px] font-medium", isText ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7]")}>Không giấy</button>
+          </div>
+          {!isText && (
+            <>
+              <p className="mb-2 mt-3 font-semibold">Màu giấy</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {PASTELS.map((c) => <button key={c} type="button" onClick={() => set({ color: c } as Partial<Layer>)} aria-label={c} className={cx("h-8 w-8 rounded-full border-2", l.color.toLowerCase() === c ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
+                <label className="relative h-8 w-8 cursor-pointer overflow-hidden rounded-full border border-[#d4d4d8] bg-[conic-gradient(red,yellow,lime,cyan,blue,magenta,red)]" title="Màu riêng">
+                  <input type="color" value={l.color} onChange={(e) => set({ color: e.target.value } as Partial<Layer>)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Màu riêng" />
+                </label>
+              </div>
+            </>
+          )}
         </ToolPop>
       )}
     </>

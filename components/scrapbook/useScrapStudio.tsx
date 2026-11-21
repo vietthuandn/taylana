@@ -15,7 +15,7 @@ import { largestEmpty } from "@/lib/scrapbook/place";
 import { loadFont } from "@/lib/fonts/load";
 import { addPoint, surfaceOf } from "@/lib/scrapbook/surface";
 import { drawCutout, layoutCutout, loadCutoutFont, type CutoutFont, type Glyph, type LoadedFont } from "@/lib/scrapbook/cutout";
-import type { Adjust, DiscText, Frame, Layer, ScrapAsset, Template } from "@/lib/scrapbook/types";
+import type { Adjust, DiscText, Frame, Layer, ScrapAsset, Template, WishCard } from "@/lib/scrapbook/types";
 import { toast } from "@/components/ui/kit";
 import { readPhoto, uid, type Photo } from "./parts";
 import type { FrameChoice } from "./FramePicker";
@@ -282,6 +282,14 @@ export function useScrapStudio(o: {
     const t: Layer = { k: "text", role: "custom", value: l.value, x: l.x, y: l.y, w: l.w, size: Math.max(3, Math.min(7, l.h / 5)), rot: l.rot, font: "hand", color: l.ink, family: l.cutout ? undefined : l.family ?? "Dancing Script", cutout: l.cutout, align: "center", lh: 1.25, user: l.user };
     D.begin(); setLayers((ls) => ls.map((x, j) => (j === i ? t : x)), l);
   }
+  /** chữ thường → khung lời chúc (chọn lại giấy sau khi bấm "Không giấy") */
+  function textToWish(i: number, card: WishCard) {
+    const l = L[i]; if (l?.k !== "text") return;
+    const bg = card === "note" ? "#fff3a8" : card === "lined" ? "#fffdf6" : "#ffffff";
+    const w = Math.max(36, l.w ?? 50), h = Math.max(22, Math.min(60, w * 0.55));
+    const t: Layer = { k: "wish", x: l.x, y: l.y, w, h, rot: l.rot, card, color: bg, ink: l.color ?? "#3f3f46", value: l.value ?? "", family: l.family ?? "Dancing Script", cutout: l.cutout, seed: Math.floor(Math.random() * 1e6), user: l.user };
+    D.begin(); setLayers((ls) => ls.map((x, j) => (j === i ? t : x)), l);
+  }
   /** "+ Thêm chữ": chữ mẫu ở vùng trống lớn nhất, chọn luôn + vào chế độ sửa (bôi đen toàn bộ) */
   function addText() {
     if (!cur) { toast("Tải ảnh và chọn mẫu trước khi thêm chữ.", "err"); return; }
@@ -476,7 +484,7 @@ export function useScrapStudio(o: {
     setColors(v.colors ?? []); setPhotos(v.photos); setUstickers(v.stickers); setText(v.text); setAdjust(v.adjust); D.setDoc(v.doc); D.setEdited(true); setApplied(v.applied); D.reset(); setActive(0); setSel(null);
   }
   return {
-    setBg, uploadBg, bgLocal, colors, addColor, wishToText, editText, setEditText, selectAll, textValue, setTextValue, wishOpen, setWishOpen, isTextLayer,
+    setBg, uploadBg, bgLocal, colors, addColor, wishToText, textToWish, editText, setEditText, selectAll, textValue, setTextValue, wishOpen, setWishOpen, isTextLayer,
     hydrate, D, doc, cur, L, ready, photos, setPhotos, used, addFiles, replacePhoto, removePhoto, reorderPhotos, assignPhoto,
     text, setText, adjust, setAdjust, applied, setApplied, ustickers, addUserSticker, removeUserSticker, stickerFiles, setStickerFiles,
     assetImgs, frameImgs, cutFonts, fontPreviews, renderOpts, active, setActive, sel, setSel, editLayer, setEditLayer,
