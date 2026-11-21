@@ -43,11 +43,12 @@ const toJpeg = (c: HTMLCanvasElement) => new Promise<Blob>((res, rej) => c.toBlo
 
 /** trạng thái xem (lưu khi chia sẻ mockup): mẫu đang chọn (-2 Auto · -1 3D · ≥0 khung), bố cục Auto, món, seed, vị trí khung */
 export type MockupView = { idx: number; arrange: SystemArrange; single: SystemItem; seed: number; pos: Pos };
-export function CdMockupTab({ frames, images, images3d, system, tray, finish, modelUrl, watermark = false, bg, bgPicker, init, onView, readOnly = false, extra }: {
+export function CdMockupTab({ frames, images, images3d, system, tray, finish, modelUrl, watermark = false, bg, bgPicker, init, onView, readOnly = false, extra, onDownloads }: {
   frames: MockupFrame[]; images: Partial<Record<RegionType, SourceImage>>; images3d: Cd3DImages; system: SystemInput; tray: TrayStyle; finish?: "matte" | "gloss"; modelUrl?: string | null; watermark?: boolean;
   bg: BgChoice; bgPicker: React.ReactNode;
   init?: Partial<MockupView>; onView?: (v: MockupView) => void; // dựng lại đúng trạng thái đã lưu · báo trạng thái hiện tại lên trên
-  readOnly?: boolean; extra?: React.ReactNode; // chỉ xem (link chia sẻ): không đổi mẫu / nền / bố cục · nút thêm cạnh "Tải về"
+  readOnly?: boolean; extra?: React.ReactNode; onDownloads?: (items: { label: string; onClick: () => void }[]) => void; // có → "Tải về" nằm trên header của trang (không vẽ nút ở thanh đáy)
+  /** */ // chỉ xem (link chia sẻ): không đổi mẫu / nền / bố cục · nút thêm cạnh "Tải về"
 }) {
   const [idx, setIdx] = useState(init?.idx ?? SYSTEM);
   const three = useRef<Cd3DHandle | null>(null);
@@ -211,16 +212,19 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
     try { saveBlob(await toJpeg(out), "Mockup-3D.jpg"); toast("Đã tải xuống"); } catch { toast("Xuất ảnh thất bại", "err"); }
   }
   const zoom = (d: number) => setPos((p) => ({ ...p, scale: Math.round(Math.min(1.5, Math.max(0.5, p.scale + d)) * 10) / 10 }));
-  const menu = (
-    <DownloadMenu busy={busy} up items={is3d ? [{ label: "Tải ảnh góc nhìn này", icon: <Download size={16} />, onClick: download3d }] : isSys ? [
-      { label: "Tải ảnh này (JPG)", icon: <Download size={16} />, onClick: () => downloadSystem(false) },
-      { label: "Tải PNG nền trong suốt", icon: <ImageIcon size={16} />, onClick: () => downloadSystem(true) },
-    ] : [
-      { label: "Tải ảnh này (JPG)", icon: <Download size={16} />, onClick: downloadOne },
-      ...(frames.length > 1 ? [{ label: "Tải tất cả mẫu (.zip)", icon: <Files size={16} />, onClick: downloadAll }] : []),
-      { label: "Tải PNG nền trong suốt", icon: <ImageIcon size={16} />, onClick: downloadPng },
-    ]} />
-  );
+  const dlItems = is3d ? [{ label: "Tải ảnh góc nhìn này", icon: <Download size={16} />, onClick: download3d }] : isSys ? [
+    { label: "Tải ảnh này (JPG)", icon: <Download size={16} />, onClick: () => downloadSystem(false) },
+    { label: "Tải PNG nền trong suốt", icon: <ImageIcon size={16} />, onClick: () => downloadSystem(true) },
+  ] : [
+    { label: "Tải ảnh này (JPG)", icon: <Download size={16} />, onClick: downloadOne },
+    ...(frames.length > 1 ? [{ label: "Tải tất cả mẫu (.zip)", icon: <Files size={16} />, onClick: downloadAll }] : []),
+    { label: "Tải PNG nền trong suốt", icon: <ImageIcon size={16} />, onClick: downloadPng },
+  ];
+  // báo danh sách "Tải về" lên header (gọi hàm mới nhất qua ref — không phải báo lại mỗi lần vẽ)
+  const dlRef = useRef(dlItems); dlRef.current = dlItems;
+  const dlKey = dlItems.map((d) => d.label).join("|");
+  useEffect(() => { onDownloads?.(dlRef.current.map((d, i) => ({ label: d.label, onClick: () => dlRef.current[i]?.onClick() }))); }, [dlKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const menu = onDownloads ? null : <DownloadMenu busy={busy} up items={dlItems} />;
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col md:block">

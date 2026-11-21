@@ -33,7 +33,8 @@ import { repeatGroups } from "@/lib/lyricsBooklet/format";
 import { flowLayout, flowPages, inBox, loadBookletFonts, paletteFromImage, renderBack, renderPage, type Ctx, type PageHit } from "@/lib/lyricsBooklet/render";
 import { loadFromAccount, loadLocal, saveLocal, saveToAccount, type LyricsDoc } from "@/lib/lyricsBooklet/doc";
 import { BACKS, LAYOUTS, MAX_LINE_CHARS, MAX_SONGS, PACKS, type Adjust, type Album, type BackId, type LayoutId, type LyricsSettings, type Song, DEFAULT_FORMAT, FONT_SIZES, type LyricsFormat, type LyricStyle } from "@/lib/lyricsBooklet/types";
-import { DownloadMenu } from "@/components/mockup-viewer/DownloadMenu";
+import { EditorHeader } from "@/components/editor/EditorHeader";
+import { SaveDesignDialog } from "@/components/scrapbook/SaveDesignDialog";
 import { Button, Toggle, toast } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 
@@ -86,6 +87,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [user, setUser] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   const [designId, setDesignId] = useState<string | null>(params.get("design"));
   const [photoPaths, setPhotoPaths] = useState<Record<string, string>>({});
   const [dragSong, setDragSong] = useState<number | null>(null);
@@ -349,7 +351,11 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
   const minPack = PACKS.find((n) => n - 1 >= need);
 
   return (
-    <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
+    <div data-fit-screen data-editor="" className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
+     <EditorHeader h={{ busy, onSave: () => setSaveOpen(true), guides: { value: guides, onChange: setGuides }, downloads: [
+       { label: "Các trang booklet (.zip)", onClick: dlPages }, { label: "Dàn trang in (.zip)", onClick: dlImposed }, { label: "Bìa sau (JPG)", onClick: dlBack },
+     ] }} />
+     {saveOpen && <SaveDesignDialog onClose={() => setSaveOpen(false)} onSave={async () => { await saveAccount(); setUser(true); }} />}
      <div className="flex w-full flex-1 flex-col md:min-h-0 md:flex-row">
       {/* ---------- Trái ~64%: xem trước ---------- */}
       <section className="relative flex min-h-[460px] min-w-0 flex-1 flex-col md:order-2 md:min-h-0">
@@ -360,7 +366,6 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
                 className={cx("rounded-[6px] px-3 py-1.5 text-[13px] font-medium", tab === k ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "text-[#52525b]")}>{k === "booklet" ? "Booklet" : "Bìa sau"}</button>
             ))}
           </div>
-          <div className="ml-auto"><Toggle checked={guides} onChange={setGuides} label="Hiển thị guideline" /></div>
         </div>
         <div ref={area} className="relative flex min-h-[300px] flex-1 items-center justify-center px-2 py-1">
           {tab === "booklet" ? (
@@ -407,12 +412,6 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
         )}
         {/* hành động */}
         <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-2">
-          {user && <Button variant="secondary" size="sm" icon={<Save size={16} />} onClick={saveAccount} loading={busy}>Lưu</Button>}
-          <DownloadMenu busy={busy} up items={[
-            { label: "Các trang booklet (.zip)", icon: <FileStack size={16} />, onClick: dlPages },
-            { label: "Dàn trang in (.zip)", icon: <Download size={16} />, onClick: dlImposed },
-            { label: "Bìa sau (JPG)", icon: <ImageIcon size={16} />, onClick: dlBack },
-          ]} />
           {orderId
             ? <Button size="sm" icon={<ShoppingBag size={16} />} onClick={() => { if (rightsOk) order(); else { setRightsTick(false); setRightsOpen(true); } }} disabled={busy || !fits}>Đặt in booklet này</Button>
             : <Button size="sm" href="/lien-he">Liên hệ tiệm để in {pack} trang</Button>}

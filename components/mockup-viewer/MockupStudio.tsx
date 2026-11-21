@@ -2,6 +2,7 @@
 
 /* Trang "Xem Mockup CD": trái 36% = khu tải ảnh, phải = CD Mockup (hoặc trình xem Booklet khi bấm "Xem preview").
    Ảnh của khách chỉ xử lý trên trình duyệt, KHÔNG upload. */
+import { EditorHeader } from "@/components/editor/EditorHeader";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Share2 } from "lucide-react";
 import { createShare } from "@/lib/mockupShare/create";
@@ -114,13 +115,12 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
     } catch (e) { toast(e instanceof Error ? e.message : "Không tạo được link chia sẻ", "err"); }
     setSharing(null);
   }
-  const shareBtn = canShare ? (
-    <Button size="sm" variant="secondary" icon={<Share2 size={15} />} onClick={share} loading={!!sharing} disabled={!!sharing}>Chia sẻ</Button>
-  ) : null;
+  const [dls, setDls] = useState<{ label: string; onClick: () => void }[]>([]);
   const viewFrames = useMemo(() => (!FEATURE_MOCKUP_FRAMES ? NO_FRAMES : box ? (boxFrame ? [boxFrame] : NO_FRAMES) : frames), [box, boxFrame, frames]);
   return (
-    <div data-fit-screen className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
-     {/* full màn hình, giống các trình thiết kế khác */}
+    <div data-fit-screen data-editor="" className="flex flex-1 flex-col bg-[#f7f7f8] md:min-h-0">
+     {/* header riêng (giống các trình thiết kế khác): Chia sẻ (admin) · Tải về */}
+     <EditorHeader h={{ share: canShare ? { onClick: share, busy: !!sharing } : undefined, downloads: showBooklet ? undefined : dls }} />
      <div className="flex w-full flex-1 flex-col md:min-h-0 md:flex-row">
       {/* ---------- Trái 36%: khu tải ảnh / trình xem Booklet ---------- */}
       <aside className="relative space-y-6 border-[#e5e5e7] bg-white p-6 md:w-[380px] md:shrink-0 md:overflow-y-auto md:border-r">
@@ -146,8 +146,7 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
         {showBooklet && bookletPages
           ? <BookletViewer pages={bookletPages} back={layout && layout.back >= 1 ? imgs.b1 ?? null : null} bg={bg} bgPicker={picker} onExit={() => setPreviewing(false)} />
           : <CdMockupTab frames={viewFrames} images={regionImages} images3d={images3d} system={system} tray={tray} finish={finish} modelUrl={modelUrl} bg={bg} bgPicker={picker}
-              init={view.current} onView={(v) => { view.current = v; }} extra={shareBtn} />}
-        {canShare && showBooklet && <div className="absolute right-4 top-3 z-20">{shareBtn}</div>}
+              init={view.current} onView={(v) => { view.current = v; }} onDownloads={setDls} />}
       </section>
      </div>
       {sharing && (

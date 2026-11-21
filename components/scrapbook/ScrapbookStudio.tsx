@@ -210,7 +210,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
     <>
     <ScrapbookEditor mode="customer" st={st} assets={assets} assetGroups={assetGroups} frames={frames} frameSets={frameSets} fonts={fonts} topics={T} wishes={W} tab={tab} setTab={setTab}
       guides={guides} setGuides={setGuides}
-      toolbar={isBack ? undefined : <Toggle checked={boxView} onChange={(v) => { setBoxView(v); st.setEditLayer(null); st.setSel(null); }} label="Xem trong hộp" />}
+      // (đã bỏ "Xem trong hộp")
       overlay={boxView && doc ? (boxUrl
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={boxUrl} alt="Mặt đĩa trên nền" className="max-h-full max-w-full rounded-[12px] border border-[#e5e5e7]" />
@@ -260,7 +260,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
         <PhotoPanel photos={photos} used={st.used} max={MAX} hint="JPG, PNG, HEIC · ảnh chỉ xử lý trên máy bạn · tự điền vào ô trống của mẫu"
           onAdd={(f) => { addPhotos(f); }} onReplace={st.replacePhoto} onRemove={st.removePhoto} onReorder={st.reorderPhotos} onInsert={(id) => st.addAsset(`p:${id}`)} />
       )}
-      header={{ busy, onSave: () => { orderAfter.current = false; setSaveOpen(true); }, onOrder: () => { orderAfter.current = true; setSaveOpen(true); },
+      header={{ busy, onSave: () => { orderAfter.current = false; setSaveOpen(true); },
         downloads: [{ label: isBack ? "Tải file in (PNG)" : "Tải file in mặt đĩa (PNG)", onClick: downloadPrint }] }}
       bottom={isBack ? (
         <div className="flex h-14 shrink-0 items-center gap-1.5 border-t border-[#efeff1] bg-[#f7f7f8] px-4">

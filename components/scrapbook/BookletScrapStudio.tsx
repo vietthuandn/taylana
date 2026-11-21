@@ -293,7 +293,6 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
         )}
         header={{ busy, pages: { value: pages, options: BUNDLE_PAGES, onChange: changePages },
           onSave: () => { orderAfter.current = false; if (rightsOk) setSaveOpen(true); else setRightsOpen(true); },
-          onOrder: () => { orderAfter.current = true; if (rightsOk) setSaveOpen(true); else setRightsOpen(true); },
           downloads: [{ label: "Các trang (.zip)", onClick: dlPages }, ...(pages === 2 ? [] : [{ label: "Dàn trang in (.zip)", onClick: dlImposed }])] }} />
       {zoomPage !== null && zoomUrl && (
         <div className="fixed inset-0 z-[90] grid place-items-center bg-black/80 p-4" onClick={() => setZoomPage(null)} role="dialog" aria-modal>
