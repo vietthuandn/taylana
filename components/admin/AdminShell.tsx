@@ -2,6 +2,7 @@
 
 /* Khung trang Admin: sidebar trái 240px (nền trắng) + topbar 56px + vùng nội dung co giãn. */
 import { useMenuDismiss } from "@/components/ui/useMenuDismiss";
+import { NotificationBell } from "./NotificationBell";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -141,6 +142,7 @@ export function AdminShell({ email, role = "admin", children }: { email: string;
               </span>
             ))}
           </nav>
+          {role === "admin" && <NotificationBell />}
           <a href="/" target="_blank" rel="noreferrer" className={btnClass("secondary", "sm")}>
             <span className="hidden sm:inline">Xem trang web</span> <ExternalLink size={16} />
           </a>

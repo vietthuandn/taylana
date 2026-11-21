@@ -7,6 +7,7 @@ import { isValidKey } from "@/lib/storage/keys";
 import { serviceClient } from "@/lib/supabase/service";
 
 const MB = 1024 * 1024;
+const USER_QUOTA = 200 * MB; // dung lượng ảnh tối đa của 1 khách
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg", "application/pdf": "pdf", "application/zip": "zip", "model/gltf-binary": "glb" };
 const SCOPES: Record<string, { root: string; types: string[] }> = {
   scrapbook: { root: "scrapbook", types: ["image/jpeg", "image/png", "image/webp", "image/svg+xml"] },
@@ -32,7 +33,16 @@ export async function POST(req: Request) {
   if (type === "image/svg+xml" && w.role !== "admin") return bad("Chỉ admin được tải ảnh SVG", 403);
   const folder = String(b.folder ?? "").replace(/^\/+|\/+$/g, "");
   let dir: string;
-  if (b.scope === "design") { if (!w.userId) return bad("Bạn cần đăng nhập", 401); dir = w.userId; }
+  if (b.scope === "design") {
+    if (!w.userId) return bad("Bạn cần đăng nhập", 401);
+    dir = w.userId;
+    // mỗi khách tối đa 200MB ảnh (thiết kế đã lưu + sticker tự tải) — tính theo bảng user_files, không liệt kê bucket
+    if (w.role !== "admin" && w.role !== "designer") {
+      const { data: used } = (await serviceClient()?.from("user_files").select("size").eq("user_id", w.userId)) ?? { data: null };
+      const total = (used ?? []).reduce((t, r) => t + Number(r.size), 0);
+      if (total + size > USER_QUOTA) return bad(`Bạn đã dùng ${Math.round(total / MB)}MB / ${USER_QUOTA / MB}MB ảnh — vào Thiết kế của tôi xoá bớt thiết kế cũ rồi lưu lại nhé.`, 413);
+    }
+  }
   else if (!/^[A-Za-z0-9][A-Za-z0-9_\-/]{0,120}$/.test(folder) || folder.includes("//")) return bad("Thư mục không hợp lệ");
   else dir = folder;
   if ((b.scope === "order" || b.scope === "share") && dir.includes("/")) return bad("Thư mục không hợp lệ");
