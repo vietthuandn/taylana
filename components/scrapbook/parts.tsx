@@ -3,7 +3,8 @@
 /* Phần giao diện dùng chung của CD Template + Booklet Template: danh sách ảnh (đánh dấu đang dùng / chưa dùng, kéo thả lên ô),
    chọn ảnh cho ô, thêm ô ảnh (hình dạng / khung), đổi khung, xác nhận bản quyền khi đặt in. */
 import { useMemo, useRef, useState } from "react";
-import { Plus, RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { RefreshCw, Trash2, Upload, X } from "lucide-react";
+import { RowMenu } from "@/components/ui/RowMenu";
 import { Button } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 import { PHOTO_DRAG } from "./SurfaceView";
@@ -59,25 +60,28 @@ export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove
       <input ref={fileIn} type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => { if (e.target.files) onAdd([...e.target.files]); e.target.value = ""; }} />
       <input ref={replaceIn} type="file" accept={ACCEPT} className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f && replaceId.current) onReplace(replaceId.current, f); }} />
       {photos.length > 0 && (
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-3 gap-2 md:grid-cols-2">
           {photos.map((p, i) => (
             <div key={p.id} draggable onDragStart={(e) => { setDragIdx(i); e.dataTransfer.setData(PHOTO_DRAG, p.id); e.dataTransfer.effectAllowed = "copyMove"; }} onDragEnd={() => setDragIdx(null)} onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); if (dragIdx !== null && dragIdx !== i) onReorder(dragIdx, i); setDragIdx(null); }}
-              title={p.name} className={cx("group relative aspect-square cursor-grab overflow-hidden rounded-[8px] border bg-[#f4f4f5]", used.has(p.id) ? "border-[#e5e5e7]" : "border-dashed border-[#f59e0b]", dragIdx === i && "opacity-40")}>
+              onClick={() => { if (onInsert) { onInsert(p.id); window.dispatchEvent(new Event("scrap-close-panel")); } }}
+              title={onInsert ? "Bấm để chèn ảnh vào thiết kế" : p.name} className={cx("group relative aspect-square cursor-pointer overflow-hidden rounded-[8px] border bg-[#f4f4f5]", used.has(p.id) ? "border-[#e5e5e7]" : "border-dashed border-[#f59e0b]", dragIdx === i && "opacity-40")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.url} alt="" className={cx("h-full w-full object-cover", !used.has(p.id) && "opacity-70")} draggable={false} />
               <span className={cx("pointer-events-none absolute left-1.5 top-1.5 rounded-[4px] px-1.5 text-[10px] font-medium leading-[16px] text-white", used.has(p.id) ? "bg-[#16a34a]" : "bg-[#f59e0b]")}>{used.has(p.id) ? "Đang dùng" : "Chưa dùng"}</span>
-              <div className="absolute bottom-1.5 right-1.5 flex gap-1.5 md:inset-0 md:items-center md:justify-center md:bg-black/40 md:opacity-0 md:group-hover:opacity-100">
-                {onInsert && <button type="button" title="Chèn ảnh tự do vào thiết kế" aria-label="Chèn ảnh tự do" onClick={() => onInsert(p.id)} className="grid h-8 w-8 place-items-center rounded-full bg-[var(--c-primary)] text-white shadow"><Plus size={15} /></button>}
-                <button type="button" title="Thay ảnh" aria-label="Thay ảnh" onClick={() => { replaceId.current = p.id; replaceIn.current?.click(); }} className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#18181b] shadow"><RefreshCw size={14} /></button>
-                <button type="button" title="Xoá" aria-label="Xoá" onClick={() => onRemove(p.id)} className="grid h-8 w-8 place-items-center rounded-full bg-white text-[#dc2626] shadow"><Trash2 size={14} /></button>
-              </div>
+              {/* ⋯ góc trên bên phải: Thay ảnh · Xoá */}
+              <span className="absolute right-1 top-1" onClick={(e) => e.stopPropagation()} onPointerDown={(e) => e.stopPropagation()}>
+                <RowMenu label="Thao tác ảnh" className="[&>button]:h-7 [&>button]:w-7 [&>button]:rounded-full [&>button]:bg-white/90 [&>button]:shadow" items={[
+                  { label: "Thay ảnh", icon: <RefreshCw size={14} />, onClick: () => { replaceId.current = p.id; replaceIn.current?.click(); } },
+                  { label: "Xoá", icon: <Trash2 size={14} />, danger: true, onClick: () => onRemove(p.id) },
+                ]} />
+              </span>
             </div>
           ))}
         </div>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {photos.length > 0 && <p className="text-[12px] text-[#a1a1aa]"><span className="md:hidden">Bấm + trên ảnh để chèn ảnh tự do vào thiết kế.</span><span className="hidden md:inline">Kéo ảnh thả lên 1 ô để gán vào ô đó · thả ra chỗ khác (hoặc bấm +) để chèn ảnh tự do · Ctrl+V để dán ảnh.</span></p>}
+        {photos.length > 0 && <p className="text-[12px] text-[#a1a1aa]"><span className="md:hidden">Bấm vào ảnh để chèn vào thiết kế.</span><span className="hidden md:inline">Bấm ảnh để chèn vào thiết kế · kéo thả lên 1 ô để gán vào ô đó · Ctrl+V để dán ảnh.</span></p>}
       </div>
     </section>
   );

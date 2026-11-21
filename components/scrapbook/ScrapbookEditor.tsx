@@ -59,6 +59,8 @@ export function ScrapbookEditor(p: {
   useEffect(() => { if (st.sel !== null && st.isTextLayer(st.L[st.sel])) p.setTab("chu"); }, [st.sel]); // eslint-disable-line react-hooks/exhaustive-deps
   // cột công cụ kiểu Canva: bấm lại mục đang mở → thu gọn panel (khu làm việc rộng hơn)
   const [collapsed, setCollapsed] = useState(false);
+  // điện thoại: bấm 1 ảnh trong "Ảnh của bạn" → chèn vào thiết kế + đóng panel để sửa ảnh ngay
+  useEffect(() => { const h = () => { if (window.innerWidth < 768) setCollapsed(true); }; window.addEventListener("scrap-close-panel", h); return () => window.removeEventListener("scrap-close-panel", h); }, []);
   const switchTab = (id: EditorTab) => {
     if (id === p.tab && !collapsed) { setCollapsed(true); return; }
     setCollapsed(false); p.setTab(id);
@@ -166,7 +168,7 @@ export function ScrapbookEditor(p: {
         })}
       </nav>
       {open && <div className="fixed inset-0 z-30 bg-black/30 md:hidden" onClick={() => setCollapsed(true)} aria-hidden />}
-      <aside className={cx("border-[#e5e5e7] bg-white", open ? "fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-40 max-h-[62dvh] overflow-y-auto rounded-t-[16px] p-4 shadow-[0_-8px_24px_rgb(0_0_0/0.12)] md:static md:z-auto md:order-1 md:block md:max-h-none md:w-[380px] md:shrink-0 md:rounded-none md:border-r md:p-4 md:shadow-none" : "hidden")}>
+      <aside className={cx("border-[#e5e5e7] bg-white", open ? "fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-40 max-h-[78dvh] overflow-y-auto rounded-t-[16px] p-4 shadow-[0_-8px_24px_rgb(0_0_0/0.12)] md:static md:z-auto md:order-1 md:block md:max-h-none md:w-[380px] md:shrink-0 md:rounded-none md:border-r md:p-4 md:shadow-none" : "hidden")}>
        <div className="space-y-5">
         <div className="flex items-center justify-between md:hidden"><p className="text-[15px] font-semibold">{title}</p><button type="button" onClick={() => setCollapsed(true)} aria-label="Đóng" className="grid h-8 w-8 place-items-center rounded-full hover:bg-[#f4f4f5]"><X size={16} /></button></div>
         {p.tab === "mau" && p.templateTab}
