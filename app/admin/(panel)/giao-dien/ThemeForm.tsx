@@ -2,12 +2,19 @@
 /* Giao diện → Theme: màu trang khách — Màu chính · Màu nút khi chọn · Nền trang (màu / ảnh) · Header (nền, chữ, mục đang chọn).
    Mặc định = bộ màu gốc; "Đặt lại mặc định" lúc nào cũng được. Lưu → làm mới toàn bộ trang khách. */
 import { useState } from "react";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Save } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { removePublicImage } from "@/lib/upload";
 import { DEFAULT_THEME, type Theme } from "@/lib/theme";
 import { revalidatePublic } from "@/app/admin/actions";
 import { Button, ImageInput, Message, SaveBar, SettingsSection, confirmDialog } from "@/components/admin/ui";
+
+/** mã màu khách dán vào: có / không có "#", 3 hoặc 6 ký tự → "#rrggbb" (sai → null) */
+function parseHex(v: string) {
+  let h = v.trim().replace(/^#/, "").toLowerCase();
+  if (/^[0-9a-f]{3}$/.test(h)) h = h.split("").map((c) => c + c).join("");
+  return /^[0-9a-f]{6}$/.test(h) ? `#${h}` : null;
+}
 
 function Color({ label, hint, value, def, onChange }: { label: string; hint?: string; value: string; def: string; onChange: (v: string) => void }) {
   return (
@@ -17,7 +24,10 @@ function Color({ label, hint, value, def, onChange }: { label: string; hint?: st
         <label className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-[8px] border border-[#e5e5e7]" style={{ background: value }} title="Chọn màu">
           <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label={label} />
         </label>
-        <input defaultValue={value} key={value} maxLength={7} aria-label={`${label} (mã màu)`} onChange={(e) => { const v = e.target.value.trim(); if (/^#[0-9a-f]{6}$/i.test(v)) onChange(v.toLowerCase()); }}
+        <input defaultValue={value} key={value} maxLength={9} aria-label={`${label} (mã màu)`} placeholder="#FF5FA2"
+          onChange={(e) => { const h = parseHex(e.target.value); if (h && e.target.value.replace(/^#/, "").length === 6) onChange(h); }}
+          onBlur={(e) => { const h = parseHex(e.target.value); if (h) onChange(h); else e.target.value = value; }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
           className="h-9 w-[96px] rounded-[8px] border border-[#e5e5e7] px-2 font-mono text-[13px] uppercase outline-none focus:border-[#ff5fa2]" />
         {value !== def && <button type="button" onClick={() => onChange(def)} className="text-[12px] text-[#71717a] hover:text-[#18181b]">Mặc định</button>}
       </div>
@@ -89,8 +99,11 @@ export function ThemeForm({ initial }: { initial: Theme }) {
             <Color label="Mục đang chọn" value={t.header_active} def={DEFAULT_THEME.header_active} onChange={(v) => set({ header_active: v })} />
           </div>
         </SettingsSection>
+        <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit" icon={<Save size={16} />} loading={saving} disabled={JSON.stringify(t) === JSON.stringify(saved)}>Lưu thay đổi</Button>
         <Button variant="secondary" icon={<RotateCcw size={16} />} disabled={isDefault && JSON.stringify(t) === JSON.stringify(DEFAULT_THEME)} loading={saving}
           onClick={async () => { if (await confirmDialog("Đưa toàn bộ màu, nền và header về mặc định ban đầu?", { title: "Đặt lại mặc định", ok: "Đặt lại" })) persist(DEFAULT_THEME, "Đã đặt lại Theme mặc định."); }}>Đặt lại mặc định</Button>
+        </div>
       </div>
       <aside className="xl:sticky xl:top-20 xl:self-start">
         <p className="mb-2 text-[13px] font-medium text-[#52525b]">Xem trước</p>
