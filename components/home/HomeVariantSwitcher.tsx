@@ -52,7 +52,7 @@ export function HomeVariantSwitcher({ variants, current, active }: { variants: H
         {open && (
           <div className="absolute right-0 mt-2 w-72 rounded-[12px] border border-[#e5e5e7] bg-white p-1 shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
             {variants.map((v) => (
-              <button key={v.id} type="button" onClick={() => { setOpen(false); router.push(v.id === active ? "/" : `/?preview=${encodeURIComponent(v.id)}`); }}
+              <button key={v.id} type="button" onClick={() => { setOpen(false); router.push(v.id === active ? "/" : `/xem-truoc/${encodeURIComponent(v.id)}`); }}
                 className="flex w-full items-start gap-2 rounded-[8px] px-3 py-2 text-left hover:bg-[#f4f4f5]">
                 <span className="mt-0.5 w-4 shrink-0">{v.id === current && <Check size={16} className="text-[#ff5fa2]" />}</span>
                 <span className="min-w-0 flex-1">

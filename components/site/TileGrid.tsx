@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { TileItem } from "@/lib/tileItems";
 
@@ -18,9 +19,10 @@ export function TileGrid({ items, preview = false }: { items: TileItem[]; previe
           <Link href={o.href || "/"} scroll={!o.href.includes("?")} tabIndex={preview ? -1 : undefined}
             className={`flex flex-col items-center text-center outline-none focus-visible:ring-4 focus-visible:ring-[#ff5fa2] ${preview ? "pointer-events-none" : ""}`}>
             {o.image_url && (
-              // ảnh admin tải lên: hiện nguyên ảnh
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={o.image_url} alt="" loading={i > 5 ? "lazy" : undefined} decoding="async" className="block aspect-square w-full object-contain" />
+              // ảnh admin tải lên: hiện nguyên ảnh. Qua bộ tối ưu ảnh của Next (tự thu nhỏ đúng cỡ hiển thị + WebP/AVIF)
+              // → cả ảnh cũ tải lên trước khi có nén vẫn nhẹ. SVG giữ nguyên.
+              <Image src={o.image_url} alt="" width={600} height={600} priority={!preview && i < 6} unoptimized={/\.svg($|\?)/i.test(o.image_url)}
+                sizes={preview ? "140px" : four ? "(min-width: 768px) 250px, 46vw" : "(min-width: 768px) 300px, 46vw"} className="block aspect-square h-auto w-full object-contain" />
             )}
             {/* cỡ chữ theo bề ngang ô (~11%, giống bản xem trước trong admin), tối đa 2 dòng — không bị cắt mất chữ */}
             <span className={`line-clamp-2 block w-full font-tile font-bold leading-[1.15] tracking-[-0.01em] text-[#1A1A1A] ${o.image_url ? "-mt-[4%]" : ""}`}

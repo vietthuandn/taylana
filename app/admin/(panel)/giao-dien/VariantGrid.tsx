@@ -12,7 +12,7 @@ import { Badge, Button, Message, Textarea, confirmDialog } from "@/components/ad
 function Thumb({ id }: { id: string }) {
   return (
     <div className="relative aspect-[4/3] overflow-hidden border-b border-[#efeff1] bg-[#f7f7f8]">
-      <iframe src={`/?preview=${encodeURIComponent(id)}`} title={`Xem trước ${id}`} loading="lazy" tabIndex={-1} aria-hidden
+      <iframe src={`/xem-truoc/${encodeURIComponent(id)}`} title={`Xem trước ${id}`} loading="lazy" tabIndex={-1} aria-hidden
         className="pointer-events-none absolute left-0 top-0 origin-top-left border-0" style={{ width: 1280, height: 960, transform: "scale(0.25)" }} />
     </div>
   );
@@ -70,7 +70,7 @@ export function VariantGrid({ variants, active, notes, notesReady }: { variants:
                 onChange={(e) => setText({ ...text, [v.id]: e.target.value })} onBlur={() => saveNote(v.id)} />
               <div className="mt-auto flex flex-wrap gap-2">
                 <Button variant="secondary" size="sm" icon={<ExternalLink size={16} />}
-                  onClick={() => window.open(`/?preview=${encodeURIComponent(v.id)}`, "_blank", "noopener")}>Xem trước</Button>
+                  onClick={() => window.open(`/xem-truoc/${encodeURIComponent(v.id)}`, "_blank", "noopener")}>Xem trước</Button>
                 {v.id === "v1-hien-tai" && <Button variant="secondary" size="sm" icon={<Pencil size={16} />} href="/admin/giao-dien/mau-1">Chỉnh sửa</Button>}
                 {v.id !== active && <Button size="sm" loading={busy === v.id} onClick={() => makeActive(v)}>Đặt làm trang chủ</Button>}
                 {v.id !== active && <Button variant="ghost" size="sm" className="ml-auto !text-[#dc2626]" icon={<Trash2 size={16} />} loading={busy === `del:${v.id}`} onClick={() => remove(v)}>Xoá</Button>}
