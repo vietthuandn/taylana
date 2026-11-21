@@ -1,9 +1,6 @@
-import Image from "next/image";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Disc3 } from "lucide-react";
-import { formatVND } from "@/lib/format";
-import { fromPrice, productOfOption } from "@/lib/catalog";
+import { productOfOption } from "@/lib/catalog";
+import { TileGrid } from "@/components/site/TileGrid";
 import { getCatalog } from "@/lib/catalogLoad";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -23,29 +20,17 @@ export default async function ProductListPage({ searchParams }: { searchParams: 
       redirect(`/san-pham/${p.slug}${keep.size ? `?${keep}` : ""}`);
     }
   }
+  // giống Trang chủ / trang Thiết kế (Mẫu 1): ảnh + tên sản phẩm, không hiện giá
   return (
     <>
       <PageHeader title="Đặt đơn" />
-      <div className="mx-auto w-full max-w-[1200px] px-4 lg:px-6">
-        {products.length ? (
-          <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            {products.map((p) => (
-              <li key={p.id}>
-                <Link href={`/san-pham/${p.slug}`} className="block overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white transition-colors hover:border-[var(--c-primary)]">
-                  <div className="relative aspect-square bg-[#f4f4f5]">
-                    {p.images[0] ? <Image src={p.images[0]} alt={p.name} fill sizes="(min-width:1024px) 280px, 50vw" className="object-cover" />
-                      : <Disc3 size={64} strokeWidth={1} className="absolute inset-0 m-auto text-[#d4d4d8]" />}
-                  </div>
-                  <div className="p-3">
-                    <p className="line-clamp-2 min-h-[40px] text-[14px] leading-5 text-[#18181b]">{p.name}</p>
-                    <p className="mt-1 text-[16px] font-semibold tabular-nums text-[var(--c-primary)]">Từ {formatVND(fromPrice(p))}</p>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        ) : <p className="py-16 text-center text-[14px] text-[#71717a]">Tiệm đang cập nhật sản phẩm, bạn quay lại sau nhé!</p>}
-      </div>
+      {products.length ? (
+        <div className="mx-auto flex w-full max-w-6xl flex-col px-4 pb-6">
+          <section className="flex justify-center pt-2 md:pt-4">
+            <TileGrid items={products.map((p) => ({ id: p.id, title: p.name, href: `/san-pham/${p.slug}`, image_url: p.images[0] ?? null }))} />
+          </section>
+        </div>
+      ) : <p className="py-16 text-center text-[14px] text-[#71717a]">Tiệm đang cập nhật sản phẩm, bạn quay lại sau nhé!</p>}
     </>
   );
 }
