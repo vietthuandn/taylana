@@ -9,15 +9,16 @@ import type { ScrapAsset, Template } from "@/lib/scrapbook/types";
 import { cx } from "@/components/ui/styles";
 import { patternInk } from "@/lib/scrapbook/render";
 
-const COLORS = ["#ffffff", "#fbf3e6", "#fdf6e3", "#fde7ea", "#fbcfe8", "#e9f3ee", "#c7f0db", "#e7f6fb", "#cfe8fb", "#ece7ff", "#ddd6fe", "#fff1e6", "#fef3a8", "#f4f1ea", "#efe3cf", "#e4e4e7", "#3f3f46", "#18181b"];
-const PATTERNS: [Template["bg"]["pattern"], string][] = [["plain", "Trơn"], ["dots", "Chấm"], ["grid", "Ô kẻ"], ["lines", "Dòng kẻ"]];
+export const BG_COLORS = ["#ffffff", "#fbf3e6", "#fdf6e3", "#fde7ea", "#fbcfe8", "#e9f3ee", "#c7f0db", "#e7f6fb", "#cfe8fb", "#ece7ff", "#ddd6fe", "#fff1e6", "#fef3a8", "#f4f1ea", "#efe3cf", "#e4e4e7", "#3f3f46", "#18181b"];
+export const PATTERNS: [Template["bg"]["pattern"], string][] = [["plain", "Trơn"], ["dots", "Chấm"], ["grid", "Ô kẻ"], ["lines", "Dòng kẻ"]];
 const checker = "bg-[repeating-conic-gradient(#f4f4f5_0_25%,#fff_0_50%)] bg-[length:12px_12px]";
 
-export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
+export function BgTab({ t, assets, bgImages, onSet, onUpload, only, initScope }: {
+  only?: "texture"; initScope?: "all" | "left" | "right"; // only = chỉ hiện "Texture giấy" (mở từ thanh công cụ nền trên điện thoại)
   t: Template | null; assets: ScrapAsset[]; bgImages: Record<string, { src?: string } | undefined>;
   onSet: (scope: "all" | "left" | "right", v: Partial<Template["bg"]>) => void; onUpload: (f: File) => Promise<string>;
 }) {
-  const [scope, setScope] = useState<"all" | "left" | "right">("all");
+  const [scope, setScope] = useState<"all" | "left" | "right">(initScope ?? "all");
   const [busy, setBusy] = useState(false);
   const fileIn = useRef<HTMLInputElement>(null);
   if (!t) return <p className="rounded-[10px] bg-[#fafafa] p-3 text-[13px] text-[#71717a]">Chọn mẫu trước khi đổi nền.</p>;
@@ -28,6 +29,23 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
   const set = (v: Partial<Template["bg"]>) => onSet(sc, v);
   const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
   const preview = bg.image ? bgImages[bg.image]?.src : undefined;
+  const texSec = (
+      <section>
+        <p className="mb-2 text-[13px] font-semibold">Texture giấy</p>
+        {textures.length ? (
+          <div className="grid grid-cols-4 gap-2">
+            <button type="button" onClick={() => set({ asset: undefined })} className={cx("grid aspect-square place-items-center rounded-[8px] border text-[11px] text-[#71717a]", !bg.asset ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7]")}>Không</button>
+            {textures.map((a) => (
+              <button key={a.id} type="button" title={a.name} onClick={() => set({ asset: a.id })} className={cx("aspect-square overflow-hidden rounded-[8px] border", bg.asset === a.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={a.url} alt={a.name} className="h-full w-full object-cover" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        ) : <p className="text-[12px] text-[#a1a1aa]">Thư viện chưa có texture nền giấy.</p>}
+      </section>
+  );
+  if (only === "texture") return texSec;
   return (
     <div className="space-y-5">
       {spread && (
@@ -38,7 +56,7 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
       <section>
         <p className="mb-2 text-[13px] font-semibold">Màu nền</p>
         <div className="flex flex-wrap items-center gap-1.5">
-          {COLORS.map((c) => <button key={c} type="button" onClick={() => set({ color: c, inkL: bg.inkL ?? 0 })} aria-label={c} className={cx("h-7 w-7 rounded-full border-2", bg.color.toLowerCase() === c ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
+          {BG_COLORS.map((c) => <button key={c} type="button" onClick={() => set({ color: c, inkL: bg.inkL ?? 0 })} aria-label={c} className={cx("h-7 w-7 rounded-full border-2", bg.color.toLowerCase() === c ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
           <label className="relative grid h-7 w-7 cursor-pointer place-items-center overflow-hidden rounded-full border border-dashed border-[#a1a1aa] text-[14px] text-[#52525b] hover:border-[var(--c-primary)]" title="Chọn màu riêng">
             +<input type="color" value={bg.color} onChange={(e) => set({ color: e.target.value, inkL: bg.inkL ?? 0 })} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Chọn màu riêng" />
           </label>
@@ -63,20 +81,7 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
           </div>
         )}
       </section>
-      <section>
-        <p className="mb-2 text-[13px] font-semibold">Texture giấy</p>
-        {textures.length ? (
-          <div className="grid grid-cols-4 gap-2">
-            <button type="button" onClick={() => set({ asset: undefined })} className={cx("grid aspect-square place-items-center rounded-[8px] border text-[11px] text-[#71717a]", !bg.asset ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7]")}>Không</button>
-            {textures.map((a) => (
-              <button key={a.id} type="button" title={a.name} onClick={() => set({ asset: a.id })} className={cx("aspect-square overflow-hidden rounded-[8px] border", bg.asset === a.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={a.url} alt={a.name} className="h-full w-full object-cover" loading="lazy" />
-              </button>
-            ))}
-          </div>
-        ) : <p className="text-[12px] text-[#a1a1aa]">Thư viện chưa có texture nền giấy.</p>}
-      </section>
+      {texSec}
       <section>
         <p className="mb-2 text-[13px] font-semibold">Ảnh nền</p>
         <div className="flex items-start gap-3">

@@ -34,6 +34,7 @@ export type SurfaceViewProps = {
   editText?: number | null; onEditText?: (layer: number | null) => void; selectAllText?: boolean;
   textValue?: (layer: number) => string; onTextValue?: (layer: number, v: string) => void;
   onBackgroundDbl?: (at: { x: number; y: number }) => void;
+  onBgTap?: (scope: "all" | "left" | "right") => void; // bấm vào nền (chỗ trống) → chọn nền
   tools?: React.ReactNode;
   scanning?: number | null; // lớp ảnh đang được "cắt" (xoá nền) — hiện hiệu ứng quét
   cropLayer?: number | null; onCrop?: (i: number | null) => void;
@@ -150,7 +151,7 @@ export function SurfaceView(p: SurfaceViewProps) {
       p.onEditLayer(null);
     }
     const i = layerAt(pt.x, pt.y);
-    if (i < 0) { p.onSel(null); return; }
+    if (i < 0) { p.onSel(null); p.onBgTap?.(t.bg2 ? (pt.x >= S.w / 2 ? "right" : "left") : "all"); return; }
     const wasSel = p.sel === i && editing === null;
     p.onSel(i);
     const b = layerBox(i);
@@ -268,7 +269,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     if (!l) { if (p.onBgEdit && (pt.x >= S.w / 2 && t.bg2 ? t.bg2.image : t.bg.image)) { p.onSel(null); p.onBgEdit(true, pt.x >= S.w / 2 && !!t.bg2); } else p.onBackgroundDbl?.(pt); return; }
     if (l.k === "photo") { if (l.photo === "") p.onEmptySlot?.(i); else { p.onEditLayer(i); p.onSel(null); } }
     if (l.k === "sticker" && l.asset?.startsWith("p:") && !l.ulock) p.onCrop?.(i);
-    if (l.k === "text" || l.k === "wish") { if (p.onEditText) p.onEditText(i); else p.onTextEdit?.(i); }
+    if ((l.k === "text" || l.k === "wish") && !l.ulock) { if (p.onEditText) p.onEditText(i); else p.onTextEdit?.(i); }
   }
   function onContext(e: React.MouseEvent<HTMLCanvasElement>) {
     e.preventDefault();
@@ -432,7 +433,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     </div>
   );
 }
-const top = (l: Layer) => l.k === "sticker" && !!l.user;
+const top = (l: Layer) => !!l.user && (l.k === "sticker" || l.k === "text" || l.k === "wish"); // cùng thứ tự vẽ với renderSurface
 
 /** ô nhập nhiều dòng đè đúng lên lớp chữ đang sửa (khớp vị trí, góc xoay, độ rộng, font, cỡ, màu, căn lề, khoảng cách dòng) */
 function InlineText({ l, hit, k, value, selectAll, onChange, onExit }: {

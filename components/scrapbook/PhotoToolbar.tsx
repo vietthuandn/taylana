@@ -1,12 +1,12 @@
 "use client";
 /* Thanh công cụ của ẢNH TỰ DO (chỉ icon, tooltip khi rê chuột), theo thứ tự:
    Thay ảnh · Cắt · Xoá nền · Viền · Độ trong suốt · Bo góc · Lật · Tràn viền · Chỉnh màu · Xuống / Lên 1 lớp · Xoá · Thêm (⋯: Đặt làm nền,
-   Khoá, Nhân bản, Căn vị trí, Bóng đổ). Mọi hiệu ứng lưu theo lớp (không sửa ảnh gốc) — vẽ ở lib/scrapbook/render.ts, đúng cả bản in 300 DPI.
+   Nhân bản, Căn vị trí, Bóng đổ). Mọi hiệu ứng lưu theo lớp (không sửa ảnh gốc) — vẽ ở lib/scrapbook/render.ts, đúng cả bản in 300 DPI.
    Popover mở ra bằng portal (cố định theo nút), không bị thanh cuộn ngang trên điện thoại cắt mất. */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical, Blend, Copy, Expand,
-  FlipHorizontal2, Frame, ImageOff, ImageUp, Lock, MoreHorizontal, RefreshCw, Scissors, SlidersHorizontal, SquareRoundCorner, Wallpaper } from "lucide-react";
+  FlipHorizontal2, Frame, ImageOff, ImageUp, MoreHorizontal, RefreshCw, Scissors, SlidersHorizontal, SquareRoundCorner, Wallpaper } from "lucide-react";
 import { PRESETS, filterCss } from "@/lib/scrapbook/render";
 import { imgAr } from "@/lib/scrapbook/edit";
 import type { Surface } from "@/lib/scrapbook/surface";
@@ -156,7 +156,6 @@ export function PhotoToolbar({ l, S, img, photos, photoUrl, cutting, begin, patc
       {open?.id === "more" && (
         <ToolPop anchor={open.el} onClose={close} w={240}>
           <button type="button" onClick={() => { onSetBg(); close(); }} className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 hover:bg-[#f4f4f5]"><Wallpaper size={15} /> Đặt làm nền</button>
-          <button type="button" onClick={() => { set({ ulock: true }); close(); }} className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 hover:bg-[#f4f4f5]"><Lock size={15} /> Khoá</button>
           <button type="button" onClick={() => { onDuplicate(); close(); }} className="flex h-8 w-full items-center gap-2 rounded-[6px] px-2 hover:bg-[#f4f4f5]"><Copy size={15} /> Nhân bản</button>
           <p className="mb-1 mt-2 font-semibold">Căn vị trí</p>
           <div className="mb-2 grid grid-cols-6 gap-1">

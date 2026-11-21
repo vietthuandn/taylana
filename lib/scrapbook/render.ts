@@ -252,7 +252,7 @@ function fontOf(l: Extract<Layer, { k: "text" }>, size: number) {
 /** nội dung của lớp chữ: main / sub = "Chữ trên đĩa", custom = nội dung riêng */
 export const textOf = (l: Extract<Layer, { k: "text" }>, t: DiscText) => (l.role === "main" ? t.main : l.role === "sub" ? t.sub : l.value ?? "");
 function drawText(x: X, l: Extract<Layer, { k: "text" }>, value: string, idx: number, fonts?: RenderOpts["cutoutFonts"]): TextHit | null {
-  const v = value.replace(/\s+$/, "");
+  const v0 = value.replace(/\s+$/, ""), v = l.upper ? v0.toLocaleUpperCase("vi") : v0;
   if (!v.trim()) return null;
   x.textAlign = "center"; x.textBaseline = "middle";
   const align = l.align ?? "center", lhK = l.lh ?? 1.25;
@@ -326,6 +326,12 @@ function drawText(x: X, l: Extract<Layer, { k: "text" }>, value: string, idx: nu
     const y = (i - (lines.length - 1) / 2) * lh + (l.font === "label" && !l.family ? size * 0.04 : 0);
     if (l.stroke) { x.lineWidth = size * 0.22; x.strokeStyle = "#ffffff"; x.lineJoin = "round"; x.strokeText(ln, ax, y); }
     x.fillText(ln, ax, y);
+    if (l.ul || l.strike) { // gạch chân · gạch ngang (theo độ rộng dòng)
+      const lw = x.measureText(ln).width, x0 = align === "left" ? ax : align === "right" ? ax - lw : -lw / 2;
+      x.fillStyle = l.color; const th = Math.max(0.15, size * 0.07);
+      if (l.ul) x.fillRect(x0, y + size * 0.45, lw, th);
+      if (l.strike) x.fillRect(x0, y + size * 0.02 - th / 2, lw, th);
+    }
   });
   x.restore();
   if ("letterSpacing" in x) ctxLS.letterSpacing = "0px";

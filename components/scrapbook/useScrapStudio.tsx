@@ -4,7 +4,7 @@
    sticker khách tự tải, chất liệu + khung + font cut-out đã tải, thao tác trên lớp của bề mặt đang xem (nhân bản, lên / xuống,
    xoá, đổi khung, thêm / xoá ô ảnh, thêm sticker / chữ / lời chúc), phím tắt, lưu nháp IndexedDB. */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Frame as FrameIcon, ImagePlus, Scissors, Trash2, Undo2, Unlock, Wand2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Frame as FrameIcon, ImagePlus, Scissors, Trash2, Undo2, Lock, Unlock, Wand2 } from "lucide-react";
 import { PhotoToolbar, SlotToolbar } from "./PhotoToolbar";
 import { loadImg } from "@/lib/mockup/images";
 import { loadAssetImages } from "@/lib/scrapbook/assets";
@@ -445,7 +445,7 @@ export function useScrapStudio(o: {
   // thanh công cụ nổi: 1 hàng nút icon 32px, tên chức năng ở tooltip
   // thanh nhỏ nổi cạnh lớp đang chọn (mọi loại lớp): Nhân bản · Lên · Xuống · Xoá (+ công cụ riêng của loại lớp: Đổi khung, Viền sticker, Khôi phục ảnh gốc)
   const tools = selL?.ulock ? (
-    <button type="button" onClick={() => { D.begin(); patchLayer(sel!, { ulock: undefined } as Partial<Layer>); }} title="Mở khoá" aria-label="Mở khoá" className={`${ibtn} w-auto gap-1 px-2 text-[12px] font-medium`}><Unlock size={15} /> Mở khoá</button>
+    <button type="button" onClick={() => { D.begin(); patchLayer(sel!, { ulock: undefined } as Partial<Layer>); }} title="Mở khoá" aria-label="Mở khoá" className={ibtn}><Unlock size={16} /></button>
   ) : selL ? (
     <>
       <button type="button" onClick={() => duplicate(sel!)} title="Nhân bản (Ctrl+D)" aria-label="Nhân bản" className={ibtn}><Copy size={16} /></button>
@@ -461,6 +461,7 @@ export function useScrapStudio(o: {
           {olOpen && selL.k === "sticker" && <OutlinePop ol={selL.ol} onBegin={D.begin} onChange={(ol) => patchLayer(sel!, { ol } as Partial<Layer>)} onClose={() => setOlOpen(false)} />}
         </span>
       )}
+      <button type="button" onClick={() => { D.begin(); patchLayer(sel!, { ulock: true } as Partial<Layer>); setEditText(null); }} title="Khoá (không kéo / sửa được)" aria-label="Khoá" className={ibtn}><Lock size={16} /></button>
       <button type="button" onClick={() => removeLayer(sel!)} title={selL.k === "photo" ? "Xoá ô ảnh (Delete)" : "Xoá (Delete)"} aria-label="Xoá" className={`${ibtn} text-[#dc2626] hover:bg-[#fef2f2]`}><Trash2 size={16} /></button>
     </>
   ) : null;

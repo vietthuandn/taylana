@@ -23,6 +23,7 @@ import { PickPhotoModal } from "./parts";
 import { UserStickerModal } from "./UserStickerModal";
 import { BgEditBar } from "./BgEditBar";
 import { TextToolbar } from "./TextToolbar";
+import { BgToolbar } from "./BgToolbar";
 import { layerClip, type useScrapStudio } from "./useScrapStudio";
 import { SheetSlicer } from "@/app/admin/(panel)/scrapbook/SheetSlicer";
 import { FEATURE_OLD_STICKER_UPLOAD } from "@/lib/features";
@@ -64,7 +65,13 @@ export function ScrapbookEditor(p: {
   useEffect(() => { if (window.innerWidth < 768) setCollapsed(true); }, []);
   // điện thoại: bấm 1 ảnh trong "Ảnh của bạn" → chèn vào thiết kế + đóng panel để sửa ảnh ngay
   useEffect(() => { const h = () => { if (window.innerWidth < 768) setCollapsed(true); }; window.addEventListener("scrap-close-panel", h); return () => window.removeEventListener("scrap-close-panel", h); }, []);
+  // điện thoại: bấm vào nền → thanh công cụ nền (scope = cả bề mặt / trang trái / trang phải) · texOnly = panel chỉ hiện Texture giấy
+  const [bgSel, setBgSel] = useState<"all" | "left" | "right" | null>(null);
+  const [texOnly, setTexOnly] = useState(false);
+  useEffect(() => { if (st.sel !== null) setBgSel(null); }, [st.sel]);
+  useEffect(() => { setBgSel(null); }, [st.active]);
   const switchTab = (id: EditorTab) => {
+    setTexOnly(false); setBgSel(null);
     if (id === p.tab && !collapsed) { setCollapsed(true); return; }
     setCollapsed(false); p.setTab(id);
     if (id !== "chu" && st.sel !== null && st.isTextLayer(st.L[st.sel])) { st.setEditText(null); st.setSel(null); }
@@ -115,6 +122,7 @@ export function ScrapbookEditor(p: {
     const t = e.target as HTMLElement;
     if (t.closest("canvas, button, a, input, textarea, select, label, [role=menu], [role=dialog], [data-keep-sel]")) return;
     if (st.sel !== null) st.setSel(null);
+    setBgSel(null);
     if (st.editText !== null) st.setEditText(null);
     if (st.editLayer !== null) st.setEditLayer(null);
   };
@@ -147,16 +155,23 @@ export function ScrapbookEditor(p: {
     ["anh", "Ảnh", <ImageIcon key="a" size={20} />], ["sticker", "Sticker", <Smile key="s" size={20} />], ["chu", "Chữ", <Type key="c" size={20} />], ["nen", "Nền", <PaintBucket key="n" size={20} />],
   ];
   const open = !collapsed;
-  const title = RAIL.find((x) => x[0] === p.tab)?.[1];
+  const title = texOnly && p.tab === "nen" ? "Texture giấy" : RAIL.find((x) => x[0] === p.tab)?.[1];
   const selT = st.sel !== null && st.isTextLayer(st.L[st.sel]) && !st.L[st.sel].ulock ? (st.L[st.sel] as Extract<(typeof st.L)[number], { k: "text" | "wish" }>) : null;
   const photoBar = st.photoTools("bar");
   // điện thoại: khung menu nổi đổi thành công cụ ảnh / khung ảnh / chữ theo lớp đang chọn
   // màu đã dùng trong thiết kế (màu chữ · màu giấy lời chúc · màu riêng đã chọn) → hiện trước trong "Màu sắc"
-  const usedColors = useMemo(() => [...new Set([...(doc ?? []).flatMap((t) => t.layers.flatMap((l) => (l.k === "text" ? [l.color] : l.k === "wish" ? [l.ink] : []))), ...st.colors].filter((c): c is string => !!c && c.startsWith("#")).map((c) => c.toLowerCase()))], [doc, st.colors]);
+  const usedColors = useMemo(() => [...new Set([...(doc ?? []).flatMap((t) => [t.bg.color, t.bg2?.color, ...t.layers.flatMap((l) => (l.k === "text" ? [l.color] : l.k === "wish" ? [l.ink, l.color] : []))]), ...st.colors].filter((c): c is string => !!c && c.startsWith("#")).map((c) => c.toLowerCase()))], [doc, st.colors]);
+  const usedFonts = useMemo(() => [...new Set((doc ?? []).flatMap((t) => t.layers.flatMap((l) => (l.k === "text" || l.k === "wish" ? [l.cutout ? `cut:${l.cutout.font}` : l.family ?? ""] : []))).filter(Boolean))], [doc]);
   const photoMobile = st.photoTools("mobile");
+  const bgObj = cur && bgSel ? (bgSel === "right" ? cur.bg2 ?? cur.bg : cur.bg) : null;
+  const bgMobile = !photoMobile && st.sel === null && bgObj && bgSel ? (
+    <BgToolbar key={`${st.active}-${bgSel}`} bg={bgObj} preview={bgObj.image ? bgPreview[bgObj.image]?.src : undefined} used={usedColors} onBegin={st.D.begin}
+      onSet={(v) => st.setBg(bgSel, v)} onUpload={st.uploadBg} onCustomColor={st.addColor}
+      onTexture={() => { setTexOnly(true); p.setTab("nen"); setCollapsed(false); }} onDone={() => setBgSel(null)} />
+  ) : null;
   const textMobile = !photoMobile && selT && st.sel !== null ? (
     <TextToolbar key={st.sel} l={selT} begin={st.D.begin} patch={(v) => st.patchLayer(st.sel!, v)} onEdit={() => st.setEditText(st.sel)} onPaper={(v) => { if (v === "none") st.wishToText(st.sel!); else st.textToWish(st.sel!, v); }}
-      onDone={() => { st.setEditText(null); st.setSel(null); }} used={usedColors} onCustomColor={st.addColor} />
+      onDone={() => { st.setEditText(null); st.setSel(null); }} used={usedColors} onCustomColor={st.addColor} cutFonts={p.fonts} previews={st.fontPreviews} usedFonts={usedFonts} />
   ) : null;
   const multi = !!doc && count > 1;
   return (
@@ -165,11 +180,11 @@ export function ScrapbookEditor(p: {
      <div className={cx("flex w-full flex-1 flex-col md:min-h-0 md:flex-row", p.maxW)}>
       {/* ---------- trái: cột công cụ dọc (máy tính) / thanh ngang dưới đáy (điện thoại) + panel nội dung ---------- */}
       {/* điện thoại: khung menu NỔI dưới đáy (bo 20px, cách đáy 24px + safe-area (tránh vuốt Home của iPhone), cách 2 bên 12px) — chọn 1 ảnh thì đổi thành công cụ ảnh */}
-      {textMobile && <div className="fixed inset-x-3 bottom-[calc(24px+env(safe-area-inset-bottom))] z-40 md:hidden">{textMobile}</div>}
+      {(textMobile || bgMobile) && !open && <div className="fixed inset-x-3 bottom-[calc(24px+env(safe-area-inset-bottom))] z-40 md:hidden">{textMobile ?? bgMobile}</div>}
       {photoMobile && (
         <div data-keep-sel className="no-scrollbar fixed inset-x-3 bottom-[calc(24px+env(safe-area-inset-bottom))] z-40 flex gap-0.5 overflow-x-auto rounded-[20px] bg-[var(--c-secondary)] p-1.5 shadow-[0_8px_28px_rgb(0_0_0/0.16)] md:hidden">{photoMobile}</div>
       )}
-      <nav aria-label="Công cụ" className={cx("fixed inset-x-3 bottom-[calc(24px+env(safe-area-inset-bottom))] z-40 flex rounded-[20px] bg-[var(--c-secondary)] p-1 md:bg-white shadow-[0_8px_28px_rgb(0_0_0/0.16)] md:static md:z-auto md:order-1 md:flex md:w-[72px] md:shrink-0 md:flex-col md:gap-1 md:rounded-none md:border-r md:border-[#e5e5e7] md:p-0 md:py-2 md:shadow-none", (photoMobile || textMobile) && "max-md:hidden")}>
+      <nav aria-label="Công cụ" className={cx("fixed inset-x-3 bottom-[calc(24px+env(safe-area-inset-bottom))] z-40 flex rounded-[20px] bg-[var(--c-secondary)] p-1 md:bg-white shadow-[0_8px_28px_rgb(0_0_0/0.16)] md:static md:z-auto md:order-1 md:flex md:w-[72px] md:shrink-0 md:flex-col md:gap-1 md:rounded-none md:border-r md:border-[#e5e5e7] md:p-0 md:py-2 md:shadow-none", (photoMobile || textMobile || (bgMobile && !open)) && "max-md:hidden")}>
         {RAIL.map(([id, label, icon]) => {
           const on = p.tab === id && open;
           return (
@@ -204,7 +219,7 @@ export function ScrapbookEditor(p: {
             onPatch={(v) => { if (st.sel !== null) st.patchLayer(st.sel, v); }} onBegin={st.D.begin} onDuplicate={() => { if (st.sel !== null) st.duplicate(st.sel); }} onRemove={() => { if (st.sel !== null) st.removeLayer(st.sel); }}
             topics={T} wishes={W} onWish={(c) => { st.addWish(c); window.dispatchEvent(new Event("scrap-close-panel")); }} wishOpen={st.wishOpen} onWishOpen={st.setWishOpen} />
         )}
-        {p.tab === "nen" && <BgTab t={cur} assets={p.assets} bgImages={bgPreview} onSet={st.setBg} onUpload={st.uploadBg} />}
+        {p.tab === "nen" && <BgTab key={texOnly ? `tex-${bgSel}` : "all"} t={cur} assets={p.assets} bgImages={bgPreview} onSet={st.setBg} onUpload={st.uploadBg} only={texOnly ? "texture" : undefined} initScope={texOnly && bgSel ? bgSel : undefined} />}
        </div>
       </aside>
 
@@ -232,7 +247,7 @@ export function ScrapbookEditor(p: {
               onDropFiles={(f, at) => { if (mode === "customer") st.insertImages(f, at); else st.setStickerFiles(f.slice(0, 1)); }}
               onDropPhoto={mode === "customer" ? (pid, i) => st.assignPhoto(st.active, i, pid) : undefined} onEmptySlot={mode === "customer" ? (i) => st.setPickFor(i) : undefined}
               editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
-              onBackgroundDbl={p.onBackgroundDbl} tools={st.tools} scanning={st.cutting} cropLayer={st.cropFor} onCrop={st.setCropFor}
+              onBackgroundDbl={p.onBackgroundDbl} onBgTap={(sc) => setBgSel(sc)} tools={st.tools} scanning={st.cutting} cropLayer={st.cropFor} onCrop={st.setCropFor}
               onViewZoom={(f) => setZoom((z) => Math.min(4, Math.max(0.25, z * f)))} onViewPan={(dx, dy) => area.current?.scrollBy(-dx, -dy)}
               bgEdit={!!st.bgEdit} onBgEdit={(on, right) => st.setBgEdit(on ? (right ? "bg2" : "bg") : null)}
               onBgMove={(dx, dy, start) => { if (start) { st.D.begin(); return; } st.patchBg({ ix: (st.curBg?.ix ?? 0) + dx, iy: (st.curBg?.iy ?? 0) + dy }); }}
