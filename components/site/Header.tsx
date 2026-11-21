@@ -1,18 +1,7 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
 import { Sparkle } from "@/components/ui/Shapes";
 import { AccountButton } from "./AccountButton";
 import { CartButton, HeaderNav, MobileMenu, MobileNav } from "./HeaderNav";
-
-function SearchBox({ className = "" }: { className?: string }) {
-  return (
-    <form action="/ve-chung-toi" role="search" className={`relative ${className}`}>
-      <input name="q" type="search" placeholder="Tìm sản phẩm..." aria-label="Tìm sản phẩm"
-        className="h-9 w-full rounded-[8px] border border-[#e5e5e7] bg-white pl-9 pr-3 text-[14px] text-[#18181b] placeholder:text-[#a1a1aa] focus:border-[var(--c-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--c-primary)]/15" />
-      <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
-    </form>
-  );
-}
 
 export function Logo() {
   return (
@@ -30,15 +19,13 @@ export function Header() {
         <Logo />
         <HeaderNav />
 
-        <SearchBox className="ml-auto hidden w-52 md:block lg:ml-0" />
-        <div className="ml-auto flex items-center gap-2 md:ml-0">
+        <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <CartButton />
           <AccountButton />
         </div>
 
         {/* Điện thoại & máy tính bảng: menu hamburger */}
         <MobileMenu>
-          <SearchBox className="mb-2 md:hidden" />
           <MobileNav />
         </MobileMenu>
       </div>

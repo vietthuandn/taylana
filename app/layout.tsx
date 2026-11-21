@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "@fontsource/anton/400.css";
+import "@fontsource/bricolage-grotesque/400.css";
 import "@fontsource/bricolage-grotesque/700.css";
 import "./globals.css";
 import { ClipDefs } from "@/components/ui/Shapes";
@@ -16,6 +17,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  icons: { icon: [{ url: "/api/favicon", type: "image/svg+xml" }] }, // favicon theo màu chính của Theme
   title: { default: "Taylana — Thiết kế & thi công CD theo yêu cầu", template: "%s · Taylana" },
   description: "Tiệm In Taylana: thiết kế & thi công CD theo yêu cầu, custom bìa, mặt đĩa, booklet.",
 };

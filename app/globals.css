@@ -497,8 +497,8 @@
 :is(.admin-ui, .ui-clean) :is(.rounded-3xl, .rounded-2xl):not(.site-ui *) { border-radius: 12px; }
 :is(.admin-ui, .ui-clean) .chip:not(.site-ui *) { min-height: 32px; border-radius: 8px; border: 1px solid #e5e5e7; font-weight: 500; font-size: 13px; }
 :is(.admin-ui, .ui-clean) .eyebrow:not(.site-ui *) { letter-spacing: 0.04em; border-radius: 6px; }
-:is(.admin-ui, .ui-clean) input[type="checkbox"]:not(.site-ui *) { accent-color: #ff5fa2; }
-:is(.admin-ui, .ui-clean) input[type="range"]:not(.site-ui *) { accent-color: #ff5fa2; }
+:is(.admin-ui, .ui-clean) input[type="checkbox"]:not(.site-ui *) { accent-color: var(--c-primary); }
+:is(.admin-ui, .ui-clean) input[type="range"]:not(.site-ui *) { accent-color: var(--c-primary); }
 
 /* Trang khách: hồng vẫn là hồng (admin dùng hot-* cho màu lỗi đỏ) */
 .ui-clean {
@@ -553,6 +553,7 @@ label:has(> input:is([type="date"], [type="datetime-local"], [type="time"])) { m
 :root {
   --c-primary: #ff5fa2;
   --c-primary-hover: #f0468f;
+  --c-primary-dark: color-mix(in oklab, var(--c-primary), black 22%); /* icon giỏ hàng, tên tài khoản trên header */
   --c-secondary: #fff0f6;
   --c-page-bg: #f7f7f8;
   --c-header-bg: #ffffff;

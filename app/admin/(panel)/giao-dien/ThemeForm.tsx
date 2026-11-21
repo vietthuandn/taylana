@@ -72,7 +72,7 @@ export function ThemeForm({ initial }: { initial: Theme }) {
     setSaving(false);
     if (error) return setMsg({ type: "err", text: error.message });
     if (saved.page_bg_image && saved.page_bg_image !== v.page_bg_image) await removePublicImage(saved.page_bg_image);
-    await revalidatePublic(["/"], true); // làm mới mọi trang khách
+    await revalidatePublic(["/", "/api/favicon"], true); // làm mới mọi trang khách + favicon
     setSaved(v); setT(v);
     setMsg({ type: "ok", text });
   }

@@ -22,13 +22,13 @@ const navServices = services.filter((s) => s.href !== "/thiet-ke/mockup" && s.hr
 const isOn = (path: string, href: string) => path === href || path.startsWith(href + "/");
 
 const itemCls = (on: boolean) =>
-  `rounded-[8px] px-3 py-2 text-[14px] font-medium transition-colors hover:bg-black/5 ${on ? "text-[var(--c-header-active)]" : "text-[var(--c-header-text)] opacity-90 hover:opacity-100"}`;
+  `rounded-[8px] px-3 py-2 font-tile text-[15px] tracking-[-0.01em] transition-colors hover:bg-black/5 ${on ? "font-bold text-[var(--c-header-active)]" : "font-normal text-[var(--c-header-text)]"}`;
 
 // Menu ngang (máy tính): link thường, mục của trang đang mở có chữ hồng
 export function HeaderNav() {
   const path = usePathname();
   return (
-    <nav className="ml-4 hidden flex-1 gap-0.5 lg:flex">
+    <nav className="ml-4 hidden flex-1 justify-center gap-0.5 lg:flex">
       {navServices.map((s) => <Link key={s.href} href={s.href} className={itemCls(isOn(path, s.href))}>{s.short}</Link>)}
       {extra.filter((x) => x.desktop).map((x) => <Link key={x.href} href={x.href} className={itemCls(isOn(path, x.href))}>{x.title}</Link>)}
     </nav>
@@ -62,10 +62,10 @@ export function CartButton() {
   const n = lines.length;
   return (
     <Link href="/gio-hang" aria-label={`Giỏ hàng${n ? ` (${n})` : ""}`}
-      className="relative grid h-9 w-9 shrink-0 place-items-center rounded-[8px] border border-[#e5e5e7] bg-white text-[#18181b] hover:bg-[#f4f4f5]">
+      className="relative grid h-9 w-9 shrink-0 place-items-center rounded-[8px] border border-[#e5e5e7] bg-white text-[var(--c-primary-dark)] hover:bg-[#f4f4f5]">
       <ShoppingCart size={17} />
       {n > 0 && (
-        <span className="absolute -right-1.5 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[var(--c-primary)] px-1 text-[11px] font-semibold leading-none text-white">
+        <span className="absolute -right-1.5 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#ef4444] px-1 text-[11px] font-semibold leading-none text-white">
           {n > 99 ? "99+" : n}
         </span>
       )}
