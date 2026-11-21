@@ -233,7 +233,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
   if (done) {
     return (
       <div className="mx-auto w-full max-w-md px-4 py-14 text-center font-sans">
-        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#fff0f6] text-[#ff5fa2]"><Check size={24} /></span>
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--c-secondary)] text-[var(--c-primary)]"><Check size={24} /></span>
         <h1 className="mt-3 font-sans text-[22px] font-bold normal-case tracking-[-0.02em] sm:text-[28px]">Cảm ơn bạn!</h1>
         <p className="mt-3 text-[#71717a]">Tiệm đã nhận {done.count} ảnh. Mã đơn của bạn:</p>
         <p className="mx-auto mt-3 inline-block rounded-[10px] border border-[#e5e5e7] bg-white px-5 py-2 text-[22px] font-semibold tracking-wide text-[#18181b]">{done.code}</p>
@@ -265,7 +265,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
             <input className={`${inputClass} mt-3`} type="tel" inputMode="tel" placeholder="Số điện thoại" value={verifyPhone} onChange={(e) => setVerifyPhone(e.target.value)} />
             {verifyErr && <p className="mt-2 text-[12px] text-[#dc2626]">{verifyErr}</p>}
             <button className={`${btnClass("primary")} mt-3 w-full`}>Xác nhận</button>
-            <p className="mt-3 text-[12px] text-[#71717a]">Hoặc <Link href="/don-hang-cua-toi" className="font-medium text-[#ff5fa2] hover:text-[#e0468a]">xem đơn hàng của tôi</Link>.</p>
+            <p className="mt-3 text-[12px] text-[#71717a]">Hoặc <Link href="/don-hang-cua-toi" className="font-medium text-[var(--c-primary)] hover:text-[#e0468a]">xem đơn hàng của tôi</Link>.</p>
           </form>
         )}
       </div>
@@ -287,12 +287,12 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
               <div className="grid gap-2 sm:grid-cols-2">
                 {waiting.map((o) => (
                   <Link key={o.id} href={uploadHref(o.code)}
-                    className="flex items-center justify-between gap-3 rounded-[10px] border border-[#e5e5e7] bg-white p-3 hover:border-[#ff5fa2]">
+                    className="flex items-center justify-between gap-3 rounded-[10px] border border-[#e5e5e7] bg-white p-3 hover:border-[var(--c-primary)]">
                     <span className="min-w-0">
                       <span className="block font-medium">{o.payment_code ?? o.code}</span>
                       <span className="block truncate text-[12px] text-[#71717a]">{o.items.map((i) => `${i.package_name} × ${i.quantity}`).join(", ")}</span>
                     </span>
-                    <span className="shrink-0 text-[13px] font-medium text-[#ff5fa2]">Gửi file →</span>
+                    <span className="shrink-0 text-[13px] font-medium text-[var(--c-primary)]">Gửi file →</span>
                   </Link>
                 ))}
               </div>
@@ -309,7 +309,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
           {/* Thẻ đơn / gói */}
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[12px] border border-[#e5e5e7] bg-white p-2.5">
             {order ? (
-              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[8px] bg-[#fff0f6] text-[#ff5fa2]"><Disc3 size={22} /></span>
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[8px] bg-[var(--c-secondary)] text-[var(--c-primary)]"><Disc3 size={22} /></span>
             ) : <Thumb pk={pkg!} />}
             <div className="min-w-0 flex-1">
               <p className="font-semibold">{order ? `Đơn ${order.payment_code ?? order.code} · ${title}` : title}</p>
@@ -333,7 +333,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
               <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
                 {(["same", "different"] as const).map((m) => (
                   <button key={m} type="button" disabled={readOnly} onClick={() => setMode(m)}
-                    className={`rounded-[6px] px-3 py-1.5 text-[13px] font-medium ${line.copies_mode === m ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]"}`}>
+                    className={`rounded-[6px] px-3 py-1.5 text-[13px] font-medium ${line.copies_mode === m ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "text-[#52525b]"}`}>
                     {m === "same" ? "Các bản giống nhau" : "Mỗi bản khác nhau"}
                   </button>
                 ))}
@@ -380,7 +380,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
                 Tải nhạc lên Google Drive, bấm <b>Chia sẻ → Bất kỳ ai có đường liên kết</b>, rồi dán link vào đây.
               </p>
               <p className="mb-2 rounded-[8px] bg-[#f4f4f5] px-3 py-2 text-[12px] text-[#52525b]">
-                ⓘ Bạn chưa tải được nhạc từ YouTube và Spotify? <Link href="/huong-dan#audio" className="font-semibold text-[#ff5fa2] hover:text-[#e0468a]">Nhấn vào đây</Link> để xem hướng dẫn
+                ⓘ Bạn chưa tải được nhạc từ YouTube và Spotify? <Link href="/huong-dan#audio" className="font-semibold text-[var(--c-primary)] hover:text-[#e0468a]">Nhấn vào đây</Link> để xem hướng dẫn
               </p>
               <input className={inputClass} type="url" inputMode="url" placeholder="https://drive.google.com/..." value={link} onChange={(e) => setLink(e.target.value)} />
 
@@ -400,7 +400,7 @@ export function SendFiles({ packages, orderCode }: { packages: Package[]; orderC
                     Còn {missing.length} ảnh chưa tải lên:{" "}
                     {missing.map((s, i) => (
                       <span key={s.id}>
-                        <button className="font-medium hover:text-[#ff5fa2]" onClick={() => goToSlot(s.id)}>{s.full}</button>{i < missing.length - 1 ? ", " : ""}
+                        <button className="font-medium hover:text-[var(--c-primary)]" onClick={() => goToSlot(s.id)}>{s.full}</button>{i < missing.length - 1 ? ", " : ""}
                       </span>
                     ))}
                   </p>
@@ -471,7 +471,7 @@ function PackageCards({ packages, current, onPick }: { packages: Package[]; curr
     <div className="grid gap-2 sm:grid-cols-2">
       {packages.map((pk) => (
         <button key={pk.id} onClick={() => onPick(pk)}
-          className={`flex w-full items-center gap-2.5 rounded-[10px] border bg-white p-2 text-left font-sans text-[14px] hover:border-[#ff5fa2] ${current === pk.id ? "border-[#ff5fa2]" : "border-[#e5e5e7]"}`}>
+          className={`flex w-full items-center gap-2.5 rounded-[10px] border bg-white p-2 text-left font-sans text-[14px] hover:border-[var(--c-primary)] ${current === pk.id ? "border-[var(--c-primary)]" : "border-[#e5e5e7]"}`}>
           <Thumb pk={pk} />
           <span className="min-w-0 flex-1">
             <span className="block font-medium">{pk.name}</span>

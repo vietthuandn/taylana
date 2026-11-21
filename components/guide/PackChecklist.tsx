@@ -16,12 +16,12 @@ export function PackChecklist({ packs }: { packs: GuidePack[] }) {
   ] : [];
   const total = p ? p.front + p.back + (p.disc ? 1 : 0) : 0;
   return (
-    <section className="relative overflow-hidden rounded-[18px] bg-gradient-to-br from-[#ff5fa2] via-[#e05bd8] to-[#7c5cff] p-[1.5px] shadow-[0_10px_30px_rgba(124,92,255,0.18)]">
+    <section className="relative overflow-hidden rounded-[18px] bg-gradient-to-br from-[var(--c-primary)] via-[#e05bd8] to-[#7c5cff] p-[1.5px] shadow-[0_10px_30px_rgba(124,92,255,0.18)]">
       <div className="rounded-[17px] bg-white/95 p-5 sm:p-6">
         <div className="flex items-start gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-gradient-to-br from-[#ff5fa2] to-[#7c5cff] text-white"><ClipboardCheck size={20} /></span>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-gradient-to-br from-[var(--c-primary)] to-[#7c5cff] text-white"><ClipboardCheck size={20} /></span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#ff5fa2]">Kiểm tra trước</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--c-primary)]">Kiểm tra trước</p>
             <h2 className="text-[18px] font-bold leading-snug text-[#18181b]">Gói của bạn cần chuẩn bị bao nhiêu file?</h2>
           </div>
         </div>

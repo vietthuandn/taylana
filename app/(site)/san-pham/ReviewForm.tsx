@@ -53,7 +53,7 @@ export function ReviewForm() {
         <div className="flex gap-1" role="radiogroup">
           {[1, 2, 3, 4, 5].map((n) => (
             <button key={n} type="button" role="radio" aria-checked={rating === n} aria-label={`${n} sao`} onClick={() => setRating(n)}
-              className={`text-[28px] leading-none transition hover:scale-110 ${n <= rating ? "text-[#ff5fa2]" : "text-[#e5e5e7]"}`}>★</button>
+              className={`text-[28px] leading-none transition hover:scale-110 ${n <= rating ? "text-[var(--c-primary)]" : "text-[#e5e5e7]"}`}>★</button>
           ))}
         </div>
       </div>

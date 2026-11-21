@@ -49,7 +49,7 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
                 {g === "front" ? "Bìa trước" : title(g)} <span className="text-[12px] font-normal text-[#71717a]">({size(g)})</span>
               </p>
               {g === "front" && layout.front >= 4 && onPreview && (
-                <button type="button" onClick={onPreview} className="text-[13px] font-medium text-[#ff5fa2] hover:text-[#e0468a]">{previewing ? "Xem CD Mockup ›" : "Xem preview ›"}</button>
+                <button type="button" onClick={onPreview} className="text-[13px] font-medium text-[var(--c-primary)] hover:text-[#e0468a]">{previewing ? "Xem CD Mockup ›" : "Xem preview ›"}</button>
               )}
             </div>
             {g === "back" ? (
@@ -74,7 +74,7 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
       {!readOnly && (
         <>
           <p className="text-[13px] text-[#71717a]">
-            Bạn chưa có ảnh? <Link href="/huong-dan" className="font-semibold text-[#ff5fa2] hover:text-[#e0468a]">Nhấn vào đây</Link> để được hướng dẫn
+            Bạn chưa có ảnh? <Link href="/huong-dan" className="font-semibold text-[var(--c-primary)] hover:text-[#e0468a]">Nhấn vào đây</Link> để được hướng dẫn
           </p>
           <button className={`${btnClass("secondary")} mt-3`} onClick={() => setMultiOpen(true)}>⇪ Tải nhiều ảnh</button>
         </>
@@ -119,7 +119,7 @@ function CompactTile({ slot, booklet, picked, onFile, onRemove }: { slot: SlotDe
   const open = () => input.current?.click();
   return (
     <div title={picked?.file.name ?? slot.full}
-      className={cx("group relative shrink-0 rounded-[8px]", slot.group === "back" ? "aspect-[15/11.7] w-[calc((100%-24px)/4*15/11.7)]" : "aspect-square", over && "ring-2 ring-[#ff5fa2]")}
+      className={cx("group relative shrink-0 rounded-[8px]", slot.group === "back" ? "aspect-[15/11.7] w-[calc((100%-24px)/4*15/11.7)]" : "aspect-square", over && "ring-2 ring-[var(--c-primary)]")}
       onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
       onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f) onFile(f); }}>
       {has ? (
@@ -144,7 +144,7 @@ function CompactTile({ slot, booklet, picked, onFile, onRemove }: { slot: SlotDe
         </div>
       ) : (
         <button type="button" onClick={open} aria-label={`Chọn ảnh ${slot.full}`}
-          className="absolute inset-0 grid place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] text-[#a1a1aa] transition-colors hover:border-[#ff5fa2] hover:text-[#ff5fa2]">
+          className="absolute inset-0 grid place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] text-[#a1a1aa] transition-colors hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]">
           <Plus size={18} />
         </button>
       )}
@@ -221,7 +221,7 @@ export function SlotTile({ slot, picked, existing, readOnly, onFile, onRemove }:
         <div className={`group relative ${isDisc ? "rounded-full" : "rounded-[8px]"}`} style={{ aspectRatio: `${slot.spec.w} / ${slot.spec.h}` }}
           onDragOver={(e) => { if (!readOnly) { e.preventDefault(); setOver(true); } }} onDragLeave={() => setOver(false)}
           onDrop={(e) => { e.preventDefault(); setOver(false); const f = e.dataTransfer.files?.[0]; if (f && !readOnly) onFile(f); }}>
-          <div className={`absolute inset-0 overflow-hidden ${isDisc ? "rounded-full" : "rounded-[8px] shadow-[0_4px_12px_rgb(0_0_0/0.12)]"} ${over ? "ring-2 ring-[#ff5fa2]" : ""}`}>
+          <div className={`absolute inset-0 overflow-hidden ${isDisc ? "rounded-full" : "rounded-[8px] shadow-[0_4px_12px_rgb(0_0_0/0.12)]"} ${over ? "ring-2 ring-[var(--c-primary)]" : ""}`}>
             {existing.url ? <PrintArea spec={slot.spec} src={existing.url} isPdf={existing.pdf} bg="#f7f7f8" /> : (
               <div className="grid h-full place-items-center bg-[#ecfdf3] p-3 text-center text-[12px] text-[#15803d]">
                 <span><FileCheck2 size={22} className="mx-auto mb-1" />Đã gửi<br /><span className="break-all text-[11px] text-[#3f3f46]">{existing.name}</span></span>
@@ -247,7 +247,7 @@ export function SlotTile({ slot, picked, existing, readOnly, onFile, onRemove }:
     <div id={`slot-${slot.id}`} className="scroll-mt-24">
       <p className="mb-1.5 text-[13px] font-medium">{slot.label}</p>
       <div
-        className={`group relative ${isDisc ? "rounded-full" : "rounded-[8px]"} ${over ? "ring-2 ring-[#ff5fa2]" : ""}`}
+        className={`group relative ${isDisc ? "rounded-full" : "rounded-[8px]"} ${over ? "ring-2 ring-[var(--c-primary)]" : ""}`}
         style={{ aspectRatio: `${slot.spec.w} / ${slot.spec.h}` }}
         onDragOver={(e) => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}
@@ -320,7 +320,7 @@ export function MultiUpload({ slots, layout, onCancel, onConfirm }: {
             onDragOver={(e) => { e.preventDefault(); setOver(true); }}
             onDragLeave={() => setOver(false)}
             onDrop={(e) => { e.preventDefault(); setOver(false); add(e.dataTransfer.files); }}
-            className={`grid cursor-pointer place-items-center rounded-[10px] border-2 border-dashed px-4 py-8 text-center ${over ? "border-[#ff5fa2] bg-[#fff0f6]" : "border-[#cfcac2] bg-[#f6f4f0]"}`}>
+            className={`grid cursor-pointer place-items-center rounded-[10px] border-2 border-dashed px-4 py-8 text-center ${over ? "border-[var(--c-primary)] bg-[var(--c-secondary)]" : "border-[#cfcac2] bg-[#f6f4f0]"}`}>
             <p className="font-medium">Kéo thả ảnh vào đây</p>
             <p className="text-[12px] text-[#71717a]">hoặc bấm để chọn nhiều file (JPG, PNG, PDF ≤ 30MB)</p>
           </div>

@@ -46,7 +46,7 @@ export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove
     <section>
       <p className="mb-2 text-[14px] font-semibold text-[#18181b]">Ảnh của bạn <span className="text-[12px] font-normal text-[#71717a]">({photos.length}/{max}{photos.length ? ` · ${free} chưa dùng` : ""})</span></p>
       <button type="button" onClick={() => fileIn.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) onAdd([...e.dataTransfer.files]); }}
-        className="grid w-full place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] px-4 py-4 text-center hover:border-[#ff5fa2]">
+        className="grid w-full place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] px-4 py-4 text-center hover:border-[var(--c-primary)]">
         <Upload size={20} className="mb-1 text-[#a1a1aa]" />
         <span className="text-[14px] font-medium text-[#18181b]">Kéo thả hoặc bấm để chọn ảnh</span>
         <span className="text-[12px] text-[#71717a]">{hint}</span>
@@ -84,9 +84,9 @@ export function PickPhotoModal({ photos, used, onPick, onUpload, onClose }: { ph
   return (
     <Modal title="Chọn ảnh cho ô" onClose={onClose}>
       <div className="grid grid-cols-4 gap-2">
-        <button type="button" onClick={() => fileIn.current?.click()} className="grid aspect-square place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] text-center text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2]"><span><Upload size={16} className="mx-auto mb-1" />Tải ảnh mới</span></button>
+        <button type="button" onClick={() => fileIn.current?.click()} className="grid aspect-square place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] text-center text-[12px] font-medium text-[#52525b] hover:border-[var(--c-primary)]"><span><Upload size={16} className="mx-auto mb-1" />Tải ảnh mới</span></button>
         {list.map((p) => (
-          <button key={p.id} type="button" onClick={() => onPick(p.id)} className="relative aspect-square overflow-hidden rounded-[8px] border border-[#e5e5e7] hover:ring-2 hover:ring-[#ff5fa2]">
+          <button key={p.id} type="button" onClick={() => onPick(p.id)} className="relative aspect-square overflow-hidden rounded-[8px] border border-[#e5e5e7] hover:ring-2 hover:ring-[var(--c-primary)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={p.url} alt="" className="h-full w-full object-cover" />
             {used.has(p.id) && <span className="absolute left-1 top-1 rounded-[4px] bg-black/60 px-1 text-[9px] leading-[14px] text-white">Đang dùng</span>}
@@ -106,7 +106,7 @@ export function RightsModal({ onOk, onClose }: { onOk: () => void; onClose: () =
       <div className="w-full max-w-[420px] rounded-[14px] bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <p className="text-[16px] font-semibold">Trước khi đặt in</p>
         <label className="mt-3 flex items-start gap-2 text-[14px] text-[#3f3f46]">
-          <input type="checkbox" checked={tick} onChange={(e) => setTick(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff5fa2]" />
+          <input type="checkbox" checked={tick} onChange={(e) => setTick(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--c-primary)]" />
           Tôi chịu trách nhiệm về bản quyền nội dung (lời bài hát, hình ảnh) trong thiết kế này.
         </label>
         <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={onClose}>Huỷ</Button><Button disabled={!tick} onClick={onOk}>Tiếp tục</Button></div>

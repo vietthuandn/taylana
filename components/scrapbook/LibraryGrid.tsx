@@ -29,7 +29,7 @@ export function LibraryGrid({ items, cats, cols = 3, current, onPick, round, emp
           <div className={cx("grid gap-2", cols === 2 ? "grid-cols-2" : "grid-cols-3")}>
             {g.items.map((d) => (
               <button key={d.id} type="button" onClick={() => onPick(d)} title={d.name}
-                className={cx("group min-w-0 rounded-[10px] border bg-white p-1 text-left transition-colors", current === d.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#ff5fa2]")}>
+                className={cx("group min-w-0 rounded-[10px] border bg-white p-1 text-left transition-colors", current === d.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7] hover:border-[var(--c-primary)]")}>
                 <span className={cx("grid place-items-center overflow-hidden bg-[#f4f4f5]", aspect ?? (cols === 2 ? "aspect-[2/1]" : "aspect-square"), round ? "rounded-full" : "rounded-[6px]")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {d.thumbnail_url ? <img src={d.thumbnail_url} alt="" loading="lazy" className="h-full w-full object-contain" /> : <LiveThumb t={d} />}

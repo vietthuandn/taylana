@@ -43,7 +43,7 @@ export function FramePicker({ frames, sets, loaded, current, mode = "photo", all
     }, 30);
     return () => clearTimeout(t);
   }, [list, loaded, sample, mode]); // eslint-disable-line react-hooks/exhaustive-deps
-  const chip = (on: boolean) => cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
+  const chip = (on: boolean) => cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
   return (
     <div className="fixed inset-0 z-[95] grid place-items-center bg-black/40 p-4" role="dialog" aria-modal onClick={onClose}>
       <div className="flex max-h-[88vh] w-full max-w-[680px] flex-col overflow-hidden rounded-[14px] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -58,19 +58,19 @@ export function FramePicker({ frames, sets, loaded, current, mode = "photo", all
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {SHAPES.map((s) => (
                   <button key={s.name} type="button" onClick={() => onPick({ kind: "shape", shape: s.shape, ratio: s.ratio, name: s.name })}
-                    className="grid h-[72px] place-items-center rounded-[10px] border border-[#e5e5e7] text-[12px] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><span className="grid place-items-center gap-1">{s.icon}{s.name}</span></button>
+                    className="grid h-[72px] place-items-center rounded-[10px] border border-[#e5e5e7] text-[12px] text-[#52525b] hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><span className="grid place-items-center gap-1">{s.icon}{s.name}</span></button>
                 ))}
               </div>
             </section>
           )}
-          {allowNone && mode === "photo" && <button type="button" onClick={() => onPick({ kind: "none" })} className={cx("h-8 rounded-full border px-4 text-[13px] font-medium", !current ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] hover:border-[#ff5fa2]")}>Không khung</button>}
+          {allowNone && mode === "photo" && <button type="button" onClick={() => onPick({ kind: "none" })} className={cx("h-8 rounded-full border px-4 text-[13px] font-medium", !current ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] hover:border-[var(--c-primary)]")}>Không khung</button>}
           {active.length ? (
             <section className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="mr-auto text-[13px] font-medium">Thư viện khung</p>
                 <label className="relative">
                   <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#a1a1aa]" />
-                  <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo tên..." className="h-8 w-44 rounded-[8px] border border-[#e5e5e7] pl-8 pr-2 text-[13px] outline-none focus:border-[#ff5fa2]" />
+                  <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm theo tên..." className="h-8 w-44 rounded-[8px] border border-[#e5e5e7] pl-8 pr-2 text-[13px] outline-none focus:border-[var(--c-primary)]" />
                 </label>
               </div>
               <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
@@ -83,7 +83,7 @@ export function FramePicker({ frames, sets, loaded, current, mode = "photo", all
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                     {list.filter((f) => f.set_id === s.id).map((f) => (
                       <button key={f.id} type="button" onClick={() => onPick({ kind: "frame", frame: f })} title={f.name}
-                        className={cx("overflow-hidden rounded-[8px] border text-center", current === f.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#ff5fa2]")}>
+                        className={cx("overflow-hidden rounded-[8px] border text-center", current === f.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7] hover:border-[var(--c-primary)]")}>
                         <span className={cx("grid aspect-square place-items-center p-1.5", checker)}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={thumbs[f.id] ?? f.url} alt={f.name} className="max-h-full max-w-full object-contain" loading="lazy" />
@@ -123,11 +123,11 @@ export function AddFrameFlow({ frames, sets, loaded, photos, used, onDone, onUpl
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
-            <button type="button" disabled={busy} onClick={() => fileIn.current?.click()} className="grid aspect-square place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] text-center text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2] disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => fileIn.current?.click()} className="grid aspect-square place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] text-center text-[12px] font-medium text-[#52525b] hover:border-[var(--c-primary)] disabled:opacity-50">
               <span><Plus size={16} className="mx-auto mb-1" />{busy ? "Đang tải..." : "Tải ảnh mới"}</span>
             </button>
             {list.map((p) => (
-              <button key={p.id} type="button" onClick={() => onDone(choice, p.id)} className="relative aspect-square overflow-hidden rounded-[8px] border border-[#e5e5e7] hover:ring-2 hover:ring-[#ff5fa2]">
+              <button key={p.id} type="button" onClick={() => onDone(choice, p.id)} className="relative aspect-square overflow-hidden rounded-[8px] border border-[#e5e5e7] hover:ring-2 hover:ring-[var(--c-primary)]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.url} alt="" className="h-full w-full object-cover" />
                 {used.has(p.id) && <span className="absolute left-1 top-1 rounded-[4px] bg-black/60 px-1 text-[9px] leading-[14px] text-white">Đang dùng</span>}

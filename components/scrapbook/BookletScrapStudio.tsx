@@ -230,14 +230,14 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
   const bundleThumbs = (b: Bundle) => b.template_ids.map((id) => tplById.get(id)?.thumbnail_url ?? null);
   const templateTab = bundleMode ? (
     <section className="space-y-3">
-      <button type="button" onClick={() => setBundleMode(false)} className="inline-flex items-center gap-1 text-[13px] font-medium text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={14} /> Mẫu theo trang</button>
+      <button type="button" onClick={() => setBundleMode(false)} className="inline-flex items-center gap-1 text-[13px] font-medium text-[#52525b] hover:text-[var(--c-primary)]"><ArrowLeft size={14} /> Mẫu theo trang</button>
       <p className="text-[12px] text-[#71717a]">Bộ mẫu booklet {pages} trang — chọn 1 bộ để thay cả cuốn, ảnh tự điền qua các trang.</p>
       {bundles.length ? groupByCategory(bundles, library.categories.filter((c) => c.scope === "booklet_bundle")).map((g) => (
         <div key={g.cat?.id ?? "o"}>
           <p className="mb-2 text-[13px] font-semibold">{g.cat?.name ?? "Khác"}</p>
           <div className="grid grid-cols-2 gap-2">
             {g.items.map((b) => (
-              <div key={b.id} className={cx("rounded-[10px] border bg-white p-1", st.applied === b.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7]")}>
+              <div key={b.id} className={cx("rounded-[10px] border bg-white p-1", st.applied === b.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7]")}>
                 <button type="button" onClick={() => applyBundle(b)} className="block w-full text-left">
                   <span className="grid aspect-square place-items-center overflow-hidden rounded-[6px] bg-[#f4f4f5]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -245,7 +245,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
                   </span>
                   <span className="mt-1 block truncate px-0.5 text-[11px] font-medium">{b.name}</span>
                 </button>
-                <button type="button" onClick={() => setPeek(peek?.id === b.id ? null : b)} className="mt-0.5 inline-flex items-center gap-1 px-0.5 text-[11px] text-[#ff5fa2]"><Eye size={11} /> Xem các trang</button>
+                <button type="button" onClick={() => setPeek(peek?.id === b.id ? null : b)} className="mt-0.5 inline-flex items-center gap-1 px-0.5 text-[11px] text-[var(--c-primary)]"><Eye size={11} /> Xem các trang</button>
               </div>
             ))}
           </div>
@@ -271,10 +271,10 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[13px] font-semibold">{isSpread ? `Mẫu trang đôi · trang ${nos.join("–")}` : `Mẫu trang đơn · trang ${nos[0] ?? 1}`}</p>
-        <button type="button" onClick={() => setBundleMode(true)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><LayoutTemplate size={13} /> Đổi mẫu</button>
+        <button type="button" onClick={() => setBundleMode(true)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><LayoutTemplate size={13} /> Đổi mẫu</button>
       </div>
       {!st.applied && bundles.length > 0 && !doc?.some((t) => t.layers.length) && (
-        <button type="button" onClick={() => setBundleMode(true)} className="block w-full rounded-[10px] border border-dashed border-[#ff5fa2] bg-[#fff0f6] p-3 text-left text-[12px] text-[#db2777]">Có {bundles.length} bộ mẫu {pages} trang làm sẵn — bấm để chọn nhanh cả cuốn.</button>
+        <button type="button" onClick={() => setBundleMode(true)} className="block w-full rounded-[10px] border border-dashed border-[var(--c-primary)] bg-[var(--c-secondary)] p-3 text-left text-[12px] text-[#db2777]">Có {bundles.length} bộ mẫu {pages} trang làm sẵn — bấm để chọn nhanh cả cuốn.</button>
       )}
       <p className="text-[12px] text-[#71717a]">Chọn mẫu để thay toàn bộ {isSpread ? "cặp trang" : "trang"} đang xem — ảnh chưa dùng tự điền vào các ô.</p>
       <LibraryGrid items={isSpread ? spreads : singles} cats={library.categories.filter((c) => c.scope === (isSpread ? "booklet_spread" : "booklet_single"))} cols={isSpread ? 2 : 3} onPick={applyPage} />
@@ -295,7 +295,7 @@ export function BookletScrapStudio({ assets, assetGroups = [], library, fonts, g
           <div className="flex h-14 shrink-0 items-center gap-2 border-t border-[#efeff1] bg-[#f7f7f8] px-3">
             <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto">
               <span className="shrink-0 text-[13px] font-medium text-[#3f3f46]">Số trang:</span>
-              {BUNDLE_PAGES.map((n) => <button key={n} type="button" onClick={() => changePages(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", pages === n ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
+              {BUNDLE_PAGES.map((n) => <button key={n} type="button" onClick={() => changePages(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", pages === n ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
             </div>
             {user && <Button variant="secondary" size="sm" icon={<Save size={16} />} onClick={saveAccount} loading={busy} disabled={!doc}>Lưu</Button>}
             <DownloadMenu busy={busy} up items={[

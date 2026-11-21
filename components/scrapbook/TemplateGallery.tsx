@@ -43,7 +43,7 @@ export function TemplateGallery({ groups, current, onPick, round, aspect = "1 / 
       {groups.length > 1 && (
         <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
           {[{ id: "all", chip: "Tất cả" }, ...groups].map((g) => (
-            <button key={g.id} type="button" onClick={() => setFilter(g.id)} className={cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", filter === g.id ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]")}>{g.chip}</button>
+            <button key={g.id} type="button" onClick={() => setFilter(g.id)} className={cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", filter === g.id ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]")}>{g.chip}</button>
           ))}
         </div>
       )}
@@ -53,7 +53,7 @@ export function TemplateGallery({ groups, current, onPick, round, aspect = "1 / 
           <div className={cx("grid gap-2", cols)}>
             {g.items.map((it) => (
               <button key={it.id} type="button" onClick={() => onPick(it.id)} title={it.label}
-                className={cx("rounded-[10px] border p-1 text-center", current === it.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+                className={cx("rounded-[10px] border p-1 text-center", current === it.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
                 <Thumb item={it} round={!!round} aspect={aspect} />
                 <span className="mt-1 block truncate text-[11px] text-[#52525b]">{it.label}</span>
                 {it.sub && <span className="block truncate text-[10px] text-[#a1a1aa]">{it.sub}</span>}

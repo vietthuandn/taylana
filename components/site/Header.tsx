@@ -8,7 +8,7 @@ function SearchBox({ className = "" }: { className?: string }) {
   return (
     <form action="/ve-chung-toi" role="search" className={`relative ${className}`}>
       <input name="q" type="search" placeholder="Tìm sản phẩm..." aria-label="Tìm sản phẩm"
-        className="h-9 w-full rounded-[8px] border border-[#e5e5e7] bg-white pl-9 pr-3 text-[14px] text-[#18181b] placeholder:text-[#a1a1aa] focus:border-[#ff5fa2] focus:outline-none focus:ring-[3px] focus:ring-[#ff5fa2]/15" />
+        className="h-9 w-full rounded-[8px] border border-[#e5e5e7] bg-white pl-9 pr-3 text-[14px] text-[#18181b] placeholder:text-[#a1a1aa] focus:border-[var(--c-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--c-primary)]/15" />
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
     </form>
   );
@@ -16,7 +16,7 @@ function SearchBox({ className = "" }: { className?: string }) {
 
 export function Logo() {
   return (
-    <Link href="/" aria-label="Taylana — Trang chủ" className="flex items-center gap-1.5 font-display text-3xl leading-none text-[#18181b]">
+    <Link href="/" aria-label="Taylana — Trang chủ" className="flex items-center gap-1.5 font-display text-3xl leading-none text-[var(--c-header-text)]">
       TAYLANA
       <Sparkle className="h-4 w-4 animate-twinkle" />
     </Link>
@@ -25,7 +25,7 @@ export function Logo() {
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 h-[var(--header-h)] border-b border-[#e5e5e7] bg-white font-sans">
+    <header className="sticky top-0 z-40 h-[var(--header-h)] border-b border-[#e5e5e7] bg-[var(--c-header-bg)] font-sans">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
         <Logo />
         <HeaderNav />

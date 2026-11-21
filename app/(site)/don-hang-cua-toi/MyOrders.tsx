@@ -133,7 +133,7 @@ export function MyOrders() {
             {lookErr && <p className="mt-2 text-[12px] text-[#dc2626]">{lookErr}</p>}
           </form>
           <p className="text-[13px] text-[#71717a]">
-            <button type="button" onClick={() => setAuth(true)} className="font-medium text-[#ff5fa2] hover:text-[#e0468a]">Đăng nhập</button> bằng số điện thoại đã đặt hàng để xem tất cả đơn.
+            <button type="button" onClick={() => setAuth(true)} className="font-medium text-[var(--c-primary)] hover:text-[#e0468a]">Đăng nhập</button> bằng số điện thoại đã đặt hàng để xem tất cả đơn.
           </p>
         </div>
       )}

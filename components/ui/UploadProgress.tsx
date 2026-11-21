@@ -19,7 +19,7 @@ export function UploadProgress() {
   const pct = total ? Math.round((loaded / total) * 100) : 0;
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-[100]" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Đang tải file lên">
-      <div className="h-[3px] bg-[#ff5fa2] transition-[width] duration-200" style={{ width: `${Math.max(3, pct)}%` }} />
+      <div className="h-[3px] bg-[var(--c-primary)] transition-[width] duration-200" style={{ width: `${Math.max(3, pct)}%` }} />
       <span className="absolute right-2 top-1 rounded-full bg-[#18181b]/80 px-2 py-0.5 text-[11px] font-medium text-white">Đang tải lên {pct}%</span>
     </div>
   );

@@ -29,14 +29,14 @@ export function ShowcaseGrid({ items }: { items: ShowcaseItem[] }) {
       {q && (
         <p className="mb-4 text-[14px] text-[#71717a]">
           Kết quả cho “<b className="text-[#18181b]">{q}</b>”: {shown.length} sản phẩm ·{" "}
-          <Link href="/san-pham" className="font-medium text-[#ff5fa2] hover:text-[#e0468a]">Xoá tìm kiếm</Link>
+          <Link href="/san-pham" className="font-medium text-[var(--c-primary)] hover:text-[#e0468a]">Xoá tìm kiếm</Link>
         </p>
       )}
       {categories.length > 1 && (
         <div className="no-scrollbar -mx-4 mb-5 flex gap-2 overflow-x-auto px-4">
           {["", ...categories].map((c) => (
             <button key={c || "all"} onClick={() => setCat(c)} aria-pressed={cat === c}
-              className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[13px] font-medium ${cat === c ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#3f3f46] hover:border-[#d4d4d8]"}`}>
+              className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[13px] font-medium ${cat === c ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] bg-white text-[#3f3f46] hover:border-[#d4d4d8]"}`}>
               {c || "Tất cả"}
             </button>
           ))}

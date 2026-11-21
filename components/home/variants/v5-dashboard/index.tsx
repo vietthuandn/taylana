@@ -77,7 +77,7 @@ function CardHead({ title, hint, href }: { title: string; hint?: string; href?: 
         <h2 className="font-sans text-[16px] font-semibold normal-case tracking-[-0.01em] text-[#18181b]">{title}</h2>
         {hint && <p className="mt-0.5 text-[13px] text-[#71717a]">{hint}</p>}
       </div>
-      {href && <Link href={href} className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-[#ff5fa2] hover:text-[#e0468a]">Xem <ArrowRight size={14} /></Link>}
+      {href && <Link href={href} className="inline-flex shrink-0 items-center gap-1 text-[13px] font-medium text-[var(--c-primary)] hover:text-[#e0468a]">Xem <ArrowRight size={14} /></Link>}
     </div>
   );
 }
@@ -95,17 +95,17 @@ export default function HomeV5({ home, options, settings }: HomeVariantProps) {
         <aside className="hidden lg:block">
           <nav className="sticky top-[calc(var(--header-h)+24px)] space-y-1 rounded-[16px] border border-[#e5e5e7] bg-white p-3">
             <p className="flex items-center gap-2 px-2 pb-2 pt-1 text-[12px] font-semibold uppercase tracking-[0.06em] text-[#a1a1aa]"><LayoutDashboard size={14} /> Bảng điều khiển</p>
-            <a href="#tong-quan" className="flex items-center gap-2 rounded-[8px] bg-[#fff0f6] px-2.5 py-2 text-[14px] font-medium text-[#ff5fa2]"><Sparkles size={16} /> Tổng quan</a>
+            <a href="#tong-quan" className="flex items-center gap-2 rounded-[8px] bg-[var(--c-secondary)] px-2.5 py-2 text-[14px] font-medium text-[var(--c-primary)]"><Sparkles size={16} /> Tổng quan</a>
             {list.map((g) => (
-              <a key={g.id} href={`#${g.id}`} className="flex items-center justify-between rounded-[8px] px-2.5 py-2 text-[14px] text-[#3f3f46] hover:bg-[#f4f4f5] hover:text-[#ff5fa2]">
+              <a key={g.id} href={`#${g.id}`} className="flex items-center justify-between rounded-[8px] px-2.5 py-2 text-[14px] text-[#3f3f46] hover:bg-[#f4f4f5] hover:text-[var(--c-primary)]">
                 {g.title}<span className="rounded-full bg-[#f4f4f5] px-1.5 text-[11px] tabular-nums text-[#71717a]">{g.items.length}</span>
               </a>
             ))}
-            <a href="#noi-bat" className="block rounded-[8px] px-2.5 py-2 text-[14px] text-[#3f3f46] hover:bg-[#f4f4f5] hover:text-[#ff5fa2]">Nổi bật</a>
+            <a href="#noi-bat" className="block rounded-[8px] px-2.5 py-2 text-[14px] text-[#3f3f46] hover:bg-[#f4f4f5] hover:text-[var(--c-primary)]">Nổi bật</a>
             <div className="mt-3 rounded-[12px] bg-[#18181b] p-3 text-white">
               <p className="text-[13px] font-semibold">Cần giúp?</p>
               <p className="mt-0.5 text-[12px] text-white/70">Tiệm trả lời nhanh qua Zalo.</p>
-              <Link href="/lien-he" className="mt-2 inline-flex h-8 items-center rounded-[8px] bg-white px-3 text-[12px] font-semibold text-[#18181b] hover:text-[#ff5fa2]">Liên hệ</Link>
+              <Link href="/lien-he" className="mt-2 inline-flex h-8 items-center rounded-[8px] bg-white px-3 text-[12px] font-semibold text-[#18181b] hover:text-[var(--c-primary)]">Liên hệ</Link>
             </div>
           </nav>
         </aside>
@@ -114,7 +114,7 @@ export default function HomeV5({ home, options, settings }: HomeVariantProps) {
           {/* ---------- Tổng quan ---------- */}
           <div id="tong-quan" className="grid scroll-mt-24 gap-6 xl:grid-cols-[1fr_320px]">
             <section className="relative overflow-hidden rounded-[16px] bg-[#18181b] p-6 text-white sm:p-8">
-              <div aria-hidden className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[#ff5fa2]/30 blur-3xl" />
+              <div aria-hidden className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-[var(--c-primary)]/30 blur-3xl" />
               <div aria-hidden className="absolute -bottom-20 right-24 h-48 w-48 rounded-full bg-[#8b5cf6]/25 blur-3xl" />
               <p className="relative text-[14px] text-white/70">{greeting}</p>
               <h1 className="relative mt-2 max-w-[560px] font-sans text-[28px] font-bold normal-case leading-[1.15] tracking-[-0.02em] text-white sm:text-[36px]">
@@ -139,7 +139,7 @@ export default function HomeV5({ home, options, settings }: HomeVariantProps) {
                 {STEPS.map((s, i) => (
                   <li key={s.n}>
                     <Link href={s.href} className="group flex items-center gap-3 rounded-[10px] px-2 py-2 hover:bg-[#f7f7f8]">
-                      <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#e5e5e7] bg-white text-[#52525b] group-hover:border-[#ff5fa2] group-hover:text-[#ff5fa2]">
+                      <span className="relative grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#e5e5e7] bg-white text-[#52525b] group-hover:border-[var(--c-primary)] group-hover:text-[var(--c-primary)]">
                         {s.icon}
                         {i < STEPS.length - 1 && <span aria-hidden className="absolute left-1/2 top-full h-3 w-px -translate-x-1/2 bg-[#e5e5e7]" />}
                       </span>
@@ -155,9 +155,9 @@ export default function HomeV5({ home, options, settings }: HomeVariantProps) {
           {/* ---------- Lối tắt ---------- */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {shortcuts.map((s) => (
-              <Link key={s.href} href={s.href} className="group rounded-[14px] border border-[#e5e5e7] bg-white p-4 transition-colors hover:border-[#ff5fa2]">
+              <Link key={s.href} href={s.href} className="group rounded-[14px] border border-[#e5e5e7] bg-white p-4 transition-colors hover:border-[var(--c-primary)]">
                 <p className="text-[12px] text-[#71717a]">{s.short}</p>
-                <p className="mt-1 text-[15px] font-semibold leading-snug group-hover:text-[#ff5fa2]">{s.title}</p>
+                <p className="mt-1 text-[15px] font-semibold leading-snug group-hover:text-[var(--c-primary)]">{s.title}</p>
                 <p className="mt-1 line-clamp-1 text-[12px] text-[#a1a1aa]">{s.desc}</p>
               </Link>
             ))}
@@ -173,12 +173,12 @@ export default function HomeV5({ home, options, settings }: HomeVariantProps) {
                   {g.items.map((it) => (
                     <li key={it.href}>
                       <Link href={it.href} className="group flex items-center gap-3 py-2.5">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[#3f3f46] group-hover:text-[#ff5fa2]" style={{ background: g.tone }}>{it.icon}</span>
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-[#3f3f46] group-hover:text-[var(--c-primary)]" style={{ background: g.tone }}>{it.icon}</span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[14px] font-medium group-hover:text-[#ff5fa2]">{it.title}</span>
+                          <span className="block truncate text-[14px] font-medium group-hover:text-[var(--c-primary)]">{it.title}</span>
                           <span className="block truncate text-[12px] text-[#71717a]">{it.desc}</span>
                         </span>
-                        <ArrowRight size={15} className="shrink-0 text-[#d4d4d8] transition-transform group-hover:translate-x-0.5 group-hover:text-[#ff5fa2]" />
+                        <ArrowRight size={15} className="shrink-0 text-[#d4d4d8] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--c-primary)]" />
                       </Link>
                     </li>
                   ))}
@@ -208,13 +208,13 @@ export default function HomeV5({ home, options, settings }: HomeVariantProps) {
 
           {/* ---------- Hỗ trợ ---------- */}
           <Card className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[#ff5fa2]"><CircleHelp size={20} /></span>
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[var(--c-secondary)] text-[var(--c-primary)]"><CircleHelp size={20} /></span>
             <div className="min-w-0 flex-1">
               <p className="text-[15px] font-semibold">Chưa biết bắt đầu từ đâu?</p>
               <p className="text-[13px] text-[#71717a]">Đọc hướng dẫn làm file hoặc nhắn tiệm — tiệm tư vấn gói phù hợp cho bạn.</p>
             </div>
             <div className="flex gap-2">
-              <Link href="/huong-dan" className="inline-flex h-9 items-center rounded-[8px] border border-[#e5e5e7] px-3 text-[13px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]">Hướng dẫn</Link>
+              <Link href="/huong-dan" className="inline-flex h-9 items-center rounded-[8px] border border-[#e5e5e7] px-3 text-[13px] font-medium hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]">Hướng dẫn</Link>
               <Link href="/lien-he" className="inline-flex h-9 items-center rounded-[8px] px-3 text-[13px] font-semibold text-white hover:opacity-90" style={{ background: PINK }}>Liên hệ</Link>
             </div>
           </Card>

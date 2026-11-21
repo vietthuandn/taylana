@@ -119,8 +119,8 @@ export function ScrapbookEditor(p: {
           const on = p.tab === id && open;
           return (
             <button key={id} type="button" onClick={() => switchTab(id)} aria-pressed={on}
-              className={cx("flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium md:mx-1.5 md:flex-none md:rounded-[10px] md:py-2.5", on ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b] hover:bg-[#f4f4f5]")}>
-              <span className={on ? "text-[#ff5fa2]" : "text-[#3f3f46]"}>{icon}</span>{label}
+              className={cx("flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium md:mx-1.5 md:flex-none md:rounded-[10px] md:py-2.5", on ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "text-[#52525b] hover:bg-[#f4f4f5]")}>
+              <span className={on ? "text-[var(--c-primary)]" : "text-[#3f3f46]"}>{icon}</span>{label}
             </button>
           );
         })}
@@ -133,7 +133,7 @@ export function ScrapbookEditor(p: {
         {p.tab === "anh" && (
           <>
             <button type="button" onClick={() => (doc ? st.setAddSlotOpen(true) : toast("Tải ảnh và chọn mẫu trước khi thêm khung ảnh.", "err"))}
-              className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#ff5fa2] text-[14px] font-semibold text-white hover:bg-[#f0468f]">+ Thêm khung ảnh</button>
+              className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[var(--c-primary)] text-[14px] font-semibold text-white hover:bg-[var(--c-primary-hover)]">+ Thêm khung ảnh</button>
             {mode === "template" && <p className="text-[12px] text-[#71717a]">Chọn 1 ô ảnh trên bề mặt để đổi khung hoặc xoá ô. Số ảnh của ô sửa ở khối “Thuộc tính” bên dưới.</p>}
             {p.photoTab}
           </>
@@ -180,7 +180,7 @@ export function ScrapbookEditor(p: {
             <button type="button" onClick={() => setZoom((z) => clampZ(z - 0.1))} disabled={zoom <= 0.25} title="Thu nhỏ" aria-label="Thu nhỏ" className="grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5] disabled:opacity-40"><Minus size={14} /></button>
             <span className="w-11 text-center tabular-nums text-[#3f3f46]">{Math.round(zoom * 100)}%</span>
             <button type="button" onClick={() => setZoom((z) => clampZ(z + 0.1))} disabled={zoom >= 3} title="Phóng to" aria-label="Phóng to" className="grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5] disabled:opacity-40"><Plus size={14} /></button>
-            <button type="button" onClick={() => setZoom(1)} title="Vừa màn hình" aria-label="Vừa màn hình" className={cx("grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5]", zoom === 1 && "text-[#ff5fa2]")}><Maximize size={13} /></button>
+            <button type="button" onClick={() => setZoom(1)} title="Vừa màn hình" aria-label="Vừa màn hình" className={cx("grid h-7 w-7 place-items-center rounded-full hover:bg-[#f4f4f5]", zoom === 1 && "text-[var(--c-primary)]")}><Maximize size={13} /></button>
           </div>
         )}
         </div>
@@ -195,7 +195,7 @@ export function ScrapbookEditor(p: {
             <div className="no-scrollbar mt-1 flex justify-center gap-1.5 overflow-x-auto pb-1">
               {doc.map((s, i) => (
                 <button key={i} type="button" onClick={() => go(i)} title={p.pageLabel?.(i, count)}
-                  className={cx("h-16 shrink-0 overflow-hidden rounded-[4px] border bg-white p-px", s.surface === "spread" ? "w-32" : s.surface === "back" ? "w-20" : "w-16", i === st.active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+                  className={cx("h-16 shrink-0 overflow-hidden rounded-[4px] border bg-white p-px", s.surface === "spread" ? "w-32" : s.surface === "back" ? "w-20" : "w-16", i === st.active ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   {thumbs[i] ? <img src={thumbs[i]} alt="" className="block h-full w-full object-contain" /> : <span className="block h-full w-full bg-[#ececef]" />}
                 </button>

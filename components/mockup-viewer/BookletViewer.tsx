@@ -172,7 +172,7 @@ export function BookletViewer({ pages, back, bg, bgPicker, onExit }: {
       <div className="relative flex min-h-[420px] flex-1 flex-col bg-cover bg-center md:absolute md:inset-x-0 md:bottom-14 md:top-0 md:min-h-0"
         style={{ backgroundImage: bgUrl ? `url(${bgUrl})` : undefined }}>
         <button type="button" onClick={onExit}
-          className="absolute left-3 top-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-[8px] bg-white/90 px-2.5 text-[13px] font-medium text-[#18181b] shadow-sm hover:text-[#ff5fa2]">
+          className="absolute left-3 top-3 z-10 inline-flex h-8 items-center gap-1.5 rounded-[8px] bg-white/90 px-2.5 text-[13px] font-medium text-[#18181b] shadow-sm hover:text-[var(--c-primary)]">
           <ArrowLeft size={15} /> CD Mockup
         </button>
         <div ref={area} className="flex flex-1 flex-col items-center justify-center">

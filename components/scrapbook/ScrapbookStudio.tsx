@@ -184,14 +184,14 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
       pageLabel={isBack ? (i) => backSlots(2)[i]?.label ?? "" : undefined}
       templateTab={isBack ? (bundleMode ? (
         <section className="space-y-3">
-          <button type="button" onClick={() => setBundleMode(false)} className="inline-flex items-center gap-1 text-[13px] font-medium text-[#52525b] hover:text-[#ff5fa2]"><ArrowLeft size={14} /> Mẫu theo mặt</button>
+          <button type="button" onClick={() => setBundleMode(false)} className="inline-flex items-center gap-1 text-[13px] font-medium text-[#52525b] hover:text-[var(--c-primary)]"><ArrowLeft size={14} /> Mẫu theo mặt</button>
           <p className="text-[12px] text-[#71717a]">Bộ mẫu 2 mặt — Mặt ngoài và Mặt trong thiết kế đồng bộ. Chọn 1 bộ để thay cả 2 mặt.</p>
           {bundles.length ? groupByCategory(bundles, library.categories.filter((c) => c.scope === "back_bundle")).map((g) => (
             <div key={g.cat?.id ?? "o"}>
               <p className="mb-2 text-[13px] font-semibold">{g.cat?.name ?? "Khác"}</p>
               <div className="space-y-2">
                 {g.items.map((b) => (
-                  <button key={b.id} type="button" onClick={() => applyBundle(b)} className={cx("block w-full rounded-[10px] border bg-white p-1.5 text-left", st.applied === b.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#ff5fa2]")}>
+                  <button key={b.id} type="button" onClick={() => applyBundle(b)} className={cx("block w-full rounded-[10px] border bg-white p-1.5 text-left", st.applied === b.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7] hover:border-[var(--c-primary)]")}>
                     <span className="grid grid-cols-2 gap-1.5">
                       {backSlots(2).map((sl, k) => { const d = tplById.get(b.template_ids[k]); return (
                         <span key={k} className="grid aspect-[150/117] place-items-center overflow-hidden rounded-[6px] bg-[#f4f4f5]">
@@ -211,7 +211,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
         <section className="space-y-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[13px] font-semibold">Mẫu cho {backSlots(2)[st.active]?.label ?? "Mặt ngoài"}</p>
-            {faces === 2 && <button type="button" onClick={() => setBundleMode(true)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><LayoutTemplate size={13} /> Bộ mẫu 2 mặt</button>}
+            {faces === 2 && <button type="button" onClick={() => setBundleMode(true)} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><LayoutTemplate size={13} /> Bộ mẫu 2 mặt</button>}
           </div>
           {faces === 2 && <p className="text-[12px] text-[#71717a]">Bấm vào từng mặt ở thanh dưới khung thiết kế để chọn mẫu cho mặt đó.</p>}
           <LibraryGrid items={tpls} cats={library.categories.filter((c) => c.scope === "back")} current={st.applied} onPick={apply} cols={2} aspect="aspect-[150/117]" />
@@ -231,7 +231,7 @@ export function ScrapbookStudio({ assets, assetGroups = [], library, fonts, glyp
           {isBack ? (
             <div className="flex min-w-0 flex-1 items-center gap-1.5">
               <span className="shrink-0 text-[13px] font-medium text-[#3f3f46]">Số mặt:</span>
-              {BACK_FACES.map((n) => <button key={n} type="button" onClick={() => changeFaces(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", faces === n ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
+              {BACK_FACES.map((n) => <button key={n} type="button" onClick={() => changeFaces(n)} className={cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", faces === n ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>{n}</button>)}
             </div>
           ) : <span className="flex-1" />}
           <Button size="sm" variant="secondary" icon={<Download size={16} />} onClick={downloadPrint} loading={busy}>Tải file in (PNG)</Button>

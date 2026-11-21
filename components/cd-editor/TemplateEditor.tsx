@@ -81,7 +81,7 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
 
   const Switch = ({ on, onClick, label }: { on: boolean; onClick: () => void; label: string }) => (
     <button type="button" role="switch" aria-checked={on} onClick={onClick} className="inline-flex items-center gap-2 text-[13px] text-[#18181b]">
-      <span className={`relative h-[18px] w-8 rounded-full transition ${on ? "bg-[#ff5fa2]" : "bg-[#d4d4d8]"}`}>
+      <span className={`relative h-[18px] w-8 rounded-full transition ${on ? "bg-[var(--c-primary)]" : "bg-[#d4d4d8]"}`}>
         <span className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${on ? "left-[16px]" : "left-[2px]"}`} />
       </span>
       {label}
@@ -93,11 +93,11 @@ export function CdTemplateEditor({ row, onSave, onCancel }: {
       {/* thanh nhỏ phía trên workspace */}
       <div className="flex h-12 shrink-0 items-center gap-3 border-b border-[#e5e5e7] px-3">
         <button className="tool-btn shrink-0" onClick={onCancel}><Icon name="back" /> Danh sách mẫu</button>
-        <input className="h-8 min-w-0 flex-1 rounded-[6px] border border-transparent bg-transparent px-2 text-[14px] font-semibold hover:border-[#e5e5e7] focus:border-[#ff5fa2] focus:outline-none focus:ring-[3px] focus:ring-[#ff5fa2]/15 sm:max-w-sm"
+        <input className="h-8 min-w-0 flex-1 rounded-[6px] border border-transparent bg-transparent px-2 text-[14px] font-semibold hover:border-[#e5e5e7] focus:border-[var(--c-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--c-primary)]/15 sm:max-w-sm"
           placeholder="Tên mẫu" value={name} onChange={(e) => setName(e.target.value)} aria-label="Tên mẫu" />
         <div className="ml-auto flex items-center gap-3">
           {err && <p className="hidden text-[12px] text-[#dc2626] sm:block">{err}</p>}
-          <button className="h-9 rounded-[8px] bg-[#ff5fa2] px-4 text-[14px] font-medium text-white hover:bg-[#f0468f] disabled:opacity-50" disabled={saving} onClick={save}>
+          <button className="h-9 rounded-[8px] bg-[var(--c-primary)] px-4 text-[14px] font-medium text-white hover:bg-[var(--c-primary-hover)] disabled:opacity-50" disabled={saving} onClick={save}>
             {saving ? "Đang lưu..." : "Lưu mẫu"}
           </button>
         </div>

@@ -25,7 +25,7 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
   const bg = sc === "right" ? t.bg2 ?? t.bg : t.bg;
   const textures = assets.filter((a) => a.is_active && a.grp === "texture");
   const set = (v: Partial<Template["bg"]>) => onSet(sc, v);
-  const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
+  const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
   const preview = bg.image ? bgImages[bg.image]?.src : undefined;
   return (
     <div className="space-y-5">
@@ -37,8 +37,8 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
       <section>
         <p className="mb-2 text-[13px] font-semibold">Màu nền</p>
         <div className="flex flex-wrap items-center gap-1.5">
-          {COLORS.map((c) => <button key={c} type="button" onClick={() => set({ color: c })} aria-label={c} className={cx("h-7 w-7 rounded-full border-2", bg.color.toLowerCase() === c ? "border-[#ff5fa2]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
-          <label className="relative grid h-7 w-7 cursor-pointer place-items-center overflow-hidden rounded-full border border-dashed border-[#a1a1aa] text-[14px] text-[#52525b] hover:border-[#ff5fa2]" title="Chọn màu riêng">
+          {COLORS.map((c) => <button key={c} type="button" onClick={() => set({ color: c })} aria-label={c} className={cx("h-7 w-7 rounded-full border-2", bg.color.toLowerCase() === c ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
+          <label className="relative grid h-7 w-7 cursor-pointer place-items-center overflow-hidden rounded-full border border-dashed border-[#a1a1aa] text-[14px] text-[#52525b] hover:border-[var(--c-primary)]" title="Chọn màu riêng">
             +<input type="color" value={bg.color} onChange={(e) => set({ color: e.target.value })} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Chọn màu riêng" />
           </label>
         </div>
@@ -50,9 +50,9 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
         <p className="mb-2 text-[13px] font-semibold">Texture giấy</p>
         {textures.length ? (
           <div className="grid grid-cols-4 gap-2">
-            <button type="button" onClick={() => set({ asset: undefined })} className={cx("grid aspect-square place-items-center rounded-[8px] border text-[11px] text-[#71717a]", !bg.asset ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7]")}>Không</button>
+            <button type="button" onClick={() => set({ asset: undefined })} className={cx("grid aspect-square place-items-center rounded-[8px] border text-[11px] text-[#71717a]", !bg.asset ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7]")}>Không</button>
             {textures.map((a) => (
-              <button key={a.id} type="button" title={a.name} onClick={() => set({ asset: a.id })} className={cx("aspect-square overflow-hidden rounded-[8px] border", bg.asset === a.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+              <button key={a.id} type="button" title={a.name} onClick={() => set({ asset: a.id })} className={cx("aspect-square overflow-hidden rounded-[8px] border", bg.asset === a.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/25" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={a.url} alt={a.name} className="h-full w-full object-cover" loading="lazy" />
               </button>
@@ -63,7 +63,7 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
       <section>
         <p className="mb-2 text-[13px] font-semibold">Ảnh nền</p>
         <div className="flex items-start gap-3">
-          <button type="button" onClick={() => fileIn.current?.click()} disabled={busy} className={cx("grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] text-[12px] text-[#52525b] hover:border-[#ff5fa2]", checker)}>
+          <button type="button" onClick={() => fileIn.current?.click()} disabled={busy} className={cx("grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] text-[12px] text-[#52525b] hover:border-[var(--c-primary)]", checker)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             {preview ? <img src={preview} alt="" className="h-full w-full object-cover" /> : <span className="grid place-items-center gap-1"><ImagePlus size={18} />{busy ? "Đang tải..." : "Tải ảnh"}</span>}
           </button>
@@ -71,7 +71,7 @@ export function BgTab({ t, assets, bgImages, onSet, onUpload }: {
             <div className="min-w-0 flex-1 space-y-2">
               <label className="block text-[12px] text-[#52525b]">
                 <span className="flex justify-between">Độ mờ<span className="tabular-nums">{Math.round((bg.imageOpacity ?? 1) * 100)}%</span></span>
-                <input type="range" min={10} max={100} step={5} value={Math.round((bg.imageOpacity ?? 1) * 100)} onChange={(e) => set({ imageOpacity: Number(e.target.value) / 100 })} className="w-full accent-[#ff5fa2]" />
+                <input type="range" min={10} max={100} step={5} value={Math.round((bg.imageOpacity ?? 1) * 100)} onChange={(e) => set({ imageOpacity: Number(e.target.value) / 100 })} className="w-full accent-[var(--c-primary)]" />
               </label>
               <button type="button" onClick={() => set({ image: undefined, imageOpacity: undefined })} className="inline-flex items-center gap-1 text-[12px] text-[#dc2626]"><Trash2 size={12} /> Xoá ảnh nền</button>
             </div>

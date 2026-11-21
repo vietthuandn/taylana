@@ -17,7 +17,7 @@ export function TileGrid({ items, preview = false }: { items: TileItem[]; previe
       {list.map((o, i) => (
         <li key={o.id} className={`min-w-0 [container-type:inline-size] ${w} ${preview ? "" : "animate-[rise_.6s_cubic-bezier(.2,.8,.2,1)_both]"}`} style={preview ? undefined : { animationDelay: `${i * 60}ms` }}>
           <Link href={o.href || "/"} scroll={!o.href.includes("?")} tabIndex={preview ? -1 : undefined}
-            className={`flex flex-col items-center text-center outline-none focus-visible:ring-4 focus-visible:ring-[#ff5fa2] ${preview ? "pointer-events-none" : ""}`}>
+            className={`flex flex-col items-center text-center outline-none focus-visible:ring-4 focus-visible:ring-[var(--c-primary)] ${preview ? "pointer-events-none" : ""}`}>
             {o.image_url && (
               // ảnh admin tải lên: hiện nguyên ảnh. Qua bộ tối ưu ảnh của Next (tự thu nhỏ đúng cỡ hiển thị + WebP/AVIF)
               // → cả ảnh cũ tải lên trước khi có nén vẫn nhẹ. SVG giữ nguyên.

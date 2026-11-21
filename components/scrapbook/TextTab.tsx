@@ -53,17 +53,17 @@ function FontSelect({ value, fonts, previews, families, onPick }: { value: strin
           {fonts.length > 0 && <p className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#a1a1aa]">Chữ cắt dán</p>}
           {fonts.map((f) => (
             <button key={f.id} type="button" onClick={() => { onPick(`cut:${f.id}`); setOpen(false); }} title={f.name}
-              className={cx("flex h-11 w-full items-center gap-2 rounded-[6px] px-2 hover:bg-[#fff5f9]", value === `cut:${f.id}` && "bg-[#fff0f6]")}>
+              className={cx("flex h-11 w-full items-center gap-2 rounded-[6px] px-2 hover:bg-[#fff5f9]", value === `cut:${f.id}` && "bg-[var(--c-secondary)]")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {previews[f.id] ? <img src={previews[f.id]} alt={f.name} className="max-h-8 max-w-[80%]" /> : <span className="text-[13px]">{f.name}</span>}
-              {value === `cut:${f.id}` && <Check size={14} className="ml-auto text-[#ff5fa2]" />}
+              {value === `cut:${f.id}` && <Check size={14} className="ml-auto text-[var(--c-primary)]" />}
             </button>
           ))}
           <p className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[#a1a1aa]">Font thường</p>
           {families.map((f) => (
             <button key={f || "tpl"} type="button" onClick={() => { onPick(f); setOpen(false); }}
-              className={cx("flex h-9 w-full items-center rounded-[6px] px-2 text-left text-[15px] hover:bg-[#fff5f9]", value === f && "bg-[#fff0f6]")} style={{ fontFamily: f ? `"${f}"` : undefined }}>
-              {f || "Theo mẫu"}{value === f && <Check size={14} className="ml-auto text-[#ff5fa2]" />}
+              className={cx("flex h-9 w-full items-center rounded-[6px] px-2 text-left text-[15px] hover:bg-[#fff5f9]", value === f && "bg-[var(--c-secondary)]")} style={{ fontFamily: f ? `"${f}"` : undefined }}>
+              {f || "Theo mẫu"}{value === f && <Check size={14} className="ml-auto text-[var(--c-primary)]" />}
             </button>
           ))}
         </div>
@@ -80,8 +80,8 @@ function Swatches({ colors, value, onPick, onCustom }: { colors: string[]; value
   const valid = /^#[0-9a-f]{6}$/i.test(hex);
   return (
     <div ref={ref} className="relative flex flex-wrap items-center gap-1.5">
-      {colors.map((c) => <button key={c} type="button" onClick={() => onPick(c)} aria-label={c} className={cx("h-[22px] w-[22px] rounded-full border-2", value.toLowerCase() === c.toLowerCase() ? "border-[#ff5fa2]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-label="Chọn màu riêng" className="grid h-[22px] w-[22px] place-items-center rounded-full border border-dashed border-[#a1a1aa] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Plus size={12} /></button>
+      {colors.map((c) => <button key={c} type="button" onClick={() => onPick(c)} aria-label={c} className={cx("h-[22px] w-[22px] rounded-full border-2", value.toLowerCase() === c.toLowerCase() ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: c }} />)}
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-label="Chọn màu riêng" className="grid h-[22px] w-[22px] place-items-center rounded-full border border-dashed border-[#a1a1aa] text-[#52525b] hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><Plus size={12} /></button>
       {open && (
         <div className="absolute left-0 top-full z-30 mt-1 w-[232px] rounded-[10px] border border-[#e5e5e7] bg-white p-2.5 shadow-lg">
           <div className="grid grid-cols-8 gap-1.5">
@@ -91,8 +91,8 @@ function Swatches({ colors, value, onPick, onCustom }: { colors: string[]; value
             <span className="h-7 w-7 shrink-0 rounded-[6px] ring-1 ring-[#e5e5e7]" style={{ background: valid ? hex : "#fff" }} />
             <input value={hex} onChange={(e) => setHex(e.target.value.startsWith("#") ? e.target.value : `#${e.target.value}`)} maxLength={7} aria-label="Mã HEX"
               onKeyDown={(e) => { if (e.key === "Enter" && valid) { onCustom(hex); setOpen(false); } }}
-              className="h-7 min-w-0 flex-1 rounded-[6px] border border-[#e5e5e7] px-2 font-mono text-[12px] uppercase outline-none focus:border-[#ff5fa2]" />
-            <button type="button" disabled={!valid} onClick={() => { onCustom(hex); setOpen(false); }} className="h-7 rounded-[6px] bg-[#ff5fa2] px-2.5 text-[12px] font-medium text-white disabled:opacity-40">Dùng</button>
+              className="h-7 min-w-0 flex-1 rounded-[6px] border border-[#e5e5e7] px-2 font-mono text-[12px] uppercase outline-none focus:border-[var(--c-primary)]" />
+            <button type="button" disabled={!valid} onClick={() => { onCustom(hex); setOpen(false); }} className="h-7 rounded-[6px] bg-[var(--c-primary)] px-2.5 text-[12px] font-medium text-white disabled:opacity-40">Dùng</button>
           </div>
         </div>
       )}
@@ -111,8 +111,8 @@ export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper
   const [target, setTarget] = useState<"ink" | "paper">("ink");
   const cur = layer?.k === "text" ? layer : null, wl = layer?.k === "wish" ? layer : null, L = cur ?? wl;
   const curTopic = topic ?? topics?.[0]?.id ?? null;
-  const toggle = (on: boolean) => cx("grid h-8 min-w-[34px] place-items-center rounded-[6px] border px-2 text-[13px]", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b]");
-  const chip = (on: boolean) => cx("h-7 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
+  const toggle = (on: boolean) => cx("grid h-8 min-w-[34px] place-items-center rounded-[6px] border px-2 text-[13px]", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b]");
+  const chip = (on: boolean) => cx("h-7 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
   const ink = cur ? cur.color : wl?.ink ?? "#3f3f46";
   const setInk = (c: string) => { onBegin(); onPatch(cur ? { color: c } : { ink: c }); };
   const setPaperColor = (c: string) => { onBegin(); onPatch({ color: c }); };
@@ -120,7 +120,7 @@ export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper
   const families = wl ? [WISH_FONT, ...FAMILIES.filter((f) => f !== WISH_FONT)] : cur && !cur.family ? ["", ...FAMILIES] : FAMILIES;
   return (
     <div className="space-y-4">
-      <button type="button" onClick={onAdd} className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[#ff5fa2] text-[14px] font-semibold text-white hover:bg-[#f0468f]"><Plus size={17} /> Thêm chữ</button>
+      <button type="button" onClick={onAdd} className="inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] bg-[var(--c-primary)] text-[14px] font-semibold text-white hover:bg-[var(--c-primary-hover)]"><Plus size={17} /> Thêm chữ</button>
 
       {!wishOpen && L && (
         <section className="space-y-3 rounded-[10px] border border-[#e5e5e7] p-3">
@@ -148,8 +148,8 @@ export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper
               <div className="flex flex-wrap items-center gap-1.5">
                 {wl && (
                   <span className="mr-1 inline-flex rounded-full border border-[#e5e5e7] p-0.5 text-[11px]">
-                    <button type="button" onClick={() => setTarget("ink")} className={cx("rounded-full px-1.5", target === "ink" && "bg-[#fff0f6] text-[#ff5fa2]")}>Chữ</button>
-                    <button type="button" onClick={() => setTarget("paper")} className={cx("rounded-full px-1.5", target === "paper" && "bg-[#fff0f6] text-[#ff5fa2]")}>Khung</button>
+                    <button type="button" onClick={() => setTarget("ink")} className={cx("rounded-full px-1.5", target === "ink" && "bg-[var(--c-secondary)] text-[var(--c-primary)]")}>Chữ</button>
+                    <button type="button" onClick={() => setTarget("paper")} className={cx("rounded-full px-1.5", target === "paper" && "bg-[var(--c-secondary)] text-[var(--c-primary)]")}>Khung</button>
                   </span>
                 )}
                 {colors.map((c) => <button key={c} type="button" title={c} onClick={() => (wl && target === "paper" ? setPaperColor(c) : setInk(c))} className="h-[22px] w-[22px] rounded-full ring-1 ring-[#e5e5e7]" style={{ background: c }} />)}
@@ -184,7 +184,7 @@ export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper
                   {cur.cutout.curve !== 0 && <Range label="Độ cong (− nụ cười · + cầu vồng)" value={Math.round(cur.cutout.curve * 100)} min={-100} max={100} step={1} unit="%" onBegin={onBegin} onChange={(v) => onPatch({ cutout: { ...cur.cutout!, curve: v / 100 || 0.01 } })} />}
                   <Range label="Độ lộn xộn" value={Math.round(cur.cutout.chaos * 100)} min={0} max={100} step={1} unit="%" onBegin={onBegin} onChange={(v) => onPatch({ cutout: { ...cur.cutout!, chaos: v / 100 } })} />
                   <button type="button" onClick={() => { onBegin(); onPatch({ cutout: { ...cur.cutout!, seed: Math.floor(Math.random() * 1e6) } }); }}
-                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /> Đổi mảnh</button>
+                    className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><Dices size={14} /> Đổi mảnh</button>
                 </>
               ) : <Range label="Khoảng cách chữ" value={cur.ls ?? 0} min={-0.5} max={3} step={0.1} unit="mm" onBegin={onBegin} onChange={(v) => onPatch({ ls: v })} />}
             </>
@@ -204,11 +204,11 @@ export function TextTab({ layer, fonts, previews, colors, onCustomColor, onPaper
           {wishOpen && (
             <div className="space-y-2 border-t border-[#efeff1] p-3">
               <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
-                {topics.map((t) => <button key={t.id} type="button" onClick={() => setTopic(t.id)} className={cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", curTopic === t.id ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b]")}>{t.name}</button>)}
+                {topics.map((t) => <button key={t.id} type="button" onClick={() => setTopic(t.id)} className={cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", curTopic === t.id ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b]")}>{t.name}</button>)}
               </div>
               <ul className="max-h-[300px] space-y-1 overflow-y-auto">
                 {wishes.filter((w) => w.topic_id === curTopic).map((w) => (
-                  <li key={w.id}><button type="button" onClick={() => onWish(w.content)} className="w-full rounded-[8px] border border-[#efeff1] px-2.5 py-1.5 text-left text-[13px] leading-snug text-[#3f3f46] hover:border-[#ff5fa2] hover:bg-[#fff5f9]">{w.content}</button></li>
+                  <li key={w.id}><button type="button" onClick={() => onWish(w.content)} className="w-full rounded-[8px] border border-[#efeff1] px-2.5 py-1.5 text-left text-[13px] leading-snug text-[#3f3f46] hover:border-[var(--c-primary)] hover:bg-[#fff5f9]">{w.content}</button></li>
                 ))}
               </ul>
             </div>
@@ -223,7 +223,7 @@ function Range({ label, value, min, max, step, unit, onChange, onBegin }: { labe
   return (
     <label className="block text-[12px] text-[#52525b]">
       <span className="flex justify-between">{label}<span className="tabular-nums">{Math.round(value * 100) / 100}{unit}</span></span>
-      <input type="range" min={min} max={max} step={step} value={value} onPointerDown={onBegin} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-[#ff5fa2]" />
+      <input type="range" min={min} max={max} step={step} value={value} onPointerDown={onBegin} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-[var(--c-primary)]" />
     </label>
   );
 }

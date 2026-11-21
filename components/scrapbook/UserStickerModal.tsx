@@ -115,7 +115,7 @@ export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onA
     if (blob) onAdd(blob);
     if (i + 1 < files.length) setI(i + 1); else onClose();
   }
-  const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
+  const chip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
   const busy = status.k !== "idle";
   const busyText = status.k === "load" ? (status.cached ? "Đang tải bộ tách nền..." : `Đang tải (${MB(status.loaded)} / ${MB(status.total)}MB)`)
     : status.k === "init" ? "Đang khởi động" : "Đang tách nền";
@@ -156,7 +156,7 @@ export function UserStickerModal({ files, onAdd, onClose }: { files: File[]; onA
                     <Range label="Làm mềm mép" value={feather} min={0} max={4} step={1} unit="px" onChange={setFeather} />
                   </>
                 )}
-                {!alphaImg && <label className="flex items-center gap-2 text-[13px] text-[#3f3f46]"><input type="checkbox" checked={keepMany} onChange={(e) => setKeepMany(e.target.checked)} className="h-4 w-4 accent-[#ff5fa2]" /> Giữ nhiều vật</label>}
+                {!alphaImg && <label className="flex items-center gap-2 text-[13px] text-[#3f3f46]"><input type="checkbox" checked={keepMany} onChange={(e) => setKeepMany(e.target.checked)} className="h-4 w-4 accent-[var(--c-primary)]" /> Giữ nhiều vật</label>}
               </div>
             </div>
             {/* phải: xem trước (đã tính viền trắng khi co cho vừa khung) */}
@@ -204,7 +204,7 @@ function Box({ children, label, busy, text }: { children: React.ReactNode; label
         {children}
         {busy && (
           <div className="absolute inset-0 grid place-items-center bg-white/75 text-center text-[13px] font-medium text-[#3f3f46]">
-            <span className="px-4"><Loader2 size={22} className="mx-auto mb-2 animate-spin text-[#ff5fa2]" />{text}</span>
+            <span className="px-4"><Loader2 size={22} className="mx-auto mb-2 animate-spin text-[var(--c-primary)]" />{text}</span>
           </div>
         )}
       </div>
@@ -215,7 +215,7 @@ function Range({ label, value, min, max, step, unit, onChange }: { label: string
   return (
     <label className="block text-[12px] text-[#52525b]">
       <span className="flex justify-between">{label}<span className="tabular-nums">{value}{unit}</span></span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-[#ff5fa2]" />
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-[var(--c-primary)]" />
     </label>
   );
 }

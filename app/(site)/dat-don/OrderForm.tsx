@@ -129,7 +129,7 @@ function Inner({ products, discounts, shipping, payment, draft, productId, optio
       <div className={cx("mt-2 overflow-hidden text-[14px] leading-relaxed text-[#3f3f46]", !descOpen && "line-clamp-3")}>
         <RichText text={product.description} />
       </div>
-      {!descOpen && <button type="button" onClick={() => setDescOpen(true)} className="mt-1 text-[13px] font-medium text-[#ff5fa2]">Xem thêm</button>}
+      {!descOpen && <button type="button" onClick={() => setDescOpen(true)} className="mt-1 text-[13px] font-medium text-[var(--c-primary)]">Xem thêm</button>}
     </section>
   );
 
@@ -160,7 +160,7 @@ function Inner({ products, discounts, shipping, payment, draft, productId, optio
             <div className="flex min-w-0 flex-col gap-6 lg:col-span-7">
               <div>
                 <h1 className="font-sans text-[22px] font-bold normal-case leading-tight tracking-[-0.02em] text-[#18181b]">{product.name}</h1>
-                <p className="mt-2 text-[22px] font-bold tabular-nums text-[#ff5fa2]">{priceText}</p>
+                <p className="mt-2 text-[22px] font-bold tabular-nums text-[var(--c-primary)]">{priceText}</p>
               </div>
               {product.groups.map((g) => g.options.length > 0 && (
                 <section key={g.id}>
@@ -218,7 +218,7 @@ function Thumbs({ images, active, onPick }: { images: string[]; active: number; 
       <div ref={box} onScroll={measure} className="no-scrollbar flex snap-x gap-2 overflow-x-auto">
         {images.map((src, i) => (
           <button key={src} type="button" onClick={() => onPick(i)} onMouseEnter={() => onPick(i)} aria-label={`Ảnh ${i + 1}`}
-            className={cx("relative h-[72px] w-[72px] shrink-0 snap-start overflow-hidden rounded-[8px] border-2 bg-white", i === active ? "border-[#ff5fa2]" : "border-transparent")}>
+            className={cx("relative h-[72px] w-[72px] shrink-0 snap-start overflow-hidden rounded-[8px] border-2 bg-white", i === active ? "border-[var(--c-primary)]" : "border-transparent")}>
             <Image src={src} alt="" width={72} height={72} className="h-full w-full object-cover" />
           </button>
         ))}

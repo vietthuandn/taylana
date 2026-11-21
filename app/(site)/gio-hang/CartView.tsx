@@ -80,7 +80,7 @@ export function CartView({ products, discounts, shipping, payment }: { products:
               <div className="mb-2 flex items-center justify-between">
                 <Label>Giỏ hàng ({raw.length})</Label>
                 <label className="mb-2 flex cursor-pointer items-center gap-2 text-[13px] text-[#71717a]">
-                  <input type="checkbox" className="h-4 w-4 accent-[#ff5fa2]" checked={allOn}
+                  <input type="checkbox" className="h-4 w-4 accent-[var(--c-primary)]" checked={allOn}
                     onChange={(e) => setOff(e.target.checked ? new Set() : new Set(rows.map((r) => r.c.id)))} /> Chọn tất cả
                 </label>
               </div>
@@ -89,14 +89,14 @@ export function CartView({ products, discounts, shipping, payment }: { products:
                   const img = line && product ? thumb(product, line.sels) : null;
                   return (
                     <li key={c.id} className="flex items-center gap-3 px-4 py-3 sm:h-24 sm:py-0">
-                      <input type="checkbox" className="h-4 w-4 shrink-0 accent-[#ff5fa2]" disabled={!line} checked={!!line && !off.has(c.id)}
+                      <input type="checkbox" className="h-4 w-4 shrink-0 accent-[var(--c-primary)]" disabled={!line} checked={!!line && !off.has(c.id)}
                         aria-label="Chọn dòng này" onChange={() => toggle(c.id)} />
                       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-[8px] border border-[#e5e5e7] bg-[#f4f4f5]">
                         {img ? <Image src={img} alt="" width={64} height={64} className="h-16 w-16 object-cover" /> : <Disc3 size={24} strokeWidth={1.2} className="absolute inset-0 m-auto text-[#d4d4d8]" />}
                       </div>
                       <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                       <div className="min-w-0 flex-1">
-                        <Link href={href} className={cx("block line-clamp-2 text-[14px] sm:line-clamp-1 font-semibold hover:text-[#ff5fa2]", line ? "text-[#18181b]" : "text-[#a1a1aa] line-through")}>{product?.name ?? "Sản phẩm đã ngừng bán"}</Link>
+                        <Link href={href} className={cx("block line-clamp-2 text-[14px] sm:line-clamp-1 font-semibold hover:text-[var(--c-primary)]", line ? "text-[#18181b]" : "text-[#a1a1aa] line-through")}>{product?.name ?? "Sản phẩm đã ngừng bán"}</Link>
                         {variation && <p className="text-[13px] text-[#71717a] sm:truncate" title={variation}>{variation}</p>}
                         {note && <p className="text-[12px] text-[#b45309] sm:truncate" title={note}>{note}</p>}
                       </div>

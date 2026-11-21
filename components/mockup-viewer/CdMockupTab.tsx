@@ -269,7 +269,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
           const on = isSys && arrange === k;
           return (
             <button key={k} type="button" onClick={() => { setIdx(SYSTEM); setArrange(k); }} title={`Mockup: ${t}`} aria-label={`Mockup ${t}`}
-              className={cx("relative h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", on ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+              className={cx("relative h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", on ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {thumbs[k] && <img src={thumbs[k]} alt="" className="h-full w-full object-cover" />}
               <span className="absolute inset-x-0 bottom-0 bg-black/55 text-center text-[9px] font-bold leading-[13px] text-white">{t}</span>
@@ -278,13 +278,13 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
         })}
         {frames.map((f, i) => (
           <button key={f.id} type="button" onClick={() => setIdx(i)} title={f.name}
-            className={cx("h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", idx >= 0 && f.id === frame?.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+            className={cx("h-12 w-12 shrink-0 overflow-hidden rounded-[8px] border bg-[#f4f4f5]", idx >= 0 && f.id === frame?.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={proxied(f.image_url)} alt={f.name} className="h-full w-full object-contain" loading="lazy" />
           </button>
         ))}
         <button type="button" onClick={() => setIdx(THREE_D)} title="Hộp CD 3D" aria-label="Hộp CD 3D"
-          className={cx("relative grid h-12 w-12 shrink-0 place-items-center rounded-[8px] border bg-white text-[#52525b]", is3d ? "border-[#ff5fa2] text-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+          className={cx("relative grid h-12 w-12 shrink-0 place-items-center rounded-[8px] border bg-white text-[#52525b]", is3d ? "border-[var(--c-primary)] text-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
           <Box size={20} />
           <span className="absolute bottom-0.5 right-1 text-[9px] font-bold leading-none">3D</span>
         </button>
@@ -296,7 +296,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
           {/* "Một": chọn món · nút xáo trộn */}
           {arrange === "single" && singles.map((k) => <Chip key={k} on={one === k} onClick={() => setSingle(k)}>{ITEM_LABEL[k]}</Chip>)}
           <button type="button" onClick={() => setSeed((v) => v + 1)} title="Xáo trộn" aria-label="Xáo trộn"
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /></button>
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[#e5e5e7] bg-white text-[#52525b] hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><Dices size={14} /></button>
         </div>
       )}
 
@@ -313,7 +313,7 @@ export function CdMockupTab({ frames, images, images3d, system, tray, finish, mo
 function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick}
-      className={cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>
+      className={cx("h-7 shrink-0 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] bg-white text-[#52525b] hover:border-[#a1a1aa]")}>
       {children}
     </button>
   );

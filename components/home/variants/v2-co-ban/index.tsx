@@ -24,7 +24,7 @@ export default function HomeV2({ home, options, settings }: HomeVariantProps) {
           const color = TEXT_COLORS[o.text_color] ?? "#18181b";
           return (
             <li key={i}>
-              <Link href={o.href || "/"} className="flex items-center gap-4 rounded-[12px] border border-[#e5e5e7] bg-white p-4 transition-colors hover:border-[#ff5fa2]">
+              <Link href={o.href || "/"} className="flex items-center gap-4 rounded-[12px] border border-[#e5e5e7] bg-white p-4 transition-colors hover:border-[var(--c-primary)]">
                 <span className="grid h-12 w-12 shrink-0 place-items-center rounded-[10px]" style={{ background: o.bg, color, boxShadow: /^#?f{6}$/i.test(o.bg) ? "inset 0 0 0 1px #e5e5e7" : undefined }}>
                   {o.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element

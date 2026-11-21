@@ -55,13 +55,13 @@ export function DialogHost() {
         {d.kind === "prompt" && (
           <label className="mt-3 block text-[13px] text-[#52525b]">{d.label}
             <input ref={inp} value={val} onChange={(e) => setVal(e.target.value)} placeholder={d.placeholder}
-              className="mt-1 h-10 w-full rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] text-[#18181b] outline-none focus:border-[#ff5fa2]" />
+              className="mt-1 h-10 w-full rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] text-[#18181b] outline-none focus:border-[var(--c-primary)]" />
           </label>
         )}
         <div className="mt-5 flex items-center justify-between gap-2">
           {d.kind !== "alert" ? <button type="button" onClick={cancel} className={`${btn} border border-[#e5e5e7] bg-white text-[#3f3f46] hover:bg-[#f4f4f5] focus-visible:ring-[#a1a1aa]`}>{d.cancelText}</button> : <span />}
           <button ref={ok} type="button" onClick={accept}
-            className={`${btn} text-white ${danger ? "bg-[#dc2626] hover:bg-[#b91c1c] focus-visible:ring-[#dc2626]" : "bg-[#ff5fa2] hover:bg-[#f0468f] focus-visible:ring-[#ff5fa2]"}`}>{d.confirmText}</button>
+            className={`${btn} text-white ${danger ? "bg-[#dc2626] hover:bg-[#b91c1c] focus-visible:ring-[#dc2626]" : "bg-[var(--c-primary)] hover:bg-[var(--c-primary-hover)] focus-visible:ring-[var(--c-primary)]"}`}>{d.confirmText}</button>
         </div>
       </div>
     </div>

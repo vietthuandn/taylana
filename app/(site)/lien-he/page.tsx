@@ -26,7 +26,7 @@ export default async function ContactPage() {
               const Icon = r.icon;
               const inner = (
                 <>
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] bg-[#fff0f6] text-[#ff5fa2]"><Icon size={16} /></span>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] bg-[var(--c-secondary)] text-[var(--c-primary)]"><Icon size={16} /></span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[12px] text-[#71717a]">{r.label}</span>
                     <span className="block break-words text-[15px] font-medium text-[#18181b]">{r.value}</span>

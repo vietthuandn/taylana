@@ -288,7 +288,7 @@ export function SurfaceView(p: SurfaceViewProps) {
           <span className="px-1">Kéo để dịch ảnh</span>
           <button type="button" onClick={() => zoom(-0.1)} aria-label="Thu nhỏ" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7]"><Minus size={14} /></button>
           <button type="button" onClick={() => zoom(0.1)} aria-label="Phóng to" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7]"><Plus size={14} /></button>
-          <button type="button" onClick={() => p.onEditLayer(null)} className="rounded-full bg-[#ff5fa2] px-2.5 py-1 font-medium text-white">Xong</button>
+          <button type="button" onClick={() => p.onEditLayer(null)} className="rounded-full bg-[var(--c-primary)] px-2.5 py-1 font-medium text-white">Xong</button>
         </div>
       )}
     </div>

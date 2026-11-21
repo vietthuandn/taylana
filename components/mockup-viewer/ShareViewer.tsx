@@ -47,7 +47,7 @@ export function ShareViewer({ state, urls, expiresAt, watermark }: { state: Shar
         {canBooklet && (
           <div className="inline-flex rounded-[10px] border border-[#e5e5e7] bg-white p-1">
             {([[false, "CD Mockup"], [true, "Booklet"]] as const).map(([v, l]) => (
-              <button key={l} type="button" onClick={() => setBooklet(v)} className={cx("rounded-[8px] px-3 py-1.5 text-[13px] font-medium", booklet === v ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{l}</button>
+              <button key={l} type="button" onClick={() => setBooklet(v)} className={cx("rounded-[8px] px-3 py-1.5 text-[13px] font-medium", booklet === v ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "text-[#52525b]")}>{l}</button>
             ))}
           </div>
         )}

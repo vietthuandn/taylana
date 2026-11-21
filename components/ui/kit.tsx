@@ -38,7 +38,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
   return (
     <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)}
       className="inline-flex items-center gap-2.5 text-left text-[14px] text-[#18181b]">
-      <span className={cx("relative h-[18px] w-8 shrink-0 rounded-full transition-colors", checked ? "bg-[#ff5fa2]" : "bg-[#d4d4d8]")}>
+      <span className={cx("relative h-[18px] w-8 shrink-0 rounded-full transition-colors", checked ? "bg-[var(--c-primary)]" : "bg-[#d4d4d8]")}>
         <span className={cx("absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-all", checked ? "left-[16px]" : "left-[2px]")} />
       </span>
       {label}
@@ -50,7 +50,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 export function Swatch({ color, active, onClick, title }: { color: string; active?: boolean; onClick: () => void; title?: string }) {
   return (
     <button type="button" title={title} aria-label={title} onClick={onClick}
-      className={cx("h-6 w-6 shrink-0 rounded-[6px] border border-black/10 transition", active && "ring-2 ring-[#ff5fa2] ring-offset-2")}
+      className={cx("h-6 w-6 shrink-0 rounded-[6px] border border-black/10 transition", active && "ring-2 ring-[var(--c-primary)] ring-offset-2")}
       style={{ background: color }} />
   );
 }
@@ -157,7 +157,7 @@ export const EmptyState = ({ children }: { children: React.ReactNode }) => (
 type Tone = "gray" | "pink" | "green" | "amber" | "blue" | "red" | "cream" | "matcha" | "butter";
 const toneClass: Record<Tone, string> = {
   gray: "bg-[#f4f4f5] text-[#52525b]", cream: "bg-[#f4f4f5] text-[#52525b]",
-  pink: "bg-[#fff0f6] text-[#db2777]", green: "bg-[#ecfdf3] text-[#15803d]", matcha: "bg-[#ecfdf3] text-[#15803d]",
+  pink: "bg-[var(--c-secondary)] text-[#db2777]", green: "bg-[#ecfdf3] text-[#15803d]", matcha: "bg-[#ecfdf3] text-[#15803d]",
   amber: "bg-[#fffbeb] text-[#b45309]", butter: "bg-[#fffbeb] text-[#b45309]",
   blue: "bg-[#eff6ff] text-[#1d4ed8]", red: "bg-[#fef2f2] text-[#dc2626]",
 };
@@ -256,15 +256,15 @@ export function ImagesInput({ value, onChange, folder, label = "Ảnh", hint }: 
             onDragStart={() => setDrag(i)} onDragEnd={() => { setDrag(null); setOver(null); }}
             onDragOver={(e) => { e.preventDefault(); setOver(i); }} onDrop={(e) => { e.preventDefault(); drop(i); setDrag(null); setOver(null); }}
             className={cx("group relative h-20 w-20 cursor-grab overflow-hidden rounded-[8px] border bg-[#fafafa] active:cursor-grabbing",
-              over === i && drag !== i ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7]", drag === i && "opacity-40")}>
+              over === i && drag !== i ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7]", drag === i && "opacity-40")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={u} alt="" className="pointer-events-none h-full w-full object-cover" />
-            {i === 0 && <span className="absolute bottom-1 left-1 rounded-[4px] bg-[#ff5fa2] px-1 text-[10px] font-medium text-white">Ảnh chính</span>}
+            {i === 0 && <span className="absolute bottom-1 left-1 rounded-[4px] bg-[var(--c-primary)] px-1 text-[10px] font-medium text-white">Ảnh chính</span>}
             <button type="button" aria-label="Xoá ảnh" onClick={() => onChange(value.filter((_, j) => j !== i))}
               className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100"><X size={12} /></button>
           </div>
         ))}
-        <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-[8px] border border-dashed border-[#d4d4d8] bg-[#fafafa] text-[#71717a] hover:border-[#ff5fa2] hover:text-[#ff5fa2]">
+        <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-[8px] border border-dashed border-[#d4d4d8] bg-[#fafafa] text-[#71717a] hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]">
           {busy ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
           <input type="file" multiple accept="image/*" className="sr-only" disabled={busy > 0}
             onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; add(f); }} />
@@ -317,7 +317,7 @@ export function AdminOverlays() {
             className="pointer-events-auto flex items-start gap-2.5 rounded-[10px] border border-[#e5e5e7] bg-white px-3.5 py-3 text-[14px] text-[#18181b] shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
             {t.type === "ok" ? <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[#16a34a]" /> : <AlertCircle size={16} className="mt-0.5 shrink-0 text-[#dc2626]" />}
             <span className="min-w-0 flex-1 break-words">{t.text}</span>
-            {t.action && <Link href={t.action.href} className="shrink-0 text-[13px] font-semibold text-[#ff5fa2] hover:text-[#e0468a]">{t.action.label}</Link>}
+            {t.action && <Link href={t.action.href} className="shrink-0 text-[13px] font-semibold text-[var(--c-primary)] hover:text-[#e0468a]">{t.action.label}</Link>}
             <button className="text-[#a1a1aa] hover:text-[#18181b]" aria-label="Đóng"
               onClick={() => { toasts = toasts.filter((x) => x.id !== t.id); emitToasts(); }}><X size={16} /></button>
           </div>

@@ -128,10 +128,10 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
             {/* chọn gói: floating label kiểu outlined (nhãn đè lên viền trên) */}
             <label className="group relative block">
               <select value={pkg?.id ?? ""} onChange={(e) => setPkgId(e.target.value)} aria-label="Gói CD"
-                className="peer h-12 w-full cursor-pointer appearance-none truncate rounded-[10px] border border-[#e5e5e7] bg-white pl-3 pr-9 text-[15px] text-[#18181b] outline-none transition-colors focus:border-[#ff5fa2]">
+                className="peer h-12 w-full cursor-pointer appearance-none truncate rounded-[10px] border border-[#e5e5e7] bg-white pl-3 pr-9 text-[15px] text-[#18181b] outline-none transition-colors focus:border-[var(--c-primary)]">
                 {packages.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <span className="pointer-events-none absolute left-3 top-0 -translate-y-1/2 bg-white px-1 text-[11px] leading-none text-[#71717a] transition-colors peer-focus:text-[#ff5fa2]">Gói CD</span>
+              <span className="pointer-events-none absolute left-3 top-0 -translate-y-1/2 bg-white px-1 text-[11px] leading-none text-[#71717a] transition-colors peer-focus:text-[var(--c-primary)]">Gói CD</span>
               <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#71717a]" />
             </label>
             {layout && (
@@ -155,7 +155,7 @@ export function MockupStudio({ packages: allPackages, frames, boxFrame, backgrou
           <div className="w-full max-w-[380px] rounded-[12px] bg-white p-5 shadow-xl">
             <p className="text-[15px] font-semibold">Đang tạo link chia sẻ...</p>
             <p className="mt-1 text-[13px] text-[#71717a]">Đang tải ảnh lên ({sharing.done} / {sharing.total})</p>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full bg-[#ff5fa2] transition-[width]" style={{ width: `${(sharing.done / Math.max(1, sharing.total)) * 100}%` }} /></div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full bg-[var(--c-primary)] transition-[width]" style={{ width: `${(sharing.done / Math.max(1, sharing.total)) * 100}%` }} /></div>
           </div>
         </div>
       )}

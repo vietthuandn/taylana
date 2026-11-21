@@ -434,7 +434,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
   const Label = ({ children }: { children: React.ReactNode }) => <p className="tool-label">{children}</p>;
   const Switch = ({ on, onClick, label, dim }: { on: boolean; onClick: () => void; label: string; dim?: boolean }) => (
     <button type="button" role="switch" aria-checked={on} onClick={onClick} className={`inline-flex items-center gap-2 text-[13px] text-[#18181b] ${dim ? "opacity-50" : ""}`}>
-      <span className={`relative h-[18px] w-8 rounded-full transition ${on ? "bg-[#ff5fa2]" : "bg-[#d4d4d8]"}`}>
+      <span className={`relative h-[18px] w-8 rounded-full transition ${on ? "bg-[var(--c-primary)]" : "bg-[#d4d4d8]"}`}>
         <span className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${on ? "left-[16px]" : "left-[2px]"}`} />
       </span>
       {label}
@@ -444,7 +444,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
     <span className={`relative block overflow-hidden bg-[#f4f4f5] ${round ? "rounded-full" : "rounded-[4px]"} ${className}`} style={{ aspectRatio: `${specOf(id).w} / ${specOf(id).h}` }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {thumbs[id] && <img src={thumbs[id]} alt="" className="h-full w-full object-cover" />}
-      {hasArt(id) && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[#ff5fa2] ring-1 ring-white" title="Đã có thiết kế" />}
+      {hasArt(id) && <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[var(--c-primary)] ring-1 ring-white" title="Đã có thiết kế" />}
     </span>
   );
 
@@ -506,7 +506,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
           <div className={`flex gap-0.5 rounded-[8px] bg-[#f4f4f5] p-0.5 ${pkg ? "" : "hidden"}`}>
             {visibleParts.map((pt) => (
               <button key={pt} aria-pressed={panelTab === pt}
-                className={`h-8 flex-1 rounded-[6px] px-1 text-[12px] font-medium ${panelTab === pt ? "bg-[#ff5fa2] text-white shadow-sm" : "text-[#71717a] hover:text-[#18181b]"}`}
+                className={`h-8 flex-1 rounded-[6px] px-1 text-[12px] font-medium ${panelTab === pt ? "bg-[var(--c-primary)] text-white shadow-sm" : "text-[#71717a] hover:text-[#18181b]"}`}
                 onClick={() => { setPanelTab(pt); openPage(pages.find((x) => x.part === pt)!.id); }}>
                 {PART_LABEL[pt]} <span className="opacity-80">{countOf(pt)}</span>
               </button>
@@ -521,7 +521,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
             <div className="mt-2 space-y-1.5">
               {packages.map((pk) => (
                 <button key={pk.id} onClick={() => choosePkg(pk.id)}
-                  className="flex w-full items-center gap-2.5 rounded-[10px] border border-[#e5e5e7] p-2 text-left hover:border-[#ff5fa2]">
+                  className="flex w-full items-center gap-2.5 rounded-[10px] border border-[#e5e5e7] p-2 text-left hover:border-[var(--c-primary)]">
                   <span className="block h-12 w-12 shrink-0 overflow-hidden rounded-[6px] bg-[#f4f4f5]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {pk.image_url && <img src={pk.image_url} alt="" className="h-full w-full object-cover" />}
@@ -546,7 +546,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
             <div className="grid grid-cols-3 gap-1.5">
               {groups.map((g, gi) => (
                 <button key={g.join()} onClick={() => setGroupIdx(gi)} title={`Trang ${g.map((id) => pages.find((p) => p.id === id)?.label).join("–")}`}
-                  className={`rounded-[8px] border p-1 text-center text-[11px] ${gi === groupIdx ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e5e5e7] hover:border-[#d4d4d8]"}`}>
+                  className={`rounded-[8px] border p-1 text-center text-[11px] ${gi === groupIdx ? "border-[var(--c-primary)] ring-1 ring-[var(--c-primary)]" : "border-[#e5e5e7] hover:border-[#d4d4d8]"}`}>
                   <span className="flex justify-center gap-px">{g.map((id) => <Thumb key={id} id={id} className="w-1/2 max-w-[44px]" />)}</span>
                   <span className="mt-1 block font-medium">{g.map((id) => pages.find((p) => p.id === id)?.label).join("–")}</span>
                 </button>
@@ -558,7 +558,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                 const compact = booklet && part === "front";
                 return (
                   <button key={p.id} onClick={() => openPage(p.id)} title={p.label}
-                    className={`flex items-center gap-1.5 rounded-[8px] border p-1 text-left ${compact ? "flex-col !gap-1 text-center text-[11px]" : "text-[12px]"} ${p.id === activePage.id ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e5e5e7] hover:border-[#d4d4d8]"}`}>
+                    className={`flex items-center gap-1.5 rounded-[8px] border p-1 text-left ${compact ? "flex-col !gap-1 text-center text-[11px]" : "text-[12px]"} ${p.id === activePage.id ? "border-[var(--c-primary)] ring-1 ring-[var(--c-primary)]" : "border-[#e5e5e7] hover:border-[#d4d4d8]"}`}>
                     <Thumb id={p.id} round={p.part === "disc"} className={compact ? "w-full" : "w-9 shrink-0"} />
                     <span className="min-w-0 font-medium leading-tight">{p.label}</span>
                   </button>
@@ -638,7 +638,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
             </div>
             <div className="no-scrollbar flex gap-1.5 overflow-x-auto">
               <button onClick={() => setTpl(null)} title="Tự do"
-                className={`w-16 shrink-0 rounded-[8px] border p-1 text-center text-[11px] ${!curTpl ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e5e5e7]"}`}>
+                className={`w-16 shrink-0 rounded-[8px] border p-1 text-center text-[11px] ${!curTpl ? "border-[var(--c-primary)] ring-1 ring-[var(--c-primary)]" : "border-[#e5e5e7]"}`}>
                 <div className={`mb-1 grid aspect-square place-items-center bg-[#f4f4f5] text-base ${tplPageId === "D" ? "rounded-full" : "rounded-[4px]"}`}>✎</div>
                 Tự do
               </button>
@@ -649,7 +649,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                   <Fragment key={t.id}>
                   {head && <span className="flex w-5 shrink-0 items-center justify-center text-[10px] font-semibold uppercase tracking-wide text-[#a1a1aa] [writing-mode:vertical-rl] rotate-180" title={t.category}>{t.category}</span>}
                   <button onClick={() => setTpl(t.id)} title={t.name}
-                    className={`w-16 shrink-0 rounded-[8px] border p-1 text-center text-[11px] ${curTpl === t.id ? "border-[#ff5fa2] ring-1 ring-[#ff5fa2]" : "border-[#e5e5e7]"}`}>
+                    className={`w-16 shrink-0 rounded-[8px] border p-1 text-center text-[11px] ${curTpl === t.id ? "border-[var(--c-primary)] ring-1 ring-[var(--c-primary)]" : "border-[#e5e5e7]"}`}>
                     <div className="mb-1">
                       {t.thumbnail_url
                         // eslint-disable-next-line @next/next/no-img-element
@@ -685,7 +685,7 @@ export function CustomCdEditor({ templates, packages }: { templates: (DesignTemp
                 </div>
               )}
             </div>
-            <button className="h-10 flex-[1.6] rounded-[8px] bg-[#ff5fa2] text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50" disabled={busy} onClick={() => { window.location.href = `/san-pham/${CD_SLUG}${pkgId ? `?goi=${encodeURIComponent(pkgId)}` : ""}`; }}>
+            <button className="h-10 flex-[1.6] rounded-[8px] bg-[var(--c-primary)] text-[14px] font-semibold text-white transition hover:brightness-95 disabled:opacity-50" disabled={busy} onClick={() => { window.location.href = `/san-pham/${CD_SLUG}${pkgId ? `?goi=${encodeURIComponent(pkgId)}` : ""}`; }}>
               Đặt mua
             </button>
           </div>

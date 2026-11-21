@@ -548,3 +548,14 @@ label:has(> input:is([type="date"], [type="datetime-local"], [type="time"])) { m
   .rtable tbody > tr[data-open] td[data-m="x"]::before { content: attr(data-label); flex: 0 0 104px; color: #a1a1aa; }
   .rtable tbody td[colspan] { flex-basis: 100%; }
 }
+
+/* Theme (Admin → Giao diện → Theme): màu trang khách. Mặc định = màu gốc; site_settings.theme ghi đè trong layout trang khách. */
+:root {
+  --c-primary: #ff5fa2;
+  --c-primary-hover: #f0468f;
+  --c-secondary: #fff0f6;
+  --c-page-bg: #f7f7f8;
+  --c-header-bg: #ffffff;
+  --c-header-text: #18181b;
+  --c-header-active: var(--c-primary);
+}

@@ -19,7 +19,7 @@ export function BgPicker({ value, onChange, shop, className }: { value: BgChoice
   const [mine, setMine] = useState<{ url: string; img: HTMLImageElement } | null>(null);
   const [err, setErr] = useState("");
   const on = (k: string) => (value.kind === "gradient" ? value.g.id === k : value.name === k);
-  const sw = (active: boolean) => cx("relative h-7 w-7 shrink-0 overflow-hidden rounded-[8px] border bg-white", active ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]");
+  const sw = (active: boolean) => cx("relative h-7 w-7 shrink-0 overflow-hidden rounded-[8px] border bg-white", active ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]");
 
   // 1 hàng duy nhất: gradient → nền của tiệm → nền của bạn → ô cuối là nút tải ảnh lên
   return (
@@ -44,7 +44,7 @@ export function BgPicker({ value, onChange, shop, className }: { value: BgChoice
             </button>
           )}
           <button type="button" onClick={() => input.current?.click()} title="Tải nền của bạn" aria-label="Tải nền của bạn"
-            className="grid h-7 w-7 shrink-0 place-items-center rounded-[8px] border border-dashed border-[#d4d4d8] bg-white text-[#71717a] hover:border-[#ff5fa2] hover:text-[#ff5fa2]">
+            className="grid h-7 w-7 shrink-0 place-items-center rounded-[8px] border border-dashed border-[#d4d4d8] bg-white text-[#71717a] hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]">
             <ImagePlus size={14} />
           </button>
         </div>

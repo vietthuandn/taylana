@@ -45,12 +45,12 @@ export function AccountButton() {
     <div ref={box} className="relative shrink-0">
       {menu && <div className="fixed inset-0 z-[1] bg-black/20 md:bg-transparent" onClick={() => setMenu(false)} aria-hidden />}
       <button onClick={() => setMenu(!menu)} className="relative z-[2] flex h-9 max-w-[150px] items-center gap-2 rounded-[8px] border border-[#e5e5e7] bg-white px-2 text-[14px] font-medium text-[#18181b] hover:bg-[#f4f4f5]">
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-xs font-semibold text-[#ff5fa2]">{name.trim()[0]?.toUpperCase()}</span>
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--c-secondary)] text-xs font-semibold text-[var(--c-primary)]">{name.trim()[0]?.toUpperCase()}</span>
         <span className="truncate">{name}</span>
       </button>
       {menu && (
         <div className="absolute right-0 z-[2] mt-2 w-52 rounded-[12px] border border-[#e5e5e7] bg-white p-1 font-sans text-[14px] text-[#18181b] shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
-          {staff && <><Link href="/admin" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 font-medium text-[#ff5fa2] hover:bg-[#fff0f6]">Trang quản trị</Link><div className="my-1 h-px bg-[#efeff1]" /></>}
+          {staff && <><Link href="/admin" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 font-medium text-[var(--c-primary)] hover:bg-[var(--c-secondary)]">Trang quản trị</Link><div className="my-1 h-px bg-[#efeff1]" /></>}
           <Link href="/don-hang-cua-toi" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Đơn hàng của tôi</Link>
           <Link href="/thiet-ke-cua-toi" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Thiết kế của tôi</Link>
           <Link href="/tai-khoan" onClick={() => setMenu(false)} className="block rounded-[8px] px-3 py-2 hover:bg-[#f4f4f5]">Tài khoản của tôi</Link>

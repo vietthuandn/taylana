@@ -27,7 +27,7 @@ function LinkBtn({ l, className, canvaIcon }: { l: GuideLink; className?: string
     : <a href={l.url} target="_blank" rel="noopener noreferrer" className={className ?? btnClass("secondary")}>{inner}</a>;
 }
 const gradient = "inline-flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-gradient-to-r from-[#00C4CC] to-[#7D2AE8] text-[14px] font-bold text-white shadow-sm transition-opacity hover:opacity-90";
-const pink = "inline-flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[#ff5fa2] text-[14px] font-bold text-white shadow-sm hover:bg-[#f0468f]";
+const pink = "inline-flex h-11 w-full items-center justify-center gap-2 rounded-[8px] bg-[var(--c-primary)] text-[14px] font-bold text-white shadow-sm hover:bg-[var(--c-primary-hover)]";
 
 export function GuideView({ sections, guide, zalo, packs, canvaIcon }: { sections: GuideSection[]; guide: GuideSettings; zalo: string; packs: GuidePack[]; canvaIcon: string | null }) {
   const imgIdx = sections.findIndex((s) => s.images.length > 0);
@@ -45,7 +45,7 @@ export function GuideView({ sections, guide, zalo, packs, canvaIcon }: { section
             <div key={s.id} className="space-y-4">
               <section id={`muc-${s.id}`} className="scroll-mt-24 rounded-[14px] border border-[#e5e5e7] bg-white p-5 sm:p-6">
                 <div className="flex items-center gap-3">
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#fff0f6] text-[13px] font-semibold text-[#ff5fa2]">{i + 1}</span>
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--c-secondary)] text-[13px] font-semibold text-[var(--c-primary)]">{i + 1}</span>
                   <h2 className="text-[18px] font-semibold">{s.title.replace(/^\d+\.\s*/, "")}</h2>
                 </div>
                 {s.body && <RichText text={s.body} className="mt-3 text-[15px] leading-relaxed text-[#3f3f46]" />}
@@ -91,7 +91,7 @@ export function GuideView({ sections, guide, zalo, packs, canvaIcon }: { section
             ? <a href={zalo} target="_blank" rel="noopener noreferrer" className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[#0068ff] text-[15px] font-semibold text-white hover:bg-[#0057d6]"><MessageCircle size={18} /> Nhắn tin Zalo</a>
             : <span className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[#e4e4e7] text-[15px] font-semibold text-[#a1a1aa]"><MessageCircle size={18} /> Nhắn tin Zalo</span>}
           {guide.order_enabled
-            ? <Link href={guide.order_href} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[#ff5fa2] text-[15px] font-semibold text-white hover:bg-[#f0468f]"><ShoppingBag size={18} /> Đặt đơn</Link>
+            ? <Link href={guide.order_href} className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-[10px] bg-[var(--c-primary)] text-[15px] font-semibold text-white hover:bg-[var(--c-primary-hover)]"><ShoppingBag size={18} /> Đặt đơn</Link>
             : <button type="button" disabled title="Sắp ra mắt" className="inline-flex h-11 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-[10px] bg-[#fbcfe8] text-[15px] font-semibold text-white"><ShoppingBag size={18} /> Đặt đơn</button>}
         </div>
       </div>

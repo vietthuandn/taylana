@@ -29,7 +29,7 @@ function Expired({ text = "Link xem mockup này đã hết hạn" }: { text?: st
         <div>
           <p className="text-[20px] font-semibold text-[#18181b]">{text}</p>
           <p className="mt-2 text-[14px] text-[#71717a]">Link chỉ xem được trong 24 giờ. Liên hệ tiệm nếu bạn cần xem lại.</p>
-          <Link href="/" className="mt-5 inline-flex h-10 items-center rounded-[8px] bg-[#ff5fa2] px-5 text-[14px] font-medium text-white hover:bg-[#f0468f]">Về trang chủ</Link>
+          <Link href="/" className="mt-5 inline-flex h-10 items-center rounded-[8px] bg-[var(--c-primary)] px-5 text-[14px] font-medium text-white hover:bg-[var(--c-primary-hover)]">Về trang chủ</Link>
         </div>
       </div>
     </Shell>

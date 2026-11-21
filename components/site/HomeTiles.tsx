@@ -38,7 +38,7 @@ export function Tile({ o, index, preview = false }: { o: HomeOption; index: numb
   const cls = "relative block aspect-square overflow-hidden rounded-[16px] transition duration-300";
   if (preview) return <div className={cls} style={{ background: o.bg, ...border(o.bg) }}>{body}</div>;
   return (
-    <Link href={o.href || "/"} className={`${cls} md:hover:-translate-y-1 md:hover:shadow-[0_14px_30px_rgba(0,0,0,.08)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#ff5fa2]`}
+    <Link href={o.href || "/"} className={`${cls} md:hover:-translate-y-1 md:hover:shadow-[0_14px_30px_rgba(0,0,0,.08)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--c-primary)]`}
       style={{ background: o.bg, ...border(o.bg) }}>
       {body}
     </Link>

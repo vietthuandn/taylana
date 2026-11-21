@@ -357,7 +357,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
           <div className="inline-flex rounded-[8px] border border-[#e5e5e7] bg-white p-0.5">
             {(["booklet", "back"] as const).map((k) => (
               <button key={k} type="button" onClick={() => { setTab(k); setEditSlot(null); }}
-                className={cx("rounded-[6px] px-3 py-1.5 text-[13px] font-medium", tab === k ? "bg-[#fff0f6] text-[#ff5fa2]" : "text-[#52525b]")}>{k === "booklet" ? "Booklet" : "Bìa sau"}</button>
+                className={cx("rounded-[6px] px-3 py-1.5 text-[13px] font-medium", tab === k ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "text-[#52525b]")}>{k === "booklet" ? "Booklet" : "Bìa sau"}</button>
             ))}
           </div>
           <div className="ml-auto"><Toggle checked={guides} onChange={setGuides} label="Hiển thị guideline" /></div>
@@ -382,7 +382,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
               <span className="px-1">Ảnh {editSlot + 1}: kéo để dịch</span>
               <button type="button" onClick={() => zoom(-0.1)} aria-label="Thu nhỏ" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7]"><Minus size={14} /></button>
               <button type="button" onClick={() => zoom(0.1)} aria-label="Phóng to" className="grid h-7 w-7 place-items-center rounded-full border border-[#e5e5e7]"><Plus size={14} /></button>
-              <button type="button" onClick={() => setEditSlot(null)} className="rounded-full bg-[#ff5fa2] px-2.5 py-1 font-medium text-white">Xong</button>
+              <button type="button" onClick={() => setEditSlot(null)} className="rounded-full bg-[var(--c-primary)] px-2.5 py-1 font-medium text-white">Xong</button>
             </div>
           )}
         </div>
@@ -395,7 +395,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
             </div>
             <div className="no-scrollbar mt-1 flex justify-center gap-1.5 overflow-x-auto pb-1">
               {spreads.map((sp, i) => (
-                <button key={i} type="button" onClick={() => setSpread(i)} className={cx("flex shrink-0 gap-px rounded-[6px] border p-0.5", i === spread ? "border-[#ff5fa2]" : "border-[#e5e5e7]")}>
+                <button key={i} type="button" onClick={() => setSpread(i)} className={cx("flex shrink-0 gap-px rounded-[6px] border p-0.5", i === spread ? "border-[var(--c-primary)]" : "border-[#e5e5e7]")}>
                   {sp.map((no) => (
                     // eslint-disable-next-line @next/next/no-img-element
                     thumbs.pages[no - 1] ? <img key={no} src={thumbs.pages[no - 1]} alt="" className="h-12 w-12" /> : <span key={no} className="h-12 w-12 bg-[#ececef]" />
@@ -437,7 +437,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
               ) : (
                 <button type="button" onClick={() => coverIn.current?.click()} onDragOver={(e) => e.preventDefault()}
                   onDrop={async (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { try { setCoverPhoto(await readPhoto(f)); } catch { toast("Không đọc được ảnh.", "err"); } } }}
-                  className="grid aspect-square w-24 shrink-0 place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] text-center text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2]">
+                  className="grid aspect-square w-24 shrink-0 place-items-center rounded-[8px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] text-center text-[12px] font-medium text-[#52525b] hover:border-[var(--c-primary)]">
                   <span><Plus size={16} className="mx-auto mb-0.5 text-[#a1a1aa]" />Ảnh bìa</span>
                 </button>
               )}
@@ -471,7 +471,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
                 const ok = fitsN(n);
                 return (
                   <button key={n} type="button" disabled={!ok} title={ok ? `${n} trang` : `Không đủ chỗ để dàn trang cho ${songs.length} bài`} onClick={() => { setPack(n); setPackPicked(true); setSpread(0); }}
-                    className={cx("h-8 min-w-[40px] rounded-full border px-3 text-[13px] font-medium", pack === n ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b]", !ok && "cursor-not-allowed opacity-40")}>{n}</button>
+                    className={cx("h-8 min-w-[40px] rounded-full border px-3 text-[13px] font-medium", pack === n ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b]", !ok && "cursor-not-allowed opacity-40")}>{n}</button>
                 );
               })}
             </div>
@@ -508,8 +508,8 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
                 </label>
                 {fmt.style === "inline" && (
                   <>
-                    <label className="flex items-center gap-1.5"><input type="checkbox" checked={fmt.paraBreak === "newline"} onChange={(e) => setFmt({ ...fmt, paraBreak: e.target.checked ? "newline" : "slashes" })} className="accent-[#ff5fa2]" /> Xuống dòng giữa các đoạn</label>
-                    <label className="flex items-center gap-1.5"><input type="checkbox" checked={fmt.titleInline} onChange={(e) => setFmt({ ...fmt, titleInline: e.target.checked })} className="accent-[#ff5fa2]" /> Tên bài liền dòng với lời</label>
+                    <label className="flex items-center gap-1.5"><input type="checkbox" checked={fmt.paraBreak === "newline"} onChange={(e) => setFmt({ ...fmt, paraBreak: e.target.checked ? "newline" : "slashes" })} className="accent-[var(--c-primary)]" /> Xuống dòng giữa các đoạn</label>
+                    <label className="flex items-center gap-1.5"><input type="checkbox" checked={fmt.titleInline} onChange={(e) => setFmt({ ...fmt, titleInline: e.target.checked })} className="accent-[var(--c-primary)]" /> Tên bài liền dòng với lời</label>
                   </>
                 )}
               </div>
@@ -526,7 +526,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
           {finding && (
             <div className="mb-2">
               <p className="mb-1 text-[12px] text-[#52525b]">Đang tìm {finding.i} / {finding.n}...</p>
-              <div className="h-1.5 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full bg-[#ff5fa2] transition-[width]" style={{ width: `${(finding.i / finding.n) * 100}%` }} /></div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full bg-[var(--c-primary)] transition-[width]" style={{ width: `${(finding.i / finding.n) * 100}%` }} /></div>
             </div>
           )}
           <ol className="space-y-1.5">
@@ -543,7 +543,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
                   <input value={s.duration} onChange={(e) => setSongs((c) => c.map((x) => (x.id === s.id ? { ...x, duration: e.target.value.slice(0, 6) } : x)))} placeholder="3:45" aria-label="Thời lượng"
                     className="w-14 shrink-0 rounded-[6px] px-1.5 py-1 text-center text-[13px] tabular-nums outline-none focus:bg-[#fafafa]" />
                   <button type="button" onClick={() => setModal(i)} title={has ? "Sửa lyrics" : "Thêm lyrics"} aria-label={has ? "Sửa lyrics" : "Thêm lyrics"}
-                    className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-full", has ? "bg-[#ecfdf3] text-[#16a34a]" : "border border-[#e5e5e7] text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]")}>
+                    className={cx("grid h-7 w-7 shrink-0 place-items-center rounded-full", has ? "bg-[#ecfdf3] text-[#16a34a]" : "border border-[#e5e5e7] text-[#52525b] hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]")}>
                     {has ? <Check size={14} /> : <Plus size={14} />}
                   </button>
                 </li>
@@ -556,7 +556,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {layouts.map((l) => (
               <button key={l.id} type="button" onClick={() => { setLayout(l.id); setEditSlot(null); }}
-                className={cx("rounded-[10px] border p-1 text-center", layout === l.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+                className={cx("rounded-[10px] border p-1 text-center", layout === l.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {thumbs.layouts[l.id] ? <img src={thumbs.layouts[l.id]} alt="" className="aspect-[2/1] w-full rounded-[6px]" /> : <span className="block aspect-[2/1] w-full rounded-[6px] bg-[#f4f4f5]" />}
                 <span className="mt-1 block truncate text-[12px] text-[#52525b]">{l.name}</span>
@@ -565,11 +565,11 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <button type="button" onClick={() => setSeeds((s) => ({ ...s, [layout]: Math.floor(Math.random() * 1e6) }))}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Dices size={14} /> Xáo trộn</button>
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium text-[#52525b] hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><Dices size={14} /> Xáo trộn</button>
             <span className="ml-2 text-[12px] text-[#71717a]">Màu:</span>
             {[{ id: "auto", name: "Tự động (theo ảnh bìa)", bg: paletteFromImage(coverImg ?? photos[0]?.img ?? null)?.bg ?? "#eee" }, ...settings.palettes].map((p) => (
               <button key={p.id} type="button" onClick={() => setPaletteId(p.id)} title={p.name} aria-label={p.name}
-                className={cx("h-7 w-7 rounded-full border", paletteId === p.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#d4d4d8]")} style={{ background: p.bg }}>
+                className={cx("h-7 w-7 rounded-full border", paletteId === p.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#d4d4d8]")} style={{ background: p.bg }}>
                 {p.id === "auto" && <span className="text-[9px] font-bold text-[#52525b]">A</span>}
               </button>
             ))}
@@ -578,7 +578,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
 
         <Section title="Ảnh" right={<span className={cx("text-[12px]", photos.length < built.photoCount ? "text-[#ea7a12]" : "text-[#71717a]")}>Đã có {photos.length} / {built.photoCount} ảnh</span>}>
           <button type="button" onClick={() => fileIn.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files); }}
-            className="grid w-full place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] px-4 py-4 text-center hover:border-[#ff5fa2]">
+            className="grid w-full place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] px-4 py-4 text-center hover:border-[var(--c-primary)]">
             <Upload size={18} className="mb-1 text-[#a1a1aa]" />
             <span className="text-[14px] font-medium">Kéo thả hoặc chọn nhiều ảnh</span>
             <span className="text-[12px] text-[#71717a]">Dùng cho các ô ảnh bên trong booklet · ảnh chỉ xử lý trên máy bạn</span>
@@ -614,7 +614,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
           <div className="grid grid-cols-2 gap-2">
             {backs.map((b) => (
               <button key={b.id} type="button" onClick={() => { setBack(b.id); setTab("back"); }}
-                className={cx("rounded-[10px] border p-1 text-center", back === b.id ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
+                className={cx("rounded-[10px] border p-1 text-center", back === b.id ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7] hover:border-[#a1a1aa]")}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 {thumbs.backs[b.id] ? <img src={thumbs.backs[b.id]} alt="" className="aspect-[150/117] w-full rounded-[6px]" /> : <span className="block aspect-[150/117] w-full rounded-[6px] bg-[#f4f4f5]" />}
                 <span className="mt-1 block truncate text-[12px] text-[#52525b]">{b.name}</span>
@@ -668,7 +668,7 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
           <div className="w-full max-w-[420px] rounded-[14px] bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <p className="text-[16px] font-semibold">Trước khi đặt in</p>
             <label className="mt-3 flex items-start gap-2 text-[14px] text-[#3f3f46]">
-              <input type="checkbox" checked={rightsTick} onChange={(e) => setRightsTick(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#ff5fa2]" />
+              <input type="checkbox" checked={rightsTick} onChange={(e) => setRightsTick(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--c-primary)]" />
               Tôi chịu trách nhiệm về bản quyền nội dung (lời bài hát, hình ảnh) trong thiết kế này.
             </label>
             <div className="mt-4 flex justify-end gap-2">
@@ -697,8 +697,8 @@ export function LyricsStudio({ settings, packIds }: { settings: LyricsSettings; 
 }
 
 const LYRIC_STYLES: [LyricStyle, string][] = [["original", "Nguyên bản"], ["collapse", "Rút gọn lặp"], ["inline", "Liền dòng /"]];
-const fchip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
-const chip = "inline-flex h-8 items-center gap-1 rounded-full border border-[#e5e5e7] px-2.5 text-[12px] font-medium text-[#52525b] hover:border-[#ff5fa2] hover:text-[#ff5fa2] disabled:opacity-50";
+const fchip = (on: boolean) => cx("h-8 rounded-full border px-3 text-[12px] font-medium", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
+const chip = "inline-flex h-8 items-center gap-1 rounded-full border border-[#e5e5e7] px-2.5 text-[12px] font-medium text-[#52525b] hover:border-[var(--c-primary)] hover:text-[var(--c-primary)] disabled:opacity-50";
 
 function Section({ title, right, children }: { title: string; right?: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -709,7 +709,7 @@ function Section({ title, right, children }: { title: string; right?: React.Reac
   );
 }
 function In({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
-  return <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} maxLength={80} className="h-10 w-full rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[#ff5fa2]" />;
+  return <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} maxLength={80} className="h-10 w-full rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[var(--c-primary)]" />;
 }
 
 // ---------- Modal lyrics 1 bài ----------
@@ -762,11 +762,11 @@ function SongModal({ index, song, maxLines, defaultArtist, lang, globalStyle, on
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
           <div className="flex flex-wrap gap-2">
             <input value={s.title} onChange={(e) => setS({ ...s, title: e.target.value })} placeholder="Tên bài" maxLength={80}
-              className="h-10 min-w-[160px] flex-1 rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[#ff5fa2]" />
+              className="h-10 min-w-[160px] flex-1 rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[var(--c-primary)]" />
             {FEATURE_LYRICS_SUGGEST && (
               <>
                 <input value={artist} onChange={(e) => setS({ ...s, artist: e.target.value })} placeholder="Ca sĩ (không bắt buộc)" maxLength={80}
-                  className="h-10 w-40 rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[#ff5fa2]" />
+                  className="h-10 w-40 rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[var(--c-primary)]" />
                 <Button variant="secondary" icon={<Search size={15} />} loading={searching} onClick={find}>Tìm lời gợi ý</Button>
               </>
             )}
@@ -790,19 +790,19 @@ function SongModal({ index, song, maxLines, defaultArtist, lang, globalStyle, on
           <div>
             {s.src === "lrclib" && hasLyrics && <p className="mb-1 text-[12px] text-[#a1a1aa]">Lời gợi ý từ cộng đồng LRCLIB, có thể chưa chính xác</p>}
             <textarea value={s.lyrics} onChange={(e) => setLyrics(e.target.value)} onPaste={onPaste} rows={12} placeholder="Dán lyrics vào đây — web tự dọn nhãn [Chorus], dòng rác, mốc thời gian; giữ nguyên ngắt dòng của bạn." disabled={s.titleOnly}
-              className="w-full rounded-[8px] border border-[#e5e5e7] px-3 py-2 text-[14px] leading-relaxed outline-none focus:border-[#ff5fa2] disabled:bg-[#fafafa]" />
+              className="w-full rounded-[8px] border border-[#e5e5e7] px-3 py-2 text-[14px] leading-relaxed outline-none focus:border-[var(--c-primary)] disabled:bg-[#fafafa]" />
             <div className="mt-1 flex items-center justify-between gap-2 text-[12px]">
               <span className="flex items-center gap-2">
-                {undo !== null && <button type="button" onClick={() => { setS({ ...s, lyrics: undo }); setUndo(null); }} className="inline-flex items-center gap-1 font-medium text-[#ff5fa2] hover:text-[#e0468a]"><Undo2 size={12} /> Hoàn tác (lấy lại bản gốc)</button>}
+                {undo !== null && <button type="button" onClick={() => { setS({ ...s, lyrics: undo }); setUndo(null); }} className="inline-flex items-center gap-1 font-medium text-[var(--c-primary)] hover:text-[#e0468a]"><Undo2 size={12} /> Hoàn tác (lấy lại bản gốc)</button>}
                 <span className="text-[#dc2626]">{err || (over ? `Vượt giới hạn ${maxLines} dòng / ${MAX_LINE_CHARS} ký tự mỗi dòng — sửa bớt trước khi lưu.` : "")}</span>
               </span>
               <span className={cx("tabular-nums", lines >= maxLines ? "text-[#dc2626]" : "text-[#71717a]")}>{lines} / {maxLines} dòng</span>
             </div>
           </div>
           <input value={s.note} onChange={(e) => setS({ ...s, note: e.target.value })} placeholder="Ghi chú dưới bài (không bắt buộc, ví dụ “Sáng tác: …”)" maxLength={120}
-            className="h-10 w-full rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[#ff5fa2]" />
+            className="h-10 w-full rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[var(--c-primary)]" />
           <label className="flex items-center gap-2 text-[13px] text-[#3f3f46]">
-            <input type="checkbox" checked={s.titleOnly} onChange={(e) => setS({ ...s, titleOnly: e.target.checked })} className="h-4 w-4 accent-[#ff5fa2]" /> Chỉ in tên bài
+            <input type="checkbox" checked={s.titleOnly} onChange={(e) => setS({ ...s, titleOnly: e.target.checked })} className="h-4 w-4 accent-[var(--c-primary)]" /> Chỉ in tên bài
           </label>
           {/* kiểu lời riêng của bài + các đoạn lặp phát hiện được (chỉ đổi cách hiển thị, không sửa lời gốc) */}
           <label className="flex items-center gap-2 text-[13px] text-[#3f3f46]">Kiểu lời
@@ -822,7 +822,7 @@ function SongModal({ index, song, maxLines, defaultArtist, lang, globalStyle, on
                       <tr key={g.key} className="border-t border-[#efeff1]">
                         <td className="py-1 pr-2"><input value={s.labels?.[g.key] ?? g.name} onChange={(e) => setS({ ...s, labels: { ...(s.labels ?? {}), [g.key]: e.target.value } })} className="h-7 w-28 rounded-[6px] border border-[#e5e5e7] px-1" aria-label="Tên nhãn" disabled={off} /></td>
                         <td className="truncate py-1 text-[#71717a]">×{g.count} · {g.preview}</td>
-                        <td className="whitespace-nowrap py-1 pl-2"><label className="flex items-center gap-1"><input type="checkbox" checked={!!off} onChange={(e) => setS({ ...s, noMerge: e.target.checked ? [...(s.noMerge ?? []), g.key] : (s.noMerge ?? []).filter((k) => k !== g.key) })} className="accent-[#ff5fa2]" /> Không gộp đoạn này</label></td>
+                        <td className="whitespace-nowrap py-1 pl-2"><label className="flex items-center gap-1"><input type="checkbox" checked={!!off} onChange={(e) => setS({ ...s, noMerge: e.target.checked ? [...(s.noMerge ?? []), g.key] : (s.noMerge ?? []).filter((k) => k !== g.key) })} className="accent-[var(--c-primary)]" /> Không gộp đoạn này</label></td>
                       </tr>
                     );
                   })}
@@ -860,10 +860,10 @@ function ImportModal({ defaultArtist, current, onClose, onConfirm }: {
       <div className="flex max-h-[92dvh] w-full max-w-[680px] flex-col overflow-hidden rounded-[14px] bg-white shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="border-b border-[#efeff1] px-5 py-3"><p className="text-[16px] font-semibold">Dán danh sách bài</p></div>
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
-          <input value={common} onChange={(e) => setCommon(e.target.value)} placeholder="Ca sĩ chung (dùng cho dòng không ghi ca sĩ)" className="h-10 w-full rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[#ff5fa2]" />
+          <input value={common} onChange={(e) => setCommon(e.target.value)} placeholder="Ca sĩ chung (dùng cho dòng không ghi ca sĩ)" className="h-10 w-full rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[var(--c-primary)]" />
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={7} autoFocus
             placeholder={"Drive By - May Jailer\nNext To Me - May Jailer\nA Star For Nick"}
-            className="w-full rounded-[8px] border border-[#e5e5e7] px-3 py-2 text-[14px] outline-none focus:border-[#ff5fa2]" />
+            className="w-full rounded-[8px] border border-[#e5e5e7] px-3 py-2 text-[14px] outline-none focus:border-[var(--c-primary)]" />
           <p className="text-[12px] text-[#71717a]">Mỗi dòng 1 bài. Nhận “Tên bài - Ca sĩ”, “1. Tên bài”, “01) Tên bài”, “Tên bài (3:45)”.</p>
           {cut && <p className="text-[13px] text-[#ea7a12]">Chỉ lấy {MAX_SONGS} bài đầu (tối đa {MAX_SONGS} bài).</p>}
           {rows.length > 0 && (
@@ -883,7 +883,7 @@ function ImportModal({ defaultArtist, current, onClose, onConfirm }: {
             </table>
           )}
           {FEATURE_LYRICS_SUGGEST && (
-            <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={suggest} onChange={(e) => setSuggest(e.target.checked)} className="h-4 w-4 accent-[#ff5fa2]" /> Tìm lời gợi ý cho các bài này luôn</label>
+            <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={suggest} onChange={(e) => setSuggest(e.target.checked)} className="h-4 w-4 accent-[var(--c-primary)]" /> Tìm lời gợi ý cho các bài này luôn</label>
           )}
         </div>
         <div className="flex flex-wrap justify-end gap-2 border-t border-[#efeff1] px-5 py-3">
@@ -911,7 +911,7 @@ function AlbumModal({ songs, maxLines, onClose, onConfirm }: { songs: Song[]; ma
         <div className="border-b border-[#efeff1] px-5 py-3"><p className="text-[16px] font-semibold">Dán lời cả album</p></div>
         <div className="flex-1 space-y-3 overflow-y-auto p-5">
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={9} autoFocus placeholder="Dán 1 khối lời gồm nhiều bài — mỗi bài bắt đầu bằng 1 dòng là tên bài (trùng với tên trong tracklist)."
-            className="w-full rounded-[8px] border border-[#e5e5e7] px-3 py-2 text-[14px] outline-none focus:border-[#ff5fa2]" />
+            className="w-full rounded-[8px] border border-[#e5e5e7] px-3 py-2 text-[14px] outline-none focus:border-[var(--c-primary)]" />
           {text.trim() && !segs.length && <p className="text-[13px] text-[#ea7a12]">Chưa nhận ra tên bài nào — kiểm tra tên bài trong tracklist có khớp với dòng tên bài trong khối lời không.</p>}
           {segs.length > 0 && (
             <table className="w-full text-[13px]">

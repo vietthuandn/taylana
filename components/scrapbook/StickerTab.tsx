@@ -54,14 +54,14 @@ export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, on
     io.observe(el);
     return () => io.disconnect();
   }, [list.length]);
-  const chip = (on: boolean) => cx("h-7 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
+  const chip = (on: boolean) => cx("h-7 rounded-full border px-2.5 text-[12px] font-medium", on ? "border-[var(--c-primary)] bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
   return (
     <div className="space-y-3">
       {onUpload && (
         <section className="space-y-2 rounded-[10px] border border-[#e5e5e7] p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-[13px] font-semibold">Sticker của bạn</p>
-            <button type="button" onClick={() => upIn.current?.click()} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[#ff5fa2] hover:text-[#ff5fa2]"><Upload size={13} /> Tải sticker của bạn</button>
+            <button type="button" onClick={() => upIn.current?.click()} className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#e5e5e7] px-3 text-[12px] font-medium hover:border-[var(--c-primary)] hover:text-[var(--c-primary)]"><Upload size={13} /> Tải sticker của bạn</button>
             <input ref={upIn} type="file" multiple accept="image/*" className="sr-only" onChange={(e) => { if (e.target.files?.length) onUpload([...e.target.files]); e.target.value = ""; }} />
           </div>
           {mine.length ? (
@@ -91,14 +91,14 @@ export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, on
           <div ref={tagBox} className={cx("flex flex-wrap gap-1.5 overflow-hidden", !tagsOpen && "max-h-[54px]")}>
             {tagList.map((t) => <button key={t.tag} type="button" onClick={() => setTag(tag === t.tag ? "" : t.tag)} className={cx(chip(tag === t.tag), "h-6 px-2 text-[11px]")}>#{t.tag}</button>)}
           </div>
-          {(tagMore || tagsOpen) && <button type="button" onClick={() => setTagsOpen((v) => !v)} className="mt-1 text-[12px] font-medium text-[#71717a] hover:text-[#ff5fa2]" aria-expanded={tagsOpen}>{tagsOpen ? "Thu gọn" : "Xem thêm"}</button>}
+          {(tagMore || tagsOpen) && <button type="button" onClick={() => setTagsOpen((v) => !v)} className="mt-1 text-[12px] font-medium text-[#71717a] hover:text-[var(--c-primary)]" aria-expanded={tagsOpen}>{tagsOpen ? "Thu gọn" : "Xem thêm"}</button>}
         </div>
       )}
       <div className="flex flex-wrap gap-1.5">
         <button type="button" onClick={() => setTone("all")} className={chip(tone === "all")}>Mọi màu</button>
         {TONES.filter((t) => t.id !== "any").map((t) => (
           <button key={t.id} type="button" onClick={() => setTone(t.id)} title={t.name} aria-label={t.name}
-            className={cx("h-7 w-7 rounded-full border-2", tone === t.id ? "border-[#ff5fa2]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: t.hex }} />
+            className={cx("h-7 w-7 rounded-full border-2", tone === t.id ? "border-[var(--c-primary)]" : "border-white ring-1 ring-[#e5e5e7]")} style={{ background: t.hex }} />
         ))}
       </div>
       {list.length ? (
@@ -106,7 +106,7 @@ export function StickerTab({ assets, groups = [], onAdd, mine = [], onUpload, on
           {list.slice(0, limit).map((a) => (
             <button key={a.id} type="button" title={a.name} onClick={() => onAdd(a)} draggable
               onDragStart={(e) => { e.dataTransfer.setData(ASSET_DRAG, a.id); e.dataTransfer.effectAllowed = "copy"; }}
-              className={cx("grid aspect-square place-items-center overflow-hidden rounded-[8px] border border-[#e5e5e7] p-1.5 hover:border-[#ff5fa2]", checker)}>
+              className={cx("grid aspect-square place-items-center overflow-hidden rounded-[8px] border border-[#e5e5e7] p-1.5 hover:border-[var(--c-primary)]", checker)}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={a.thumb_url || a.url} alt={a.name} className="max-h-full max-w-full object-contain" loading="lazy" decoding="async" draggable={false} />
             </button>

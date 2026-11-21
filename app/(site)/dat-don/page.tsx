@@ -31,14 +31,14 @@ export default async function ProductListPage({ searchParams }: { searchParams: 
           <ul className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {products.map((p) => (
               <li key={p.id}>
-                <Link href={`/san-pham/${p.slug}`} className="block overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white transition-colors hover:border-[#ff5fa2]">
+                <Link href={`/san-pham/${p.slug}`} className="block overflow-hidden rounded-[12px] border border-[#e5e5e7] bg-white transition-colors hover:border-[var(--c-primary)]">
                   <div className="relative aspect-square bg-[#f4f4f5]">
                     {p.images[0] ? <Image src={p.images[0]} alt={p.name} fill sizes="(min-width:1024px) 280px, 50vw" className="object-cover" />
                       : <Disc3 size={64} strokeWidth={1} className="absolute inset-0 m-auto text-[#d4d4d8]" />}
                   </div>
                   <div className="p-3">
                     <p className="line-clamp-2 min-h-[40px] text-[14px] leading-5 text-[#18181b]">{p.name}</p>
-                    <p className="mt-1 text-[16px] font-semibold tabular-nums text-[#ff5fa2]">Từ {formatVND(fromPrice(p))}</p>
+                    <p className="mt-1 text-[16px] font-semibold tabular-nums text-[var(--c-primary)]">Từ {formatVND(fromPrice(p))}</p>
                   </div>
                 </Link>
               </li>

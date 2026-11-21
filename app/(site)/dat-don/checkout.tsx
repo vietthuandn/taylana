@@ -72,10 +72,10 @@ export function Stepper({ step, onGo }: { step: Step; onGo: (s: Step) => void })
             const can = done && step !== 3;
             return (
               <li key={t} className="flex shrink-0 items-center gap-2">
-                {i > 0 && <span className={cx("h-px w-4 sm:w-8", n <= step ? "bg-[#ff5fa2]" : "bg-[#e5e5e7]")} />}
+                {i > 0 && <span className={cx("h-px w-4 sm:w-8", n <= step ? "bg-[var(--c-primary)]" : "bg-[#e5e5e7]")} />}
                 <button type="button" disabled={!can} onClick={() => can && onGo(n)} className={cx("flex items-center gap-2", can && "hover:opacity-80")}>
                   <span className={cx("grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-semibold",
-                    cur ? "bg-[#ff5fa2] text-white" : done ? "bg-[#fff0f6] text-[#ff5fa2]" : "border border-[#d4d4d8] text-[#a1a1aa]")}>
+                    cur ? "bg-[var(--c-primary)] text-white" : done ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "border border-[#d4d4d8] text-[#a1a1aa]")}>
                     {done ? <Check size={12} strokeWidth={3} /> : n}
                   </span>
                   <span className={cx("text-[14px]", cur ? "font-semibold text-[#18181b]" : done ? "text-[#3f3f46]" : "text-[#a1a1aa]", !cur && "hidden sm:inline")}>{t}</span>
@@ -94,10 +94,10 @@ export function Chip({ on, onClick, children, role = "radio" }: { on: boolean; o
   return (
     <button type="button" role={role} aria-checked={on} onClick={onClick}
       className={cx("relative inline-flex h-9 shrink-0 items-center overflow-hidden whitespace-nowrap rounded-[8px] border px-[14px] text-[14px] leading-none transition-colors",
-        on ? "border-[#ff5fa2] bg-[#fff5f9] text-[#ff5fa2] shadow-[inset_0_0_0_0.5px_#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#18181b] hover:border-[#a1a1aa]")}>
+        on ? "border-[var(--c-primary)] bg-[#fff5f9] text-[var(--c-primary)] shadow-[inset_0_0_0_0.5px_#ff5fa2]" : "border-[#e5e5e7] bg-white text-[#18181b] hover:border-[#a1a1aa]")}>
       {children}
       {on && (
-        <span className="pointer-events-none absolute bottom-0 right-0 h-[14px] w-[14px] bg-[#ff5fa2] [clip-path:polygon(100%_0,100%_100%,0_100%)]">
+        <span className="pointer-events-none absolute bottom-0 right-0 h-[14px] w-[14px] bg-[var(--c-primary)] [clip-path:polygon(100%_0,100%_100%,0_100%)]">
           <Check size={7} strokeWidth={4} className="absolute bottom-[1px] right-[1px] text-white" />
         </span>
       )}
@@ -123,7 +123,7 @@ export function Price({ price, now }: { price: number; now: number }) {
   return (
     <span className="inline-flex items-baseline gap-1 tabular-nums">
       <span className="text-[13px] text-[#a1a1aa] line-through">{formatVND(price)}</span>
-      <span className="text-[#ff5fa2]">{formatVND(now)}</span>
+      <span className="text-[var(--c-primary)]">{formatVND(now)}</span>
     </span>
   );
 }
@@ -220,7 +220,7 @@ export function useCheckout({ lines, discounts, shipping, phone, initialCode = "
     <section>
       <div className="mb-2 flex items-center justify-between">
         <p className="text-[13px] font-semibold text-[#18181b]">Mã giảm giá</p>
-        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center text-[13px] font-medium text-[#ff5fa2] hover:text-[#e0468a]">
+        <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center text-[13px] font-medium text-[var(--c-primary)] hover:text-[#e0468a]">
           Nhập mã <ChevronRight size={16} />
         </button>
       </div>
@@ -228,9 +228,9 @@ export function useCheckout({ lines, discounts, shipping, phone, initialCode = "
         <div className="flex flex-wrap gap-2">
           {applied.map((a) => (
             <span key={a.target} className="inline-flex h-8 items-center gap-2 rounded-[8px] border border-[#ffd1e5] bg-[#fff5f9] px-3 text-[13px]">
-              {a.target === "shipping" ? <Truck size={16} className="text-[#ff5fa2]" /> : <Tag size={16} className="text-[#ff5fa2]" />}
+              {a.target === "shipping" ? <Truck size={16} className="text-[var(--c-primary)]" /> : <Tag size={16} className="text-[var(--c-primary)]" />}
               <span className="font-medium text-[#18181b]">{a.code || a.label}</span>
-              <span className="tabular-nums text-[#ff5fa2]">−{formatVND(a.target === "shipping" ? shipAmt : goodsAmt)}</span>
+              <span className="tabular-nums text-[var(--c-primary)]">−{formatVND(a.target === "shipping" ? shipAmt : goodsAmt)}</span>
             </span>
           ))}
         </div>
@@ -265,23 +265,23 @@ export function useCheckout({ lines, discounts, shipping, phone, initialCode = "
               <span>Phí vận chuyển</span>
               <span className={cx(money, "flex items-baseline gap-2")}>
                 {ship.after < ship.base && <span className="text-[13px] text-[#a1a1aa] line-through">{formatVND(ship.base)}</span>}
-                {ship.after === 0 && ship.base > 0 ? <span className="text-[#ff5fa2]">Miễn phí</span> : <span>{formatVND(ship.after)}</span>}
+                {ship.after === 0 && ship.base > 0 ? <span className="text-[var(--c-primary)]">Miễn phí</span> : <span>{formatVND(ship.after)}</span>}
               </span>
             </p>
             {ship.next && (
               <div className="pb-2">
                 <p className="text-[13px] text-[#71717a]">Mua thêm <span className="tabular-nums">{formatVND(ship.next.need)}</span> để được giảm {ship.next.percent}% phí vận chuyển</p>
-                <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full rounded-full bg-[#ff5fa2]" style={{ width: `${Math.round(ship.next.progress * 100)}%` }} /></div>
+                <div className="mt-1 h-1 overflow-hidden rounded-full bg-[#f4f4f5]"><div className="h-full rounded-full bg-[var(--c-primary)]" style={{ width: `${Math.round(ship.next.progress * 100)}%` }} /></div>
               </div>
             )}
             {shipping.note && <p className="pb-1 text-[13px] text-[#71717a]">{shipping.note}</p>}
           </>
         )}
         {goods && goodsAmt > 0 && (
-          <p className={cx(row, "text-[#ff5fa2]")}><span className="min-w-0 truncate">Giảm tiền hàng · {goods.code || goods.label}</span><span className={money}>−{formatVND(goodsAmt)}</span></p>
+          <p className={cx(row, "text-[var(--c-primary)]")}><span className="min-w-0 truncate">Giảm tiền hàng · {goods.code || goods.label}</span><span className={money}>−{formatVND(goodsAmt)}</span></p>
         )}
         {shipD && shipAmt > 0 && (
-          <p className={cx(row, "text-[#ff5fa2]")}><span className="min-w-0 truncate">Giảm phí vận chuyển · {shipD.code || shipD.label}</span><span className={money}>−{formatVND(shipAmt)}</span></p>
+          <p className={cx(row, "text-[var(--c-primary)]")}><span className="min-w-0 truncate">Giảm phí vận chuyển · {shipD.code || shipD.label}</span><span className={money}>−{formatVND(shipAmt)}</span></p>
         )}
         {hasLines && (
           <>
@@ -290,7 +290,7 @@ export function useCheckout({ lines, discounts, shipping, phone, initialCode = "
               <span className="text-[15px] font-semibold text-[#18181b]">Tổng tiền</span>
               <span className="flex items-baseline gap-2">
                 {savings > 0 && <span className="text-[13px] tabular-nums text-[#a1a1aa] line-through">{formatVND(total + savings)}</span>}
-                <span className="text-[20px] font-bold tabular-nums text-[#ff5fa2]">{formatVND(total)}</span>
+                <span className="text-[20px] font-bold tabular-nums text-[var(--c-primary)]">{formatVND(total)}</span>
               </span>
             </p>
           </>
@@ -344,10 +344,10 @@ function DiscountModal({ pubs, priv, choice, resolve, check, onClose, onConfirm 
   const pick = (t: DiscountTarget, v: Choice) => setDraft((d) => ({ ...d, [t]: d[t] === v ? "none" : v })); // bấm lại để bỏ chọn
 
   const card = (on: boolean, dim: boolean) => cx("flex w-full items-start gap-3 rounded-[12px] border bg-white p-3 text-left transition-colors",
-    on ? "border-[#ff5fa2] shadow-[inset_0_0_0_0.5px_#ff5fa2]" : "border-[#e5e5e7] hover:border-[#a1a1aa]", dim && "cursor-not-allowed opacity-50 hover:border-[#e5e5e7]");
+    on ? "border-[var(--c-primary)] shadow-[inset_0_0_0_0.5px_#ff5fa2]" : "border-[#e5e5e7] hover:border-[#a1a1aa]", dim && "cursor-not-allowed opacity-50 hover:border-[#e5e5e7]");
   const radio = (on: boolean) => (
-    <span className={cx("mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border", on ? "border-[#ff5fa2]" : "border-[#d4d4d8]")}>
-      {on && <span className="h-2 w-2 rounded-full bg-[#ff5fa2]" />}
+    <span className={cx("mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full border", on ? "border-[var(--c-primary)]" : "border-[#d4d4d8]")}>
+      {on && <span className="h-2 w-2 rounded-full bg-[var(--c-primary)]" />}
     </span>
   );
 
@@ -360,10 +360,10 @@ function DiscountModal({ pubs, priv, choice, resolve, check, onClose, onConfirm 
         </div>
         <div className="flex-1 overflow-y-auto p-4">
           <form className="flex gap-2" onSubmit={apply}>
-            <input className="h-10 min-w-0 flex-1 rounded-[8px] border border-[#e5e5e7] bg-white px-3 font-mono text-[14px] uppercase text-[#18181b] placeholder:font-sans placeholder:normal-case placeholder:text-[#a1a1aa] focus:border-[#ff5fa2] focus:outline-none focus:ring-[3px] focus:ring-[#ff5fa2]/15"
+            <input className="h-10 min-w-0 flex-1 rounded-[8px] border border-[#e5e5e7] bg-white px-3 font-mono text-[14px] uppercase text-[#18181b] placeholder:font-sans placeholder:normal-case placeholder:text-[#a1a1aa] focus:border-[var(--c-primary)] focus:outline-none focus:ring-[3px] focus:ring-[var(--c-primary)]/15"
               placeholder="Nhập mã riêng tư" value={code} aria-label="Mã riêng tư"
               onChange={(e) => { setCode(toCode(e.target.value)); setMsg({ err: "", hint: "" }); }} />
-            <button className="h-10 shrink-0 rounded-[10px] bg-[#ff5fa2] px-4 text-[14px] font-medium text-white hover:bg-[#f0468f] disabled:opacity-50" disabled={!code || busy}>
+            <button className="h-10 shrink-0 rounded-[10px] bg-[var(--c-primary)] px-4 text-[14px] font-medium text-white hover:bg-[var(--c-primary-hover)] disabled:opacity-50" disabled={!code || busy}>
               {busy ? "Đang kiểm tra..." : "Áp dụng"}
             </button>
           </form>
@@ -383,7 +383,7 @@ function DiscountModal({ pubs, priv, choice, resolve, check, onClose, onConfirm 
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
                           <span className="font-mono text-[14px] font-semibold text-[#18181b]">{mine.code}</span>
-                          <span className="rounded-[4px] bg-[#fff0f6] px-1.5 text-[12px] font-medium text-[#ff5fa2]">Mã của bạn</span>
+                          <span className="rounded-[4px] bg-[var(--c-secondary)] px-1.5 text-[12px] font-medium text-[var(--c-primary)]">Mã của bạn</span>
                         </span>
                         <span className="block text-[13px] text-[#71717a]">{mine.label !== mine.code ? `${mine.label} · ` : ""}−{formatVND(mine.amount)}</span>
                       </span>
@@ -420,7 +420,7 @@ function DiscountModal({ pubs, priv, choice, resolve, check, onClose, onConfirm 
               if (best && (draft[t] === best.id || (draft[t] === "private" && best.isPrivate))) out[t] = "auto";
             }
             onConfirm(out);
-          }} className="h-12 w-full rounded-[10px] bg-[#ff5fa2] text-[16px] font-semibold text-white hover:bg-[#f0468f]">Xác nhận</button>
+          }} className="h-12 w-full rounded-[10px] bg-[var(--c-primary)] text-[16px] font-semibold text-white hover:bg-[var(--c-primary-hover)]">Xác nhận</button>
         </div>
       </div>
     </div>
@@ -439,7 +439,7 @@ export function ActionBar({ sets, total, savings, label, onPrimary, disabled, on
       <Wrap className="flex min-h-[72px] items-center justify-between gap-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-3 lg:justify-end">
         <div className="min-w-0 lg:text-right">
           <p className="truncate text-[13px] text-[#71717a]">Tổng cộng ({sets} sản phẩm)</p>
-          <p className="text-[22px] font-bold leading-tight tabular-nums text-[#ff5fa2]">{formatVND(total)}</p>
+          <p className="text-[22px] font-bold leading-tight tabular-nums text-[var(--c-primary)]">{formatVND(total)}</p>
           {savings > 0 && <p className="text-[12px] tabular-nums text-[#71717a]">Tiết kiệm: {formatVND(savings)}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -450,7 +450,7 @@ export function ActionBar({ sets, total, savings, label, onPrimary, disabled, on
             </button>
           )}
           <button type="button" onClick={onPrimary} disabled={disabled}
-            className="h-11 min-w-[120px] rounded-[10px] bg-[#ff5fa2] px-4 text-[15px] font-semibold text-white transition-colors hover:bg-[#f0468f] disabled:cursor-not-allowed disabled:opacity-50 lg:w-[180px]">
+            className="h-11 min-w-[120px] rounded-[10px] bg-[var(--c-primary)] px-4 text-[15px] font-semibold text-white transition-colors hover:bg-[var(--c-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50 lg:w-[180px]">
             {label}
           </button>
         </div>
@@ -538,7 +538,7 @@ function Success({ result }: { result: { code: string; total: number } }) {
   return (
     <section className="mx-auto w-full max-w-lg py-4">
       <div className="rounded-[12px] border border-[#e5e5e7] bg-white p-6 text-center sm:p-8">
-        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#fff0f6] text-[#ff5fa2]"><Check size={24} /></span>
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[var(--c-secondary)] text-[var(--c-primary)]"><Check size={24} /></span>
         <h1 className="mt-4 font-sans text-[22px] font-bold normal-case tracking-[-0.02em] text-[#18181b] sm:text-[28px]">Cảm ơn bạn đã đặt hàng!</h1>
         <p className="mt-1 text-[14px] text-[#71717a]">Mã đơn của bạn</p>
         <div className="mt-2 inline-flex items-center gap-2 rounded-[10px] border border-[#e5e5e7] bg-[#fafafa] py-2 pl-4 pr-2">
