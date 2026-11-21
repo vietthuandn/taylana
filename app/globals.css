@@ -559,4 +559,5 @@ label:has(> input:is([type="date"], [type="datetime-local"], [type="time"])) { m
   --c-header-bg: #ffffff;
   --c-header-text: #18181b;
   --c-header-active: var(--c-primary);
+  --c-section-text: #1a1a1a;
 }

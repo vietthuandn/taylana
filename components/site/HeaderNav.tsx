@@ -62,7 +62,7 @@ export function CartButton() {
   const n = lines.length;
   return (
     <Link href="/gio-hang" aria-label={`Giỏ hàng${n ? ` (${n})` : ""}`}
-      className="relative grid h-9 w-9 shrink-0 place-items-center rounded-[8px] border border-[#e5e5e7] bg-white text-[var(--c-primary-dark)] hover:bg-[#f4f4f5]">
+      className="relative grid h-9 w-9 shrink-0 place-items-center rounded-[8px] text-[var(--c-header-text)] hover:bg-black/5">
       <ShoppingCart size={17} />
       {n > 0 && (
         <span className="absolute -right-1.5 -top-1.5 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#ef4444] px-1 text-[11px] font-semibold leading-none text-white">

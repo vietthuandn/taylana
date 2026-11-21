@@ -8,17 +8,27 @@ export type Theme = {
   header_bg: string; // nền header
   header_text: string; // chữ trên header (logo, menu)
   header_active: string; // menu đang chọn trên header
+  section_text: string; // tiêu đề khối + tên các mục ở Trang chủ / trang Thiết kế
+  logo_url: string | null; // logo riêng (không có = chữ TAYLANA)
 };
 export const DEFAULT_THEME: Theme = {
   primary: "#ff5fa2", secondary: "#fff0f6", page_bg: "#f7f7f8", page_bg_image: null,
-  header_bg: "#ffffff", header_text: "#18181b", header_active: "#ff5fa2",
+  header_bg: "#ffffff", header_text: "#18181b", header_active: "#ff5fa2", section_text: "#1a1a1a", logo_url: null,
 };
+/** nền header: mã màu #rrggbb HOẶC mã gradient CSS (linear-gradient(...) / radial-gradient(...)) */
+export const isHeaderBg = (v: string) => /^#[0-9a-f]{6}$/i.test(v) || (/^(linear|radial)-gradient\([#%0-9a-z.,\s()-]+\)$/i.test(v) && v.length <= 300);
+/** gradient đẹp gợi ý từ 1 màu: đậm → nhạt dần (sang trắng) */
+export function suggestGradient(hex: string) {
+  const mix = (k: number) => "#" + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) + (255 - parseInt(hex.slice(i, i + 2), 16)) * k).toString(16).padStart(2, "0")).join("");
+  return `linear-gradient(120deg, ${hex} 0%, ${mix(0.35)} 50%, ${mix(0.75)} 100%)`;
+}
 const HEX = /^#[0-9a-f]{6}$/i;
 export function normalizeTheme(v: unknown): Theme {
   const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
   const c = (k: keyof Theme) => (typeof o[k] === "string" && HEX.test(o[k] as string) ? (o[k] as string) : (DEFAULT_THEME[k] as string));
-  const img = typeof o.page_bg_image === "string" && /^https?:\/\//.test(o.page_bg_image) ? o.page_bg_image : null;
-  return { primary: c("primary"), secondary: c("secondary"), page_bg: c("page_bg"), page_bg_image: img, header_bg: c("header_bg"), header_text: c("header_text"), header_active: c("header_active") };
+  const url = (k: string) => (typeof o[k] === "string" && /^https?:\/\//.test(o[k] as string) ? (o[k] as string) : null);
+  const hb = typeof o.header_bg === "string" && isHeaderBg(o.header_bg.trim()) ? o.header_bg.trim() : DEFAULT_THEME.header_bg;
+  return { primary: c("primary"), secondary: c("secondary"), page_bg: c("page_bg"), page_bg_image: url("page_bg_image"), header_bg: hb, header_text: c("header_text"), header_active: c("header_active"), section_text: c("section_text"), logo_url: url("logo_url") };
 }
 /** CSS ghi đè biến màu (chỉ các giá trị khác mặc định) */
 export function themeCss(t: Theme) {
@@ -29,6 +39,7 @@ export function themeCss(t: Theme) {
   if (t.header_bg !== d.header_bg) v.push(`--c-header-bg:${t.header_bg}`);
   if (t.header_text !== d.header_text) v.push(`--c-header-text:${t.header_text}`);
   if (t.header_active !== d.header_active) v.push(`--c-header-active:${t.header_active}`);
+  if (t.section_text !== d.section_text) v.push(`--c-section-text:${t.section_text}`);
   return v.length ? `:root{${v.join(";")}}` : "";
 }
 /** nền trang: ảnh (phủ kín) đè lên màu */

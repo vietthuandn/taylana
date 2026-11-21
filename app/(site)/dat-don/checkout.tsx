@@ -55,7 +55,7 @@ export const Wrap = ({ children, className = "" }: { children: React.ReactNode; 
   <div className={cx("mx-auto w-full max-w-[1200px] px-4 lg:px-6", className)}>{children}</div>
 );
 export const Label = ({ children }: { children: React.ReactNode }) => (
-  <p className="mb-2 text-[13px] font-semibold text-[#18181b]">{children}</p>
+  <p className="mb-2 text-[13px] font-semibold text-[var(--c-section-text)]">{children}</p>
 );
 
 // ---------- Thanh 3 bước: dính ngay dưới header, cao 56px ----------

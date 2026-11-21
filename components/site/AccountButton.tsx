@@ -44,7 +44,7 @@ export function AccountButton() {
   return (
     <div ref={box} className="relative shrink-0">
       {menu && <div className="fixed inset-0 z-[1] bg-black/20 md:bg-transparent" onClick={() => setMenu(false)} aria-hidden />}
-      <button onClick={() => setMenu(!menu)} className="relative z-[2] flex h-9 max-w-[150px] items-center gap-2 rounded-[8px] border border-[#e5e5e7] bg-white px-2 text-[14px] font-medium text-[var(--c-primary-dark)] hover:bg-[#f4f4f5]">
+      <button onClick={() => setMenu(!menu)} className="relative z-[2] flex h-9 max-w-[150px] items-center gap-2 rounded-[8px] px-1.5 text-[14px] font-medium text-[var(--c-header-text)] hover:bg-black/5">
         <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--c-secondary)] text-xs font-semibold text-[var(--c-primary)]">{name.trim()[0]?.toUpperCase()}</span>
         <span className="truncate">{name}</span>
       </button>

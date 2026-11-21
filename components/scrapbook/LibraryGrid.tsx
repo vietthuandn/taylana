@@ -25,7 +25,7 @@ export function LibraryGrid({ items, cats, cols = 3, current, onPick, round, emp
     <div className="space-y-5">
       {groups.map((g) => (
         <section key={g.cat?.id ?? "other"}>
-          <p className="mb-2 text-[13px] font-semibold text-[#18181b]">{g.cat?.name ?? "Khác"}</p>
+          <p className="mb-2 text-[13px] font-semibold text-[var(--c-section-text)]">{g.cat?.name ?? "Khác"}</p>
           <div className={cx("grid gap-2", cols === 2 ? "grid-cols-2" : "grid-cols-3")}>
             {g.items.map((d) => (
               <button key={d.id} type="button" onClick={() => onPick(d)} title={d.name}

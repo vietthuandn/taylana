@@ -25,7 +25,7 @@ export function TileGrid({ items, preview = false }: { items: TileItem[]; previe
                 sizes={preview ? "140px" : four ? "(min-width: 768px) 250px, 46vw" : "(min-width: 768px) 300px, 46vw"} className="block aspect-square h-auto w-full object-contain" />
             )}
             {/* cỡ chữ theo bề ngang ô (~11%, giống bản xem trước trong admin), tối đa 2 dòng — không bị cắt mất chữ */}
-            <span className={`line-clamp-2 block w-full pt-[0.18em] font-tile font-bold leading-[1.3] tracking-[-0.01em] text-[#1A1A1A] ${o.image_url ? "-mt-[5%]" : ""}`}
+            <span className={`line-clamp-2 block w-full pt-[0.18em] font-tile font-bold leading-[1.3] tracking-[-0.01em] text-[var(--c-section-text)] ${o.image_url ? "-mt-[5%]" : ""}`}
               style={{ fontSize: preview ? 13 : "clamp(14px, 11cqw, 24px)" }}>{o.title}</span>
           </Link>
         </li>
