@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical, AlignStartHorizontal, AlignStartVertical, Blend, Copy, Expand,
-  FlipHorizontal2, ImageUp, Lock, MoreHorizontal, RefreshCw, Scissors, SlidersHorizontal, SquareRoundCorner, Wallpaper } from "lucide-react";
+  FlipHorizontal2, Frame, ImageOff, ImageUp, Lock, MoreHorizontal, RefreshCw, Scissors, SlidersHorizontal, SquareRoundCorner, Wallpaper } from "lucide-react";
 import { PRESETS, filterCss } from "@/lib/scrapbook/render";
 import { imgAr } from "@/lib/scrapbook/edit";
 import type { Surface } from "@/lib/scrapbook/surface";
@@ -172,6 +172,40 @@ export function PhotoToolbar({ l, S, img, photos, photoUrl, cutting, begin, patc
               <label className="flex items-center gap-2">Màu <input type="color" value={hex} onChange={(e) => set({ sh: { ...sh, c: `${e.target.value}66` } })} className="h-6 w-8" /></label>
             </>}
           </>); })()}
+        </ToolPop>
+      )}
+    </>
+  );
+}
+
+/** Thanh công cụ của KHUNG ẢNH (ô ảnh) đang chọn — cùng kiểu thanh ảnh: Thay khung · Thay ảnh · Xoá ảnh (ảnh quay về "Ảnh của bạn") */
+export function SlotToolbar({ hasPhoto, canPhoto, photos, photoUrl, onFrame, onPick, onUpload, onClear, variant = "bar" }: {
+  hasPhoto: boolean; canPhoto: boolean; photos: { id: string; url: string }[]; photoUrl?: string;
+  onFrame: () => void; onPick: (photoId: string) => void; onUpload: (f: File) => void; onClear: () => void; variant?: "bar" | "mobile";
+}) {
+  const [open, setOpen] = useState<HTMLElement | null>(null);
+  const fileIn = useRef<HTMLInputElement>(null);
+  const cls = variant === "mobile"
+    ? "flex min-w-[64px] shrink-0 flex-col items-center justify-center gap-0.5 rounded-[12px] px-1.5 py-1.5 text-[11px] font-medium text-[#3f3f46] disabled:opacity-40"
+    : "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[13px] font-medium text-[#3f3f46] hover:bg-white/80 disabled:opacity-40";
+  return (
+    <>
+      <button type="button" title="Thay khung" aria-label="Thay khung" onClick={onFrame} className={cls}><Frame size={16} /><span>Thay khung</span></button>
+      {canPhoto && <button type="button" title="Thay ảnh" aria-label="Thay ảnh" onClick={(e) => { const el = e.currentTarget; setOpen((o) => (o ? null : el)); }} className={cx(cls, open && (variant === "mobile" ? "bg-[var(--c-secondary)] text-[var(--c-primary)]" : "bg-white text-[var(--c-primary)] shadow-sm"))}><RefreshCw size={16} /><span>{hasPhoto ? "Thay ảnh" : "Chọn ảnh"}</span></button>}
+      {canPhoto && <button type="button" title="Xoá ảnh khỏi khung" aria-label="Xoá ảnh" onClick={onClear} disabled={!hasPhoto} className={cls}><ImageOff size={16} /><span>Xoá ảnh</span></button>}
+      <input ref={fileIn} type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { onUpload(f); setOpen(null); } }} />
+      {open && (
+        <ToolPop anchor={open} onClose={() => setOpen(null)} w={264}>
+          <p className="mb-2 font-semibold">{hasPhoto ? "Thay ảnh trong khung" : "Chọn ảnh cho khung"}</p>
+          {photos.length > 0 && (
+            <div className="mb-2 grid max-h-[180px] grid-cols-4 gap-1.5 overflow-y-auto">
+              {photos.map((p) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <button key={p.id} type="button" onClick={() => { onPick(p.id); setOpen(null); }} className={cx("aspect-square overflow-hidden rounded-[6px] border", photoUrl === p.url ? "border-[var(--c-primary)] ring-2 ring-[var(--c-primary)]/30" : "border-[#e5e5e7]")}><img src={p.url} alt="" className="h-full w-full object-cover" /></button>
+              ))}
+            </div>
+          )}
+          <button type="button" onClick={() => fileIn.current?.click()} className="inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-[6px] bg-[var(--c-primary)] font-semibold text-white"><ImageUp size={14} /> Tải ảnh mới</button>
         </ToolPop>
       )}
     </>

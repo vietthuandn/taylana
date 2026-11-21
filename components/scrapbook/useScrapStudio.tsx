@@ -5,7 +5,7 @@
    xoá, đổi khung, thêm / xoá ô ảnh, thêm sticker / chữ / lời chúc), phím tắt, lưu nháp IndexedDB. */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Copy, Frame as FrameIcon, ImagePlus, Scissors, Trash2, Undo2, Unlock, Wand2 } from "lucide-react";
-import { PhotoToolbar } from "./PhotoToolbar";
+import { PhotoToolbar, SlotToolbar } from "./PhotoToolbar";
 import { loadImg } from "@/lib/mockup/images";
 import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { loadFrameImages } from "@/lib/scrapbook/frames";
@@ -443,7 +443,6 @@ export function useScrapStudio(o: {
       <button type="button" onClick={() => duplicate(sel!)} title="Nhân bản (Ctrl+D)" aria-label="Nhân bản" className={ibtn}><Copy size={16} /></button>
       <button type="button" onClick={() => reorder(sel!, 1)} title="Lên trên một lớp" aria-label="Lên trên một lớp" className={ibtn}><ArrowUp size={16} /></button>
       <button type="button" onClick={() => reorder(sel!, -1)} title="Xuống dưới một lớp" aria-label="Xuống dưới một lớp" className={ibtn}><ArrowDown size={16} /></button>
-      {selL.k === "photo" && <button type="button" onClick={() => setFrameFor(sel)} title="Đổi khung" aria-label="Đổi khung" className={ibtn}><FrameIcon size={16} /></button>}
       {selL.k === "sticker" && selL.orig && <button type="button" onClick={() => setBgFor(sel)} title="Xoá nền chi tiết (chọn cách tách, cọ xoá / khôi phục)" aria-label="Xoá nền chi tiết" className={ibtn}><Wand2 size={16} /></button>}
       {selL.k === "sticker" && selL.orig && <button type="button" onClick={() => restoreOrig(sel!)} title="Khôi phục ảnh gốc" aria-label="Khôi phục ảnh gốc" className={ibtn}><Undo2 size={16} /></button>}
       {canOutline(selL) && !(selL.k === "sticker" && selL.asset?.startsWith("p:")) && (
@@ -457,8 +456,14 @@ export function useScrapStudio(o: {
       <button type="button" onClick={() => removeLayer(sel!)} title={selL.k === "photo" ? "Xoá ô ảnh (Delete)" : "Xoá (Delete)"} aria-label="Xoá" className={`${ibtn} text-[#dc2626] hover:bg-[#fef2f2]`}><Trash2 size={16} /></button>
     </>
   ) : null;
-  /** thanh công cụ ẢNH (ảnh tự do đang chọn): máy tính ở đầu khu làm việc · điện thoại trong khung menu nổi dưới đáy */
-  const photoTools = (variant: "bar" | "mobile") => selL?.k === "sticker" && selL.asset?.startsWith("p:") && !selL.ulock && cur ? (
+  /** thanh công cụ ẢNH (ảnh tự do / khung ảnh đang chọn): máy tính ở đầu khu làm việc · điện thoại trong khung menu nổi dưới đáy */
+  const slotPhoto = selL?.k === "photo" && selL.photo ? photos.find((x) => x.id === selL.photo) : undefined;
+  const photoTools = (variant: "bar" | "mobile") => selL?.k === "photo" && !selL.ulock ? (
+    <SlotToolbar variant={variant} hasPhoto={!!selL.photo} canPhoto={!o.template} photos={photos.map((p) => ({ id: p.id, url: p.url }))} photoUrl={slotPhoto?.url}
+      onFrame={() => setFrameFor(sel)} onPick={(pid) => assignPhoto(active, sel!, pid)}
+      onUpload={async (f) => { const i = sel!; const [ph] = await addFiles([f]); if (ph) assignPhoto(active, i, ph.id); }}
+      onClear={() => { D.begin(); patchLayer(sel!, { photo: "" } as Partial<Layer>); }} />
+  ) : selL?.k === "sticker" && selL.asset?.startsWith("p:") && !selL.ulock && cur ? (
     <PhotoToolbar variant={variant} l={selL} S={surfaceOf(cur)} img={assetsMap[selL.asset]?.img} photos={photos.map((p) => ({ id: p.id, url: p.url }))} photoUrl={selPhoto?.url} cutting={cutting !== null}
       begin={D.begin} patch={(v) => patchLayer(sel!, v as Partial<Layer>)} onCut={() => quickCut(sel!)} onDuplicate={() => duplicate(sel!)}
       onSetBg={() => { const id = selL.asset!; const i = sel!; setBg("all", { image: id, imageOpacity: 1 }); setLayers((ls) => ls.filter((_, j) => j !== i)); setSel(null); }}
