@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { hasSupabase } from "@/lib/supabase/env";
 import { DEFAULT_HOME_VARIANT, getActiveHomeVariant, getHomeData } from "@/lib/homeData";
-import { findHomeVariant, homeVariantMeta } from "@/lib/homeVariants";
-import { HomeVariantSwitcher } from "@/components/home/HomeVariantSwitcher";
+import { findHomeVariant } from "@/lib/homeVariants";
 
 // Trang chủ: hiện mẫu chính thức (Admin → Giao diện trang chủ).
 // /?preview=<id> chỉ có tác dụng khi người xem đang đăng nhập admin.
@@ -39,7 +38,6 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   return (
     <>
-      {isAdmin && <HomeVariantSwitcher variants={homeVariantMeta()} current={variant.id} active={official.id} />}
       {content}
     </>
   );

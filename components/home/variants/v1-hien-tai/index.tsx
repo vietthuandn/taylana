@@ -50,7 +50,7 @@ export default function HomeV1({ home, options, settings }: HomeVariantProps) {
 
       {/* ---------- 6 MỤC: ô ảnh vuông + tên bên dưới ---------- */}
       <section className={`flex flex-1 items-center justify-center ${home.banner_enabled ? "md:mt-6 md:flex-none" : ""}`}>
-        <ul className="mx-auto grid w-[92vw] grid-cols-2 gap-x-6 gap-y-5 md:w-full md:max-w-[760px]">
+        <ul className="mx-auto grid w-[92vw] grid-cols-2 gap-x-6 gap-y-5 md:w-full md:max-w-[min(900px,calc((100dvh-var(--header-h)-170px)*1.45))] md:grid-cols-3">
           {options.map((o, i) => (
             <li key={i} className="min-w-0 animate-[rise_.6s_cubic-bezier(.2,.8,.2,1)_both]" style={{ animationDelay: `${i * 60}ms` }}>
               <Item o={o} />
@@ -72,7 +72,7 @@ function Item({ o }: { o: HomeOption }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={o.image_url} alt="" className="block aspect-square w-full object-contain" />
       )}
-      <span className={`block w-full truncate font-extrabold leading-tight text-[#1A1A1A] ${o.image_url ? "mt-2" : ""}`} style={{ fontSize: "clamp(22px, 6vw, 40px)" }}>{title}</span>
+      <span className={`block w-full truncate font-tile font-bold leading-[1.1] tracking-[-0.02em] text-[#1A1A1A] ${o.image_url ? "-mt-[4%]" : ""}`} style={{ fontSize: "clamp(22px, 6vw, 36px)" }}>{title}</span>
     </Link>
   );
 }
