@@ -12,6 +12,7 @@ import { TileListEditor } from "@/components/admin/TileListEditor";
 import { revalidatePublic } from "@/app/admin/actions";
 import { Badge, Button, Message, SaveBar } from "@/components/admin/ui";
 import { cx } from "@/components/admin/styles";
+import { DesignGateToggle } from "./DesignGateToggle";
 
 const THEMES: { id: DesignTheme; name: string; desc: string }[] = [
   { id: "1", name: "Mẫu 1", desc: "Ảnh + tên to, giống trang chủ Mẫu 1." },
@@ -54,6 +55,7 @@ export function DesignPageForm({ initial }: { initial: DesignPage }) {
   const dirty = JSON.stringify(page) !== JSON.stringify(saved);
   return (
     <form onSubmit={save} className="space-y-6 pb-20">
+      <DesignGateToggle />
       <ul className="grid gap-4 sm:grid-cols-2">
         {THEMES.map((t) => {
           const on = page.theme === t.id;

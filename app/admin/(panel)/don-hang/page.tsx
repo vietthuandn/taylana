@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ResponsiveTabs } from "@/components/ui/ResponsiveTabs";
+import { OrderRowMenu } from "./OrderRowMenu";
 import { requireAdmin } from "@/lib/admin";
 import { formatDate, formatVND, orderTypeLabels, statusLabels } from "@/lib/format";
 import type { Order } from "@/lib/types";
@@ -100,7 +101,7 @@ export default async function OrdersAdmin({ searchParams }: { searchParams: Prom
             <td className="text-[13px]">{o.amount_due ? formatVND(o.amount_due) : "—"}</td>
             <td className="text-[13px] text-[#71717a]">{formatDate(o.created_at)}</td>
             <td className="font-medium">{formatVND(o.total)}{(o.discount_amount ?? 0) > 0 && <span className="block text-[12px] font-normal text-[#ff5fa2]">−{formatVND(o.discount_amount ?? 0)}{o.discount_code ? ` · ${o.discount_code}` : ""}</span>}</td>
-            <td className="text-right"><Link href={`/admin/don-hang/${o.id}`} className={btnClass("ghost", "sm")}>Xem</Link></td>
+            <td className="text-right"><OrderRowMenu id={o.id} code={o.code} delivered={o.status === "delivered"} /></td>
           </tr>
         ))}
       </Table>

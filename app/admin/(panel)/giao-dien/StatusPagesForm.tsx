@@ -30,7 +30,7 @@ export function StatusPagesForm({ initial }: { initial: Record<StatusKind, Statu
       {STATUS_KINDS.map(([k, name]) => {
         const p = v[k];
         return (
-          <SettingsSection key={k} title={name} description={k === "paused" ? "Hiện ở trang Đặt đơn / sản phẩm / giỏ hàng khi bật “Tạm nghỉ bán” (Sản phẩm của tôi) — có header của web." : "Trang hệ thống — không có header."}>
+          <SettingsSection key={k} title={name} description={k === "gate" ? "Hiện ở trang Thiết kế và mọi trang con khi bật “Yêu cầu số điện thoại / mã đơn hàng” (Giao diện → Thiết kế) — có header, có ô nhập SĐT / mã đơn Shopee." : k === "paused" ? "Hiện ở trang Đặt đơn / sản phẩm / giỏ hàng khi bật “Tạm nghỉ bán” (Sản phẩm của tôi) — có header của web." : "Trang hệ thống — không có header."}>
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
               <div className="min-w-0 space-y-3">
                 <div className="flex flex-wrap items-end gap-4">
@@ -42,6 +42,7 @@ export function StatusPagesForm({ initial }: { initial: Record<StatusKind, Statu
                   <ImageInput label="Ảnh minh hoạ (giữa trang)" value={p.image} onChange={(u) => set(k, { image: u })} folder="status" allowSvg shrink={900} removeLabel="Bỏ ảnh" />
                 </div>
                 <Field label="Dòng thông báo"><Textarea rows={2} maxLength={300} value={p.message} onChange={(e) => set(k, { message: e.target.value })} /></Field>
+                {k === "gate" && <Field label="Chữ trên nút xác nhận (dưới ô nhập SĐT / mã đơn hàng)"><Input value={p.submit ?? ""} maxLength={40} onChange={(e) => set(k, { submit: e.target.value })} placeholder="Vào thiết kế" /></Field>}
                 <div>
                   <span className="mb-1.5 block text-[13px] font-medium">Nút điều hướng (tối đa 3 — nút đầu là nút chính)</span>
                   <div className="space-y-2">
@@ -58,7 +59,9 @@ export function StatusPagesForm({ initial }: { initial: Record<StatusKind, Statu
               </div>
               <div className="overflow-hidden rounded-[12px] border border-[#e5e5e7]">
                 <p className="border-b border-[#efeff1] bg-white px-3 py-2 text-[12px] font-medium text-[#52525b]">Xem trước</p>
-                <div className="pointer-events-none flex h-[300px] origin-top-left overflow-hidden [&>div]:!min-h-0 [&>div]:py-6 [&_p]:!text-[14px]"><StatusView page={p} /></div>
+                <div className="pointer-events-none flex h-[300px] origin-top-left overflow-hidden [&>div]:!min-h-0 [&>div]:py-6 [&_p]:!text-[14px]"><StatusView page={p}>
+                  {k === "gate" && <div className="mt-4 flex w-full max-w-[260px] flex-col gap-1.5"><span className="h-10 rounded-[10px] border border-[#d4d4d8] bg-white px-3 text-[12px] leading-10 text-[#a1a1aa]">Số điện thoại hoặc mã đơn hàng Shopee</span><span className="h-10 rounded-[10px] bg-[var(--c-primary,#ff5fa2)] text-[13px] font-semibold leading-10 text-white">{p.submit || "Vào thiết kế"}</span></div>}
+                </StatusView></div>
               </div>
             </div>
           </SettingsSection>

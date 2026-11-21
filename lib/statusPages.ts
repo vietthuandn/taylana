@@ -1,14 +1,15 @@
 /* Trang trạng thái (Admin → Giao diện → Khác): "Tạm ngưng nhận đơn qua web" · 404 · 403.
    Mỗi trang: màu nền, ảnh minh hoạ (giữa trang, cỡ vừa như các mục trang chủ), 1 dòng thông báo, tối đa 3 nút điều hướng.
    Lưu site_settings.status_pages. "Tạm nghỉ bán" (Sản phẩm của tôi): site_settings.shop_paused = true. */
-export type StatusKind = "paused" | "notfound" | "forbidden";
+export type StatusKind = "paused" | "notfound" | "forbidden" | "gate";
 export type StatusBtn = { label: string; href: string };
-export type StatusPage = { bg: string; image: string | null; message: string; buttons: StatusBtn[] };
-export const STATUS_KINDS: [StatusKind, string][] = [["paused", "Tạm ngưng nhận đơn qua web"], ["notfound", "404 · Không tìm thấy trang"], ["forbidden", "403 · Không có quyền"]];
+export type StatusPage = { bg: string; image: string | null; message: string; buttons: StatusBtn[]; submit?: string }; // submit: chữ trên nút xác nhận (trang Yêu cầu nhập mã)
+export const STATUS_KINDS: [StatusKind, string][] = [["gate", "Yêu cầu nhập mã (trang Thiết kế)"], ["paused", "Tạm ngưng nhận đơn qua web"], ["notfound", "404 · Không tìm thấy trang"], ["forbidden", "403 · Không có quyền"]];
 export const DEFAULT_STATUS: Record<StatusKind, StatusPage> = {
   paused: { bg: "#fff0f6", image: null, message: "Hiện đang tạm ngưng nhận đơn qua web, liên hệ Zalo để biết thêm chi tiết nhé.", buttons: [{ label: "Liên hệ", href: "/lien-he" }, { label: "Về trang chủ", href: "/" }] },
   notfound: { bg: "#f7f7f8", image: null, message: "Không tìm thấy trang bạn cần — có thể đường dẫn đã thay đổi.", buttons: [{ label: "Về trang chủ", href: "/" }] },
   forbidden: { bg: "#f7f7f8", image: null, message: "Bạn không có quyền xem trang này.", buttons: [{ label: "Về trang chủ", href: "/" }] },
+  gate: { bg: "#fff0f6", image: null, message: "Nhập số điện thoại đã đặt đơn hoặc mã đơn hàng Shopee để bắt đầu thiết kế nhé.", buttons: [{ label: "Liên hệ", href: "/lien-he" }], submit: "Vào thiết kế" },
 };
 export function normalizeStatus(v: unknown): Record<StatusKind, StatusPage> {
   const o = (v && typeof v === "object" ? v : {}) as Record<string, Partial<StatusPage>>;
@@ -19,7 +20,8 @@ export function normalizeStatus(v: unknown): Record<StatusKind, StatusPage> {
       image: typeof x.image === "string" && /^https?:\/\//.test(x.image) ? x.image : null,
       message: typeof x.message === "string" ? x.message : d.message,
       buttons: Array.isArray(x.buttons) ? x.buttons.filter((b) => b && typeof b.label === "string" && b.label.trim() && typeof b.href === "string").slice(0, 3) : d.buttons,
+      ...(k === "gate" ? { submit: typeof x.submit === "string" && x.submit.trim() ? x.submit : d.submit } : {}),
     };
   };
-  return { paused: one("paused"), notfound: one("notfound"), forbidden: one("forbidden") };
+  return { paused: one("paused"), notfound: one("notfound"), forbidden: one("forbidden"), gate: one("gate") };
 }

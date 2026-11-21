@@ -2,13 +2,14 @@ import Link from "next/link";
 import type { StatusPage } from "@/lib/statusPages";
 
 /** Trang trạng thái: nền màu, ảnh minh hoạ giữa trang (cỡ vừa), 1 dòng thông báo, tối đa 3 nút điều hướng (nút đầu = nút chính) */
-export function StatusView({ page, full = false }: { page: StatusPage; full?: boolean }) {
+export function StatusView({ page, full = false, children }: { page: StatusPage; full?: boolean; children?: React.ReactNode }) {
   return (
     <div className={`grid flex-1 place-items-center px-4 py-10 font-sans ${full ? "min-h-dvh" : "min-h-[calc(100dvh-var(--header-h))]"}`} style={{ background: page.bg }}>
       <div className="flex w-full max-w-[460px] flex-col items-center text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {page.image && <img src={page.image} alt="" className="mb-5 block aspect-[1400/1150] w-[min(260px,70vw)] object-contain" />}
         {page.message && <p className="whitespace-pre-line text-[17px] font-medium leading-relaxed text-[#18181b] sm:text-[19px]">{page.message}</p>}
+        {children}
         {page.buttons.length > 0 && (
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             {page.buttons.map((b, i) => (

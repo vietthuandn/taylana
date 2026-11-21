@@ -5,6 +5,8 @@ import { formatBytes, formatDate, formatVND, orderTypeLabels, statusLabels } fro
 import type { Order } from "@/lib/types";
 import { AdminPage, Badge, Button, Card, EmptyState, PageHeader, Table } from "@/components/admin/ui";
 import { statusTone } from "@/components/admin/tones";
+import { ResponsiveTabs } from "@/components/ui/ResponsiveTabs";
+import { ShopeeCodesAdmin } from "./ShopeeCodesAdmin";
 
 const QUOTA = STORAGE_QUOTA; // gói miễn phí: R2 10GB (Supabase Free 1GB khi STORAGE_PROVIDER=supabase)
 
@@ -27,9 +29,12 @@ function DesignerHome() {
   );
 }
 
-export default async function AdminHome() {
+export default async function AdminHome({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { supabase, role } = await requireAdmin();
   if (role === "designer") return <DesignerHome />;
+  const tab = (await searchParams).tab === "shopee" ? "shopee" : "tong-quan";
+  const tabs = <div className="mb-6"><ResponsiveTabs value={tab} tabs={[{ id: "tong-quan", label: "Tổng quan", href: "/admin" }, { id: "shopee", label: "Đơn hàng Shopee", href: "/admin?tab=shopee" }]} /></div>;
+  if (tab === "shopee") return <AdminPage><PageHeader title="Đơn hàng Shopee" />{tabs}<ShopeeCodesAdmin /></AdminPage>;
   const [{ count: newOrders }, { count: doing }, { data: usage }, { data: recent }, { count: payPending }] = await Promise.all([
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "new"),
     supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "in_progress"),
@@ -54,6 +59,7 @@ export default async function AdminHome() {
     <AdminPage>
       <PageHeader title="Tổng quan"
         actions={<Button href="/admin/don-hang" variant="secondary">Xem tất cả đơn</Button>} />
+      {tabs}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stat("Đơn mới", newOrders ?? 0, "Đang chờ xác nhận", "/admin/don-hang?status=new")}
         {stat("Chờ xác nhận thanh toán", <span className={payPending ? "text-[#ff5fa2]" : ""}>{payPending ?? 0}</span>, "Khách báo đã chuyển khoản", "/admin/don-hang?pay=pending")}
