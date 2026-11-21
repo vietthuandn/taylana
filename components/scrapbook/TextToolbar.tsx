@@ -129,7 +129,7 @@ export function TextToolbar({ l, begin, patch, onEdit, onPaper, onDone, used, on
           <button type="button" onClick={() => { setTool(null); onEdit(); }} className={cls}><Keyboard size={18} /><span>Sửa</span></button>
           <button type="button" onClick={() => tog("font")} className={cx(cls, tool === "font" && on)}><Type size={18} /><span>Phông chữ</span></button>
           {isText && <button type="button" onClick={() => tog("size")} className={cx(cls, tool === "size" && on)}><ALargeSmall size={18} /><span>Cỡ chữ</span></button>}
-          {!cut && <button type="button" onClick={() => tog("ink")} className={cx(cls, tool === "ink" && on)}><Palette size={18} style={{ color: ink }} /><span>Màu sắc</span></button>}
+          {!cut && <button type="button" onClick={() => tog("ink")} className={cx(cls, tool === "ink" && on)}><Palette size={18} /><span>Màu sắc</span></button>}
           {isText && <button type="button" onClick={() => tog("format")} className={cx(cls, tool === "format" && on)}><AlignJustify size={18} /><span>Định dạng</span></button>}
           {(!isText || !cut) && <button type="button" onClick={() => tog("paper")} className={cx(cls, tool === "paper" && on)}><StickyNote size={18} /><span>{isText ? "Thêm giấy" : "Giấy"}</span></button>}
         </div>

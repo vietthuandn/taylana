@@ -247,7 +247,7 @@ export function ScrapbookEditor(p: {
               onDropFiles={(f, at) => { if (mode === "customer") st.insertImages(f, at); else st.setStickerFiles(f.slice(0, 1)); }}
               onDropPhoto={mode === "customer" ? (pid, i) => st.assignPhoto(st.active, i, pid) : undefined} onEmptySlot={mode === "customer" ? (i) => st.setPickFor(i) : undefined}
               editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
-              onBackgroundDbl={p.onBackgroundDbl} onBgTap={(sc) => setBgSel(sc)} tools={st.tools} scanning={st.cutting} cropLayer={st.cropFor} onCrop={st.setCropFor}
+              onBackgroundDbl={p.onBackgroundDbl} onBgTap={(sc) => setBgSel(sc)} bgSel={bgSel} tools={st.tools} scanning={st.cutting} cropLayer={st.cropFor} onCrop={st.setCropFor}
               onViewZoom={(f) => setZoom((z) => Math.min(4, Math.max(0.25, z * f)))} onViewPan={(dx, dy) => area.current?.scrollBy(-dx, -dy)}
               bgEdit={!!st.bgEdit} onBgEdit={(on, right) => st.setBgEdit(on ? (right ? "bg2" : "bg") : null)}
               onBgMove={(dx, dy, start) => { if (start) { st.D.begin(); return; } st.patchBg({ ix: (st.curBg?.ix ?? 0) + dx, iy: (st.curBg?.iy ?? 0) + dy }); }}

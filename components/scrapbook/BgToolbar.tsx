@@ -70,7 +70,7 @@ export function BgToolbar({ bg, preview, used, onSet, onBegin, onUpload, onCusto
       )}
       <div data-keep-sel className="flex items-center gap-1 rounded-[20px] bg-[var(--c-secondary)] p-1.5 shadow-[0_8px_28px_rgb(0_0_0/0.16)]">
         <div className="no-scrollbar flex min-w-0 flex-1 gap-0.5 overflow-x-auto">
-          <button type="button" onClick={() => tog("color")} className={cx(cls, tool === "color" && on)}><Palette size={18} style={{ color: bg.color === "#ffffff" ? undefined : bg.color }} /><span>Màu sắc</span></button>
+          <button type="button" onClick={() => tog("color")} className={cx(cls, tool === "color" && on)}><Palette size={18} /><span>Màu sắc</span></button>
           <button type="button" onClick={() => tog("pattern")} className={cx(cls, tool === "pattern" && on)}><Grid3x3 size={18} /><span>Kiểu giấy</span></button>
           <button type="button" onClick={() => { setTool(null); onTexture(); }} className={cls}><Layers size={18} /><span>Texture giấy</span></button>
           <button type="button" onClick={() => tog("image")} className={cx(cls, tool === "image" && on)}><ImageIcon size={18} /><span>Ảnh nền</span></button>

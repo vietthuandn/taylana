@@ -34,7 +34,7 @@ export type SurfaceViewProps = {
   editText?: number | null; onEditText?: (layer: number | null) => void; selectAllText?: boolean;
   textValue?: (layer: number) => string; onTextValue?: (layer: number, v: string) => void;
   onBackgroundDbl?: (at: { x: number; y: number }) => void;
-  onBgTap?: (scope: "all" | "left" | "right") => void; // bấm vào nền (chỗ trống) → chọn nền
+  onBgTap?: (scope: "all" | "left" | "right") => void; bgSel?: "all" | "left" | "right" | null; // nền đang chọn → viền xanh // bấm vào nền (chỗ trống) → chọn nền
   tools?: React.ReactNode;
   scanning?: number | null; // lớp ảnh đang được "cắt" (xoá nền) — hiện hiệu ứng quét
   cropLayer?: number | null; onCrop?: (i: number | null) => void;
@@ -342,6 +342,9 @@ export function SurfaceView(p: SurfaceViewProps) {
       onDragOver={(e) => { if (e.dataTransfer.types.includes(ASSET_DRAG) || e.dataTransfer.types.includes(PHOTO_DRAG) || (p.onDropFiles && e.dataTransfer.types.includes("Files"))) e.preventDefault(); }} onDrop={onDrop}>
       <canvas ref={view} className={cx("block h-full w-full touch-none", p.editLayer !== null ? "cursor-move" : "cursor-pointer", !S.round && "shadow-[0_10px_30px_rgba(0,0,0,0.12)]")}
         onPointerDown={onDown} onDoubleClick={onDbl} onContextMenu={onContext} />
+      {p.bgSel && (
+        <div aria-hidden className={cx("pointer-events-none absolute inset-y-0 border-2 border-[#2563eb] md:hidden", S.round && "rounded-full", p.bgSel === "left" ? "left-0 w-1/2" : p.bgSel === "right" ? "right-0 w-1/2" : "inset-x-0")} />
+      )}
       {/* guideline: lớp phủ riêng trên cùng, mảnh + mờ, không chặn thao tác */}
       {p.guides && (
         <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${S.w} ${S.h}`} aria-hidden>
