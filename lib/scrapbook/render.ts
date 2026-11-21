@@ -10,6 +10,7 @@ import { ensureLayerFonts } from "@/lib/fonts/load";
 import { rng } from "./generate";
 import { drawCutout, layoutCutout, type LoadedFont } from "./cutout";
 import { surfaceOf } from "./surface";
+import { imgAr } from "./edit";
 import { C, R_HOLE, R_HUB, R_OUT, R_PRINT_HOLE, R_SAFE, type Adjust, type DiscText, type Frame, type Layer, type ScrapAsset, type Template } from "./types";
 
 type Img = CanvasImageSource & { width: number; height: number };
@@ -476,14 +477,20 @@ export function renderSurface(o: RenderOpts) {
     } else if (l.k === "sticker") {
       const a = l.asset ? o.assets?.[l.asset] : undefined;
       if (a) {
-        const s = fitS(l, a.img) / Math.max(a.img.width, a.img.height), w = a.img.width * s, h = a.img.height * s;
+        // hiệu ứng KHÔNG phá huỷ (vùng cắt, lật, bo góc, chỉnh màu) dựng ra canvas tạm đúng độ phân giải đang vẽ (in 300 DPI cũng vậy)
+        const ar = imgAr(l, a.img), S0 = fitS(l, a.img), w = ar > 1 ? S0 / ar : S0, h = ar > 1 ? S0 : S0 * ar;
+        const t = x.getTransform(), ppm = Math.hypot(t.a, t.b);
+        const fxd = !!(l.crop || l.fx || l.fy || l.rad || l.adj);
+        const src: Img = fxd ? processed(a.img, l, Math.max(1, Math.round(w * ppm)), Math.max(1, Math.round(h * ppm)), ppm) : a.img;
+        if (l.op != null && l.op < 1) x.globalAlpha *= Math.max(0, l.op);
+        const userShadow = () => { const sh = l.sh!; x.shadowColor = sh.c; x.shadowBlur = sh.blur * ppm; x.shadowOffsetX = sh.d * ppm * 0.7; x.shadowOffsetY = sh.d * ppm * 0.7; };
         if (l.ol && l.ol.w > 0) {
           // viền: nở kênh alpha theo độ dày (px ở 300 DPI → mm), tô màu, đặt dưới ảnh — vẽ theo đúng độ phân giải đang dựng
-          const t = x.getTransform(), ppm = Math.hypot(t.a, t.b), rMM = (l.ol.w * 25.4) / 300;
-          const oc = outlined(a.img, Math.max(1, Math.round(w * ppm)), Math.max(1, Math.round(h * ppm)), Math.max(1, Math.round(rMM * ppm)), l.ol.c);
-          x.save(); if (l.ol.sh) shadow(x, 1, 0.4, 0.22); x.drawImage(oc, -w / 2 - rMM, -h / 2 - rMM, w + rMM * 2, h + rMM * 2); x.restore();
-          x.drawImage(a.img, -w / 2, -h / 2, w, h);
-        } else { shadow(x, 1, 0.4, 0.22); x.drawImage(a.img, -w / 2, -h / 2, w, h); }
+          const rMM = (l.ol.w * 25.4) / 300;
+          const oc = outlined(src, Math.max(1, Math.round(w * ppm)), Math.max(1, Math.round(h * ppm)), Math.max(1, Math.round(rMM * ppm)), l.ol.c);
+          x.save(); if (l.sh?.on) userShadow(); else if (l.ol.sh) shadow(x, 1, 0.4, 0.22); x.drawImage(oc, -w / 2 - rMM, -h / 2 - rMM, w + rMM * 2, h + rMM * 2); x.restore();
+          x.drawImage(src, -w / 2, -h / 2, w, h);
+        } else { if (l.sh?.on) userShadow(); else if (!l.sh) shadow(x, 1, 0.4, 0.22); x.drawImage(src, -w / 2, -h / 2, w, h); }
       }
       else drawSticker(x, l.shape, l.s, l.color);
     } else if (l.k === "doodle") {
@@ -537,6 +544,64 @@ export function renderSurface(o: RenderOpts) {
 /** (tên cũ) vẽ mặt đĩa */
 export const renderDisc = renderSurface;
 /** sticker tự rải: không phóng quá 2× cỡ gốc ở 300 DPI (tránh mờ khi in); sticker khách tự kéo to thì giữ nguyên */
+/* ---------- hiệu ứng ảnh (không phá huỷ): bộ lọc màu có sẵn + chỉnh màu ---------- */
+export const PRESETS: { id: string; name: string; css: string }[] = [
+  { id: "", name: "Gốc", css: "" },
+  { id: "bw", name: "Trắng đen", css: "grayscale(1)" },
+  { id: "vintage", name: "Cổ điển", css: "sepia(0.45) contrast(1.05) saturate(0.85)" },
+  { id: "warm", name: "Ấm áp", css: "sepia(0.18) saturate(1.2) brightness(1.03)" },
+  { id: "cold", name: "Lạnh", css: "saturate(0.9) hue-rotate(10deg) brightness(1.02)" },
+  { id: "film", name: "Phim", css: "contrast(1.15) saturate(0.85) sepia(0.12)" },
+  { id: "fade", name: "Mờ nhạt", css: "contrast(0.85) brightness(1.08) saturate(0.8)" },
+];
+type Adj = NonNullable<Extract<Layer, { k: "sticker" }>["adj"]>;
+/** chuỗi CSS filter của 1 lớp (blur theo px in 300 DPI → px canvas) */
+export function filterCss(adj: Adj | undefined, ppm = 0) {
+  if (!adj) return "";
+  const f: string[] = [];
+  const pr = PRESETS.find((p) => p.id === adj.preset)?.css; if (pr) f.push(pr);
+  if (adj.b) f.push(`brightness(${1 + adj.b / 100})`);
+  if (adj.c) f.push(`contrast(${1 + adj.c / 100})`);
+  if (adj.s) f.push(`saturate(${1 + adj.s / 100})`);
+  if (adj.t) f.push(adj.t > 0 ? `sepia(${adj.t / 250}) saturate(${1 + adj.t / 400})` : `hue-rotate(${adj.t * -0.2}deg) saturate(${1 + adj.t / 500})`);
+  if (adj.blur && ppm) f.push(`blur(${((adj.blur * 25.4) / 300) * ppm}px)`);
+  return f.join(" ");
+}
+const canFilter = () => typeof document !== "undefined" && typeof document.createElement("canvas").getContext("2d")?.filter === "string";
+/** trình duyệt không hỗ trợ ctx.filter (Safari cũ): chỉnh sáng / tương phản / bão hoà / trắng đen bằng điểm ảnh */
+function pixelAdj(x: CanvasRenderingContext2D, W: number, H: number, adj: Adj) {
+  const d = x.getImageData(0, 0, W, H), p = d.data;
+  const b = 1 + (adj.b ?? 0) / 100, c = 1 + (adj.c ?? 0) / 100, s = adj.preset === "bw" ? 0 : 1 + (adj.s ?? 0) / 100, t = (adj.t ?? 0) / 100;
+  for (let i = 0; i < p.length; i += 4) {
+    let r = p[i] * b, g = p[i + 1] * b, bl = p[i + 2] * b;
+    r = (r - 128) * c + 128; g = (g - 128) * c + 128; bl = (bl - 128) * c + 128;
+    const L = 0.299 * r + 0.587 * g + 0.114 * bl; r = L + (r - L) * s; g = L + (g - L) * s; bl = L + (bl - L) * s;
+    r += t * 25; bl -= t * 25;
+    p[i] = r; p[i + 1] = g; p[i + 2] = bl;
+  }
+  x.putImageData(d, 0, 0);
+}
+const fxCache = new WeakMap<object, Map<string, HTMLCanvasElement>>();
+/** ảnh đã áp vùng cắt + lật + bo góc + chỉnh màu, đúng cỡ W × H px (cache theo thông số) */
+function processed(img: Img, l: Extract<Layer, { k: "sticker" }>, W: number, H: number, ppm: number) {
+  const sc = Math.min(1, 3000 / Math.max(W, H)); W = Math.max(1, Math.round(W * sc)); H = Math.max(1, Math.round(H * sc));
+  const key = JSON.stringify([W, H, l.crop, l.fx, l.fy, l.rad, l.adj, Math.round(ppm * sc * 10)]);
+  let m = fxCache.get(img as object);
+  if (!m) { m = new Map(); fxCache.set(img as object, m); }
+  const hit = m.get(key); if (hit) return hit;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d", { willReadFrequently: !canFilter() })!;
+  const cr = l.crop ?? { x: 0, y: 0, w: 1, h: 1 }, iw = img.width, ih = img.height;
+  if (l.rad) { const r = l.rad * Math.min(W, H); x.beginPath(); x.roundRect(0, 0, W, H, r); x.clip(); }
+  if (canFilter() && l.adj) x.filter = filterCss(l.adj, ppm * sc) || "none";
+  x.translate(l.fx ? W : 0, l.fy ? H : 0); x.scale(l.fx ? -1 : 1, l.fy ? -1 : 1);
+  x.imageSmoothingQuality = "high";
+  x.drawImage(img, cr.x * iw, cr.y * ih, cr.w * iw, cr.h * ih, 0, 0, W, H);
+  if (!canFilter() && l.adj) { x.setTransform(1, 0, 0, 1, 0, 0); pixelAdj(x, W, H, l.adj); }
+  if (m.size > 8) m.delete(m.keys().next().value!);
+  m.set(key, c);
+  return c;
+}
 /** viền sticker / ảnh nền trong suốt: ảnh nở alpha r px (vẽ ảnh lệch theo vòng tròn) rồi tô 1 màu. Cache theo (ảnh, cỡ, độ dày, màu). */
 const olCache = new WeakMap<object, Map<string, HTMLCanvasElement>>();
 function outlined(img: Img, w: number, h: number, r: number, color: string) {

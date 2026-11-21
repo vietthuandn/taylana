@@ -36,6 +36,7 @@ export type SurfaceViewProps = {
   onBackgroundDbl?: (at: { x: number; y: number }) => void;
   tools?: React.ReactNode;
   scanning?: number | null; // lớp ảnh đang được "cắt" (xoá nền) — hiện hiệu ứng quét
+  cropLayer?: number | null; onCrop?: (i: number | null) => void; // chế độ cắt ảnh tự do (bấm đúp / nút Cắt)
 };
 
 export function SurfaceView(p: SurfaceViewProps) {
@@ -164,6 +165,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     const pt = toMM(e), i = layerAt(pt.x, pt.y), l = L[i];
     if (!l) { p.onBackgroundDbl?.(pt); return; }
     if (l.k === "photo") { if (l.photo === "") p.onEmptySlot?.(i); else { p.onEditLayer(i); p.onSel(null); } }
+    if (l.k === "sticker" && l.asset?.startsWith("p:") && !l.ulock) p.onCrop?.(i);
     if (l.k === "text" || l.k === "wish") { if (p.onEditText) p.onEditText(i); else p.onTextEdit?.(i); }
   }
   function onContext(e: React.MouseEvent<HTMLCanvasElement>) {
@@ -209,7 +211,7 @@ export function SurfaceView(p: SurfaceViewProps) {
     return () => { el.removeEventListener("touchmove", stop); document.removeEventListener("touchmove", stop); };
   }, []);
 
-  const SB = p.sel !== null && p.editLayer === null && editing === null ? layerBox(p.sel) : null;
+  const SB = p.sel !== null && p.editLayer === null && editing === null && p.cropLayer == null ? layerBox(p.sel) : null;
   const selL = p.sel !== null ? L[p.sel] : null;
   const sideHandles = selL?.k === "text" && !selL.arc;
   // lớp kéo giãn tự do (thêm 4 nút giữa cạnh): ô ảnh chữ nhật / vuông / bo góc / giấy xé / tròn / tim, khung PNG admin cho phép, giấy, băng dính, lời chúc
@@ -277,11 +279,15 @@ export function SurfaceView(p: SurfaceViewProps) {
           ))}
         </div>
       )}
+      {p.cropLayer != null && L[p.cropLayer]?.k === "sticker" && (() => {
+        const l = L[p.cropLayer] as Extract<Layer, { k: "sticker" }>, img = l.asset ? p.render.assets?.[l.asset]?.img : undefined, b = layerBox(p.cropLayer);
+        return img && b ? <CropOverlay key={p.cropLayer} l={l} img={img} box={b} k={k} onDone={(v) => { if (v) { p.begin(); const i = p.cropLayer!; p.setLayers((ls) => ls.map((x, j) => (j === i ? ({ ...x, ...v } as Layer) : x)), l); } p.onCrop?.(null); }} /> : null;
+      })()}
       {editing !== null && (L[editing]?.k === "text" || L[editing]?.k === "wish") && p.textValue && p.onTextValue && (
         <InlineText key={editing} l={L[editing] as Extract<Layer, { k: "text" | "wish" }>} hit={textBoxes.current[editing]} k={k} value={p.textValue(editing)} selectAll={!!p.selectAllText}
           onChange={(v) => p.onTextValue!(editing, v)} onExit={() => p.onEditText?.(null)} />
       )}
-      {SB && p.tools && !menu && (() => {
+      {SB && p.tools && !menu && p.cropLayer == null && (() => {
         // 1 hàng nút icon: đặt BÊN DƯỚI lớp (nút xoay ở phía trên lớp nên không bao giờ bị che), sát mép dưới thì lật lên trên
         const TW = 182, TH = 40, ext = (Math.abs(SB.w * Math.sin((SB.rot * Math.PI) / 180)) + Math.abs(SB.h * Math.cos((SB.rot * Math.PI) / 180))) / 2;
         const above = (SB.y - ext) * k - 34 - TH, below = (SB.y + ext) * k + 10;
@@ -343,5 +349,98 @@ function InlineText({ l, hit, k, value, selectAll, onChange, onExit }: {
     <textarea ref={ref} value={value} rows={1} spellCheck={false} aria-label="Sửa chữ" style={style}
       onChange={(e) => onChange(e.target.value)} onBlur={onExit} onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Escape" || (e.key === "Enter" && (e.ctrlKey || e.metaKey))) { e.preventDefault(); onExit(); } }} />
+  );
+}
+
+type Crop = { x: number; y: number; w: number; h: number };
+/** Chế độ cắt ảnh tự do (KHÔNG phá huỷ — chỉ lưu vùng cắt): cả ảnh gốc hiện ra, phần bị cắt tối đi · kéo 4 góc / 4 cạnh để cắt
+    (góc đối diện cố định, Shift = giữ tỉ lệ) · kéo bên trong để chọn vùng · thanh trượt / cuộn chuột để phóng · Xong (Enter / bấm ra ngoài) · Huỷ (Esc). */
+function CropOverlay({ l, img, box, k, onDone }: { l: Extract<Layer, { k: "sticker" }>; img: CanvasImageSource & { width: number; height: number }; box: LBox; k: number; onDone: (v: Partial<Extract<Layer, { k: "sticker" }>> | null) => void }) {
+  // toạ độ HIỂN THỊ (đã tính lật) ↔ toạ độ ảnh gốc
+  const flip = (c: Crop): Crop => ({ x: l.fx ? 1 - c.x - c.w : c.x, y: l.fy ? 1 - c.y - c.h : c.y, w: c.w, h: c.h });
+  const init = flip(l.crop ?? { x: 0, y: 0, w: 1, h: 1 });
+  const [cr, setCr] = useState<Crop>(init);
+  const iw = img.width, ih = img.height;
+  // cỡ cả ảnh (mm) cố định trong lúc cắt: ô hiện tại ↔ vùng cắt hiện tại
+  const full = useRef({ W: box.w / init.w, H: box.h / init.h, cx: 0, cy: 0 });
+  if (!full.current.cx && !full.current.cy) {
+    const a = (box.rot * Math.PI) / 180, ox = (init.x + init.w / 2 - 0.5) * full.current.W, oy = (init.y + init.h / 2 - 0.5) * full.current.H;
+    full.current.cx = box.x - (ox * Math.cos(a) - oy * Math.sin(a)); full.current.cy = box.y - (ox * Math.sin(a) + oy * Math.cos(a));
+  }
+  const F = full.current, cv = useRef<HTMLCanvasElement>(null), wrap = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const c = cv.current; if (!c) return;
+    const sc = Math.min(1, 1600 / Math.max(iw, ih)); c.width = Math.round(iw * sc); c.height = Math.round(ih * sc);
+    const x = c.getContext("2d")!; x.save(); x.translate(l.fx ? c.width : 0, l.fy ? c.height : 0); x.scale(l.fx ? -1 : 1, l.fy ? -1 : 1); x.drawImage(img, 0, 0, c.width, c.height); x.restore();
+  }, [img, iw, ih, l.fx, l.fy]);
+  const done = useCallback((ok: boolean) => {
+    if (!ok) return onDone(null);
+    const a = (box.rot * Math.PI) / 180, ox = (cr.x + cr.w / 2 - 0.5) * F.W, oy = (cr.y + cr.h / 2 - 0.5) * F.H;
+    const w = cr.w * F.W, h = cr.h * F.H, full1 = cr.x <= 0.001 && cr.y <= 0.001 && cr.w >= 0.999 && cr.h >= 0.999;
+    onDone({ crop: full1 ? undefined : flip(cr), x: F.cx + ox * Math.cos(a) - oy * Math.sin(a), y: F.cy + ox * Math.sin(a) + oy * Math.cos(a), s: Math.max(w, h) });
+  }, [cr, F, box.rot, onDone]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); done(true); } if (e.key === "Escape") { e.preventDefault(); done(false); } };
+    const out = (e: PointerEvent) => { if (wrap.current && !wrap.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.("[data-crop-bar]")) done(true); };
+    window.addEventListener("keydown", h, true); document.addEventListener("pointerdown", out, true);
+    return () => { window.removeEventListener("keydown", h, true); document.removeEventListener("pointerdown", out, true); };
+  }, [done]);
+  const drag = useRef<{ hx: number; hy: number; px: number; py: number; c0: Crop; lock: boolean } | null>(null);
+  const local = (e: { clientX: number; clientY: number }) => { // điểm con trỏ → toạ độ 0..1 trong khung ảnh (đã bỏ góc xoay)
+    const r = wrap.current!.parentElement!.getBoundingClientRect(), a = (-box.rot * Math.PI) / 180;
+    const mx = (e.clientX - r.left) / k - F.cx, my = (e.clientY - r.top) / k - F.cy;
+    return { x: (mx * Math.cos(a) - my * Math.sin(a)) / F.W + 0.5, y: (mx * Math.sin(a) + my * Math.cos(a)) / F.H + 0.5 };
+  };
+  const clamp = (c: Crop): Crop => { const w = Math.min(1, Math.max(0.03, c.w)), h = Math.min(1, Math.max(0.03, c.h)); return { w, h, x: Math.min(1 - w, Math.max(0, c.x)), y: Math.min(1 - h, Math.max(0, c.y)) }; };
+  function start(e: React.PointerEvent, hx: number, hy: number) {
+    e.stopPropagation(); (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    const q = local(e); drag.current = { hx, hy, px: q.x, py: q.y, c0: cr, lock: e.shiftKey };
+  }
+  function move(e: React.PointerEvent) {
+    const d = drag.current; if (!d) return;
+    const q = local(e), dx = q.x - d.px, dy = q.y - d.py, c = d.c0;
+    if (!d.hx && !d.hy) return setCr(clamp({ ...c, x: c.x + dx, y: c.y + dy }));
+    let x0 = c.x, y0 = c.y, x1 = c.x + c.w, y1 = c.y + c.h;
+    if (d.hx < 0) x0 = Math.min(x1 - 0.03, Math.max(0, x0 + dx)); if (d.hx > 0) x1 = Math.max(x0 + 0.03, Math.min(1, x1 + dx));
+    if (d.hy < 0) y0 = Math.min(y1 - 0.03, Math.max(0, y0 + dy)); if (d.hy > 0) y1 = Math.max(y0 + 0.03, Math.min(1, y1 + dy));
+    if ((e.shiftKey || d.lock) && d.hx && d.hy) { // giữ tỉ lệ (theo mm)
+      const r = (c.h * F.H) / (c.w * F.W), w = x1 - x0, h = (w * F.W * r) / F.H;
+      if (d.hy < 0) y0 = y1 - h; else y1 = y0 + h;
+    }
+    setCr(clamp({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }));
+  }
+  const rPx = (cr.h * ih) / (cr.w * iw), maxW = Math.min(1, ih / rPx / iw), zoom = Math.max(1, maxW / cr.w);
+  const setZoom = (z: number) => {
+    const w = maxW / Math.max(1, z), h = (w * iw * rPx) / ih, cx0 = cr.x + cr.w / 2, cy0 = cr.y + cr.h / 2;
+    setCr(clamp({ x: cx0 - w / 2, y: cy0 - h / 2, w, h }));
+  };
+  const H8: [number, number][] = [[-1, -1], [0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0]];
+  return (
+    <>
+      <div ref={wrap} className="absolute z-40 touch-none select-none" onPointerMove={move} onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}
+        onWheel={(e) => { e.preventDefault(); setZoom(zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }}
+        style={{ left: (F.cx - F.W / 2) * k, top: (F.cy - F.H / 2) * k, width: F.W * k, height: F.H * k, transform: `rotate(${box.rot}deg)` }}>
+        <canvas ref={cv} className="absolute inset-0 h-full w-full" />
+        <div className="absolute inset-0 overflow-hidden">
+          <div onPointerDown={(e) => start(e, 0, 0)} className="absolute cursor-move outline outline-2 outline-white shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]"
+            style={{ left: `${cr.x * 100}%`, top: `${cr.y * 100}%`, width: `${cr.w * 100}%`, height: `${cr.h * 100}%` }}>
+            <div className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3">{Array.from({ length: 9 }, (_, i) => <span key={i} className="border border-white/30" />)}</div>
+          </div>
+        </div>
+        {H8.map(([hx, hy]) => (
+          <span key={`${hx}${hy}`} onPointerDown={(e) => start(e, hx, hy)}
+            className={cx("absolute -translate-x-1/2 -translate-y-1/2 touch-none border-2 border-white bg-[var(--c-primary)] shadow before:absolute before:-inset-3 before:content-['']", hx && hy ? "h-3.5 w-3.5 rounded-[3px]" : hx ? "h-6 w-2 rounded-full" : "h-2 w-6 rounded-full",
+              hx && hy ? (hx === hy ? "cursor-nwse-resize" : "cursor-nesw-resize") : hx ? "cursor-ew-resize" : "cursor-ns-resize")}
+            style={{ left: `${(cr.x + (cr.w * (hx + 1)) / 2) * 100}%`, top: `${(cr.y + (cr.h * (hy + 1)) / 2) * 100}%` }} />
+        ))}
+      </div>
+      <div data-crop-bar className="absolute left-1/2 top-2 z-50 flex -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-full bg-white/95 px-2 py-1 text-[12px] text-[#52525b] shadow" onPointerDown={(e) => e.stopPropagation()}>
+        <span className="hidden px-1 sm:inline">Kéo góc / cạnh để cắt · Shift giữ tỉ lệ</span>
+        <input type="range" min={1} max={4} step={0.01} value={zoom} onChange={(e) => setZoom(Number(e.target.value))} aria-label="Phóng ảnh" className="w-24 accent-[var(--c-primary)]" />
+        <button type="button" onClick={() => setCr({ x: 0, y: 0, w: 1, h: 1 })} className="rounded-full border border-[#e5e5e7] px-2.5 py-1">Đặt lại cắt</button>
+        <button type="button" onClick={() => done(false)} className="rounded-full border border-[#e5e5e7] px-2.5 py-1">Huỷ</button>
+        <button type="button" onClick={() => done(true)} className="rounded-full bg-[var(--c-primary)] px-3 py-1 font-medium text-white">Xong</button>
+      </div>
+    </>
   );
 }

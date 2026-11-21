@@ -353,6 +353,8 @@ export function useScrapStudio(o: {
   });
 
   const [bgFor, setBgFor] = useState<number | null>(null); // lớp ảnh tự do đang mở "Xoá nền"
+  const [cropFor, setCropFor] = useState<number | null>(null); // lớp ảnh tự do đang cắt
+  useEffect(() => { setCropFor(null); }, [active]);
   const [olOpen, setOlOpen] = useState(false);
   useEffect(() => { setOlOpen(false); }, [sel, active]);
   /** áp ảnh đã xoá nền cho lớp ảnh tự do: thêm vào "Ảnh của bạn" (lưu tạm trên máy) rồi đổi ảnh của lớp, nhớ ảnh gốc */
@@ -443,7 +445,7 @@ export function useScrapStudio(o: {
     assetImgs, frameImgs, cutFonts, fontPreviews, renderOpts, active, setActive, sel, setSel, editLayer, setEditLayer,
     setLayers, patchLayer, duplicate, removeLayer, reorder, addAsset, addText, addWish, addSlot, setFrame, tools,
     pickFor, setPickFor, frameFor, setFrameFor, addSlotOpen, setAddSlotOpen,
-    bgFor, setBgFor, applyBgRemoved, insertImages, pasteLayer, cutting,
+    bgFor, setBgFor, applyBgRemoved, insertImages, pasteLayer, cutting, cropFor, setCropFor,
   };
 }
 
