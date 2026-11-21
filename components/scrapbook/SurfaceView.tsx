@@ -35,6 +35,7 @@ export type SurfaceViewProps = {
   textValue?: (layer: number) => string; onTextValue?: (layer: number, v: string) => void;
   onBackgroundDbl?: (at: { x: number; y: number }) => void;
   tools?: React.ReactNode;
+  scanning?: number | null; // lớp ảnh đang được "cắt" (xoá nền) — hiện hiệu ứng quét
 };
 
 export function SurfaceView(p: SurfaceViewProps) {
@@ -244,6 +245,13 @@ export function SurfaceView(p: SurfaceViewProps) {
           )}
         </svg>
       )}
+      {p.scanning != null && (() => { const b = layerBox(p.scanning); return b && (
+        <div className="pointer-events-none absolute z-20 overflow-hidden rounded-[2px]" style={{ left: (b.x - b.w / 2) * k, top: (b.y - b.h / 2) * k, width: b.w * k, height: b.h * k, transform: `rotate(${b.rot}deg)` }} aria-label="Đang xoá nền">
+          <div className="absolute inset-0 bg-white/15" />
+          <div className="absolute inset-y-0 -left-1/2 w-1/2 animate-[scan-sweep_1.1s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+          <div className="absolute inset-y-0 -left-1/2 w-[3px] animate-[scan-sweep_1.1s_ease-in-out_infinite] bg-[var(--c-primary)] shadow-[0_0_12px_var(--c-primary)]" style={{ marginLeft: "25%" }} />
+        </div>
+      ); })()}
       {guide && (
         <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${S.w} ${S.h}`}>
           {guide.center && <g stroke="#2563eb" strokeWidth="0.3" strokeDasharray="1.2 1"><line x1={C} y1="0" x2={C} y2={S.h} /><line x1="0" y1={C} x2={S.w} y2={C} /></g>}

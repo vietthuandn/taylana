@@ -4,7 +4,7 @@
    sticker khách tự tải, chất liệu + khung + font cut-out đã tải, thao tác trên lớp của bề mặt đang xem (nhân bản, lên / xuống,
    xoá, đổi khung, thêm / xoá ô ảnh, thêm sticker / chữ / lời chúc), phím tắt, lưu nháp IndexedDB. */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Frame as FrameIcon, ImagePlus, Scissors, Trash2, Undo2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Frame as FrameIcon, ImagePlus, Scissors, Trash2, Undo2, Wand2 } from "lucide-react";
 import { loadImg } from "@/lib/mockup/images";
 import { loadAssetImages } from "@/lib/scrapbook/assets";
 import { loadFrameImages } from "@/lib/scrapbook/frames";
@@ -361,6 +361,33 @@ export function useScrapStudio(o: {
     if (!ph) return;
     D.begin(); patchLayer(i, { asset: `p:${ph.id}`, orig: l.orig ?? l.asset } as Partial<Layer>);
   }
+  /** bấm "Cắt": xoá nền thẳng bằng AI (Tự động), có hiệu ứng quét trên lớp — giữ nguyên khung ảnh (không cắt sát) để lớp không bị xê dịch.
+      Lỗi (máy yếu / chưa tải được mô hình) → mở bộ xoá nền chi tiết. */
+  const [cutting, setCutting] = useState<number | null>(null);
+  async function quickCut(i: number) {
+    const l = L[i];
+    if (l?.k !== "sticker" || !l.asset?.startsWith("p:") || cutting !== null) return;
+    const ph = photos.find((x) => x.id === l.asset!.slice(2));
+    if (!ph) return;
+    setCutting(i);
+    try {
+      const [{ readImageData }, { removeBackground }, { refineAlpha }] = await Promise.all([import("@/lib/scrapbook/userSticker"), import("@/lib/bgRemoval"), import("@/lib/bgRemoval/post")]);
+      const img = await readImageData(ph.blob);
+      const r = await removeBackground(img, "auto");
+      const a = refineAlpha(r.alpha, img.w, img.h, { hardness: 0.5, feather: 1, keepMany: true });
+      const out = new Uint8ClampedArray(img.data);
+      for (let k = 0; k < a.length; k++) out[k * 4 + 3] = Math.min(out[k * 4 + 3], a[k]);
+      const c = document.createElement("canvas"); c.width = img.w; c.height = img.h; c.getContext("2d")!.putImageData(new ImageData(out, img.w, img.h), 0, 0);
+      const png = await new Promise<Blob | null>((res) => c.toBlob(res, "image/png"));
+      if (!png) throw new Error("Không xuất được ảnh");
+      await applyBgRemoved(i, png);
+      toast("Đã xoá nền — chỉnh thêm: bấm “Xoá nền chi tiết”");
+    } catch (e) {
+      toast(`Chưa xoá nền tự động được (${e instanceof Error ? e.message : "lỗi"}) — mở bộ xoá nền chi tiết.`, "err");
+      setBgFor(i);
+    }
+    setCutting(null);
+  }
   function restoreOrig(i: number) {
     const l = L[i];
     if (l?.k !== "sticker" || !l.orig) return;
@@ -388,7 +415,8 @@ export function useScrapStudio(o: {
       <button type="button" onClick={() => reorder(sel!, 1)} title="Lên trên" aria-label="Lên trên" className={ibtn}><ArrowUp size={16} /></button>
       <button type="button" onClick={() => reorder(sel!, -1)} title="Xuống dưới" aria-label="Xuống dưới" className={ibtn}><ArrowDown size={16} /></button>
       {selL.k === "photo" && <button type="button" onClick={() => setFrameFor(sel)} title="Đổi khung" aria-label="Đổi khung" className={ibtn}><FrameIcon size={16} /></button>}
-      {selL.k === "sticker" && selL.asset?.startsWith("p:") && <button type="button" onClick={() => setBgFor(sel)} title="Xoá nền" aria-label="Xoá nền" className={ibtn}><Scissors size={16} /></button>}
+      {selL.k === "sticker" && selL.asset?.startsWith("p:") && <button type="button" onClick={() => quickCut(sel!)} disabled={cutting !== null} title="Cắt (xoá nền tự động)" aria-label="Cắt — xoá nền" className={`${ibtn} disabled:opacity-50`}><Scissors size={16} /></button>}
+      {selL.k === "sticker" && selL.orig && <button type="button" onClick={() => setBgFor(sel)} title="Xoá nền chi tiết (chọn cách tách, cọ xoá / khôi phục)" aria-label="Xoá nền chi tiết" className={ibtn}><Wand2 size={16} /></button>}
       {selL.k === "sticker" && selL.orig && <button type="button" onClick={() => restoreOrig(sel!)} title="Khôi phục ảnh gốc" aria-label="Khôi phục ảnh gốc" className={ibtn}><Undo2 size={16} /></button>}
       {canOutline(selL) && (
         <span className="relative">
@@ -413,7 +441,7 @@ export function useScrapStudio(o: {
     assetImgs, frameImgs, cutFonts, fontPreviews, renderOpts, active, setActive, sel, setSel, editLayer, setEditLayer,
     setLayers, patchLayer, duplicate, removeLayer, reorder, addAsset, addText, addWish, addSlot, setFrame, tools,
     pickFor, setPickFor, frameFor, setFrameFor, addSlotOpen, setAddSlotOpen,
-    bgFor, setBgFor, applyBgRemoved, insertImages, pasteLayer,
+    bgFor, setBgFor, applyBgRemoved, insertImages, pasteLayer, cutting,
   };
 }
 

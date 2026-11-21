@@ -203,7 +203,7 @@ export function ScrapbookEditor(p: {
               onDropFiles={(f, at) => { if (mode === "customer") st.insertImages(f, at); else st.setStickerFiles(f.slice(0, 1)); }}
               onDropPhoto={mode === "customer" ? (pid, i) => st.assignPhoto(st.active, i, pid) : undefined} onEmptySlot={mode === "customer" ? (i) => st.setPickFor(i) : undefined}
               editText={st.editText} onEditText={(i) => st.setEditText(i)} selectAllText={st.selectAll} textValue={st.textValue} onTextValue={st.setTextValue}
-              onBackgroundDbl={p.onBackgroundDbl} tools={st.tools} />
+              onBackgroundDbl={p.onBackgroundDbl} tools={st.tools} scanning={st.cutting} />
           ))}
          </div>
         </div>

@@ -46,8 +46,12 @@ export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove
   return (
     <section>
       <p className="mb-2 text-[14px] font-semibold text-[#18181b]">Ảnh của bạn <span className="text-[12px] font-normal text-[#71717a]">({photos.length}/{max}{photos.length ? ` · ${free} chưa dùng` : ""})</span></p>
+      {/* điện thoại: 1 nút "Tải ảnh lên" (mở thẳng Thư viện ảnh — accept image/*, không capture) · máy tính: khung kéo thả */}
+      <button type="button" onClick={() => fileIn.current?.click()} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--c-primary)] text-[15px] font-semibold text-white md:hidden">
+        <Upload size={18} /> Tải ảnh lên
+      </button>
       <button type="button" onClick={() => fileIn.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files.length) onAdd([...e.dataTransfer.files]); }}
-        className="grid w-full place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] px-4 py-4 text-center hover:border-[var(--c-primary)]">
+        className="hidden w-full place-items-center rounded-[10px] border-[1.5px] border-dashed border-[#d4d4d8] bg-[#fafafa] px-4 py-4 text-center hover:border-[var(--c-primary)] md:grid">
         <Upload size={20} className="mb-1 text-[#a1a1aa]" />
         <span className="text-[14px] font-medium text-[#18181b]">Kéo thả hoặc bấm để chọn ảnh</span>
         <span className="text-[12px] text-[#71717a]">{hint}</span>
@@ -73,7 +77,7 @@ export function PhotoPanel({ photos, used, max, hint, onAdd, onReplace, onRemove
         </div>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {photos.length > 0 && <p className="text-[12px] text-[#a1a1aa]">Kéo ảnh thả lên 1 ô để gán vào ô đó · thả ra chỗ khác (hoặc bấm +) để chèn ảnh tự do · Ctrl+V để dán ảnh.</p>}
+        {photos.length > 0 && <p className="text-[12px] text-[#a1a1aa]"><span className="md:hidden">Bấm + trên ảnh để chèn ảnh tự do vào thiết kế.</span><span className="hidden md:inline">Kéo ảnh thả lên 1 ô để gán vào ô đó · thả ra chỗ khác (hoặc bấm +) để chèn ảnh tự do · Ctrl+V để dán ảnh.</span></p>}
       </div>
     </section>
   );
