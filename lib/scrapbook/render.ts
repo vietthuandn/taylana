@@ -144,15 +144,7 @@ function paintBg(x: X, bg: Template["bg"], seed: number, o: RenderOpts, W: numbe
   if (bg.pattern === "grid") { for (let i = 0; i <= W; i += 5) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, H); x.stroke(); } for (let i = 0; i <= H; i += 5) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); } }
   if (bg.pattern === "lines") for (let i = 2; i <= H; i += 6) { x.beginPath(); x.moveTo(0, i); x.lineTo(W, i); x.stroke(); }
   x.restore();
-  // vân giấy: sợi mảnh ngẫu nhiên (cố định theo seed)
-  const r = rng(seed + 99);
-  x.save(); x.lineWidth = 0.12;
-  for (let i = 0; i < Math.round((160 * W * H) / 14400); i++) {
-    const X0 = r() * W, Y0 = r() * H, a = r() * Math.PI * 2, l = 1 + r() * 3;
-    x.strokeStyle = r() < 0.5 ? "rgba(255,255,255,0.35)" : "rgba(120,100,70,0.1)";
-    x.beginPath(); x.moveTo(X0, Y0); x.lineTo(X0 + Math.cos(a) * l, Y0 + Math.sin(a) * l); x.stroke();
-  }
-  x.restore();
+  void seed; // (đã bỏ vân giấy — sợi mảnh ngẫu nhiên — để nền trơn sạch)
 }
 
 // ---------- trang trí mặc định (vẽ bằng code khi chưa có chất liệu admin) ----------
@@ -504,10 +496,7 @@ export function renderSurface(o: RenderOpts) {
     x.restore();
   }
 
-  // grain toàn bề mặt
-  x.save(); x.globalAlpha = 0.05; x.globalCompositeOperation = "overlay";
-  x.setTransform(1, 0, 0, 1, 0, 0); x.fillStyle = x.createPattern(grainTile(), "repeat")!; x.fillRect(0, 0, N, NH);
-  x.restore();
+  // (đã bỏ lớp hạt nhiễu toàn bề mặt — nền trơn sạch)
   x.restore();
   if (!S.round) {
     if (o.mode !== "print" && o.guides) {
