@@ -23,6 +23,10 @@ export function suggestGradient(hex: string) {
   const mix = (k: number) => "#" + [1, 3, 5].map((i) => Math.round(parseInt(hex.slice(i, i + 2), 16) + (255 - parseInt(hex.slice(i, i + 2), 16)) * k).toString(16).padStart(2, "0")).join("");
   return `linear-gradient(120deg, ${hex} 0%, ${mix(0.35)} 50%, ${mix(0.75)} 100%)`;
 }
+/** theme tự tạo đã lưu (Admin → Giao diện → Theme, tối đa 5) */
+export type SavedTheme = { id: string; name: string; theme: Theme };
+export const MAX_THEMES = 5;
+
 const HEX = /^#[0-9a-f]{6}$/i;
 export function normalizeTheme(v: unknown): Theme {
   const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;

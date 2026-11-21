@@ -2,12 +2,12 @@
 /* Giao diện → Theme: màu trang khách — Màu chính · Màu nút khi chọn · Nền trang (màu / ảnh) · Header (nền, chữ, mục đang chọn).
    Mặc định = bộ màu gốc; "Đặt lại mặc định" lúc nào cũng được. Lưu → làm mới toàn bộ trang khách. */
 import { useState } from "react";
-import { RotateCcw, Save, Sparkles } from "lucide-react";
+import { ChevronDown, Plus, RotateCcw, Save, Sparkles, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { removePublicImage } from "@/lib/upload";
-import { DEFAULT_THEME, isHeaderBg, suggestGradient, type Theme } from "@/lib/theme";
+import { DEFAULT_THEME, MAX_THEMES, isHeaderBg, suggestGradient, type SavedTheme, type Theme } from "@/lib/theme";
 import { revalidatePublic } from "@/app/admin/actions";
-import { Button, ImageInput, Message, SaveBar, SettingsSection, confirmDialog } from "@/components/admin/ui";
+import { Badge, Button, ImageInput, Message, SettingsSection, confirmDialog } from "@/components/admin/ui";
 
 /** mã màu khách dán vào: có / không có "#", 3 hoặc 6 ký tự → "#rrggbb" (sai → null) */
 function parseHex(v: string) {
@@ -97,67 +97,156 @@ function Preview({ t }: { t: Theme }) {
   );
 }
 
-export function ThemeForm({ initial }: { initial: Theme }) {
-  const [t, setT] = useState(initial);
-  const [saved, setSaved] = useState(initial);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
-  const set = (p: Partial<Theme>) => setT({ ...t, ...p });
-  async function persist(v: Theme, text: string) {
-    setSaving(true); setMsg(null);
-    const { error } = await createClient().from("site_settings").upsert({ key: "theme", value: v, updated_at: new Date().toISOString() });
-    setSaving(false);
-    if (error) return setMsg({ type: "err", text: error.message });
-    if (saved.page_bg_image && saved.page_bg_image !== v.page_bg_image) await removePublicImage(saved.page_bg_image);
-    if (saved.logo_url && saved.logo_url !== v.logo_url) await removePublicImage(saved.logo_url);
-    await revalidatePublic(["/", "/api/favicon"], true); // làm mới mọi trang khách + favicon
-    setSaved(v); setT(v);
-    setMsg({ type: "ok", text });
-  }
-  const isDefault = JSON.stringify(saved) === JSON.stringify(DEFAULT_THEME);
+/** các ô chỉnh 1 theme (màu nhấn · nền trang · chữ khối · logo · header) */
+function ThemeFields({ t, set, k }: { t: Theme; set: (p: Partial<Theme>) => void; k: string }) {
   return (
-    <form onSubmit={(e) => { e.preventDefault(); persist(t, "Đã lưu Theme — trang khách đã cập nhật."); }} className="grid gap-6 pb-20 xl:grid-cols-[minmax(0,1fr)_420px]">
-      <div className="min-w-0 space-y-4">
-        <SettingsSection title="Màu nhấn" description="Áp dụng cho trang khách (trang admin giữ nguyên).">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Color label="Màu chính (Primary)" hint="Nút chính, chữ nhấn, viền mục đang chọn." value={t.primary} def={DEFAULT_THEME.primary} onChange={(v) => set({ primary: v })} />
-            <Color label="Màu phụ (Secondary)" hint="Nền nút / chip khi đang được chọn." value={t.secondary} def={DEFAULT_THEME.secondary} onChange={(v) => set({ secondary: v })} />
-          </div>
-        </SettingsSection>
-        <SettingsSection title="Nền trang" description="Chọn màu nền, hoặc tải ảnh nền (ảnh phủ kín, đè lên màu nền).">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Color label="Màu nền" value={t.page_bg} def={DEFAULT_THEME.page_bg} onChange={(v) => set({ page_bg: v })} />
-            <ImageInput label="Ảnh nền (không bắt buộc)" value={t.page_bg_image} onChange={(u) => set({ page_bg_image: u })} folder="theme" shrink={2000} removeLabel="Bỏ ảnh nền" />
-          </div>
-        </SettingsSection>
-        <SettingsSection title="Chữ của khối" description="Tiêu đề các khối (vd. “Giỏ hàng”, tên danh mục mẫu) và tên các mục ở Trang chủ / trang Thiết kế.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Color label="Màu chữ khối (Section text)" value={t.section_text} def={DEFAULT_THEME.section_text} onChange={(v) => set({ section_text: v })} />
-            <Color label="Nền phía sau ảnh các mục" hint="Khung bo góc sau ảnh icon (ảnh nên là PNG 1400 × 1150 nền trong suốt)." value={t.tile_bg} def={DEFAULT_THEME.tile_bg} onChange={(v) => set({ tile_bg: v })} />
-          </div>
-        </SettingsSection>
-        <SettingsSection title="Logo" description="Ảnh logo hiện trên header (nên dùng PNG nền trong suốt). Không có logo thì hiện chữ TAYLANA.">
-          <ImageInput label="Logo website" value={t.logo_url} onChange={(u) => set({ logo_url: u })} folder="logo" allowSvg shrink={600} removeLabel="Bỏ logo — dùng chữ" />
-        </SettingsSection>
-        <SettingsSection title="Header">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <HeaderBg key={saved.header_bg} value={t.header_bg} onChange={(v) => set({ header_bg: v })} />
-            <Color label="Màu chữ" value={t.header_text} def={DEFAULT_THEME.header_text} onChange={(v) => set({ header_text: v })} />
-            <Color label="Mục đang chọn" value={t.header_active} def={DEFAULT_THEME.header_active} onChange={(v) => set({ header_active: v })} />
-          </div>
-        </SettingsSection>
-        <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" icon={<Save size={16} />} loading={saving} disabled={JSON.stringify(t) === JSON.stringify(saved)}>Lưu thay đổi</Button>
-        <Button variant="secondary" icon={<RotateCcw size={16} />} disabled={isDefault && JSON.stringify(t) === JSON.stringify(DEFAULT_THEME)} loading={saving}
-          onClick={async () => { if (await confirmDialog("Đưa toàn bộ màu, nền và header về mặc định ban đầu?", { title: "Đặt lại mặc định", ok: "Đặt lại" })) persist(DEFAULT_THEME, "Đã đặt lại Theme mặc định."); }}>Đặt lại mặc định</Button>
+    <div className="space-y-4">
+      <SettingsSection title="Màu nhấn" description="Áp dụng cho trang khách (trang admin giữ nguyên).">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Color label="Màu chính (Primary)" hint="Nút chính, chữ nhấn, viền mục đang chọn." value={t.primary} def={DEFAULT_THEME.primary} onChange={(v) => set({ primary: v })} />
+          <Color label="Màu phụ (Secondary)" hint="Nền nút / chip khi đang được chọn." value={t.secondary} def={DEFAULT_THEME.secondary} onChange={(v) => set({ secondary: v })} />
         </div>
+      </SettingsSection>
+      <SettingsSection title="Nền trang" description="Chọn màu nền, hoặc tải ảnh nền (ảnh phủ kín, đè lên màu nền).">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Color label="Màu nền" value={t.page_bg} def={DEFAULT_THEME.page_bg} onChange={(v) => set({ page_bg: v })} />
+          <ImageInput label="Ảnh nền (không bắt buộc)" value={t.page_bg_image} onChange={(u) => set({ page_bg_image: u })} folder="theme" shrink={2000} removeLabel="Bỏ ảnh nền" />
+        </div>
+      </SettingsSection>
+      <SettingsSection title="Chữ của khối" description="Tiêu đề các khối (vd. “Giỏ hàng”, tên danh mục mẫu) và tên các mục ở Trang chủ / Thiết kế / Liên hệ.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Color label="Màu chữ khối (Section text)" value={t.section_text} def={DEFAULT_THEME.section_text} onChange={(v) => set({ section_text: v })} />
+          <Color label="Nền phía sau ảnh các mục" hint="Khung bo góc sau ảnh icon (ảnh nên là PNG 1400 × 1150 nền trong suốt)." value={t.tile_bg} def={DEFAULT_THEME.tile_bg} onChange={(v) => set({ tile_bg: v })} />
+        </div>
+      </SettingsSection>
+      <SettingsSection title="Logo" description="Ảnh logo hiện trên header (nên dùng PNG nền trong suốt). Không có logo thì hiện chữ TAYLANA.">
+        <ImageInput label="Logo website" value={t.logo_url} onChange={(u) => set({ logo_url: u })} folder="logo" allowSvg shrink={600} removeLabel="Bỏ logo — dùng chữ" />
+      </SettingsSection>
+      <SettingsSection title="Header">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <HeaderBg key={k} value={t.header_bg} onChange={(v) => set({ header_bg: v })} />
+          <Color label="Màu chữ" value={t.header_text} def={DEFAULT_THEME.header_text} onChange={(v) => set({ header_text: v })} />
+          <Color label="Mục đang chọn" value={t.header_active} def={DEFAULT_THEME.header_active} onChange={(v) => set({ header_active: v })} />
+        </div>
+      </SettingsSection>
+    </div>
+  );
+}
+
+/** dải màu nhỏ tóm tắt 1 theme */
+function Swatches({ t }: { t: Theme }) {
+  return (
+    <span className="flex shrink-0 overflow-hidden rounded-[6px] border border-[#e5e5e7]">
+      {[t.header_bg, t.primary, t.secondary, t.page_bg, t.tile_bg, t.section_text].map((c, i) => <span key={i} className="h-6 w-5" style={{ background: c }} />)}
+    </span>
+  );
+}
+
+
+/* Giao diện → Theme: tối đa 5 theme tự tạo (site_settings.themes = { list, active }) — mỗi theme 1 khối thu gọn, mở ra để sửa.
+   "Áp dụng" = ghi theme đó vào site_settings.theme (trang khách dùng). "Đặt lại mặc định" = dùng bộ màu gốc, không theme nào được chọn. */
+export function ThemeForm({ initialList, initialActive }: { initialList: SavedTheme[]; initialActive: string | null }) {
+  const [list, setList] = useState(initialList);
+  const [active, setActive] = useState(initialActive);
+  const [open, setOpen] = useState<string | null>(null);
+  const [draft, setDraft] = useState<SavedTheme | null>(null); // theme đang sửa (bản nháp chưa lưu)
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  /** lưu danh sách + theme đang dùng lên database rồi làm mới trang khách */
+  async function persist(nextList: SavedTheme[], nextActive: string | null, text: string, before: SavedTheme[] = list) {
+    setBusy(true); setMsg(null);
+    const applied = nextList.find((x) => x.id === nextActive)?.theme ?? DEFAULT_THEME;
+    const now = new Date().toISOString();
+    const { error } = await createClient().from("site_settings").upsert([
+      { key: "themes", value: { list: nextList, active: nextActive }, updated_at: now },
+      { key: "theme", value: applied, updated_at: now },
+    ]);
+    setBusy(false);
+    if (error) { setMsg({ type: "err", text: error.message }); return false; }
+    // ảnh (nền / logo) không còn theme nào dùng → xoá
+    const used = new Set(nextList.flatMap((x) => [x.theme.page_bg_image, x.theme.logo_url]));
+    await Promise.all(before.flatMap((x) => [x.theme.page_bg_image, x.theme.logo_url]).filter((u) => u && !used.has(u)).map(removePublicImage));
+    await revalidatePublic(["/", "/api/favicon"], true);
+    setList(nextList); setActive(nextActive); setMsg({ type: "ok", text });
+    return true;
+  }
+  function edit(x: SavedTheme) {
+    if (open === x.id) { setOpen(null); setDraft(null); return; }
+    setOpen(x.id); setDraft(structuredClone(x));
+  }
+  function addTheme() {
+    if (list.length >= MAX_THEMES) return;
+    const cur = list.find((x) => x.id === active)?.theme ?? DEFAULT_THEME;
+    const x: SavedTheme = { id: Math.random().toString(36).slice(2, 10), name: `Theme ${list.length + 1}`, theme: { ...cur } };
+    setOpen(x.id); setDraft(x);
+  }
+  const isNew = !!draft && !list.some((x) => x.id === draft.id);
+  const dirty = !!draft && (isNew || JSON.stringify(draft) !== JSON.stringify(list.find((x) => x.id === draft.id)));
+  async function saveDraft(apply: boolean) {
+    if (!draft) return;
+    const v = { ...draft, name: draft.name.trim() || "Theme" };
+    const next = isNew ? [...list, v] : list.map((x) => (x.id === v.id ? v : x));
+    const nextActive = apply ? v.id : active;
+    if (await persist(next, nextActive, apply ? `Đã lưu và áp dụng “${v.name}”.` : v.id === active ? `Đã lưu “${v.name}” — trang khách đã cập nhật.` : `Đã lưu “${v.name}”.`)) setDraft(v);
+  }
+
+  const rows = [...list, ...(isNew && draft ? [draft] : [])];
+  return (
+    <div className="space-y-4 pb-20">
+      <div className="flex flex-wrap items-center gap-2 rounded-[12px] border border-[#e5e5e7] bg-white p-3">
+        <Button variant="secondary" icon={<RotateCcw size={16} />} loading={busy} disabled={active === null}
+          onClick={async () => { if (await confirmDialog("Trang khách dùng lại bộ màu mặc định ban đầu, không theme nào được chọn. Các theme đã lưu vẫn giữ nguyên.", { title: "Đặt lại mặc định", ok: "Đặt lại" })) persist(list, null, "Đã đặt lại mặc định — không theme nào được chọn."); }}>Đặt lại mặc định</Button>
+        <span className="text-[13px] text-[#71717a]">{active === null ? "Đang dùng: Mặc định" : `Đang dùng: ${list.find((x) => x.id === active)?.name ?? ""}`}</span>
+        <span className="flex-1" />
+        <span className="text-[12px] text-[#a1a1aa]">{list.length} / {MAX_THEMES} theme</span>
+        <Button icon={<Plus size={16} />} disabled={list.length >= MAX_THEMES || isNew} onClick={addTheme} title={list.length >= MAX_THEMES ? "Tối đa 5 theme — xoá bớt để thêm" : undefined}>Thêm theme</Button>
       </div>
-      <aside className="xl:sticky xl:top-20 xl:self-start">
-        <p className="mb-2 text-[13px] font-medium text-[#52525b]">Xem trước</p>
-        <Preview t={t} />
-      </aside>
-      <SaveBar show={JSON.stringify(t) !== JSON.stringify(saved)} saving={saving} onReset={() => setT(saved)} />
+
+      {!rows.length && <p className="rounded-[12px] border border-dashed border-[#d4d4d8] bg-white p-8 text-center text-[14px] text-[#71717a]">Chưa có theme nào — trang khách đang dùng màu mặc định. Bấm “Thêm theme” để tự tạo (tối đa 5).</p>}
+
+      {rows.map((x) => {
+        const on = active === x.id, isOpen = open === x.id && draft?.id === x.id, t = isOpen ? draft!.theme : x.theme;
+        return (
+          <section key={x.id} className={`overflow-hidden rounded-[12px] border bg-white ${on ? "border-[#ff5fa2] ring-2 ring-[#ff5fa2]/15" : "border-[#e5e5e7]"}`}>
+            <div className="flex flex-wrap items-center gap-3 p-3">
+              <button type="button" onClick={() => edit(x)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-expanded={isOpen}>
+                <ChevronDown size={16} className={`shrink-0 text-[#71717a] transition-transform ${isOpen ? "" : "-rotate-90"}`} />
+                <Swatches t={t} />
+                <span className="min-w-0 truncate text-[14px] font-semibold">{isOpen ? draft!.name || "Theme" : x.name}</span>
+                {on && <Badge tone="green">Đang dùng</Badge>}
+                {isOpen && isNew && <Badge>Chưa lưu</Badge>}
+              </button>
+              {!on && !(isOpen && isNew) && <Button size="sm" loading={busy} onClick={() => persist(list, x.id, `Đã áp dụng “${x.name}”.`)}>Áp dụng</Button>}
+              <Button size="sm" variant="ghost" icon={<Trash2 size={15} />} className="!text-[#dc2626]"
+                onClick={async () => {
+                  if (isOpen && isNew) { setOpen(null); setDraft(null); return; }
+                  if (!(await confirmDialog(`Xoá “${x.name}”?${on ? " Trang khách sẽ quay về màu mặc định." : ""}`, { title: "Xoá theme", ok: "Xoá", danger: true }))) return;
+                  if (await persist(list.filter((y) => y.id !== x.id), on ? null : active, `Đã xoá “${x.name}”.`)) { if (open === x.id) { setOpen(null); setDraft(null); } }
+                }}>Xoá</Button>
+            </div>
+            {isOpen && draft && (
+              <div className="grid gap-6 border-t border-[#efeff1] p-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+                <div className="min-w-0 space-y-4">
+                  <label className="block"><span className="mb-1.5 block text-[13px] font-medium">Tên theme</span>
+                    <input value={draft.name} maxLength={40} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className="h-9 w-full max-w-[320px] rounded-[8px] border border-[#e5e5e7] px-3 text-[14px] outline-none focus:border-[#ff5fa2]" /></label>
+                  <ThemeFields k={draft.id} t={draft.theme} set={(p) => setDraft({ ...draft, theme: { ...draft.theme, ...p } })} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button icon={<Save size={16} />} loading={busy} disabled={!dirty} onClick={() => saveDraft(false)}>Lưu theme</Button>
+                    {!on && <Button variant="secondary" loading={busy} onClick={() => saveDraft(true)}>Lưu và áp dụng</Button>}
+                    {dirty && !isNew && <Button variant="ghost" onClick={() => setDraft(structuredClone(x))}>Huỷ thay đổi</Button>}
+                  </div>
+                </div>
+                <aside className="xl:sticky xl:top-20 xl:self-start">
+                  <p className="mb-2 text-[13px] font-medium text-[#52525b]">Xem trước</p>
+                  <Preview t={draft.theme} />
+                </aside>
+              </div>
+            )}
+          </section>
+        );
+      })}
       <Message msg={msg} />
-    </form>
+    </div>
   );
 }
