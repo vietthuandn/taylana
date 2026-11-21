@@ -235,7 +235,9 @@ export function SurfaceView(p: SurfaceViewProps) {
       setGuide(g.center || g.ring || g.vx !== undefined || g.hy !== undefined ? g : null);
       b = { ...b0, x: s.x, y: s.y };
     } else if (d.mode === "rotate") {
-      let r = Math.round((Math.atan2(pt.y - b0.y, pt.x - b0.x) * 180) / Math.PI + 90);
+      // xoay THEO GÓC KÉO so với lúc bắt đầu (nút xoay có thể ở dưới hoặc trên lớp → không lấy góc tuyệt đối, tránh ảnh bị lật ngược)
+      const a0 = Math.atan2(d.sy - b0.y, d.sx - b0.x), a1 = Math.atan2(pt.y - b0.y, pt.x - b0.x);
+      let r = Math.round(b0.rot + ((a1 - a0) * 180) / Math.PI);
       if (Math.abs(((r % 90) + 90) % 90) < 3 || Math.abs(((r % 90) + 90) % 90) > 87) r = Math.round(r / 90) * 90;
       b = { ...b0, rot: r };
     } else {
