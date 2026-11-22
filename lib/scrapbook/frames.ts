@@ -3,6 +3,7 @@
 import { loadImg } from "@/lib/mockup/images";
 import type { LoadedFrame } from "./render";
 import type { Frame } from "./types";
+import { drawHoles } from "@/lib/frames/holes";
 
 const cache = new Map<string, Promise<LoadedFrame | null>>();
 /** ảnh mặt nạ đen trắng → canvas có alpha theo độ sáng */
@@ -17,7 +18,7 @@ export function maskToAlpha(img: CanvasImageSource & { width: number; height: nu
 export async function loadFrameImages(frames: Frame[]) {
   const out: Record<string, LoadedFrame> = {};
   await Promise.all(frames.map(async (f) => {
-    const key = `${f.id}|${f.url}|${f.mask_url ?? ""}`;
+    const key = `${f.id}|${f.url}|${f.mask_url ?? ""}|${JSON.stringify(f.regions ?? null)}`;
     let p = cache.get(key);
     if (!p) {
       p = (async () => {
@@ -40,6 +41,11 @@ export function framePreview(lf: LoadedFrame, photo: CanvasImageSource & { width
   const W = size, H = Math.max(1, Math.round(size * (lf.img.height / lf.img.width)));
   const c = document.createElement("canvas"); c.width = W; c.height = H;
   const x = c.getContext("2d")!;
+  if (lf.frame.regions?.length) {
+    drawHoles(x, lf.frame.regions, W, H, W, H, (pc, cx, cy, w, h) => { const s = Math.max(w / photo.width, h / photo.height); pc.drawImage(photo, cx - (photo.width * s) / 2, cy - (photo.height * s) / 2, photo.width * s, photo.height * s); });
+    x.drawImage(lf.img, 0, 0, W, H);
+    return c.toDataURL("image/png");
+  }
   const g = lf.frame.region ?? { x0: 0, y0: 0, x1: 1, y1: 1 }, ix = g.x0 * W, iy = g.y0 * H, iw = (g.x1 - g.x0) * W, ih = (g.y1 - g.y0) * H;
   const p = document.createElement("canvas"); p.width = W; p.height = H;
   const px = p.getContext("2d")!, s = Math.max(iw / photo.width, ih / photo.height);

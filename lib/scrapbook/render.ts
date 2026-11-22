@@ -6,6 +6,7 @@
    Ô ảnh có thể gắn khung PNG (ảnh nằm dưới khung, cắt theo vùng ảnh / mặt nạ). Khung lời chúc: chữ tự xuống dòng + tự co.
    Sticker khách thêm luôn vẽ trên cùng.
    mode "print": nền ngoài đĩa + lỗ giữa (Ø 23 mm) trong suốt, không guideline. */
+import { drawHoles } from "@/lib/frames/holes";
 import { ensureLayerFonts } from "@/lib/fonts/load";
 import { rng } from "./generate";
 import { drawCutout, layoutCutout, type LoadedFont } from "./cutout";
@@ -415,6 +416,17 @@ function drawWish(x: X, l: Extract<Layer, { k: "wish" }>, fonts?: RenderOpts["cu
 // ảnh trong khung PNG: ảnh vào vùng ảnh (hình chữ nhật hoặc mặt nạ), khung vẽ đè lên
 function drawFramed(x: X, l: Extract<Layer, { k: "photo" }>, fr: LoadedFrame, img: PhotoSrc, adj: Adjust | undefined, label: string | undefined) {
   const w = l.w, h = l.h, g = fr.frame.region ?? { x0: 0, y0: 0, x1: 1, y1: 1 };
+  const holes = fr.frame.regions;
+  if (holes?.length) {
+    // lỗ theo đa giác (4 góc / theo hình dạng): mỗi lỗ coverCrop theo khung bao, cắt bằng mặt nạ dựng ở độ phân giải hiện tại (bản in nét)
+    const W = Math.max(1, Math.round(w * px)), H = Math.max(1, Math.round(h * px));
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const y = c.getContext("2d")!; y.scale(W / w, H / h);
+    drawHoles(y, holes, w, h, W, H, (pc, cx, cy, bw, bh) => { pc.translate(cx, cy); drawPhoto(pc, img, bw, bh, adj, label); });
+    x.drawImage(c, -w / 2, -h / 2, w, h);
+    shadow(x, 1.3, 0.6, 0.22); x.drawImage(fr.img, -w / 2, -h / 2, w, h); noShadow(x);
+    return;
+  }
   const ix = -w / 2 + g.x0 * w, iy = -h / 2 + g.y0 * h, iw = (g.x1 - g.x0) * w, ih = (g.y1 - g.y0) * h;
   if (fr.mask) {
     // mặt nạ: dựng riêng ảnh ở độ phân giải hiện tại rồi giữ phần nằm trong mặt nạ

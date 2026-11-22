@@ -59,7 +59,11 @@ export type CustomTemplate = { id: string; name: string; surface: "disc" | "book
 // ---------- thư viện Khung ảnh (admin) ----------
 export type FrameSet = { id: string; name: string; is_active: boolean; sort_order: number };
 /** region: vùng ảnh nằm dưới khung (0..1) · mask_url: ảnh mặt nạ đen trắng (trắng = vùng ảnh) · ratio = cao / rộng của ảnh khung */
-export type Frame = { id: string; set_id: string; name: string; url: string; region: Rect01 | null; mask_url: string | null; ratio: number; is_active: boolean; sort_order: number; allow_stretch?: boolean };
+export type Frame = { id: string; set_id: string; name: string; url: string; region: Rect01 | null; mask_url: string | null; ratio: number; is_active: boolean; sort_order: number; allow_stretch?: boolean;
+  regions?: HoleRegion[] | null }; // regions: các lỗ đặt ảnh (dò tự động / chỉnh tay) — có thì vẽ theo đa giác (nét ở mọi độ phân giải), region + mask_url giữ để tương thích
+/** 1 lỗ đặt ảnh của khung: quad = 4 góc (hình chữ nhật / phối cảnh, không nở) · mask = theo hình dạng (đa giác RDP, nở g × bề ngang khung).
+    pts / bbox toạ độ 0..1 theo ảnh khung */
+export type HoleRegion = { kind: "quad" | "mask"; pts: [number, number][]; bbox: Rect01; g?: number };
 // ---------- thư viện Lời chúc (admin) ----------
 export type WishTopic = { id: string; name: string; is_active: boolean; sort_order: number };
 export type Wish = { id: string; topic_id: string; content: string; lang: "vi" | "en"; is_active: boolean; sort_order: number };
