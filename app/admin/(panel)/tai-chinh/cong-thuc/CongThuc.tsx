@@ -4,8 +4,8 @@
      giá vốn ước tính = Σ lượng × giá bình quân (view finance_recipe_cost — tự cập nhật khi giá nguyên liệu đổi).
    · tab Ghép sản phẩm Shopee: quy tắc (cụm chữ trong tên sản phẩm / tên phân loại, mã sản phẩm, SKU) → công thức + phân loại;
      danh sách dòng sản phẩm Shopee CHƯA ghép được → chọn công thức (kèm "Lưu thành quy tắc"). */
-import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Plus, Save, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { GripVertical, Plus, Save, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAll } from "@/lib/finance/reconcile";
 import { errText, money, packagingCost, productTypeNames, qtyText, type Catalog, type MapRule, type Recipe } from "@/lib/finance/catalog";
@@ -66,13 +66,52 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
     setBusy(false);
   }
   /** đổi thứ tự công thức (lưu sort_order = vị trí) */
-  async function move(i: number, d: number) {
-    const list = [...cat.recipes], j = i + d;
-    if (j < 0 || j >= list.length) return;
-    [list[i], list[j]] = [list[j], list[i]];
-    const res = await Promise.all(list.map((x, k) => (x.sort_order === k ? null : sb.from("finance_recipes").update({ sort_order: k }).eq("id", x.id))).filter(Boolean));
+  /** lưu thứ tự công thức (sort_order = vị trí) */
+  async function saveOrder(ids: string[]) {
+    const res = await Promise.all(ids.map((id, k) => (cat.recipes.find((x) => x.id === id)?.sort_order === k ? null : sb.from("finance_recipes").update({ sort_order: k }).eq("id", id))).filter(Boolean));
     const e = res.find((x) => x?.error)?.error;
-    if (e) setErr(/sort_order|column/.test(e.message) ? "Cần chạy supabase/migration_finance_recipe_price.sql để xếp thứ tự công thức." : errText(e.message)); else await reload();
+    if (e) setErr(/sort_order|column/.test(e.message) ? "Cần chạy supabase/migration_finance_recipe_price.sql để xếp thứ tự công thức." : errText(e.message));
+    await reload();
+  }
+  // ---------- giữ và kéo để xếp thứ tự (chuột: kéo luôn · cảm ứng: giữ ~0,3 giây rồi kéo) ----------
+  const [order, setOrder] = useState<string[] | null>(null); // thứ tự tạm khi đang kéo
+  const [dragId, setDragId] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const press = useRef<{ id: string; y: number; t: number; timer?: ReturnType<typeof setTimeout>; moved: boolean } | null>(null);
+  const ids = order ?? cat.recipes.map((x) => x.id);
+  // cảm ứng: đang kéo thì chặn cuộn trang (listener không passive)
+  const dragging = useRef(false); dragging.current = !!dragId;
+  useEffect(() => {
+    const el = listRef.current; if (!el) return;
+    const h = (e: TouchEvent) => { if (dragging.current) e.preventDefault(); };
+    el.addEventListener("touchmove", h, { passive: false });
+    return () => el.removeEventListener("touchmove", h);
+  }, [cat.recipes.length]);
+  function onDown(e: React.PointerEvent, id: string) {
+    if (e.button !== 0) return;
+    const p = { id, y: e.clientY, t: Date.now(), moved: false } as NonNullable<typeof press.current>;
+    if (e.pointerType !== "mouse") p.timer = setTimeout(() => { setDragId(id); setOrder(cat.recipes.map((x) => x.id)); navigator.vibrate?.(15); }, 300);
+    press.current = p;
+  }
+  function onMove(e: React.PointerEvent) {
+    const p = press.current; if (!p) return;
+    if (!dragId) {
+      if (Math.abs(e.clientY - p.y) < 6) return;
+      if (e.pointerType !== "mouse") { clearTimeout(p.timer); press.current = null; return; } // cảm ứng: chưa giữ đủ lâu = cuộn
+      setDragId(p.id); setOrder(cat.recipes.map((x) => x.id));
+    }
+    p.moved = true;
+    const rows = [...(listRef.current?.querySelectorAll<HTMLElement>("[data-rid]") ?? [])];
+    const over = rows.find((r) => { const b = r.getBoundingClientRect(); return e.clientY >= b.top && e.clientY <= b.bottom; });
+    const to = over?.dataset.rid;
+    if (to && to !== p.id) setOrder((o) => { const a = [...(o ?? ids)], i = a.indexOf(p.id), j = a.indexOf(to); a.splice(i, 1); a.splice(j, 0, p.id); return a; });
+  }
+  function onUp() {
+    const p = press.current; press.current = null;
+    if (p?.timer) clearTimeout(p.timer);
+    if (dragId && order) { const o = order; setDragId(null); saveOrder(o).then(() => setOrder(null)); return; }
+    setDragId(null); setOrder(null);
+    if (p && !p.moved) setSel(p.id);
   }
   async function remove() {
     if (!r || !await confirmDialog(`Xoá công thức "${r.name}"? Quy tắc ghép đang trỏ tới công thức này sẽ chỉ còn phân loại.`, { danger: true, ok: "Xoá" })) return;
@@ -86,20 +125,17 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
           <Combo value={null} options={sugg} placeholder="+ Thêm: chọn Loại CD / món in lẻ hoặc gõ tên" onChange={(id) => { if (id) { const [s, ...n] = id.split(":"); create(s as Recipe["source"], n.join(":")); } }} onCreate={(t) => create("custom", t)} />
         </div>
         {cat.recipes.length ? (
-          <ul className="max-h-[60vh] divide-y divide-[#efeff1] overflow-y-auto">
-            {cat.recipes.map((x, i) => {
+          <ul ref={listRef} className={cx("max-h-[60vh] select-none divide-y divide-[#efeff1] overflow-y-auto", dragId && "touch-none")} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onPointerLeave={() => dragId && onUp()}>
+            {ids.map((id) => {
+              const x = cat.recipes.find((y) => y.id === id); if (!x) return null;
               const c = cat.recipeCosts.get(x.id), m = marginOf(x, c?.cost ?? 0, pack);
               return (
-                <li key={x.id} className={cx("flex items-center", sel === x.id ? "bg-[#fff5f9]" : "hover:bg-[#fafafa]")}>
-                  <button type="button" onClick={() => setSel(x.id)} className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-3 text-left text-[13px]">
-                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{x.name}</span><span className="text-[11px] text-[#a1a1aa]">{SRC[x.source]} · {c?.parts ?? 0} thành phần</span></span>
-                    <span className="shrink-0 text-right tabular-nums"><span className={cx("block", c?.missing && "text-[#d97706]")}>{money(c?.cost ?? 0)}</span>
-                      {m && <span className={cx("block text-[11px]", m.pct < 0 ? "text-[#dc2626]" : m.pct < 0.15 ? "text-[#d97706]" : "text-[#16a34a]")}>lãi {pctTxt(m.pct)}</span>}</span>
-                  </button>
-                  <span className="flex shrink-0 flex-col px-1.5">
-                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Lên" className="text-[#a1a1aa] hover:text-[#18181b] disabled:opacity-30"><ChevronUp size={14} /></button>
-                    <button type="button" onClick={() => move(i, 1)} disabled={i === cat.recipes.length - 1} aria-label="Xuống" className="text-[#a1a1aa] hover:text-[#18181b] disabled:opacity-30"><ChevronDown size={14} /></button>
-                  </span>
+                <li key={x.id} data-rid={x.id} onPointerDown={(e) => onDown(e, x.id)} onContextMenu={(e) => e.preventDefault()}
+                  className={cx("flex cursor-grab items-center gap-2 py-2 pl-2 pr-3 text-[13px]", dragId === x.id ? "relative z-10 bg-white shadow-[0_6px_20px_rgb(0_0_0/0.15)] cursor-grabbing" : sel === x.id ? "bg-[#fff5f9]" : "hover:bg-[#fafafa]")}>
+                  <GripVertical size={14} className="shrink-0 text-[#d4d4d8]" />
+                  <span className="min-w-0 flex-1"><span className="block truncate font-medium">{x.name}</span><span className="text-[11px] text-[#a1a1aa]">{SRC[x.source]} · {c?.parts ?? 0} thành phần</span></span>
+                  <span className="shrink-0 text-right tabular-nums"><span className={cx("block", c?.missing && "text-[#d97706]")}>{money(c?.cost ?? 0)}</span>
+                    {m && <span className={cx("block text-[11px]", m.pct < 0 ? "text-[#dc2626]" : m.pct < 0.15 ? "text-[#d97706]" : "text-[#16a34a]")}>lãi {kTxt(m.profit)} ({pctTxt(m.pct)})</span>}</span>
                 </li>
               );
             })}
@@ -142,6 +178,8 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
 }
 
 // ---------- giá bán Shopee → lãi / biên lãi ----------
+/** tiền gọn: 10K · 250K · 1,2M */
+const kTxt = (n: number) => { const a = Math.abs(n), sg = n < 0 ? "-" : ""; return a >= 1e6 ? `${sg}${(a / 1e6).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}M` : a >= 1000 ? `${sg}${(a / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}K` : `${sg}${Math.round(a)}đ`; };
 const pctTxt = (v: number) => `${(v * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`;
 /** lãi khi bán trên Shopee: giá bán − phí sàn (% giá bán) − giá vốn − đóng gói */
 function marginOf(r: Recipe, cost: number, pack: number) {
@@ -169,7 +207,7 @@ function PriceBox({ r, cost, pack, onPatch }: { r: Recipe; cost: number; pack: n
           <Row k={`− Phí sàn (${fee.toLocaleString("vi-VN")}%)`} v={money(m.fee)} />
           <Row k="− Giá vốn" v={money(cost)} />
           <Row k="− Đóng gói" v={money(pack)} />
-          <Row k="Lãi mỗi đơn" v={`${money(m.profit)} · ${pctTxt(m.pct)}`} b c={m.pct < 0 ? "text-[#dc2626]" : m.pct < 0.15 ? "text-[#d97706]" : "text-[#16a34a]"} />
+          <Row k="Lãi mỗi đơn" v={`${money(m.profit)} (${pctTxt(m.pct)})`} b c={m.pct < 0 ? "text-[#dc2626]" : m.pct < 0.15 ? "text-[#d97706]" : "text-[#16a34a]"} />
         </div>
       ) : <p className="mt-2 text-[12px] text-[#a1a1aa]">Nhập giá bán để xem lãi và biên lãi.</p>}
     </section>
