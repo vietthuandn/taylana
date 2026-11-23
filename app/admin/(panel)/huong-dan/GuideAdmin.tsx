@@ -51,8 +51,8 @@ function PageSettings() {
           <button type="button" className="text-sm hover:text-[#ff5fa2]" onClick={() => setV({ ...v, tools: [...v.tools, { label: "", href: "/" }] })}>+ Thêm nút</button>
         </div>
       )}
-      <Toggle checked={v.order_enabled} onChange={(x) => save({ ...v, order_enabled: x })} label="Bật nút “Đặt đơn” ở cuối trang (tắt = nút mờ, chưa bấm được)" />
-      {v.order_enabled && <input className="field" value={v.order_href} onChange={(e) => setV({ ...v, order_href: e.target.value })} onBlur={() => save(v)} placeholder="/dat-don" />}
+      <p className="text-[12px] text-[#71717a]">Nút “Đặt đơn” cuối trang tự mở / khoá theo công tắc “Tạm nghỉ bán” ở Sản phẩm của tôi. Link nút:</p>
+      {<input className="field" value={v.order_href} onChange={(e) => setV({ ...v, order_href: e.target.value })} onBlur={() => save(v)} placeholder="/dat-don" />}
       {saving && <p className="text-[12px] text-[#a1a1aa]">Đang lưu…</p>}
       <a href="/huong-dan" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] text-[#ff5fa2]">Xem trang /huong-dan <ExternalLink size={12} /></a>
     </div>
