@@ -27,16 +27,24 @@ type Grid = unknown[][];
 export function num(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
-  let s = String(v).trim().replace(/[₫đ\s]/gi, "");
+  let s = String(v).trim().replace(/vn[dđ]|[₫đ\s]/gi, "");
   if (!s || s === "-") return null;
   const neg = /^\(.*\)$/.test(s) || s.startsWith("-");
   s = s.replace(/[()\-+]/g, "");
-  // 1.234.567 hoặc 1,234,567 (phân cách nghìn) · 12.5 / 12,5 (thập phân)
-  if (/^\d{1,3}([.,]\d{3})+$/.test(s)) s = s.replace(/[.,]/g, "");
-  else s = s.replace(",", ".");
+  if (!/^[\d.,]+$/.test(s)) return null;
+  if (s.includes(".") && s.includes(",")) {
+    // 1.234.567,89 hoặc 1,234,567.89: dấu xuất hiện SAU CÙNG là dấu thập phân, dấu kia là phân cách nghìn
+    const dec = s.lastIndexOf(",") > s.lastIndexOf(".") ? "," : ".";
+    s = s.split(dec === "," ? "." : ",").join("").replace(dec, ".");
+  } else if (/^\d{1,3}([.,]\d{3})+$/.test(s)) s = s.replace(/[.,]/g, ""); // 82.000 · 1.234.567 (Excel dạng chữ, chấm phân cách nghìn)
+  else s = s.replace(",", "."); // 12,5 · 12.5
   const n = Number(s);
   return Number.isFinite(n) ? (neg ? -n : n) : null;
 }
+/** ô trông như MÃ (mã số thuế, số điện thoại, mã đơn…): chuỗi chỉ gồm chữ số, ≥ 9 ký tự, không có dấu phân cách — không phải tiền */
+const isCode = (v: unknown) => typeof v === "string" ? /^\d{9,}$/.test(v.trim()) : typeof v === "number" && Number.isInteger(v) && Math.abs(v) >= 1e9;
+/** số tiền của 1 ô phí (bỏ ô trông như mã) */
+const money = (v: unknown) => (isCode(v) ? null : num(v));
 /** ngày giờ Shopee (giờ Việt Nam): "2025-05-01 10:22", "01/05/2025 10:22:33", số ngày Excel → ISO có +07:00 */
 export function date(v: unknown): string | null {
   if (v === null || v === undefined || v === "") return null;
@@ -76,7 +84,9 @@ const sheetOf = (names: string[], want: string) => names.find((n) => fold(n) ===
 // ---------- các khoản phí người bán chịu (Income · sheet Doanh thu) ----------
 /** cột là PHÍ SÀN (lấy trị tuyệt đối) */
 const FEE_KEYS = ["phi co dinh", "phi dich vu", "phi xu ly giao dich", "phi thanh toan", "hoa hong", "piship", "thue gtgt", "thue tncn", "thue"];
-const isFee = (c: string) => FEE_KEYS.some((k) => c.includes(k)) && !c.includes("van chuyen") && !c.includes("rate") && !c.includes("%");
+// bỏ cột MÃ / SỐ (vd. "Mã số thuế" chứa chữ "thue" — từng làm phí sàn thành hàng tỉ), cột tỉ lệ %
+const notFee = (c: string) => /^ma\b|\bma so\b|\bso dien thoai\b|\bid\b|\bty le\b|\brate\b|%/.test(c) || c.includes("van chuyen");
+const isFee = (c: string) => FEE_KEYS.some((k) => c.includes(k)) && !notFee(c);
 /** mã ưu đãi / hoàn xu do người bán chịu */
 const isSellerVoucher = (c: string) => (c.includes("ma uu dai") || c.includes("hoan xu") || c.includes("voucher")) && (c.includes("nguoi ban") || c.includes("seller"));
 /** các cột phí vận chuyển (cộng lại: âm = người bán chịu) */
@@ -118,7 +128,7 @@ export async function parseShopeeFile(file: File): Promise<Parsed> {
       }
       lastSn = sn;
       const fees: Record<string, number> = {};
-      for (const i of feeCols) { const v = num(r[i]); if (v) fees[head[i]] = Math.abs(v); }
+      for (const i of feeCols) { const v = money(r[i]); if (v) fees[head[i]] = Math.abs(v); }
       const ship = shipCols.reduce((a, i) => a + (num(r[i]) ?? 0), 0);
       if (ship < 0) fees["Phí ship người bán chịu"] = Math.abs(ship);
       orders.set(sn, {
@@ -138,7 +148,7 @@ export async function parseShopeeFile(file: File): Promise<Parsed> {
           const o = orders.get(sn);
           if (!o) { errors.push(`Service Fee Details: đơn ${sn} không có ở sheet Doanh thu`); continue; }
           const sf: Record<string, number> = {};
-          st.head.forEach((h, i) => { if (i === si) return; const v = num(r[i]); if (v && !/ma|ngay|date|id/.test(fold(h))) sf[h] = Math.abs(v); });
+          st.head.forEach((h, i) => { if (i === si) return; const v = num(r[i]); if (v && !isCode(r[i]) && !notFee(fold(h)) && !/\bngay\b|\bdate\b/.test(fold(h))) sf[h] = Math.abs(v); });
           o.service_fees = sf; o.service_raw = obj(st.head, r);
         }
       }

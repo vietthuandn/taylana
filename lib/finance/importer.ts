@@ -33,7 +33,8 @@ const empty = (v: unknown) => v === null || v === undefined || v === "" || (type
 /** gộp: giá trị mới (không trống) đè lên cũ */
 const merge = (old: Record<string, unknown>, nw: Record<string, unknown>, fields: readonly string[]) => {
   const out: Record<string, unknown> = { ...nw };
-  for (const f of fields) if (empty(nw[f]) && !empty(old[f])) out[f] = old[f];
+  // ô trống trong file mới giữ giá trị cũ — riêng các khoản phí (object) luôn lấy theo file mới (sửa được dữ liệu nhập sai trước đó)
+  for (const f of fields) if ((nw[f] && typeof nw[f] === "object" ? false : empty(nw[f])) && !empty(old[f])) out[f] = old[f];
   return out;
 };
 const same = (a: Record<string, unknown>, b: Record<string, unknown>, fields: readonly string[]) => fields.every((f) => stable(norm(f, a[f])) === stable(norm(f, b[f])));
