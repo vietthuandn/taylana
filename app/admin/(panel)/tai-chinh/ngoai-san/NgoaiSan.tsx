@@ -8,7 +8,7 @@ import { Copy, Eye, Pencil, Plus, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAll } from "@/lib/finance/reconcile";
 import { errText, money, packagingCost, productTypeNames, todayVN, type Catalog } from "@/lib/finance/catalog";
-import { Combo, type ComboOpt } from "@/components/admin/finance/Combo";
+import { Combo, DecimalInput, type ComboOpt } from "@/components/admin/finance/Combo";
 import { categoryOpts, useCatalog } from "@/components/admin/finance/useCatalog";
 import { Badge, Button, Card, EmptyState, Field, Input, Message, Select, Textarea, confirmDialog, cx } from "@/components/admin/ui";
 
@@ -195,7 +195,7 @@ function OrderForm({ cat, init, channels, types, ratio, newCategory, onClose, on
                   onChange={(id) => { if (!id) return; if (id.startsWith("r:")) { const r = cat.recipes.find((x) => x.id === id.slice(2)); setLine(i, { recipe_id: id.slice(2), label: null, category_id: r?.category_id ?? l.category_id }); } else setLine(i, { recipe_id: null, label: id.slice(2) }); }}
                   onCreate={(t) => { setLine(i, { recipe_id: null, label: t }); return `t:${t}`; }} />
                 <Combo value={l.category_id} options={categoryOpts(cat)} onChange={(id) => setLine(i, { category_id: id })} onCreate={newCategory} placeholder="Phân loại" />
-                <Input inputMode="decimal" value={String(l.qty)} onChange={(e) => setLine(i, { qty: Number(e.target.value.replace(",", ".")) || 0 })} aria-label="Số lượng" />
+                <DecimalInput value={l.qty} ariaLabel="Số lượng" onChange={(v) => setLine(i, { qty: v })} />
                 <Input inputMode="numeric" value={l.amount ? String(l.amount) : ""} placeholder="Thành tiền" onChange={(e) => setLine(i, { amount: numIn(e.target.value) })} />
                 <button type="button" onClick={() => setLs((x) => x.filter((_, j) => j !== i))} aria-label="Bỏ dòng" className="p-1 text-[#a1a1aa] hover:text-[#dc2626]"><Trash2 size={14} /></button>
               </div>

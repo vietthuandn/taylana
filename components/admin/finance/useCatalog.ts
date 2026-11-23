@@ -28,7 +28,7 @@ export function categoryOpts(c: Catalog, usage: Record<string, number> = {}): Co
 export function itemOpts(c: Catalog, usage: Record<string, number> = {}): ComboOpt[] {
   const n: Record<string, number> = { ...usage };
   for (const r of c.recipeItems) n[r.item_id] = (n[r.item_id] ?? 0) + 1;
-  return c.items.map((x) => ({ id: x.id, label: x.name, hint: x.unit, count: n[x.id] ?? 0 }));
+  return c.items.map((x) => { const k = c.costs.get(x.id)?.cost; return { id: x.id, label: x.name, hint: k != null ? `${money(k)} / ${x.kind === "consumable" ? "lần" : x.unit}` : `${x.unit} · chưa nhập`, count: n[x.id] ?? 0 }; });
 }
 /** gợi ý công thức: tên + giá vốn ước tính */
 export const recipeOpts = (c: Catalog): ComboOpt[] => c.recipes.map((r) => ({ id: r.id, label: r.name, hint: money(c.recipeCosts.get(r.id)?.cost ?? 0) }));

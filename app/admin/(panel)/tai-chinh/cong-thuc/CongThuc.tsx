@@ -9,7 +9,7 @@ import { Plus, Save, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAll } from "@/lib/finance/reconcile";
 import { errText, money, productTypeNames, qtyText, type Catalog, type MapRule, type Recipe } from "@/lib/finance/catalog";
-import { Combo, type ComboOpt } from "@/components/admin/finance/Combo";
+import { Combo, DecimalInput, type ComboOpt } from "@/components/admin/finance/Combo";
 import { categoryOpts, itemOpts, recipeOpts, useCatalog } from "@/components/admin/finance/useCatalog";
 import { Badge, Button, Card, EmptyState, Input, Message, confirmDialog, cx } from "@/components/admin/ui";
 
@@ -96,7 +96,8 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
             <label className="text-[12px] text-[#71717a]">Tên<Input key={r.id} defaultValue={r.name} onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== r.name && patch({ name: e.target.value.trim() })} /></label>
             <label className="text-[12px] text-[#71717a]">Phân loại<Combo value={r.category_id} options={categoryOpts(cat)} onChange={(id) => patch({ category_id: id })} onCreate={newCategory} allowClear /></label>
           </div>
-          <p className="mb-2 text-[13px] font-semibold">Thành phần</p>
+          <p className="mb-1 text-[13px] font-semibold">Thành phần</p>
+          <p className="mb-2 text-[12px] text-[#71717a]">Chọn mặt hàng đã nhập và nhập <b>lượng dùng</b> theo đơn vị dùng (ví dụ 0,5 tờ). Tiền tự tính = lượng × giá bình quân của các lần nhập ({cat.avgMode === "last" ? "lần mua gần nhất" : "bình quân gia quyền 12 tháng"} — đổi ở Nguyên liệu → Mặt hàng).</p>
           <div className="space-y-2">
             {parts.map((p, i) => {
               const it = cat.items.find((x) => x.id === p.item_id), c = p.item_id ? cat.costs.get(p.item_id)?.cost ?? null : null;
@@ -104,9 +105,10 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
                 <div key={i} className="flex flex-wrap items-center gap-2 text-[13px]">
                   <Combo className="min-w-[200px] flex-1" value={p.item_id || null} options={itemOpts(cat)} placeholder="Mặt hàng" onCreate={newItem}
                     onChange={(id) => { setParts((x) => x.map((y, j) => (j === i ? { ...y, item_id: id ?? "" } : y))); setDirty(true); }} />
-                  <Input inputMode="decimal" value={String(p.qty)} onChange={(e) => { const v = Number(e.target.value.replace(",", ".")); setParts((x) => x.map((y, j) => (j === i ? { ...y, qty: Number.isFinite(v) ? v : 0 } : y))); setDirty(true); }} className="w-[90px]" />
-                  <span className="w-[70px] text-[#71717a]">{it?.kind === "consumable" ? "lần" : it?.unit ?? ""}</span>
-                  <span className={cx("w-[110px] text-right tabular-nums", c === null && p.item_id && "text-[#d97706]")}>{c === null ? (p.item_id ? "chưa có giá" : "") : money(c * p.qty)}</span>
+                  <DecimalInput value={p.qty} ariaLabel="Lượng dùng" onChange={(v) => { setParts((x) => x.map((y, j) => (j === i ? { ...y, qty: v } : y))); setDirty(true); }} className="w-[90px]" />
+                  <span className="w-[56px] text-[#71717a]">{it?.kind === "consumable" ? "lần" : it?.unit ?? ""}</span>
+                  <span className="w-[150px] text-right text-[12px] text-[#71717a] tabular-nums">{c === null ? (p.item_id ? <span className="text-[#d97706]">chưa nhập nguyên liệu này</span> : "") : `× ${money(c)} / ${it?.kind === "consumable" ? "lần" : it?.unit ?? ""}`}</span>
+                  <span className="w-[90px] text-right font-medium tabular-nums">{c === null ? "" : money(c * p.qty)}</span>
                   <button type="button" onClick={() => { setParts((x) => x.filter((_, j) => j !== i)); setDirty(true); }} aria-label="Bỏ" className="p-1 text-[#a1a1aa] hover:text-[#dc2626]"><Trash2 size={14} /></button>
                 </div>
               );

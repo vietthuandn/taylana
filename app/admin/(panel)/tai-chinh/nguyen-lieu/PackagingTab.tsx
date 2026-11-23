@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { money, packagingCost, saveSetting, type Catalog, type Item, type Packaging } from "@/lib/finance/catalog";
-import { Combo } from "@/components/admin/finance/Combo";
+import { Combo, DecimalInput } from "@/components/admin/finance/Combo";
 import { itemOpts } from "@/components/admin/finance/useCatalog";
 import { Button, Card, Input, cx } from "@/components/admin/ui";
 
@@ -36,7 +36,7 @@ export function PackagingTab({ cat, reload, newItem, setErr }: { cat: Catalog; r
               <div key={i} className="flex flex-wrap items-center gap-2 text-[13px]">
                 <Combo className="min-w-[200px] flex-1" value={r.item_id || null} options={itemOpts(cat)} placeholder="Mặt hàng đóng gói" onCreate={(t) => newItem(t, { category_id: pack })}
                   onChange={(id) => setP((x) => ({ ...x, items: x.items.map((y, j) => (j === i ? { ...y, item_id: id ?? "" } : y)) }))} />
-                <Input inputMode="decimal" value={String(r.qty)} onChange={(e) => setP((x) => ({ ...x, items: x.items.map((y, j) => (j === i ? { ...y, qty: Number(e.target.value.replace(",", ".")) || 0 } : y)) }))} className="w-[90px]" />
+                <DecimalInput value={r.qty} ariaLabel="Lượng dùng mỗi đơn" onChange={(v) => setP((x) => ({ ...x, items: x.items.map((y, j) => (j === i ? { ...y, qty: v } : y)) }))} className="w-[90px]" />
                 <span className="w-[60px] text-[#71717a]">{it?.unit ?? ""}</span>
                 <span className="w-[90px] text-right tabular-nums text-[#52525b]">{c === null ? "chưa có giá" : money(c * r.qty)}</span>
                 <button type="button" onClick={() => setP((x) => ({ ...x, items: x.items.filter((_, j) => j !== i) }))} aria-label="Bỏ" className="p-1 text-[#a1a1aa] hover:text-[#dc2626]"><Trash2 size={14} /></button>

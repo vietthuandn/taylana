@@ -69,3 +69,15 @@ export function Combo({ value, options, onChange, onCreate, placeholder, classNa
     </div>
   );
 }
+
+/** ô số cho phép số lẻ kiểu Việt Nam ("0,5", "2.5"): giữ nguyên chữ đang gõ, báo số khi đọc được */
+export function DecimalInput({ value, onChange, className, placeholder, ariaLabel }: { value: number; onChange: (v: number) => void; className?: string; placeholder?: string; ariaLabel?: string }) {
+  const show = (v: number) => (Number.isFinite(v) ? String(v).replace(".", ",") : "");
+  const [t, setT] = useState(show(value));
+  useEffect(() => { setT((cur) => (Number(cur.replace(",", ".")) === value ? cur : show(value))); }, [value]);
+  return (
+    <input inputMode="decimal" value={t} placeholder={placeholder} aria-label={ariaLabel}
+      onChange={(e) => { const s = e.target.value.replace(/[^\d.,]/g, ""); setT(s); const n = Number(s.replace(",", ".")); if (s !== "" && Number.isFinite(n)) onChange(n); else if (s === "") onChange(0); }}
+      className={cx(inputClass, className)} />
+  );
+}
