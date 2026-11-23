@@ -26,6 +26,10 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
     { href: "/admin/cong-cu/dan-trang", label: "Dàn trang booklet", icon: "book2", group: "Công cụ" },
     { href: "/admin/cong-cu/cat-kho", label: "Cắt đúng khổ", icon: "crop", group: "Công cụ" },
   ] },
+  { title: "Tài chính", links: [
+    { href: "/admin/tai-chinh/don-shopee", label: "Đơn Shopee", icon: "wallet", group: "Tài chính" },
+    { href: "/admin/tai-chinh/nhap", label: "Nhập dữ liệu Shopee", icon: "upload", group: "Tài chính" },
+  ] },
   { title: "Hệ thống", links: [
     { href: "/admin/thanh-toan", label: "Thanh toán", icon: "card", group: "Hệ thống" },
     { href: "/admin/van-chuyen", label: "Vận chuyển", icon: "truck", group: "Hệ thống" },
