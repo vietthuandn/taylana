@@ -12,13 +12,15 @@ import { cart, useCart } from "@/lib/cart";
 import type { PublicDiscount } from "@/lib/discount";
 import type { ShippingSettings } from "@/lib/shipping";
 import type { PaymentSettings } from "@/lib/payment/settings";
+import { AdminQuote, useIsAdmin } from "./AdminQuote";
 import { Button } from "@/components/ui/kit";
 import { cx } from "@/components/ui/styles";
 import { ActionBar, DoneStep, InfoStep, Label, MOBILE_PAD, Qty, Stepper, Wrap, emptyForm, lineTotal, lineUnit, submitOrder, useAutofill, useCheckout, type Form, type Line, type Sel, type Step } from "../dat-don/checkout";
 
 const thumb = (p: Product, sels: Sel[]) => sels.map((s) => s.opt.image_url).find(Boolean) ?? p.images.find(Boolean) ?? null;
 
-export function CartView({ products, discounts, shipping, payment }: { products: Product[]; discounts: PublicDiscount[]; shipping: ShippingSettings; payment: PaymentSettings | null }) {
+export function CartView({ products, discounts, shipping, payment, bank }: { products: Product[]; discounts: PublicDiscount[]; shipping: ShippingSettings; payment: PaymentSettings | null; bank?: PaymentSettings | null }) {
+  const isAdmin = useIsAdmin(); // chủ tiệm: hiện khối chuyển khoản dưới tổng tiền để báo giá Zalo
   const raw = useCart();
   const [off, setOff] = useState<Set<string>>(new Set()); // dòng bỏ chọn (mặc định chọn hết)
   const [step, setStep] = useState<Step>(1);
@@ -115,6 +117,7 @@ export function CartView({ products, discounts, shipping, payment }: { products:
             <aside className="flex min-w-0 flex-col gap-6 lg:col-span-5">
               {co.discountBox}
               {co.summary}
+              {isAdmin && <AdminQuote bank={bank ?? payment} total={co.total} lines={chosen.map((l) => { const r = rows.find((x) => x.line === l); return `• ${l.product.name}${r?.variation ? ` (${r.variation})` : ""} × ${l.qty}: ${formatVND(lineTotal(l))}`; })} />}
               {error && <p className="rounded-[8px] bg-[#fef2f2] px-3 py-2 text-[13px] text-[#dc2626]">{error}</p>}
             </aside>
           </div>

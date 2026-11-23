@@ -22,5 +22,5 @@ export default async function CartPage() {
     getShippingSettings(),
   ]);
   const discounts = (d.error ? [] : d.data ?? []) as PublicDiscount[];
-  return <CartView products={products} discounts={discounts} shipping={shipping} payment={paymentReady(settings) ? settings : null} />;
+  return <CartView products={products} discounts={discounts} shipping={shipping} payment={paymentReady(settings) ? settings : null} bank={settings.account_no?.trim() ? settings : null} />;
 }
