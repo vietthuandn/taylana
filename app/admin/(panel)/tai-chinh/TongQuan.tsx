@@ -4,10 +4,10 @@
    Kỳ xem: Tuần · Tháng · Quý · Năm · Tuỳ chọn (‹ ›) · Kênh · Phân loại · ngày tính đơn Shopee (thanh toán / đặt hàng). */
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, SlidersHorizontal, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { errText, money, saveSetting, todayVN, type Category } from "@/lib/finance/catalog";
-import { Badge, Button, Card, Input, Message, Select, cx } from "@/components/admin/ui";
+import { Badge, Button, Card, Input, Message, cx } from "@/components/admin/ui";
 
 type Unit = "week" | "month" | "quarter" | "year" | "custom";
 type Group = "day" | "week" | "month";
@@ -56,6 +56,7 @@ export function TongQuan() {
   const [startSet, setStartSet] = useState<string | null>(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [fOpen, setFOpen] = useState(false);
 
   const [from, to] = useMemo<[Date, Date]>(() => (unit === "custom" ? [parse(custom.from), parse(custom.to)] : rangeOf(unit, anchor)), [unit, anchor, custom]);
   const [pf, pt] = useMemo<[Date, Date]>(() => { if (unit !== "custom") return rangeOf(unit, shift(unit, anchor, -1)); const n = Math.round((to.getTime() - from.getTime()) / 86400000) + 1; return [addDays(from, -n), addDays(from, -1)]; }, [unit, anchor, from, to]);
@@ -115,6 +116,7 @@ export function TongQuan() {
     setBusy(false);
   }
 
+  const nF = Number(channel !== "all") + Number(!!cat) + Number(dateField !== "paid");
   const chip = (on: boolean) => cx("h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium", on ? "border-[#ff5fa2] bg-[#fff0f6] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]");
   const nextYear = `${new Date().getFullYear() + 1}-01-01`;
   return (
@@ -134,14 +136,34 @@ export function TongQuan() {
               <button type="button" onClick={() => setAnchor((a) => shift(unit, a, 1))} aria-label="Kỳ sau" className="grid h-8 w-8 place-items-center"><ChevronRight size={16} /></button>
             </span>
           )}
-          <Select value={channel} onChange={(e) => setChannel(e.target.value as typeof channel)} className="w-auto"><option value="all">Mọi kênh</option><option value="shopee">Shopee</option><option value="offline">Ngoài sàn</option></Select>
-          <Select value={cat} onChange={(e) => setCat(e.target.value)} className="w-auto"><option value="">Mọi phân loại</option>{cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
-          <Select value={dateField} onChange={(e) => setDateField(e.target.value as typeof dateField)} className="w-auto" title="Ngày tính đơn Shopee"><option value="paid">Shopee theo ngày thanh toán</option><option value="order_date">Shopee theo ngày đặt hàng</option></Select>
+          <button type="button" onClick={() => setFOpen(true)} aria-label="Bộ lọc" title="Bộ lọc"
+            className={cx("relative grid h-8 w-8 place-items-center rounded-full border bg-white", nF ? "border-[#ff5fa2] text-[#ff5fa2]" : "border-[#e5e5e7] text-[#52525b] hover:border-[#a1a1aa]")}>
+            <SlidersHorizontal size={15} />
+            {nF > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#ff5fa2] px-1 text-[10px] font-bold text-white">{nF}</span>}
+          </button>
           <span className="flex-1" />
           <Button variant="secondary" size="sm" icon={<Download size={14} />} loading={busy} onClick={exportXlsx}>Xuất Excel</Button>
         </div>
       </div>
       {err && <Message msg={{ type: "err", text: err }} />}
+      {fOpen && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-black/40 p-3" role="dialog" aria-modal onClick={() => setFOpen(false)}>
+          <div className="w-full max-w-[380px] space-y-4 rounded-[12px] bg-white p-5 text-[13px] shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center"><p className="flex-1 text-[16px] font-semibold">Bộ lọc</p><button type="button" onClick={() => setFOpen(false)} aria-label="Đóng" className="p-1"><X size={18} /></button></div>
+            <div><p className="mb-1.5 font-medium">Kênh</p><div className="flex flex-wrap gap-1.5">
+              {([["all", "Tất cả"], ["shopee", "Shopee"], ["offline", "Ngoài sàn"]] as const).map(([k, l]) => <button key={k} type="button" onClick={() => setChannel(k)} className={chip(channel === k)}>{l}</button>)}</div></div>
+            <div><p className="mb-1.5 font-medium">Phân loại</p><div className="flex flex-wrap gap-1.5">
+              <button type="button" onClick={() => setCat("")} className={chip(!cat)}>Tất cả</button>
+              {cats.map((c) => <button key={c.id} type="button" onClick={() => setCat(c.id)} className={chip(cat === c.id)}>{c.name}</button>)}</div></div>
+            <div><p className="mb-1.5 font-medium">Tính đơn Shopee theo</p><div className="flex flex-wrap gap-1.5">
+              {([["paid", "Ngày hoàn thành thanh toán"], ["order_date", "Ngày đặt hàng"]] as const).map(([k, l]) => <button key={k} type="button" onClick={() => setDateField(k)} className={chip(dateField === k)}>{l}</button>)}</div></div>
+            <div className="flex justify-between gap-2 pt-1">
+              <Button variant="secondary" size="sm" onClick={() => { setChannel("all"); setCat(""); setDateField("paid"); }}>Đặt lại</Button>
+              <Button size="sm" onClick={() => setFOpen(false)}>Xong</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---------- cảnh báo dữ liệu ---------- */}
       {alerts && (N(alerts.pending) > 0 || N(alerts.mismatch) > 0 || N(alerts.unknown_lines) > 0) && (
