@@ -27,7 +27,11 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
     { href: "/admin/cong-cu/cat-kho", label: "Cắt đúng khổ", icon: "crop", group: "Công cụ" },
   ] },
   { title: "Tài chính", links: [
+    { href: "/admin/tai-chinh", label: "Tổng quan tài chính", icon: "chart", group: "Tài chính" },
     { href: "/admin/tai-chinh/don-shopee", label: "Đơn Shopee", icon: "wallet", group: "Tài chính" },
+    { href: "/admin/tai-chinh/ngoai-san", label: "Thu nhập ngoài sàn", icon: "cash", group: "Tài chính" },
+    { href: "/admin/tai-chinh/nguyen-lieu", label: "Nguyên liệu", icon: "boxes", group: "Tài chính" },
+    { href: "/admin/tai-chinh/cong-thuc", label: "Công thức giá vốn", icon: "recipe", group: "Tài chính" },
     { href: "/admin/tai-chinh/nhap", label: "Nhập dữ liệu Shopee", icon: "upload", group: "Tài chính" },
   ] },
   { title: "Hệ thống", links: [
