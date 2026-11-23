@@ -8,11 +8,11 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
   ] },
   { title: "Sản phẩm", links: [
     { href: "/admin/goi-san-pham", label: "Sản phẩm của tôi", icon: "package", group: "Sản phẩm" },
-    { href: "/admin/san-pham", label: "Gallery", icon: "star", group: "Sản phẩm" },
     { href: "/admin/giam-gia", label: "Giảm giá", icon: "tag", group: "Sản phẩm" },
   ] },
   { title: "Nội dung", links: [
     { href: "/admin/giao-dien", label: "Giao diện", icon: "layout", group: "Nội dung" },
+    { href: "/admin/san-pham", label: "Gallery", icon: "star", group: "Nội dung" },
     { href: "/admin/huong-dan", label: "Hướng dẫn", icon: "book", group: "Nội dung" },
     { href: "/admin/lien-he", label: "Liên hệ", icon: "phone", group: "Nội dung" },
   ] },
