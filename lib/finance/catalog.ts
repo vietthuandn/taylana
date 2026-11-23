@@ -8,7 +8,7 @@ export const KIND_LABEL: Record<ItemKind, string> = { material: "Nguyên liệu"
 export type Item = { id: string; name: string; category_id: string | null; unit: string; kind: ItemKind; uses_per_unit: number | null; cost_per_use: number | null; sale_price: number | null };
 export type ItemCost = { item_id: string; unit_price: number | null; last_price: number | null; last_on: string | null; purchases_12m: number; cost: number | null };
 export type Purchase = { id: string; item_id: string; category_id: string | null; qty: number; buy_unit: string | null; conv: number; total: number; bought_on: string; note: string | null; created_at: string };
-export type Recipe = { id: string; name: string; source: "cd" | "print" | "custom"; category_id: string | null };
+export type Recipe = { id: string; name: string; source: "cd" | "print" | "custom"; category_id: string | null; sort_order?: number | null; sale_price?: number | null; fee_pct?: number | null };
 export type RecipeItem = { id: string; recipe_id: string; item_id: string; qty: number; sort_order: number };
 export type RecipeCost = { recipe_id: string; cost: number; missing: boolean; parts: number };
 export type MapRule = { id: string; match_name: string | null; match_variation: string | null; match_product_id: string | null; match_sku: string | null; recipe_id: string | null; category_id: string | null; priority: number };
@@ -33,6 +33,7 @@ export async function loadCatalog(sb: SupabaseClient) {
     q<MapRule[]>(sb.from("finance_product_map").select("*").order("priority", { ascending: false })),
     q<{ key: string; value: Record<string, unknown> }[]>(sb.from("finance_settings").select("key,value")),
   ]);
+  recipes.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name, "vi")); // thứ tự admin xếp
   const set = Object.fromEntries(settings.map((s) => [s.key, s.value]));
   const pk = (set.packaging ?? {}) as Partial<Packaging>;
   return {

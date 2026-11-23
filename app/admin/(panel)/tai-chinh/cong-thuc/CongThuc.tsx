@@ -5,10 +5,10 @@
    · tab Ghép sản phẩm Shopee: quy tắc (cụm chữ trong tên sản phẩm / tên phân loại, mã sản phẩm, SKU) → công thức + phân loại;
      danh sách dòng sản phẩm Shopee CHƯA ghép được → chọn công thức (kèm "Lưu thành quy tắc"). */
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Save, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Save, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { fetchAll } from "@/lib/finance/reconcile";
-import { errText, money, productTypeNames, qtyText, type Catalog, type MapRule, type Recipe } from "@/lib/finance/catalog";
+import { errText, money, packagingCost, productTypeNames, qtyText, type Catalog, type MapRule, type Recipe } from "@/lib/finance/catalog";
 import { Combo, DecimalInput, type ComboOpt } from "@/components/admin/finance/Combo";
 import { categoryOpts, itemOpts, recipeOpts, useCatalog } from "@/components/admin/finance/useCatalog";
 import { Badge, Button, Card, EmptyState, Input, Message, confirmDialog, cx } from "@/components/admin/ui";
@@ -45,6 +45,7 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
   const r = cat.recipes.find((x) => x.id === sel) ?? null;
   useEffect(() => { setParts(cat.recipeItems.filter((x) => x.recipe_id === sel).map((x) => ({ item_id: x.item_id, qty: Number(x.qty) }))); setDirty(false); }, [sel, cat.recipeItems]);
   const cost = parts.reduce((a, p) => a + p.qty * (cat.costs.get(p.item_id)?.cost ?? 0), 0);
+  const pack = packagingCost(cat);
   const missing = parts.some((p) => p.item_id && cat.costs.get(p.item_id)?.cost == null);
   // gợi ý tên công thức mới: Loại CD + món in lẻ chưa có công thức
   const have = new Set(cat.recipes.map((x) => x.name.toLowerCase()));
@@ -64,6 +65,15 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
     if (ins.error) setErr(errText(ins.error.message)); else { setErr(""); await reload(); }
     setBusy(false);
   }
+  /** đổi thứ tự công thức (lưu sort_order = vị trí) */
+  async function move(i: number, d: number) {
+    const list = [...cat.recipes], j = i + d;
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    const res = await Promise.all(list.map((x, k) => (x.sort_order === k ? null : sb.from("finance_recipes").update({ sort_order: k }).eq("id", x.id))).filter(Boolean));
+    const e = res.find((x) => x?.error)?.error;
+    if (e) setErr(/sort_order|column/.test(e.message) ? "Cần chạy supabase/migration_finance_recipe_price.sql để xếp thứ tự công thức." : errText(e.message)); else await reload();
+  }
   async function remove() {
     if (!r || !await confirmDialog(`Xoá công thức "${r.name}"? Quy tắc ghép đang trỏ tới công thức này sẽ chỉ còn phân loại.`, { danger: true, ok: "Xoá" })) return;
     const { error } = await sb.from("finance_recipes").delete().eq("id", r.id);
@@ -77,13 +87,20 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
         </div>
         {cat.recipes.length ? (
           <ul className="max-h-[60vh] divide-y divide-[#efeff1] overflow-y-auto">
-            {cat.recipes.map((x) => {
-              const c = cat.recipeCosts.get(x.id);
+            {cat.recipes.map((x, i) => {
+              const c = cat.recipeCosts.get(x.id), m = marginOf(x, c?.cost ?? 0, pack);
               return (
-                <li key={x.id}><button type="button" onClick={() => setSel(x.id)} className={cx("flex w-full items-center gap-2 px-3 py-2 text-left text-[13px]", sel === x.id ? "bg-[#fff5f9]" : "hover:bg-[#fafafa]")}>
-                  <span className="min-w-0 flex-1"><span className="block truncate font-medium">{x.name}</span><span className="text-[11px] text-[#a1a1aa]">{SRC[x.source]} · {c?.parts ?? 0} thành phần</span></span>
-                  <span className={cx("shrink-0 tabular-nums", c?.missing && "text-[#d97706]")}>{money(c?.cost ?? 0)}</span>
-                </button></li>
+                <li key={x.id} className={cx("flex items-center", sel === x.id ? "bg-[#fff5f9]" : "hover:bg-[#fafafa]")}>
+                  <button type="button" onClick={() => setSel(x.id)} className="flex min-w-0 flex-1 items-center gap-2 py-2 pl-3 text-left text-[13px]">
+                    <span className="min-w-0 flex-1"><span className="block truncate font-medium">{x.name}</span><span className="text-[11px] text-[#a1a1aa]">{SRC[x.source]} · {c?.parts ?? 0} thành phần</span></span>
+                    <span className="shrink-0 text-right tabular-nums"><span className={cx("block", c?.missing && "text-[#d97706]")}>{money(c?.cost ?? 0)}</span>
+                      {m && <span className={cx("block text-[11px]", m.pct < 0 ? "text-[#dc2626]" : m.pct < 0.15 ? "text-[#d97706]" : "text-[#16a34a]")}>lãi {pctTxt(m.pct)}</span>}</span>
+                  </button>
+                  <span className="flex shrink-0 flex-col px-1.5">
+                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Lên" className="text-[#a1a1aa] hover:text-[#18181b] disabled:opacity-30"><ChevronUp size={14} /></button>
+                    <button type="button" onClick={() => move(i, 1)} disabled={i === cat.recipes.length - 1} aria-label="Xuống" className="text-[#a1a1aa] hover:text-[#18181b] disabled:opacity-30"><ChevronDown size={14} /></button>
+                  </span>
+                </li>
               );
             })}
           </ul>
@@ -102,13 +119,13 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
             {parts.map((p, i) => {
               const it = cat.items.find((x) => x.id === p.item_id), c = p.item_id ? cat.costs.get(p.item_id)?.cost ?? null : null;
               return (
-                <div key={i} className="flex flex-wrap items-center gap-2 text-[13px]">
-                  <Combo className="min-w-[200px] flex-1" value={p.item_id || null} options={itemOpts(cat)} placeholder="Mặt hàng" onCreate={newItem}
+                <div key={i} className="grid grid-cols-[1fr_88px_auto] items-center gap-2 text-[13px] sm:grid-cols-[minmax(0,1fr)_88px_52px_150px_90px_auto]">
+                  <Combo className="col-span-3 sm:col-span-1" value={p.item_id || null} options={itemOpts(cat)} placeholder="Mặt hàng" onCreate={newItem}
                     onChange={(id) => { setParts((x) => x.map((y, j) => (j === i ? { ...y, item_id: id ?? "" } : y))); setDirty(true); }} />
-                  <DecimalInput value={p.qty} ariaLabel="Lượng dùng" onChange={(v) => { setParts((x) => x.map((y, j) => (j === i ? { ...y, qty: v } : y))); setDirty(true); }} className="w-[90px]" />
-                  <span className="w-[56px] text-[#71717a]">{it?.kind === "consumable" ? "lần" : it?.unit ?? ""}</span>
-                  <span className="w-[150px] text-right text-[12px] text-[#71717a] tabular-nums">{c === null ? (p.item_id ? <span className="text-[#d97706]">chưa nhập nguyên liệu này</span> : "") : `× ${money(c)} / ${it?.kind === "consumable" ? "lần" : it?.unit ?? ""}`}</span>
-                  <span className="w-[90px] text-right font-medium tabular-nums">{c === null ? "" : money(c * p.qty)}</span>
+                  <DecimalInput value={p.qty} ariaLabel="Lượng dùng" onChange={(v) => { setParts((x) => x.map((y, j) => (j === i ? { ...y, qty: v } : y))); setDirty(true); }} />
+                  <span className="text-[#71717a]">{it?.kind === "consumable" ? "lần" : it?.unit ?? ""}</span>
+                  <span className="text-right text-[12px] text-[#71717a] tabular-nums max-sm:hidden">{c === null ? (p.item_id ? <span className="text-[#d97706]">chưa nhập nguyên liệu này</span> : "") : `× ${money(c)} / ${it?.kind === "consumable" ? "lần" : it?.unit ?? ""}`}</span>
+                  <span className="text-right font-medium tabular-nums max-sm:hidden">{c === null ? "" : money(c * p.qty)}</span>
                   <button type="button" onClick={() => { setParts((x) => x.filter((_, j) => j !== i)); setDirty(true); }} aria-label="Bỏ" className="p-1 text-[#a1a1aa] hover:text-[#dc2626]"><Trash2 size={14} /></button>
                 </div>
               );
@@ -117,9 +134,45 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
           </div>
           <p className="mt-4 text-[15px]">Giá vốn ước tính: <b>{money(cost)}</b>{missing && <span className="ml-2 text-[12px] text-[#d97706]">(có thành phần chưa nhập giá)</span>}</p>
           {dirty && <p className="text-[12px] text-[#d97706]">Chưa lưu thành phần.</p>}
+          <PriceBox key={r.id} r={r} cost={cost} pack={pack} onPatch={patch} />
         </Card>
       ) : <Card><EmptyState>Chọn hoặc thêm 1 công thức.</EmptyState></Card>}
     </div>
+  );
+}
+
+// ---------- giá bán Shopee → lãi / biên lãi ----------
+const pctTxt = (v: number) => `${(v * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1 })}%`;
+/** lãi khi bán trên Shopee: giá bán − phí sàn (% giá bán) − giá vốn − đóng gói */
+function marginOf(r: Recipe, cost: number, pack: number) {
+  const price = Number(r.sale_price) || 0;
+  if (!price) return null;
+  const fee = price * ((r.fee_pct ?? 30) / 100), profit = price - fee - cost - pack;
+  return { price, fee, profit, pct: profit / price };
+}
+function PriceBox({ r, cost, pack, onPatch }: { r: Recipe; cost: number; pack: number; onPatch: (v: Partial<Recipe>) => Promise<void> }) {
+  const [price, setPrice] = useState(r.sale_price ? String(r.sale_price) : "");
+  const [fee, setFee] = useState(r.fee_pct ?? 30);
+  const m = marginOf({ ...r, sale_price: Number(price.replace(/\D/g, "")) || null, fee_pct: fee }, cost, pack);
+  const Row = ({ k, v, b, c }: { k: string; v: string; b?: boolean; c?: string }) => <p className={cx("flex justify-between gap-3", b && "font-semibold", c)}><span>{k}</span><span className="tabular-nums">{v}</span></p>;
+  return (
+    <section className="mt-5 rounded-[10px] border border-[#e5e5e7] p-3">
+      <p className="mb-2 text-[13px] font-semibold">Giá bán trên Shopee</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-[12px] text-[#71717a]">Giá bán (đ)<Input inputMode="numeric" value={price} placeholder="ví dụ 135000"
+          onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))} onBlur={() => { const v = Number(price) || null; if (v !== (r.sale_price ?? null)) onPatch({ sale_price: v }); }} /></label>
+        <label className="text-[12px] text-[#71717a]">Phí sàn áp dụng (%)<span onBlur={() => fee !== (r.fee_pct ?? 30) && onPatch({ fee_pct: fee })}><DecimalInput value={fee} onChange={setFee} /></span></label>
+      </div>
+      {m ? (
+        <div className="mt-3 space-y-1 text-[13px]">
+          <Row k="Giá bán" v={money(m.price)} />
+          <Row k={`− Phí sàn (${fee.toLocaleString("vi-VN")}%)`} v={money(m.fee)} />
+          <Row k="− Giá vốn" v={money(cost)} />
+          <Row k="− Đóng gói" v={money(pack)} />
+          <Row k="Lãi mỗi đơn" v={`${money(m.profit)} · ${pctTxt(m.pct)}`} b c={m.pct < 0 ? "text-[#dc2626]" : m.pct < 0.15 ? "text-[#d97706]" : "text-[#16a34a]"} />
+        </div>
+      ) : <p className="mt-2 text-[12px] text-[#a1a1aa]">Nhập giá bán để xem lãi và biên lãi.</p>}
+    </section>
   );
 }
 
