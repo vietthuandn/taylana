@@ -135,7 +135,7 @@ function Recipes({ cat, reload, newItem, newCategory, setErr }: { cat: Catalog; 
                   <GripVertical size={14} className="shrink-0 text-[#d4d4d8]" />
                   <span className="min-w-0 flex-1"><span className="block truncate font-medium">{x.name}</span><span className="text-[11px] text-[#a1a1aa]">{SRC[x.source]} · {c?.parts ?? 0} thành phần</span></span>
                   <span className="shrink-0 text-right tabular-nums"><span className={cx("block", c?.missing && "text-[#d97706]")}>{money(c?.cost ?? 0)}</span>
-                    {m && <span className={cx("block text-[11px]", m.pct < 0 ? "text-[#dc2626]" : m.pct < 0.15 ? "text-[#d97706]" : "text-[#16a34a]")}>lãi {kTxt(m.profit)} ({pctTxt(m.pct)})</span>}</span>
+                    {m && <span className={cx("block text-[11px]", m.pct < 0 ? "text-[#dc2626]" : m.pct < 0.15 ? "text-[#d97706]" : "text-[#16a34a]")}>{kTxt(m.price)} ({pctTxt(m.pct)})</span>}</span>
                 </li>
               );
             })}
