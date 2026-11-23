@@ -1,11 +1,4 @@
-import { GuideAdmin } from "./GuideAdmin";
-import { AdminPage, PageHeader } from "@/components/admin/ui";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <AdminPage>
-      <PageHeader title="Hướng dẫn làm file" />
-      <GuideAdmin />
-    </AdminPage>
-  );
-}
+// đã gộp vào Admin → Nội dung (tab)
+export default function Page() { redirect("/admin/noi-dung?tab=huong-dan"); }

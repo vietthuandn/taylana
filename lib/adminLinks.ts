@@ -12,9 +12,7 @@ export const adminGroups: { title: string; links: AdminLink[] }[] = [
   ] },
   { title: "Nội dung", links: [
     { href: "/admin/giao-dien", label: "Giao diện", icon: "layout", group: "Nội dung" },
-    { href: "/admin/san-pham", label: "Gallery", icon: "star", group: "Nội dung" },
-    { href: "/admin/huong-dan", label: "Hướng dẫn", icon: "book", group: "Nội dung" },
-    { href: "/admin/lien-he", label: "Liên hệ", icon: "phone", group: "Nội dung" },
+    { href: "/admin/noi-dung", label: "Nội dung", icon: "book", group: "Nội dung" }, // tab Gallery · Hướng dẫn · Liên hệ
   ] },
   { title: "Thiết kế", links: [
     { href: "/admin/thiet-ke/chat-lieu", label: "Quản lý chất liệu", icon: "sticker", group: "Thiết kế" },
