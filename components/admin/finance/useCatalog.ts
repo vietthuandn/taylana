@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { addCategory, addItem, errText, loadCatalog, type Catalog, type Item } from "@/lib/finance/catalog";
+import { addCategory, addItem, errText, loadCatalog, money, type Catalog, type Item } from "@/lib/finance/catalog";
 import type { ComboOpt } from "./Combo";
 
 /** tải danh mục tài chính (phân loại, mặt hàng, giá, công thức, quy tắc, cài đặt) + các hàm thêm nhanh cho combobox */
@@ -30,3 +30,5 @@ export function itemOpts(c: Catalog, usage: Record<string, number> = {}): ComboO
   for (const r of c.recipeItems) n[r.item_id] = (n[r.item_id] ?? 0) + 1;
   return c.items.map((x) => ({ id: x.id, label: x.name, hint: x.unit, count: n[x.id] ?? 0 }));
 }
+/** gợi ý công thức: tên + giá vốn ước tính */
+export const recipeOpts = (c: Catalog): ComboOpt[] => c.recipes.map((r) => ({ id: r.id, label: r.name, hint: money(c.recipeCosts.get(r.id)?.cost ?? 0) }));
