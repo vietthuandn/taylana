@@ -1,9 +1,12 @@
 import "server-only";
-import { publicClient } from "@/lib/supabase/public";
+import { createClient } from "@supabase/supabase-js";
+import { hasSupabase, SUPABASE_KEY, SUPABASE_URL } from "@/lib/supabase/env";
 import { DEFAULT_STATUS, normalizeStatus, type StatusKind, type StatusPage } from "./statusPages";
 
+// đọc thẳng database, KHÔNG dùng bộ nhớ đệm (bật / tắt "Tạm nghỉ bán", "Yêu cầu mã" phải có tác dụng ngay)
+const fresh = () => (hasSupabase ? createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false }, global: { fetch: (u, o) => fetch(u, { ...o, cache: "no-store" }) } }) : null);
 async function get(key: string) {
-  const sb = publicClient();
+  const sb = fresh();
   if (!sb) return undefined;
   const { data } = await sb.from("site_settings").select("value").eq("key", key).maybeSingle();
   return data?.value;

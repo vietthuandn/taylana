@@ -13,9 +13,13 @@ export function ShopPauseToggle() {
   async function toggle() {
     const v = !on;
     setOn(v);
-    const { error } = await createClient().from("site_settings").upsert({ key: "shop_paused", value: v, updated_at: new Date().toISOString() });
+    const sb = createClient();
+    const { error } = await sb.from("site_settings").upsert({ key: "shop_paused", value: v, updated_at: new Date().toISOString() }, { onConflict: "key" });
     if (error) { setOn(!v); return toast(error.message, "err"); }
-    await revalidatePublic(["/dat-don", "/gio-hang"], true);
+    // đọc lại để chắc đã lưu đúng
+    const { data } = await sb.from("site_settings").select("value").eq("key", "shop_paused").maybeSingle();
+    if ((data?.value === true) !== v) { setOn(data?.value === true); return toast("Chưa lưu được trạng thái — thử lại hoặc kiểm tra quyền admin.", "err"); }
+    await revalidatePublic(["/dat-don", "/gio-hang", "/san-pham"], true);
     toast(v ? "Đã tạm nghỉ bán — trang Đặt đơn hiện thông báo tạm ngưng" : "Đã mở bán lại");
   }
   return (
