@@ -2,15 +2,18 @@
 /* Tài chính → Nhập dữ liệu Shopee: kéo thả 1 hoặc nhiều file .xlsx → đọc bằng SheetJS trên trình duyệt (không gửi file lên server)
    → so với Supabase → bảng xem trước "Mới · Cập nhật · Trùng bỏ qua · Lỗi" (mở xem chi tiết) → bấm "Nhập" mới ghi → lưu lịch sử nhập. */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, FileSpreadsheet, Upload, X } from "lucide-react";
+import { ChevronDown, FileSpreadsheet, Trash2, Upload, X } from "lucide-react";
+import { promptDialog } from "@/components/ui/dialog";
 import { createClient } from "@/lib/supabase/client";
 import { parseShopeeFile } from "@/lib/finance/shopee";
 import { planImport, runImport, type Plan } from "@/lib/finance/importer";
-import { Badge, Button, Card, EmptyState, Message, cx } from "@/components/admin/ui";
+import { Badge, Button, Card, EmptyState, Message, confirmDialog, cx } from "@/components/admin/ui";
 
 const KIND: Record<Plan["kind"], string> = { income: "Báo cáo Income", balance: "My Balance", orders: "File xuất đơn" };
 const ST = { new: ["Mới", "green"], update: ["Cập nhật", "blue"], dup: ["Trùng bỏ qua", "gray"] } as const;
 type Hist = { id: number; file_name: string; kind: string; new_count: number; update_count: number; dup_count: number; err_count: number; created_at: string };
+type Wipe = "orders" | "lines" | "wallet" | "history";
+const WIPE: Record<Wipe, string> = { orders: "Đơn Income (kèm dòng sản phẩm)", lines: "Dòng file xuất đơn", wallet: "Giao dịch ví My Balance", history: "Lịch sử nhập" };
 type Item = { file: string; plan?: Plan; error?: string; done?: string };
 
 export function ImportShopee() {
@@ -21,6 +24,40 @@ export function ImportShopee() {
   const [hist, setHist] = useState<Hist[]>([]);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const fileIn = useRef<HTMLInputElement>(null);
+  const [wipe, setWipe] = useState<Wipe[]>([]);
+  /** xoá các đơn (và dòng sản phẩm) nhập từ 1 file Income */
+  async function delIncomeFile(h: Hist) {
+    if (!await confirmDialog(`Xoá các đơn Shopee nhập từ file "${h.file_name}" (kèm dòng sản phẩm)? Giao dịch ví và file xuất đơn giữ nguyên.`, { danger: true, ok: "Xoá" })) return;
+    const sb = createClient();
+    setBusy("Đang xoá...");
+    const { data, error } = await sb.from("shopee_orders").select("order_sn").eq("source_file", h.file_name);
+    const sns = ((data ?? []) as { order_sn: string }[]).map((x) => x.order_sn);
+    let err = error?.message ?? "";
+    for (let i = 0; i < sns.length && !err; i += 150) {
+      const c = sns.slice(i, i + 150);
+      const a = await sb.from("shopee_order_items").delete().in("order_sn", c);
+      const b = a.error ? a : await sb.from("shopee_orders").delete().in("order_sn", c);
+      if (b.error) err = b.error.message;
+    }
+    if (!err) await sb.from("finance_imports").delete().eq("id", h.id);
+    setBusy(""); setMsg(err ? { type: "err", text: err } : { type: "ok", text: `Đã xoá ${sns.length} đơn của file ${h.file_name}.` }); await loadHist();
+  }
+  /** xoá hẳn các bảng đã chọn (gõ XOA để xác nhận) */
+  async function wipeData() {
+    const v = await promptDialog({ title: "Xoá dữ liệu đã nhập", message: `Sẽ xoá hẳn: ${wipe.map((k) => WIPE[k]).join(", ")}. Không hoàn tác được. Gõ XOA để xác nhận.`, label: "Xác nhận", placeholder: "XOA", confirmText: "Xoá" });
+    if (!v || v.trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") !== "XOA") return;
+    const sb = createClient();
+    setBusy("Đang xoá..."); setMsg(null);
+    const errs: string[] = [];
+    const del = async (t: string, col: string) => { const { error } = await sb.from(t).delete().not(col, "is", null); if (error) errs.push(`${t}: ${error.message}`); };
+    if (wipe.includes("orders")) { await del("shopee_order_items", "order_sn"); await del("shopee_orders", "order_sn"); }
+    if (wipe.includes("lines")) await del("shopee_order_lines", "order_sn");
+    if (wipe.includes("wallet")) await del("shopee_wallet_tx", "id");
+    if (wipe.includes("history")) await del("finance_imports", "id");
+    setBusy(""); setWipe([]); setItems([]);
+    setMsg(errs.length ? { type: "err", text: errs.join(" · ") } : { type: "ok", text: "Đã xoá. Giờ có thể nhập lại file." });
+    await loadHist();
+  }
   const loadHist = useCallback(async () => {
     const { data, error } = await createClient().from("finance_imports").select("*").order("created_at", { ascending: false }).limit(30);
     if (error) setMsg({ type: "err", text: error.message.includes("finance_imports") ? "Chưa có bảng Tài chính — cần chạy supabase/migration_finance_shopee.sql." : error.message });
@@ -112,7 +149,7 @@ export function ImportShopee() {
         {hist.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
-              <thead className="text-left text-[12px] text-[#71717a]"><tr><th className="px-4 py-2 font-medium">Thời gian</th><th className="px-4 py-2 font-medium">File</th><th className="px-4 py-2 font-medium max-md:hidden">Loại</th><th className="px-4 py-2 font-medium">Mới · Cập nhật · Trùng · Lỗi</th></tr></thead>
+              <thead className="text-left text-[12px] text-[#71717a]"><tr><th className="px-4 py-2 font-medium">Thời gian</th><th className="px-4 py-2 font-medium">File</th><th className="px-4 py-2 font-medium max-md:hidden">Loại</th><th className="px-4 py-2 font-medium">Mới · Cập nhật · Trùng · Lỗi</th><th /></tr></thead>
               <tbody className="divide-y divide-[#efeff1]">
                 {hist.map((h) => (
                   <tr key={h.id}>
@@ -120,12 +157,22 @@ export function ImportShopee() {
                     <td className="max-w-[260px] truncate px-4 py-2" title={h.file_name}>{h.file_name}</td>
                     <td className="px-4 py-2 max-md:hidden">{KIND[h.kind as Plan["kind"]] ?? h.kind}</td>
                     <td className="whitespace-nowrap px-4 py-2 tabular-nums">{h.new_count} · {h.update_count} · {h.dup_count} · <span className={h.err_count ? "text-[#dc2626]" : ""}>{h.err_count}</span></td>
+                    <td className="px-2 py-2 text-right">{h.kind === "income" && <button type="button" onClick={() => delIncomeFile(h)} title="Xoá các đơn của file này" aria-label="Xoá dữ liệu của file" className="p-1 text-[#a1a1aa] hover:text-[#dc2626]"><Trash2 size={14} /></button>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : <div className="p-5"><EmptyState>Chưa nhập file nào.</EmptyState></div>}
+      </Card>
+
+      <Card title="Xoá dữ liệu đã nhập" description="Lỡ nhập sai: chọn phần cần xoá rồi nhập lại file. Không ảnh hưởng nguyên liệu, công thức, đơn ngoài sàn.">
+        <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px]">
+          {(Object.keys(WIPE) as Wipe[]).map((k) => (
+            <label key={k} className="flex items-center gap-1.5"><input type="checkbox" className="accent-[#dc2626]" checked={wipe.includes(k)} onChange={(e) => setWipe((w) => (e.target.checked ? [...w, k] : w.filter((x) => x !== k)))} />{WIPE[k]}</label>
+          ))}
+        </div>
+        <Button className="mt-3" variant="secondary" icon={<Trash2 size={15} />} disabled={!wipe.length || !!busy} loading={busy === "Đang xoá..."} onClick={wipeData}>Xoá dữ liệu đã chọn</Button>
       </Card>
     </div>
   );
