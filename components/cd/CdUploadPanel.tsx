@@ -5,7 +5,10 @@
    variant "grid": ô lớn có mockup (Gửi file) · "list": danh sách dọc gọn, booklet thành lưới 4 cột (Mockup). */
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Check, FileCheck2, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { Check, FileCheck2, HardDrive, Plus, RefreshCw, Trash2, Upload } from "lucide-react";
+import { DriveImport } from "@/components/drive/DriveImport";
+import { driveEnabled } from "@/lib/drive";
+import { toast } from "@/components/ui/kit";
 import { matchFileName, type PackLayout } from "@/lib/matchFileName";
 import { PrintArea } from "@/components/mockup/Mockups";
 import { btnClass, cx, inputClass } from "@/components/ui/styles";
@@ -18,6 +21,7 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
   readOnly?: boolean; variant?: "grid" | "list" | "compact"; onPick: (s: SlotDef, f: File) => void; onRemove: (s: SlotDef) => void; onPreview?: () => void; previewing?: boolean;
 }) {
   const [multiOpen, setMultiOpen] = useState(false);
+  const [driveOpen, setDriveOpen] = useState(false); // "Từ Google Drive" (ẩn khi chưa cấu hình NEXT_PUBLIC_GOOGLE_API_KEY)
   const groups = (["front", "back", "disc"] as const).map((g) => ({ g, list: slots.filter((s) => s.group === g) })).filter((x) => x.list.length);
   const title = (g: string) => (g === "front" ? (layout.front >= 4 ? "Bìa trước · Booklet" : "Bìa trước") : g === "back" ? "Bìa sau" : "Mặt đĩa");
   const size = (g: string) => (g === "front" ? "12 × 12 cm" : g === "back" ? "15 × 11.7 cm" : "Tròn 12 cm");
@@ -32,15 +36,30 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
         }
       }} />
   );
+  const drive = driveOpen && (
+    <DriveImport slots={slots} layout={layout} onClose={() => setDriveOpen(false)}
+      onDone={(items, errors) => {
+        setDriveOpen(false);
+        for (const it of items) { const sl = slots.find((x) => x.id === it.slot); if (sl) onPick(sl, it.file); }
+        if (errors.length) toast(`Không tải được ${errors.length} ảnh: ${errors.slice(0, 2).join(" · ")}`, "err");
+      }} />
+  );
 
   // compact (trang Mockup): nút hồng full → các section, mọi section chung lưới 4 cột
   if (variant === "compact") {
     return (
       <div className="space-y-6">
-        <button type="button" onClick={() => setMultiOpen(true)}
-          className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[8px] text-[14px] font-semibold text-white transition-opacity hover:opacity-90" style={{ background: PINK }}>
-          <Upload size={16} /> Tải nhiều ảnh
-        </button>
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setMultiOpen(true)}
+            className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-[8px] text-[14px] font-semibold text-white transition-opacity hover:opacity-90" style={{ background: PINK }}>
+            <Upload size={16} /> Tải nhiều ảnh
+          </button>
+          {driveEnabled && (
+            <button type="button" onClick={() => setDriveOpen(true)} className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-[8px] border border-[#e5e5e7] bg-white text-[14px] font-semibold text-[#18181b] hover:bg-[#f4f4f5]">
+              <HardDrive size={16} /> Từ Google Drive
+            </button>
+          )}
+        </div>
         {groups.map(({ g, list }) => (
           <section key={g}>
             <div className="mb-2 flex items-baseline justify-between gap-2">
@@ -65,6 +84,7 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
           </section>
         ))}
         {multi}
+        {drive}
       </div>
     );
   }
@@ -76,7 +96,10 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
           <p className="text-[13px] text-[#71717a]">
             Bạn chưa có ảnh? <Link href="/huong-dan" className="font-semibold text-[var(--c-primary)] hover:text-[#e0468a]">Nhấn vào đây</Link> để được hướng dẫn
           </p>
-          <button className={`${btnClass("secondary")} mt-3`} onClick={() => setMultiOpen(true)}>⇪ Tải nhiều ảnh</button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button className={btnClass("secondary")} onClick={() => setMultiOpen(true)}>⇪ Tải nhiều ảnh</button>
+            {driveEnabled && <button className={btnClass("secondary")} onClick={() => setDriveOpen(true)}><HardDrive size={15} /> Từ Google Drive</button>}
+          </div>
         </>
       )}
 
@@ -102,6 +125,7 @@ export function CdUploadPanel({ slots, layout, files, existing = {}, readOnly, v
       ))}
 
       {multi}
+      {drive}
     </div>
   );
 }

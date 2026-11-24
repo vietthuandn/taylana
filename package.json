@@ -26,6 +26,7 @@
     "@react-three/postprocessing": "^3.2.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
+    "heic2any": "^0.0.4",
     "jszip": "^3.10.2",
     "konva": "^10.9.1",
     "lucide-react": "^0.544.0",

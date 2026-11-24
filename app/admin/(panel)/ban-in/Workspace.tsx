@@ -5,7 +5,9 @@
    Ảnh chỉ lưu trên máy (IndexedDB). Lọc: Tất cả / Thiếu ảnh / Đủ ảnh / Đã in / Chưa xác định · tìm username · chọn đơn để in. */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, Box, Check, FileText, FolderInput, Plus, RotateCw, Search, Settings, Trash2, Upload, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Box, Check, FileText, FolderInput, HardDrive, Plus, RotateCw, Search, Settings, Trash2, Upload, X } from "lucide-react";
+import { DriveImport } from "@/components/drive/DriveImport";
+import { driveEnabled } from "@/lib/drive";
 import { mmToPx } from "@/lib/print";
 import { deleteItem, deleteOrder, getBatch, insertOrders, insertRule, listAddons, listItems, listOrders, listRules, patchOrder, upsertItem } from "@/lib/printShop/db";
 import { delFile, fileKey, getFile, putFile } from "@/lib/printShop/files";
@@ -41,6 +43,7 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
   const [importing, setImporting] = useState(false);
   const [settings, setSettings] = useState(false);
   const [viewer, setViewer] = useState<{ order: Order; slot: Slot } | null>(null);
+  const [driveFor, setDriveFor] = useState<Order | null>(null); // "Từ Google Drive" cho 1 đơn
   const [unmatched, setUnmatched] = useState<{ orderId: string; files: File[] }[]>([]);
   const [folderMap, setFolderMap] = useState<{ folders: Folder[]; to: Record<string, string> } | null>(null);
   const [dropOver, setDropOver] = useState(false);
@@ -203,7 +206,7 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
         {shown.map((o) => (
           <OrderCard key={o.id} o={o} packs={packs} addons={addons} slots={slotsFor(o)} stat={stat(o)} batchId={batchId} thumbs={thumbs} itemOf={(s) => itemOf(o, s)}
             selected={sel.has(o.id)} onSelect={() => toggle(o.id)} onPatch={(v, rem) => setOrder(o, v, rem)}
-            onMockup={() => setMock(o)} onDropSlot={(slot, f) => saveFile(o, slot, f, f.name)} onDropFiles={(fs) => dropFiles(o, fs)} onSwap={swap} onOpen={(s) => setViewer({ order: o, slot: s })}
+            onMockup={() => setMock(o)} onDropSlot={(slot, f) => saveFile(o, slot, f, f.name)} onDropFiles={(fs) => dropFiles(o, fs)} onDrive={driveEnabled ? () => setDriveFor(o) : undefined} onSwap={swap} onOpen={(s) => setViewer({ order: o, slot: s })}
             onDelete={async () => { if (await confirmDialog({ title: `Xoá đơn ${o.username || o.order_code}?`, confirmText: "Xoá", danger: true })) { for (const s of slotsFor(o)) await delFile(fileKey(batchId, o.id, s.key)).catch(() => undefined); await deleteOrder(o.id); setOrders((c) => c.filter((x) => x.id !== o.id)); } }} />
         ))}
       </div>
@@ -214,6 +217,7 @@ export function Workspace({ batchId, packs }: { batchId: string; packs: Pack[] }
       {importing && <ImportModal packs={packs} addons={addons} rules={rules} existing={orders} onAdd={addOrders} onClose={() => setImporting(false)} />}
       {mock && <MockupModal o={mock} pack={packOf(mock)} batchId={batchId} items={items.filter((i) => i.order_id === mock.id)} onClose={() => setMock(null)} />}
       {settings && <SettingsModal packs={packs} rules={rules} addons={addons} onRules={setRules} onAddons={setAddons} onClose={() => setSettings(false)} />}
+      {driveFor && <DriveImport onClose={() => setDriveFor(null)} onDone={(items, errors) => { const o = driveFor; setDriveFor(null); if (errors.length) toast(`Không tải được ${errors.length} ảnh: ${errors.slice(0, 2).join(" · ")}`, "err"); if (items.length) dropFiles(o, items.map((x) => x.file)); }} />}
       {viewer && <Viewer o={viewer.order} slot={viewer.slot} batchId={batchId} item={itemOf(viewer.order, viewer.slot.key)} onClose={() => setViewer(null)}
         onReplace={(f) => saveFile(viewer.order, viewer.slot.key, f, f.name)} onRotate={() => rotate(viewer.order, viewer.slot.key)} onDelete={async () => { await removeFile(viewer.order, viewer.slot.key); setViewer(null); }} />}
       {unmatched[0] && (() => {
@@ -260,10 +264,10 @@ function warn(s: Slot, it?: Item) {
   return out.length ? out : null;
 }
 
-function OrderCard({ o, packs, addons, slots, stat, batchId, thumbs, itemOf, selected, onSelect, onPatch, onMockup, onDropSlot, onDropFiles, onSwap, onOpen, onDelete }: {
+function OrderCard({ o, packs, addons, slots, stat, batchId, thumbs, itemOf, selected, onSelect, onPatch, onMockup, onDropSlot, onDropFiles, onDrive, onSwap, onOpen, onDelete }: {
   o: Order; packs: Pack[]; addons: Addon[]; slots: Slot[]; stat: { total: number; n: number; full: boolean }; batchId: string; thumbs: Record<string, string>;
   itemOf: (s: string) => Item | undefined; selected: boolean; onSelect: () => void; onPatch: (v: Partial<Order>, rem?: { result: "package" | "addon"; id: string }) => void; onMockup: () => void;
-  onDropSlot: (slot: string, f: File) => void; onDropFiles: (fs: File[]) => void; onSwap: (a: { o: string; s: string }, b: { o: string; s: string }) => void; onOpen: (s: Slot) => void; onDelete: () => void;
+  onDropSlot: (slot: string, f: File) => void; onDropFiles: (fs: File[]) => void; onDrive?: () => void; onSwap: (a: { o: string; s: string }, b: { o: string; s: string }) => void; onOpen: (s: Slot) => void; onDelete: () => void;
 }) {
   const [over, setOver] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -286,6 +290,7 @@ function OrderCard({ o, packs, addons, slots, stat, batchId, thumbs, itemOf, sel
         {o.order_code && <span className="text-[12px] text-[#71717a]">{o.order_code}</span>}
         <span className="flex-1" />
         {o.status === "printed" ? <Badge tone="green">Đã in</Badge> : bad ? <Badge tone="amber">Chưa xác định</Badge> : stat.full ? <span className="rounded-full bg-[#dcfce7] px-2 py-0.5 text-[12px] font-semibold text-[#15803d]">Đủ ảnh {stat.n}/{stat.total}</span> : <span className="rounded-full bg-[#ffedd5] px-2 py-0.5 text-[12px] font-semibold text-[#c2410c]">Thiếu {stat.total - stat.n}</span>}
+        {onDrive && <button type="button" onClick={onDrive} title="Ảnh từ link Google Drive" aria-label="Ảnh từ Google Drive" className="grid h-7 w-7 place-items-center rounded-[6px] text-[#71717a] hover:bg-[#f4f4f5] hover:text-[#18181b]"><HardDrive size={14} /></button>}
         <button type="button" onClick={onDelete} className="grid h-7 w-7 place-items-center rounded-[6px] text-[#a1a1aa] hover:bg-[#fef2f2] hover:text-[#dc2626]" aria-label="Xoá đơn"><Trash2 size={14} /></button>
       </div>
       {(o.product || o.variation) && <p className="mt-1 line-clamp-2 text-[12px] text-[#71717a]" title={`${o.product}\n${noMusic(o.variation)}`}>{noMusic(o.variation) || o.product}</p>}
